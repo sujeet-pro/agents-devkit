@@ -1,0 +1,102 @@
+{
+  "name": "claude-devkit",
+  "description": "Skills, agents, guidelines, and MCP integrations for Claude Code — PR review, document writing, self-review, diagram generation, and more",
+  "version": "1.0.0",
+  "plugins": [
+    {
+      "name": "devkit-full",
+      "description": "Full claude-devkit: all skills, agents, and guidelines. This is the recommended install.",
+      "source": "."
+    },
+    {
+      "name": "devkit-guidelines",
+      "description": "Coding and document guidelines only (required dependency for most skills)",
+      "source": "./guidelines"
+    },
+    {
+      "name": "devkit-agents",
+      "description": "Agent definitions only (required dependency for most skills)",
+      "source": "./agents"
+    },
+    {
+      "name": "pr-review",
+      "description": "Multi-agent PR code review for GitHub and Bitbucket. Requires: devkit-guidelines, devkit-agents.",
+      "source": "./skills/pr-review"
+    },
+    {
+      "name": "pr-describe",
+      "description": "Generate and post PR descriptions from code changes",
+      "source": "./skills/pr-describe"
+    },
+    {
+      "name": "self-review",
+      "description": "Iterative self-review with lint/test/build validation loops. Requires: devkit-guidelines, devkit-agents.",
+      "source": "./skills/self-review"
+    },
+    {
+      "name": "blog",
+      "description": "Write, review, or update blog posts with narrative structure. Requires: devkit-guidelines, devkit-agents.",
+      "source": "./skills/blog"
+    },
+    {
+      "name": "article",
+      "description": "Write, review, or update deep technical articles. Requires: devkit-guidelines, devkit-agents.",
+      "source": "./skills/article"
+    },
+    {
+      "name": "project-docs",
+      "description": "Write, review, or update project documentation from codebase scanning. Requires: devkit-guidelines, devkit-agents.",
+      "source": "./skills/project-docs"
+    },
+    {
+      "name": "doc-write",
+      "description": "General-purpose document writer with diagrams and research. Requires: devkit-guidelines, devkit-agents.",
+      "source": "./skills/doc-write"
+    },
+    {
+      "name": "doc-review",
+      "description": "Multi-agent document review for Confluence and Google Docs. Requires: devkit-guidelines, devkit-agents.",
+      "source": "./skills/doc-review"
+    },
+    {
+      "name": "review",
+      "description": "Universal review orchestrator — auto-detects PR or document. Requires: devkit-guidelines, devkit-agents.",
+      "source": "./skills/review"
+    },
+    {
+      "name": "diagram",
+      "description": "Generate Mermaid or Excalidraw diagrams",
+      "source": "./skills/diagram"
+    },
+    {
+      "name": "research",
+      "description": "Deep web research with citations and multi-agent execution. Requires: devkit-agents.",
+      "source": "./skills/research"
+    },
+    {
+      "name": "slack-compose",
+      "description": "Compose and send Slack messages with context awareness",
+      "source": "./skills/slack-compose"
+    },
+    {
+      "name": "frontend-design",
+      "description": "Generate 5 design variations with interactive selection",
+      "source": "./skills/frontend-design"
+    },
+    {
+      "name": "create-skill",
+      "description": "Create new skills with iterative quality loops built in",
+      "source": "./skills/create-skill"
+    },
+    {
+      "name": "confluence-publish",
+      "description": "Publish markdown documents to Confluence",
+      "source": "./skills/confluence-publish"
+    },
+    {
+      "name": "validate-mcp",
+      "description": "Test MCP server connections and OAuth flows",
+      "source": "./skills/validate-mcp"
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": []
+  },
+  "env": {},
+  "mcpServers": {
+    "atlassian-confluence": {
+      "command": "uvx",
+      "args": ["mcp-atlassian", "--confluence-url", "${CONFLUENCE_BASE_URL}", "--confluence-username", "${CONFLUENCE_EMAIL}", "--confluence-token", "${CONFLUENCE_API_TOKEN}"]
+    },
+    "bitbucket": {
+      "command": "sh",
+      "args": ["-c", "BITBUCKET_USERNAME=${CONFLUENCE_EMAIL} BITBUCKET_PASSWORD=$BITBUCKET_TOKEN npx -y bitbucket-mcp@latest"]
+    },
+    "google-drive": {
+      "command": "npx",
+      "args": ["-y", "@piotr-agier/google-drive-mcp"]
+    }
+  },
+  "contextInstructions": [
+    "When accessing Google Docs, Sheets, Drive, Slides, or Calendar, use the google-drive MCP server tools.",
+    "When accessing Confluence pages or spaces, use the atlassian-confluence MCP server tools.",
+    "When accessing Bitbucket PRs, repos, or pipelines, use the bitbucket MCP server tools.",
+    "When sending Slack messages, use the Slack MCP server tools.",
+    "When accessing Gmail, use the Gmail MCP server tools.",
+    "When accessing Google Calendar events, use the Google Calendar MCP server tools.",
+    "For PR reviews, auto-detect the repo type from package.json and apply appropriate guidelines from the devkit guidelines/ directory.",
+    "When generating diagrams, prefer Mermaid for technical diagrams and Excalidraw for freeform/architectural diagrams."
+  ]
+}
