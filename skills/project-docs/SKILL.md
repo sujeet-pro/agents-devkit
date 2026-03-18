@@ -22,7 +22,7 @@ arguments:
 
 # Project Documentation — Write, Review & Update
 
-> **Dependencies**: This skill works best with the full devkit installed (`/plugin install devkit-full@claude-devkit` or `./install.sh`). It uses guidelines from `guidelines/document/`, and delegates to agents (`code-snippet-agent`, `diagram-agent`). If guidelines or agents are missing, the skill still works but with reduced quality enforcement.
+> **Dependencies**: This skill works best with the full devkit installed (`/plugin install devkit-full@claude-devkit` or `zsh install.zsh`). It uses guidelines from `guidelines/document/`, and delegates to agents (`code-snippet-agent`, `diagram-agent`). If guidelines or agents are missing, the skill still works but with reduced quality enforcement.
 
 Generate, review, or update project documentation by scanning a codebase. Produces architecture diagrams, quick start guides, configuration references, and API documentation — all derived from what actually exists in the code.
 

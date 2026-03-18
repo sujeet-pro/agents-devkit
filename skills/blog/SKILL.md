@@ -25,7 +25,7 @@ arguments:
 
 # Blog Post — Write, Review & Update
 
-> **Dependencies**: This skill works best with the full devkit installed (`/plugin install devkit-full@claude-devkit` or `./install.sh`). It uses guidelines from `guidelines/document/` and `guidelines/coding/`, and delegates to agents (`research-agent`, `code-snippet-agent`, `diagram-agent`). If guidelines or agents are missing, the skill still works but with reduced quality enforcement.
+> **Dependencies**: This skill works best with the full devkit installed (`/plugin install devkit-full@claude-devkit` or `zsh install.zsh`). It uses guidelines from `guidelines/document/` and `guidelines/coding/`, and delegates to agents (`research-agent`, `code-snippet-agent`, `diagram-agent`). If guidelines or agents are missing, the skill still works but with reduced quality enforcement.
 
 Write new blog posts, review existing ones for quality, or update them with improvements. Blog posts are shorter, opinion-driven, and narrative — designed to be read in one sitting.
 

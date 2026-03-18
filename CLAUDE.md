@@ -8,9 +8,10 @@ This repository contains the claude-devkit plugin system: a collection of skills
 claude-devkit/
 ├── .claude-plugin/         # Plugin marketplace manifest
 │   └── marketplace.json    # Lists all skills for /plugin install
-├── install.sh              # Main installer (--mode=remote|dev)
-├── uninstall.sh            # Removes installed devkit items
-├── update.sh               # Updates devkit and re-installs
+├── claude.json             # MCP server template (merged into ~/.claude.json at install)
+├── install.zsh              # Idempotent installer: symlinks + MCP config (for contributors)
+├── uninstall.zsh            # Removes symlinks + MCP servers
+├── SETUP.md                # Auto-install instructions (for Claude Code to follow)
 ├── CLAUDE.md               # This file — instructions for devkit contributors
 ├── skills/                 # Skill definitions (each in its own directory)
 │   ├── review/             # Generic review orchestrator (PR or doc)
@@ -89,7 +90,7 @@ claude-devkit/
    - A title and description of what the skill does
    - Instructions for when and how to invoke the skill
    - Any tool usage patterns or workflows the skill enables
-4. Test by installing with `--mode=dev` and verifying the skill appears in Claude Code.
+4. Test by running `zsh install.zsh` and verifying the skill appears in Claude Code.
 
 ## How to Add New Agents
 
@@ -98,7 +99,7 @@ claude-devkit/
    - The agent's role and purpose
    - System instructions for the agent
    - Any specific tools or workflows the agent should use
-3. Test by installing with `--mode=dev` and invoking the agent.
+3. Test by running `zsh install.zsh` and invoking the agent.
 
 ## How to Add New Guidelines
 
@@ -116,7 +117,7 @@ Guidelines are organized into two categories:
 
 1. Create a new directory under `repo-configs/` with the config type name.
 2. Add a `CLAUDE.md` file with repo-specific instructions.
-3. Users install these via `install.sh --repo-config=<type>`.
+3. Users can copy these into their project manually: `cp repo-configs/<type>/CLAUDE.md /path/to/project/`.
 
 ## Git Commit Rules
 
@@ -131,24 +132,19 @@ Guidelines are organized into two categories:
 - Guidelines are `.md` files organized under `guidelines/coding/` and `guidelines/document/`.
 - Settings files go under `settings/`.
 - All markdown files should use ATX-style headers (`#`, `##`, etc.).
-- Shell scripts must start with `#!/usr/bin/env bash` and use `set -euo pipefail`.
+- Shell scripts must start with `#!/usr/bin/env zsh` and use `set -euo pipefail`.
 - Scripts must work on both macOS (darwin) and Linux.
 
 ## Testing
 
-1. Install in dev mode from this repo:
+1. Install from this repo (creates symlinks + merges MCP):
    ```bash
-   ./install.sh --mode=dev
+   zsh install.zsh
    ```
 2. Open a real project and verify skills, agents, and guidelines are available.
 3. Test uninstall:
    ```bash
-   ./uninstall.sh
-   ```
-4. Test repo-config installation:
-   ```bash
-   cd /path/to/your/project
-   /path/to/claude-devkit/install.sh --repo-config=default
+   zsh uninstall.zsh
    ```
 
 ## CLI Tool Preferences
@@ -171,7 +167,7 @@ These tools are installed via Homebrew and npm (managed by the dot-files repo).
 
 ## Development Workflow
 
-- Use `--mode=dev` during development so changes are reflected immediately via symlinks.
-- Run `./install.sh --mode=dev` once, then edit files in-place.
+- Run `zsh install.zsh` once to create symlinks from `~/.claude/` to this repo.
+- Edit files in-place — changes are reflected immediately via symlinks.
 - No rebuild or re-install step needed after editing skill/agent/guideline content.
-- When testing the install/uninstall flow itself, use `--mode=remote` to verify copy behavior.
+- Re-run `zsh install.zsh` only when MCP server configuration changes.

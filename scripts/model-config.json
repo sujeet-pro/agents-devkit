@@ -1,0 +1,37 @@
+{
+  "claude": {
+    "cmd": "claude",
+    "model": "claude-opus-4-6",
+    "flags": "-p --model claude-opus-4-6 --output-format text",
+    "provider": "anthropic",
+    "input_mode": "arg"
+  },
+  "codex": {
+    "cmd": "codex",
+    "model": "o3-pro",
+    "flags": "--model o3-pro --full-auto",
+    "provider": "openai",
+    "input_mode": "arg"
+  },
+  "gemini": {
+    "cmd": "gemini",
+    "model": "gemini-2.5-pro",
+    "flags": "",
+    "provider": "google",
+    "input_mode": "stdin"
+  },
+  "cursor-gpt": {
+    "cmd": "cursor-cli",
+    "model": "gpt-5.4",
+    "flags": "--model gpt-5.4",
+    "provider": "cursor",
+    "input_mode": "arg"
+  },
+  "cursor-gemini": {
+    "cmd": "cursor-cli",
+    "model": "gemini-2.5-pro",
+    "flags": "--model gemini-2.5-pro",
+    "provider": "cursor",
+    "input_mode": "arg"
+  }
+}

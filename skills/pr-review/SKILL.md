@@ -16,7 +16,7 @@ arguments:
 
 # PR Review Skill
 
-> **Dependencies**: This skill works best with the full devkit installed (`/plugin install devkit-full@claude-devkit` or `./install.sh`). It uses guidelines from `guidelines/coding/` and delegates to the `code-reviewer` agent. If guidelines are missing, the skill still works but reviews against general best practices only.
+> **Dependencies**: This skill works best with the full devkit installed (`/plugin install devkit-full@claude-devkit` or `zsh install.zsh`). It uses guidelines from `guidelines/coding/` and delegates to the `code-reviewer` agent. If guidelines are missing, the skill still works but reviews against general best practices only.
 
 Perform an exhaustive, multi-agent code review on a pull request. This skill works
 with both GitHub and Bitbucket repositories, auto-detects the project type, loads
@@ -202,7 +202,7 @@ just the diff.
 
 ## Phase 3: Multi-Agent Review
 
-Spawn **five** parallel sub-agents using the `mcp__multi__chat` tool (or by issuing
+Spawn **five** parallel sub-agents using the Agent tool (by issuing
 five parallel tool calls). Each agent receives:
 
 - The full diff

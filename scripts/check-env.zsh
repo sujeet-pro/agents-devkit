@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/usr/bin/env zsh
 set -euo pipefail
 
 BOLD='\033[1m'
@@ -16,9 +16,9 @@ check_env() {
     local required="$2"  # "required" or "optional"
     local description="$3"
 
-    if [ -n "${!name:-}" ]; then
+    if [ -n "${(P)name:-}" ]; then
         # Show first 4 and last 4 chars, mask the rest
-        local val="${!name}"
+        local val="${(P)name}"
         local len=${#val}
         if [ $len -gt 12 ]; then
             local masked="${val:0:4}...${val: -4}"
@@ -39,44 +39,50 @@ check_env() {
 
 echo -e "\n${BOLD}Checking environment variables for claude-devkit...${NC}\n"
 
-echo -e "${BOLD}Bitbucket MCP${NC} (required for PR reviews on Bitbucket):"
-check_env "BITBUCKET_TOKEN" "required" "Bitbucket App Password"
+echo -e "${BOLD}Bitbucket MCP${NC} (for Bitbucket PR reviews):"
+check_env "BITBUCKET_TOKEN" "optional" "Bitbucket API Token"
 
 echo ""
-echo -e "${BOLD}Atlassian Confluence MCP${NC} (required for Confluence operations):"
-check_env "CONFLUENCE_API_TOKEN" "required" "Atlassian API token"
-check_env "CONFLUENCE_BASE_URL" "required" "e.g. https://yoursite.atlassian.net/wiki"
-check_env "CONFLUENCE_EMAIL" "required" "Atlassian account email"
+echo -e "${BOLD}Atlassian Confluence MCP${NC} (for Confluence operations):"
+check_env "CONFLUENCE_URL" "optional" "e.g. https://yoursite.atlassian.net/wiki"
+check_env "CONFLUENCE_USERNAME" "optional" "Atlassian account email"
+check_env "CONFLUENCE_API_TOKEN" "optional" "Atlassian API token"
 
 echo ""
-echo -e "${BOLD}AI API Keys${NC} (optional, for multi-model features):"
-check_env "ANTHROPIC_API_KEY" "optional" "Anthropic API key"
-check_env "OPENAI_API_KEY" "optional" "OpenAI API key"
+echo -e "${BOLD}Google Drive MCP${NC} (for Google Docs/Sheets/Slides/Drive):"
+check_env "GOOGLE_MCP_CLIENT_ID" "optional" "Google OAuth Client ID"
+check_env "GOOGLE_MCP_CLIENT_SECRET" "optional" "Google OAuth Client Secret"
+check_env "GOOGLE_DRIVE_OAUTH_CREDENTIALS" "optional" "Path to gcp-oauth.keys.json (auto-generated)"
+
+# Check if credentials file exists when path is set
+if [ -n "${GOOGLE_DRIVE_OAUTH_CREDENTIALS:-}" ] && [ ! -f "${GOOGLE_DRIVE_OAUTH_CREDENTIALS}" ]; then
+    printf "  ${YELLOW}!${NC} %-30s %s\n" "" "File not found — run: scripts/setup-google-drive.zsh"
+fi
+
+# Suggest setup if client ID is set but credentials file is missing
+if [ -n "${GOOGLE_MCP_CLIENT_ID:-}" ] && [ -z "${GOOGLE_DRIVE_OAUTH_CREDENTIALS:-}" ]; then
+    printf "  ${YELLOW}!${NC} %-30s %s\n" "" "Run: scripts/setup-google-drive.zsh to generate credentials"
+fi
 
 echo ""
 echo -e "${BOLD}OAuth-based MCP Servers${NC} (no env vars needed — browser login):"
-echo -e "  ${CYAN}ℹ${NC}  Google Drive MCP      — uses OAuth browser flow (first-time setup via npx)"
+echo -e "  ${CYAN}ℹ${NC}  Google Drive MCP      — run scripts/setup-google-drive.zsh for first-time OAuth setup"
 echo -e "  ${CYAN}ℹ${NC}  Slack MCP             — Claude.ai built-in integration (login via Claude Desktop)"
 echo -e "  ${CYAN}ℹ${NC}  Gmail MCP             — Claude.ai built-in integration (login via Claude Desktop)"
 echo -e "  ${CYAN}ℹ${NC}  Google Calendar MCP   — Claude.ai built-in integration (login via Claude Desktop)"
 
 echo ""
 if [ $errors -gt 0 ]; then
-    echo -e "${RED}${BOLD}✗ $errors required variable(s) not set.${NC}"
+    echo -e "${RED}${BOLD}✗ $errors variable(s) not set.${NC}"
     echo -e ""
-    echo -e "  Add these to ${BOLD}~/.zshenv${NC}:"
-    echo -e "    export BITBUCKET_TOKEN=\"your-app-password\""
-    echo -e "    export CONFLUENCE_API_TOKEN=\"your-api-token\""
-    echo -e "    export CONFLUENCE_BASE_URL=\"https://yoursite.atlassian.net/wiki\""
-    echo -e "    export CONFLUENCE_EMAIL=\"your-email@example.com\""
+    echo -e "  Add missing variables to ${BOLD}~/.zshenv${NC}:"
+    echo -e "    export VAR_NAME=\"your-value\""
     echo -e ""
     echo -e "  Then reload: ${BOLD}source ~/.zshenv${NC}"
     echo -e ""
     echo -e "  See dot-files template: ${BOLD}~/personal/dot-files/configs/shell/.zshenv.example${NC}"
-    exit 1
 elif [ $warnings -gt 0 ]; then
-    echo -e "${YELLOW}${BOLD}○ $warnings optional variable(s) not set.${NC} Some features may be limited."
-    echo -e "${GREEN}${BOLD}✓ All required variables present.${NC}"
+    echo -e "${YELLOW}${BOLD}○ $warnings optional variable(s) not set.${NC} Some MCP integrations will be unavailable."
 else
     echo -e "${GREEN}${BOLD}✓ All environment variables configured.${NC}"
 fi

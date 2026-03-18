@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/usr/bin/env zsh
 set -euo pipefail
 
 BOLD='\033[1m'
@@ -39,8 +39,6 @@ echo -e "${BOLD}Locally-configured MCP Servers${NC} (in ~/.claude.json):"
 check_mcp "atlassian-confluence" "required" "API token"
 check_mcp "bitbucket" "required" "App password via \$BITBUCKET_TOKEN"
 check_mcp "google-drive" "required" "OAuth browser flow"
-check_mcp "multi" "optional" "API keys in .env"
-
 echo ""
 echo -e "${BOLD}Claude.ai Built-in Integrations${NC} (managed by Claude Desktop):"
 echo -e "  ${CYAN}ℹ${NC}  These are configured via Claude Desktop → Settings → Integrations"

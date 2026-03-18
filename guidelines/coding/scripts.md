@@ -9,14 +9,14 @@ to writing reliable, portable, and maintainable scripts.
 
 ## 1. Error Handling
 
-### Shell Scripts (Bash)
+### Shell Scripts (Zsh)
 - **Always start with `set -euo pipefail`**:
   - `set -e`: Exit immediately on any command failure
   - `set -u`: Treat unset variables as errors
   - `set -o pipefail`: Pipe fails if any command in the pipeline fails (not just
     the last one)
-  ```bash
-  #!/usr/bin/env bash
+  ```zsh
+  #!/usr/bin/env zsh
   set -euo pipefail
   ```
 - **Use `trap` for cleanup**:
@@ -192,12 +192,12 @@ to writing reliable, portable, and maintainable scripts.
   - Usage/syntax with examples
   - Required environment variables
   - Prerequisites (tools, permissions)
-  ```bash
-  #!/usr/bin/env bash
-  # deploy.sh -- Deploy the application to a target environment.
+  ```zsh
+  #!/usr/bin/env zsh
+  # deploy.zsh -- Deploy the application to a target environment.
   #
   # Usage:
-  #   ./deploy.sh <environment> [--dry-run] [--skip-tests]
+  #   zsh deploy.zsh <environment> [--dry-run] [--skip-tests]
   #
   # Arguments:
   #   environment     Target environment (staging, production)
@@ -215,8 +215,8 @@ to writing reliable, portable, and maintainable scripts.
   #   - Docker logged in to the container registry
   #
   # Examples:
-  #   ./deploy.sh staging
-  #   ./deploy.sh production --dry-run
+  #   zsh deploy.zsh staging
+  #   zsh deploy.zsh production --dry-run
   ```
 - **Support `--help`** and show usage information when invoked without arguments
   or with `--help` / `-h`.
@@ -282,12 +282,10 @@ to writing reliable, portable, and maintainable scripts.
 
 ## 8. Portability (macOS + Linux)
 
-- **Use `#!/usr/bin/env bash`** instead of `#!/bin/bash` for the shebang. The
-  former works on systems where Bash is not at `/bin/bash` (e.g., NixOS, Homebrew
-  on macOS).
-- **Avoid Bash-specific features when possible.** If the script must be portable
-  to `sh`, avoid arrays, `[[ ]]`, `$(())`, `<<<`, `<()`, and associative arrays.
-  If Bash features are needed, document the Bash requirement.
+- **Use `#!/usr/bin/env zsh`** for the shebang. Zsh is the default shell on macOS
+  and provides consistent behavior across environments.
+- **Run scripts via `zsh filename.zsh`** instead of making them executable and
+  running with `./filename.zsh`.
 - **macOS vs Linux differences**:
   - `sed -i`: macOS requires `sed -i ''`, Linux uses `sed -i`. Use
     `sed -i.bak` and delete the backup, or detect the OS.

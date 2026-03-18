@@ -97,6 +97,21 @@
       "name": "validate-mcp",
       "description": "Test MCP server connections and OAuth flows",
       "source": "./skills/validate-mcp"
+    },
+    {
+      "name": "multi",
+      "description": "Multi-model mode: run tasks through multiple AI CLIs and synthesize consensus results",
+      "source": "./skills/multi"
+    },
+    {
+      "name": "deep-research",
+      "description": "Exhaustive multi-agent research (alias for /research --depth=exhaustive). Requires: devkit-agents.",
+      "source": "./skills/deep-research"
+    },
+    {
+      "name": "search",
+      "description": "Quick lightweight research using Sonnet (alias for /research --depth=light). Requires: devkit-agents.",
+      "source": "./skills/search"
     }
   ]
 }

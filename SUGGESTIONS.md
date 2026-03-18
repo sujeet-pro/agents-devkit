@@ -34,7 +34,7 @@ Set up automated hooks that trigger Claude analysis on specific events in the de
 
 ### 2. Multi-Agent Orchestration
 
-Use the Multi MCP server to run parallel model comparisons for important decisions.
+Use the `/multi` skill to run parallel model comparisons for important decisions.
 
 **What to explore**:
 - Architecture decision reviews: present a design to multiple models and synthesize their feedback
@@ -42,9 +42,9 @@ Use the Multi MCP server to run parallel model comparisons for important decisio
 - Technology evaluation: have different models argue for/against a technology choice
 - Documentation review: get diverse perspectives on clarity and completeness
 
-**Why now**: The Multi MCP is already configured. Using multiple models reduces individual model blind spots and provides higher-confidence recommendations for consequential decisions.
+**Why now**: The `/multi` skill is available. Using multiple models reduces individual model blind spots and provides higher-confidence recommendations for consequential decisions.
 
-**Getting started**: Use `mcp__multi__compare` for side-by-side evaluations. Use `mcp__multi__debate` for technology decisions. Reserve multi-model approaches for high-impact decisions to manage cost.
+**Getting started**: Use `/multi` for side-by-side evaluations and technology decisions. Reserve multi-model approaches for high-impact decisions to manage cost.
 
 ---
 
@@ -318,10 +318,10 @@ Build a system that provides richer context to Claude by analyzing the full depe
 
 ### 20. Multi-Model Ensemble Reviews
 
-Use multiple models (Claude, GPT, Gemini via Multi MCP) to review code, surfacing only findings that multiple models agree on.
+Use multiple models (Claude, GPT, Gemini via the `/multi` skill) to review code, surfacing only findings that multiple models agree on.
 
 **What it looks like**:
-1. Send the same diff to 3 models via `mcp__multi__compare`
+1. Send the same diff to 3 models via `/multi`
 2. Each model returns findings in the standard structured format
 3. A synthesis step identifies findings that appear in 2+ model outputs
 4. Only agreed-upon findings are posted to the PR

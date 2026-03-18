@@ -288,7 +288,7 @@ Present a test plan to the user:
 ```
 ## Test Plan for /<name>
 
-1. Install in dev mode: `./install.sh --mode=dev`
+1. Install: `zsh install.zsh`
 2. Open a test project and invoke: `/<name> <example args>`
 3. Verify:
    - [ ] Skill triggers correctly

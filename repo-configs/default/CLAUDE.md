@@ -149,10 +149,10 @@ The review spawns multiple agents that check accuracy, clarity, and completeness
 This is the **default** CLAUDE.md template. To get more specific instructions for your repo type, re-install with a targeted template:
 
 ```bash
-/path/to/claude-devkit/install.sh --repo-config=design-system
-/path/to/claude-devkit/install.sh --repo-config=frontend-nextjs
-/path/to/claude-devkit/install.sh --repo-config=library
-/path/to/claude-devkit/install.sh --repo-config=backend
+/path/to/claude-devkit/install.zsh --repo-config=design-system
+/path/to/claude-devkit/install.zsh --repo-config=frontend-nextjs
+/path/to/claude-devkit/install.zsh --repo-config=library
+/path/to/claude-devkit/install.zsh --repo-config=backend
 ```
 
 You can also edit this file directly to add project-specific instructions. Lines you add will not be overwritten unless you re-run the repo-config install.

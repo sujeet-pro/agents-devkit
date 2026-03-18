@@ -7,7 +7,7 @@ arguments:
     description: "Topic to research"
     required: true
   - name: depth
-    description: "Research depth: quick, standard, exhaustive (default: standard)"
+    description: "Research depth: light (quick), standard (default), deep/exhaustive"
     required: false
   - name: output
     description: "Output format: markdown, outline, notes (default: markdown)"
@@ -41,11 +41,13 @@ Break the topic down into:
 
 Based on the `depth` argument (default: `standard`):
 
-| Depth | Agents | Searches per Agent | Expected Time | Best For |
-|-------|--------|--------------------|---------------|----------|
-| `quick` | 1 | 3-5 | 1-2 min | Quick fact-checking, simple questions |
-| `standard` | 3 | 5-8 each | 3-5 min | Most research tasks, technical topics |
-| `exhaustive` | 5 | 8-12 each | 5-10 min | Deep dives, competitive analysis, academic topics |
+| Depth | Aliases | Agents | Searches per Agent | Expected Time | Best For |
+|-------|---------|--------|--------------------|---------------|----------|
+| `quick` | `light` | 1 | 3-5 | 1-2 min | Quick fact-checking, simple questions |
+| `standard` | *(default)* | 3 | 5-8 each | 3-5 min | Most research tasks, technical topics |
+| `exhaustive` | `deep` | 5 | 8-12 each | 5-10 min | Deep dives, competitive analysis, academic topics |
+
+**Alias resolution**: `light` → `quick`, `deep` → `exhaustive`. Resolve aliases before proceeding.
 
 ### 1.3 Present Research Plan
 

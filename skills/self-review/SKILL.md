@@ -22,7 +22,7 @@ arguments:
 
 # Self-Review Skill
 
-> **Dependencies**: This skill works best with the full devkit installed (`/plugin install devkit-full@claude-devkit` or `./install.sh`). It uses guidelines from `guidelines/coding/` and delegates to the `code-reviewer` agent. If guidelines or agents are missing, the skill still works but uses built-in review heuristics instead.
+> **Dependencies**: This skill works best with the full devkit installed (`/plugin install devkit-full@claude-devkit` or `zsh install.zsh`). It uses guidelines from `guidelines/coding/` and delegates to the `code-reviewer` agent. If guidelines or agents are missing, the skill still works but uses built-in review heuristics instead.
 
 Iterative code review that reviews your changes, applies fixes, and runs lint/test/build in a loop until everything is clean. Designed to be run before pushing — catches issues early and fixes them automatically.
 

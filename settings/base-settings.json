@@ -1,30 +1,9 @@
 {
-  "permissions": {
-    "allow": []
-  },
-  "env": {},
-  "mcpServers": {
-    "atlassian-confluence": {
-      "command": "uvx",
-      "args": ["mcp-atlassian", "--confluence-url", "${CONFLUENCE_BASE_URL}", "--confluence-username", "${CONFLUENCE_EMAIL}", "--confluence-token", "${CONFLUENCE_API_TOKEN}"]
-    },
-    "bitbucket": {
-      "command": "sh",
-      "args": ["-c", "BITBUCKET_USERNAME=${CONFLUENCE_EMAIL} BITBUCKET_PASSWORD=$BITBUCKET_TOKEN npx -y bitbucket-mcp@latest"]
-    },
-    "google-drive": {
-      "command": "npx",
-      "args": ["-y", "@piotr-agier/google-drive-mcp"]
-    }
-  },
   "contextInstructions": [
-    "When accessing Google Docs, Sheets, Drive, Slides, or Calendar, use the google-drive MCP server tools.",
-    "When accessing Confluence pages or spaces, use the atlassian-confluence MCP server tools.",
-    "When accessing Bitbucket PRs, repos, or pipelines, use the bitbucket MCP server tools.",
-    "When sending Slack messages, use the Slack MCP server tools.",
-    "When accessing Gmail, use the Gmail MCP server tools.",
-    "When accessing Google Calendar events, use the Google Calendar MCP server tools.",
-    "For PR reviews, auto-detect the repo type from package.json and apply appropriate guidelines from the devkit guidelines/ directory.",
-    "When generating diagrams, prefer Mermaid for technical diagrams and Excalidraw for freeform/architectural diagrams."
+    "claude-devkit skills: /pr-review (multi-agent code review, 5 parallel agents), /self-review (iterative lint/test/build with auto-fix), /pr-describe (structured PR descriptions), /review (auto-detect PR vs document review), /article (deep technical articles, principal engineer voice), /blog (narrative blog posts), /project-docs (codebase-scanned project documentation), /doc-write (general document writer with research), /doc-review (multi-agent document review, 5 parallel agents), /diagram (auto-selects Mermaid or Excalidraw), /mermaid (Mermaid diagrams), /excalidraw (Excalidraw diagrams), /research (web research with citations, default: standard depth), /deep-research (exhaustive research, alias for /research --depth=exhaustive), /search (quick lightweight research using Sonnet), /slack-compose (tone-aware Slack messages), /confluence-publish (markdown to Confluence), /frontend-design (5 UI design variations), /validate-mcp (test MCP connections), /create-skill (create new devkit skills), /multi (multi-model mode for any task), /simplify (review changed code for quality).",
+    "Skill routing: code review or PR → /pr-review. Self-review before push → /self-review. PR description → /pr-describe. Auto-detect review type → /review. Technical article (3000-6000 words) → /article. Blog post (800-1500 words) → /blog. Project documentation → /project-docs. General document → /doc-write. Document review → /doc-review. Diagram → /diagram. Research (standard) → /research. Quick search/lookup → /search (uses Sonnet). Deep exhaustive research → /deep-research. Research depth aliases: light=quick, deep=exhaustive. Slack message → /slack-compose. Publish to Confluence → /confluence-publish. Frontend design → /frontend-design. Multi-model mode for any task → /multi <task>. Any skill with --multi flag triggers multi-model mode",
+    "MCP routing: Confluence URLs (*.atlassian.net/wiki/*) → atlassian-confluence MCP tools. Bitbucket URLs (bitbucket.org/*) → bitbucket MCP tools. Google Docs/Sheets/Slides/Drive → google-drive MCP tools. Slack operations → claude_ai_Slack MCP tools. Email operations → claude_ai_Gmail MCP tools. Calendar operations → claude_ai_Google_Calendar MCP tools. ",
+    "Agent delegation: All skills MUST delegate to specialized agents via the Agent tool (Agentic Teams pattern). Code review → code-reviewer agent. Document review → doc-reviewer agent. Research → research-agent. Diagrams → diagram-agent (routes to mermaid-agent or excalidraw-agent). Code blocks in documents → code-snippet-agent. Frontend design → frontend-designer agent. Multi-model consensus → consensus-agent.",
+    "Quality standards: All output targets Principal Engineer audience. Code generation must address: performance (optimize hot paths, lazy loading, caching), security (input validation, auth, no secrets, OWASP top 10), accessibility (WCAG 2.1 AA, semantic HTML, keyboard navigation), maintainability (clear naming, DRY, tests, documentation), DX (helpful errors, typed APIs, examples), and cost (bundle size, query efficiency, resource utilization). All documents target senior audience (staff/principal engineers, stakeholders, management). Technical accuracy is mandatory — all claims require citations to authoritative sources (RFCs, official docs, peer-reviewed research). All reviews use multi-agent teams with confidence scoring and interactive approval."
   ]
 }

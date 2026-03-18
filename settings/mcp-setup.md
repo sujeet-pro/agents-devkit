@@ -9,7 +9,6 @@ claude-devkit requires three locally-configured MCP servers and optionally uses 
 | atlassian-confluence | `mcp-atlassian` (PyPI) | API Token | Yes |
 | bitbucket | `bitbucket-mcp` (npm) | App Password | Yes |
 | google-drive | `@piotr-agier/google-drive-mcp` (npm) | OAuth (browser) | Yes |
-| multi | `multi_mcp` (local Python) | API Keys | Optional |
 | Slack | Claude.ai built-in | OAuth (browser) | Optional |
 | Gmail | Claude.ai built-in | OAuth (browser) | Optional |
 | Google Calendar | Claude.ai built-in | OAuth (browser) | Optional |
@@ -98,26 +97,9 @@ These are remote MCP servers managed by Claude.ai. No local configuration needed
 ### Re-authentication
 If a service needs re-auth, Claude will prompt you. You can also check `~/.claude/mcp-needs-auth-cache.json` for services flagged for re-auth.
 
-## Multi MCP (Optional)
-
-For multi-model comparison and code review using multiple AI models.
-
-### Setup
-1. Clone the multi_mcp repo
-2. Create a `.env` file with API keys (OPENAI_API_KEY, ANTHROPIC_API_KEY, etc.)
-3. Add to `~/.claude.json`:
-   ```json
-   "multi": {
-     "command": "python3",
-     "args": ["-m", "multi_mcp"],
-     "cwd": "/path/to/multi_mcp",
-     "env": {}
-   }
-   ```
-
 ## Validating Setup
 
 After configuration:
-1. Run `./scripts/validate-mcp.sh` to check MCP server entries exist
+1. Run `zsh scripts/validate-mcp.zsh` to check MCP server entries exist
 2. Use the `/validate-mcp` skill in Claude Code to test actual connectivity
 3. The skill will attempt to read a sample resource from each MCP server
