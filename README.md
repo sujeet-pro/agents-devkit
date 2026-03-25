@@ -10,48 +10,68 @@ Inspired by [superpowers](https://github.com/obra/superpowers). Diagram skills f
 
 ### Claude Code
 
+Register the marketplace and install the plugin:
+
 ```bash
-/plugin marketplace add sujeet-pro/claude-devkit
+/plugin marketplace add sujeet-pro/agents-devkit
 /plugin install devkit@devkit-marketplace
 ```
 
-For contributors (symlinks, live edits):
+Skills become available as `/devkit:<skill-name>` immediately.
+
+**For contributors** (symlinks so local edits reflect immediately):
 
 ```bash
+git clone https://github.com/sujeet-pro/agents-devkit.git
+cd agents-devkit
 zsh install.zsh
 ```
 
-For testing without live edits:
+Use `zsh install.zsh --copy` to copy files instead of symlinking.
 
-```bash
-zsh install.zsh --copy
-```
+See [SETUP.md](./SETUP.md) for MCP server configuration and dependency validation.
 
 ### Cursor
 
-Search "devkit" in the Cursor plugin marketplace, or:
+Install via the Cursor plugin marketplace:
 
 ```
 /add-plugin devkit
 ```
 
-### Codex
+Or search "devkit" in the Cursor plugin marketplace UI.
+
+Skills and agents are registered automatically from `.cursor-plugin/plugin.json`.
+
+### Codex CLI
+
+Tell Codex to fetch and follow the install instructions:
 
 ```text
-Fetch and follow instructions from https://raw.githubusercontent.com/sujeet-pro/claude-devkit/refs/heads/main/.codex/INSTALL.md
+Fetch and follow instructions from https://raw.githubusercontent.com/sujeet-pro/agents-devkit/refs/heads/main/.codex/INSTALL.md
 ```
 
-### OpenCode
-
-```text
-Fetch and follow instructions from https://raw.githubusercontent.com/sujeet-pro/claude-devkit/refs/heads/main/.opencode/INSTALL.md
-```
+This clones the repo to `~/.devkit` and symlinks the skills directory into `~/.agents/skills/devkit` for native discovery. See [docs/README.codex.md](./docs/README.codex.md) for details.
 
 ### Gemini CLI
 
 ```bash
-gemini extensions install https://github.com/sujeet-pro/claude-devkit
+gemini extensions install https://github.com/sujeet-pro/agents-devkit
 ```
+
+Gemini loads `GEMINI.md` as context and maps DevKit tool references to native Gemini equivalents. See [GEMINI.md](./GEMINI.md) for runtime rules.
+
+### OpenCode
+
+Add DevKit as a git-backed plugin in your `opencode.json`:
+
+```json
+{
+  "plugin": ["devkit@git+https://github.com/sujeet-pro/agents-devkit.git"]
+}
+```
+
+Restart OpenCode after updating the config. The plugin bridge registers the skills directory and injects the bootstrap skill. See [docs/README.opencode.md](./docs/README.opencode.md) for details.
 
 ## Update
 
@@ -202,7 +222,7 @@ zsh install.zsh --list                       # List all installable items
 ## Repo Layout
 
 ```text
-claude-devkit/
+agents-devkit/
 ├── .claude-plugin/      # Claude Code plugin metadata
 ├── .cursor-plugin/      # Cursor plugin metadata
 ├── .codex/              # Codex setup docs

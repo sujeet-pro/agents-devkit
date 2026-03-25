@@ -4,7 +4,7 @@ This is a **Next.js frontend** application. All code, reviews, and generation mu
 
 ## Devkit Integration
 
-Load frontend guidelines from the claude-devkit installation:
+Load frontend guidelines from the agents-devkit installation:
 
 ```
 ~/.claude/guidelines/general.md           — baseline code quality rules

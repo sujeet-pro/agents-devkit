@@ -7,7 +7,7 @@ Use this template when dispatching a code quality reviewer child agent.
 **Only dispatch after spec compliance review passes.**
 
 ```
-Task tool (akit:code-reviewer):
+Task tool (devkit:code-reviewer):
   Use template at review-local/code-reviewer.md
 
   WHAT_WAS_IMPLEMENTED: [from implementer's report]

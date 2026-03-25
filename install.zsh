@@ -80,7 +80,7 @@ for arg in "$@"; do
       echo "  - Reconfigure MCP servers after updating env vars (e.g. expired tokens)"
       echo ""
       echo "For regular users, use the /plugin method in Claude Code:"
-      echo "  /plugin marketplace add sujeet-pro/claude-devkit"
+      echo "  /plugin marketplace add sujeet-pro/agents-devkit"
       echo "  /plugin install devkit@devkit-marketplace"
       echo ""
       echo "Options:"
@@ -171,7 +171,7 @@ force_link() {
 mkdir -p "$CLAUDE_DIR"
 
 echo "========================================"
-echo "  AKIT installer"
+echo "  DevKit installer"
 echo "========================================"
 echo ""
 echo "Devkit dir: $DEVKIT_DIR"

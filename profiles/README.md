@@ -1,6 +1,6 @@
 # Profiles
 
-Profiles determine how claude-devkit adapts its behavior based on the type of repository being worked on.
+Profiles determine how DevKit adapts its behavior based on the type of repository being worked on.
 
 ## How It Works
 

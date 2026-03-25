@@ -1,6 +1,6 @@
 # Things to Explore
 
-Suggestions for extending claude-devkit and deepening Claude Code integration into daily workflows. Organized by priority and time horizon.
+Suggestions for extending DevKit and deepening Claude Code integration into daily workflows. Organized by priority and time horizon.
 
 ---
 
@@ -142,7 +142,7 @@ Create custom keybindings and workflows for IntelliJ + Claude Code integration.
 
 ### 9. Claude Code Plugin Marketplace
 
-Package and publish claude-devkit as an installable Claude Code plugin for others to use.
+Package and publish DevKit as an installable Claude Code plugin for others to use.
 
 **What to explore**:
 - Plugin packaging format and distribution
@@ -349,7 +349,7 @@ Use multiple models (Claude, GPT, Gemini via the `/multi` skill) to review code,
 ### Anthropic Resources
 
 - **Anthropic Developer Blog**: Stay updated on new API features, model improvements, and best practices for Claude integration.
-- **Claude Code Plugin Marketplace**: Monitor for the official launch. claude-devkit would benefit from the distribution and discovery that a marketplace provides.
+- **Claude Code Plugin Marketplace**: Monitor for the official launch. DevKit would benefit from the distribution and discovery that a marketplace provides.
 - **Claude Code Changelog**: Track new Claude Code features that could be leveraged by devkit skills (new tool types, improved agent capabilities, etc.).
 
 ### Community

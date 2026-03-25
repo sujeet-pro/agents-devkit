@@ -4,8 +4,8 @@
 
 ```bash
 # Clone the repo
-git clone https://github.com/sujeet-pro/claude-devkit.git
-cd claude-devkit
+git clone https://github.com/sujeet-pro/agents-devkit.git
+cd agents-devkit
 
 # Install for development (symlinks — edits reflect immediately)
 zsh install.zsh

@@ -1,7 +1,7 @@
 #!/usr/bin/env zsh
 set -euo pipefail
 
-# claude-devkit uninstaller
+# agents-devkit uninstaller
 # Removes symlinks created by install.zsh and managed MCP servers from ~/.claude.json.
 # Does NOT touch non-symlinked items (e.g. skills installed via /plugin).
 
@@ -37,7 +37,7 @@ fi
 # Confirm
 # ---------------------------------------------------------------------------
 echo "========================================"
-echo "  claude-devkit uninstaller"
+echo "  agents-devkit uninstaller"
 echo "========================================"
 echo ""
 echo "The following ${#ITEMS[@]} item(s) will be removed:"

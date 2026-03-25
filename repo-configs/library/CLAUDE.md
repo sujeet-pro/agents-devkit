@@ -4,7 +4,7 @@ This is a **JS/TS library** intended for consumption by other packages. All code
 
 ## Devkit Integration
 
-Load library guidelines from the claude-devkit installation:
+Load library guidelines from the agents-devkit installation:
 
 ```
 ~/.claude/guidelines/general.md          — baseline code quality rules

@@ -7,7 +7,7 @@ Use this file when you want Claude Code to install the full DevKit pack for the 
 1. Register the repo as a Claude marketplace:
 
    ```bash
-   /plugin marketplace add sujeet-pro/claude-devkit
+   /plugin marketplace add sujeet-pro/agents-devkit
    ```
 
 2. Install the full plugin:

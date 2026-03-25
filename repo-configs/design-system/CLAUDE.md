@@ -4,7 +4,7 @@ This is a **design system** repository. All code, reviews, and generation must f
 
 ## Devkit Integration
 
-Load design-system guidelines from the claude-devkit installation:
+Load design-system guidelines from the agents-devkit installation:
 
 ```
 ~/.claude/guidelines/general.md        — baseline code quality rules

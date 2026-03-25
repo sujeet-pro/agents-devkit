@@ -1,10 +1,10 @@
 # Project Repository
 
-This repository uses the **claude-devkit** plugin system for enhanced Claude Code capabilities.
+This repository uses the **agents-devkit** plugin system for enhanced Claude Code capabilities.
 
 ## Devkit Integration
 
-The claude-devkit is installed at `~/.claude/` and provides skills, agents, guidelines, and MCP integrations. The following resources are available in every session:
+The agents-devkit is installed at `~/.claude/` and provides skills, agents, guidelines, and MCP integrations. The following resources are available in every session:
 
 ### Guidelines
 
@@ -145,10 +145,10 @@ The review spawns multiple agents that check accuracy, clarity, and completeness
 This is the **default** CLAUDE.md template. To get more specific instructions for your repo type, re-install with a targeted template:
 
 ```bash
-/path/to/claude-devkit/install.zsh --repo-config=design-system
-/path/to/claude-devkit/install.zsh --repo-config=frontend-nextjs
-/path/to/claude-devkit/install.zsh --repo-config=library
-/path/to/claude-devkit/install.zsh --repo-config=backend
+/path/to/agents-devkit/install.zsh --repo-config=design-system
+/path/to/agents-devkit/install.zsh --repo-config=frontend-nextjs
+/path/to/agents-devkit/install.zsh --repo-config=library
+/path/to/agents-devkit/install.zsh --repo-config=backend
 ```
 
 You can also edit this file directly to add project-specific instructions. Lines you add will not be overwritten unless you re-run the repo-config install.

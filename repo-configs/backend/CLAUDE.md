@@ -4,7 +4,7 @@ This is a **backend** repository (Java or Python). All code, reviews, and genera
 
 ## Devkit Integration
 
-Load backend guidelines from the claude-devkit installation:
+Load backend guidelines from the agents-devkit installation:
 
 ```
 ~/.claude/guidelines/general.md          — baseline code quality rules

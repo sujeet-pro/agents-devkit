@@ -4,7 +4,7 @@ Add DevKit as a git-backed plugin in `opencode.json`:
 
 ```json
 {
-  "plugin": ["devkit@git+https://github.com/sujeet-pro/claude-devkit.git"]
+  "plugin": ["devkit@git+https://github.com/sujeet-pro/agents-devkit.git"]
 }
 ```
 

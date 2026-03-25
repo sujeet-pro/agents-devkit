@@ -1,7 +1,7 @@
 /**
- * AKIT plugin for OpenCode.ai
+ * DevKit plugin for OpenCode.ai
  *
- * Registers the shared skills directory and injects the using-akit bootstrap
+ * Registers the shared skills directory and injects the DevKit bootstrap
  * text into the system prompt.
  */
 
@@ -38,14 +38,14 @@ const normalizePath = (value, homeDir) => {
   return path.resolve(trimmed);
 };
 
-export const AkitPlugin = async () => {
+export const DevKitPlugin = async () => {
   const homeDir = os.homedir();
-  const akitSkillsDir = path.resolve(__dirname, '../../skills');
+  const devkitSkillsDir = path.resolve(__dirname, '../../skills');
   const envConfigDir = normalizePath(process.env.OPENCODE_CONFIG_DIR, homeDir);
   const configDir = envConfigDir || path.join(homeDir, '.config/opencode');
 
   const getBootstrapContent = () => {
-    const skillPath = path.join(akitSkillsDir, 'using-akit', 'SKILL.md');
+    const skillPath = path.join(devkitSkillsDir, 'use', 'SKILL.md');
     if (!fs.existsSync(skillPath)) return null;
 
     const fullContent = fs.readFileSync(skillPath, 'utf8');
@@ -57,12 +57,12 @@ export const AkitPlugin = async () => {
 - \`Read\`, \`Write\`, \`Edit\`, \`Bash\` -> native OpenCode tools
 
 **Skills location**
-AKIT skills are available from \`${configDir}/skills/akit/\` when installed through the plugin bridge.`;
+DevKit skills are available from \`${configDir}/skills/devkit/\` when installed through the plugin bridge.`;
 
     return `<EXTREMELY_IMPORTANT>
-You have access to AKIT.
+You have access to DevKit.
 
-The using-akit bootstrap skill is included below and is already available. Do not try to load it again before reading it.
+The DevKit bootstrap skill is included below and is already available. Do not try to load it again before reading it.
 
 ${content}
 
@@ -74,8 +74,8 @@ ${toolMapping}
     config: async (config) => {
       config.skills = config.skills || {};
       config.skills.paths = config.skills.paths || [];
-      if (!config.skills.paths.includes(akitSkillsDir)) {
-        config.skills.paths.push(akitSkillsDir);
+      if (!config.skills.paths.includes(devkitSkillsDir)) {
+        config.skills.paths.push(devkitSkillsDir);
       }
     },
 

@@ -39,7 +39,7 @@ Before making any edits, check `manifest.json` at the repo root:
 
 When improving DevKit itself:
 
-- first compare against the canonical GitHub source of truth at `https://github.com/sujeet-pro/claude-devkit` for skill definitions, references, and packaging docs before making local edits
+- first compare against the canonical GitHub source of truth at `https://github.com/sujeet-pro/agents-devkit` for skill definitions, references, and packaging docs before making local edits
 - refresh the mirrored diagram references from `../diagramkit/agent_skills/_references/`, for example with `rsync -a ../diagramkit/agent_skills/_references/ skills/_references/`
 - keep active coding and document guidance loaded from `skills/_references/guidelines/`
 

@@ -1,6 +1,6 @@
 # Integration Ideas
 
-Ideas for integrating Claude Code into daily development workflow using claude-devkit skills, agents, and MCP servers.
+Ideas for integrating Claude Code into daily development workflow using DevKit skills, agents, and MCP servers.
 
 Each idea includes a brief description, the MCP servers or tools involved, and an implementation sketch.
 

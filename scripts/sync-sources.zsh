@@ -87,7 +87,7 @@ fi
 
 # ── State ────────────────────────────────────────────────────────────────────
 
-TMPDIR_BASE=$(mktemp -d "${TMPDIR:-/tmp}/akit-sync.XXXXXX")
+TMPDIR_BASE=$(mktemp -d "${TMPDIR:-/tmp}/devkit-sync.XXXXXX")
 errors=0
 synced=0
 skipped=0

@@ -5,7 +5,7 @@ This repository contains the DevKit multi-agent skills pack: shared skills, agen
 ## Project Structure
 
 ```text
-claude-devkit/
+agents-devkit/
 ├── .claude-plugin/         # Claude plugin + marketplace metadata
 ├── .cursor-plugin/         # Cursor plugin metadata
 ├── .codex/                 # Codex install instructions

@@ -7,7 +7,7 @@ Enable DevKit in Codex via native skill discovery.
 1. Clone the repo somewhere stable:
 
    ```bash
-   git clone https://github.com/sujeet-pro/claude-devkit.git ~/.devkit
+   git clone https://github.com/sujeet-pro/agents-devkit.git ~/.devkit
    ```
 
 2. Expose the shared skills folder to Codex:
