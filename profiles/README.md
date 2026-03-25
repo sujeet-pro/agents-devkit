@@ -28,4 +28,4 @@ Once a repo type is identified, the profile influences:
 1. Add detection heuristics to `detect.md` under a new heading.
 2. Assign a tag (e.g., `[mobile]`).
 3. Create a corresponding `repo-configs/<type>/CLAUDE.md` template.
-4. Optionally add guidelines under `guidelines/` that are specific to the new type.
+4. Optionally add guidelines under `skills/_references/guidelines/` that are specific to the new type.

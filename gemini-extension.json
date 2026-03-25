@@ -1,0 +1,6 @@
+{
+  "name": "devkit",
+  "description": "Shared software-development skills pack for coding agents: reviews, docs, research, codebase audits, diagrams, and source-aware publishing",
+  "version": "3.0.0",
+  "contextFileName": "GEMINI.md"
+}

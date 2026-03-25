@@ -30,22 +30,30 @@ check_env() {
         printf "  ${GREEN}✓${NC} %-30s %s (${CYAN}%s${NC})\n" "$name" "$description" "$masked"
     elif [ "$required" = "required" ]; then
         printf "  ${RED}✗${NC} %-30s %s ${RED}— NOT SET${NC}\n" "$name" "$description"
-        ((errors++))
+        errors=$((errors + 1))
     else
         printf "  ${YELLOW}○${NC} %-30s %s ${YELLOW}— not set (optional)${NC}\n" "$name" "$description"
-        ((warnings++))
+        warnings=$((warnings + 1))
     fi
 }
 
-echo -e "\n${BOLD}Checking environment variables for claude-devkit...${NC}\n"
+echo -e "\n${BOLD}Checking environment variables for AKIT...${NC}\n"
 
+echo -e "${BOLD}GitHub MCP${NC} (for GitHub PR reviews):"
+check_env "GITHUB_PERSONAL_ACCESS_TOKEN" "optional" "GitHub PAT for github/github-mcp-server"
+check_env "GITHUB_HOST" "optional" "GitHub Enterprise host override"
+
+echo ""
 echo -e "${BOLD}Bitbucket MCP${NC} (for Bitbucket PR reviews):"
+check_env "BITBUCKET_URL" "optional" "e.g. https://api.bitbucket.org/2.0"
+check_env "BITBUCKET_USERNAME" "optional" "Bitbucket account email"
+check_env "BITBUCKET_WORKSPACE" "optional" "Bitbucket workspace slug"
 check_env "BITBUCKET_TOKEN" "optional" "Bitbucket API Token"
 
 echo ""
 echo -e "${BOLD}Atlassian Confluence MCP${NC} (for Confluence operations):"
-check_env "CONFLUENCE_URL" "optional" "e.g. https://yoursite.atlassian.net/wiki"
-check_env "CONFLUENCE_USERNAME" "optional" "Atlassian account email"
+check_env "CONFLUENCE_BASE_URL" "optional" "e.g. https://yoursite.atlassian.net/wiki"
+check_env "CONFLUENCE_EMAIL" "optional" "Atlassian account email"
 check_env "CONFLUENCE_API_TOKEN" "optional" "Atlassian API token"
 
 echo ""
@@ -67,9 +75,6 @@ fi
 echo ""
 echo -e "${BOLD}OAuth-based MCP Servers${NC} (no env vars needed — browser login):"
 echo -e "  ${CYAN}ℹ${NC}  Google Drive MCP      — run scripts/setup-google-drive.zsh for first-time OAuth setup"
-echo -e "  ${CYAN}ℹ${NC}  Slack MCP             — Claude.ai built-in integration (login via Claude Desktop)"
-echo -e "  ${CYAN}ℹ${NC}  Gmail MCP             — Claude.ai built-in integration (login via Claude Desktop)"
-echo -e "  ${CYAN}ℹ${NC}  Google Calendar MCP   — Claude.ai built-in integration (login via Claude Desktop)"
 
 echo ""
 if [ $errors -gt 0 ]; then

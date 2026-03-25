@@ -1,0 +1,59 @@
+{
+  "version": 1,
+  "description": "Tracks upstream sources that AKIT copies or references. Used by /devkit:manage-improve and /devkit:manage-update to sync content.",
+  "sources": {
+    "diagramkit": {
+      "type": "copy",
+      "repo": "https://github.com/sujeet-pro/diagramkit",
+      "branch": "main",
+      "source_path": "agent_skills/",
+      "mapping": {
+        "diagrams/": "skills/diagram/",
+        "diagram-mermaid/": "skills/diagram-mermaid/",
+        "diagram-excalidraw/": "skills/diagram-excalidraw/",
+        "diagram-drawio/": "skills/diagram-drawio/",
+        "diagramkit/": "skills/diagram-render/",
+        "diagrams-troubleshoot/": "skills/diagram-troubleshoot/",
+        "image-convert/": "skills/diagram-convert/",
+        "refs/mermaid/": "skills/_references/mermaid/",
+        "refs/excalidraw/": "skills/_references/excalidraw/",
+        "refs/drawio/": "skills/_references/drawio/"
+      },
+      "last_sync": "2026-03-25T00:00:00Z",
+      "last_commit": ""
+    },
+    "superpowers": {
+      "type": "copy",
+      "repo": "https://github.com/obra/superpowers",
+      "branch": "main",
+      "source_path": "skills/",
+      "mapping": {
+        "brainstorming/": "skills/plan-brainstorm/",
+        "writing-plans/": "skills/plan-write/",
+        "executing-plans/": "skills/plan-execute/",
+        "subagent-driven-development/": "skills/plan-execute/",
+        "dispatching-parallel-agents/": "skills/agent-team/",
+        "test-driven-development/": "skills/dev-tdd/",
+        "systematic-debugging/": "skills/dev-debug/",
+        "verification-before-completion/": "skills/dev-verify/",
+        "requesting-code-review/": "skills/review-local/",
+        "receiving-code-review/": "skills/pr-fix/",
+        "finishing-a-development-branch/": "skills/pr-finish/",
+        "using-git-worktrees/": "skills/dev-worktree/",
+        "writing-skills/": "skills/manage-skill/"
+      },
+      "last_sync": "2026-03-25T00:00:00Z",
+      "last_commit": ""
+    },
+    "pagesmith": {
+      "type": "ref",
+      "repo": "https://github.com/sujeet-pro/pagesmith",
+      "branch": "main",
+      "source_path": "packages/core/",
+      "ref_skills": ["write-markdown"],
+      "notes": "Referenced for markdown feature capabilities (GFM, code highlighting, collapsible sections, math, code tabs). Skills are authored in DevKit but informed by pagesmith capabilities.",
+      "last_sync": "2026-03-25T00:00:00Z",
+      "last_commit": ""
+    }
+  }
+}

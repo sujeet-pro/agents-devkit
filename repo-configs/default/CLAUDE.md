@@ -22,19 +22,17 @@ Invoke skills with the `/` command:
 
 | Skill | Command | Description |
 |-------|---------|-------------|
-| PR Review | `/pr-review <pr-number>` | Multi-agent code review for GitHub and Bitbucket PRs |
-| Slack Compose | `/slack-compose <prompt>` | Compose and send Slack messages with context awareness |
+| PR Review | `/review-pr <pr-number>` | Multi-agent code review for GitHub and Bitbucket PRs |
 | Diagram | `/diagram <description>` | Generate Mermaid or Excalidraw diagrams |
-| Doc Review | `/doc-review <url>` | Review Confluence or Google Docs with inline comments |
-| Doc Write | `/doc-write <topic>` | Write comprehensive documents with diagrams and research |
-| Frontend Design | `/frontend-design <description>` | Generate 5 design variations with interactive selection |
+| Doc Review | `/review-doc <url>` | Review Confluence or Google Docs with inline comments |
+| Doc Write | `/write-doc <topic>` | Write comprehensive documents with diagrams and research |
+| Frontend Design | `/design-frontend <description>` | Generate 5 design variations with interactive selection |
 
 ### Available Agents
 
 Agents are specialized sub-processes that can be spawned for focused tasks:
 
 - **code-reviewer** — Multi-perspective code analysis (bugs, security, performance, architecture)
-- **diagram-agent** — Technical diagram generation specialist
 - **doc-reviewer** — Document review for accuracy, clarity, and completeness
 - **research-agent** — Deep research with web search, synthesis, and citations
 
@@ -47,10 +45,8 @@ The following MCP servers are configured and available:
 | Google Drive | Google Docs, Sheets, Slides, Drive file management |
 | Confluence | Confluence pages, comments, attachments, search |
 | Bitbucket | Pull requests, pipelines, repos, branching models |
-| Slack | Messages, channels, threads, canvases, user profiles |
 | Gmail | Emails, drafts, labels, search |
 | Google Calendar | Events, scheduling, free time, RSVPs |
-| Multi | Multi-model chat, code review, comparison, debate |
 
 ## General Coding Best Practices
 
@@ -88,7 +84,7 @@ The following MCP servers are configured and available:
 
 ## Validation
 
-Commands for `/self-review` to run during iterative review. Update these to match your project:
+Commands to run after `/review-local` findings or before pushing. Update these to match your project:
 
 - lint: `npm run lint`
 - lint-fix: `npm run lint -- --fix`
@@ -98,12 +94,12 @@ Commands for `/self-review` to run during iterative review. Update these to matc
 
 ## PR Reviews
 
-To trigger a PR review, use the `/pr-review` skill:
+To trigger a PR review, use the `/review-pr` skill:
 
 ```
-/pr-review 42
-/pr-review https://github.com/org/repo/pull/42
-/pr-review 42 --tags=fe
+/review-pr 42
+/review-pr https://github.com/org/repo/pull/42
+/review-pr 42 --tags=fe
 ```
 
 ### Review Tags
@@ -124,22 +120,22 @@ If no tag is provided, the system auto-detects the repo type from project files.
 
 ### Writing Documents
 
-Use `/doc-write` to create comprehensive documents:
+Use `/write-doc` to create comprehensive documents:
 
 ```
-/doc-write "Migration guide for React 18 to 19" --format=confluence --depth=deep-dive
-/doc-write "API authentication architecture" --format=markdown --audience=senior
+/write-doc "Migration guide for React 18 to 19" --format=confluence --depth=deep-dive
+/write-doc "API authentication architecture" --format=markdown --audience=senior
 ```
 
 Output formats: `markdown` (local file), `confluence` (creates a Confluence page), `google-doc` (creates a Google Doc).
 
 ### Reviewing Documents
 
-Use `/doc-review` to review existing documents on Confluence or Google Docs:
+Use `/review-doc` to review existing documents on Confluence or Google Docs:
 
 ```
-/doc-review https://yourcompany.atlassian.net/wiki/spaces/ENG/pages/12345
-/doc-review https://docs.google.com/document/d/abc123 --focus=accuracy,completeness
+/review-doc https://yourcompany.atlassian.net/wiki/spaces/ENG/pages/12345
+/review-doc https://docs.google.com/document/d/abc123 --focus=accuracy,completeness
 ```
 
 The review spawns multiple agents that check accuracy, clarity, and completeness, then posts inline comments after your approval.

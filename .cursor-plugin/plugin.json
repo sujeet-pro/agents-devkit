@@ -1,0 +1,24 @@
+{
+  "name": "devkit",
+  "displayName": "DevKit",
+  "description": "Shared software-development skills pack for coding agents: reviews, docs, research, codebase audits, diagrams, and source-aware publishing",
+  "version": "3.0.0",
+  "author": {
+    "name": "Sujeet Kumar",
+    "email": "sujeet@example.com"
+  },
+  "homepage": "https://github.com/sujeet-pro/claude-devkit",
+  "repository": "https://github.com/sujeet-pro/claude-devkit",
+  "license": "MIT",
+  "keywords": [
+    "skills",
+    "agents",
+    "reviews",
+    "research",
+    "diagrams",
+    "workflows",
+    "devkit"
+  ],
+  "skills": "./skills/",
+  "agents": "./agents/"
+}

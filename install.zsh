@@ -1,10 +1,11 @@
 #!/usr/bin/env zsh
 set -euo pipefail
 
-# claude-devkit installer
+# DevKit installer
 # Idempotent: run for fresh install, or re-run to update after local edits / git pull / env var changes.
-# Always does a full installation: symlinks all skills/agents/guidelines/settings/profiles
-# and force-reconfigures MCP servers from current environment variables.
+# By default, symlinks all skills/agents/settings/profiles (for contributors with live edits).
+# Use --copy to copy files instead of symlinking (for testing without live edits).
+# Also force-reconfigures MCP servers from current environment variables.
 #
 # For regular users (non-contributors), use the /plugin method or SETUP.md instead.
 
@@ -14,6 +15,7 @@ CLAUDE_DIR="${CLAUDE_DIR:-$HOME/.claude}"
 MANIFEST_FILE="$CLAUDE_DIR/.devkit-manifest"
 
 SKIP_CHECKS=false
+COPY_MODE=false
 
 # ---------------------------------------------------------------------------
 # Parse arguments
@@ -23,8 +25,11 @@ for arg in "$@"; do
     --skip-checks)
       SKIP_CHECKS=true
       ;;
+    --copy)
+      COPY_MODE=true
+      ;;
     --list)
-      echo "claude-devkit — available skills, agents, and guidelines"
+      echo "DevKit — available skills, agents, and guidelines"
       echo ""
       echo "Skills:"
       if [[ -d "$DEVKIT_DIR/skills" ]]; then
@@ -52,8 +57,8 @@ for arg in "$@"; do
       fi
       echo ""
       echo "Guidelines:"
-      if [[ -d "$DEVKIT_DIR/guidelines" ]]; then
-        for guideline_dir in "$DEVKIT_DIR/guidelines"/*/; do
+      if [[ -d "$DEVKIT_DIR/skills/_references/guidelines" ]]; then
+        for guideline_dir in "$DEVKIT_DIR/skills/_references/guidelines"/*/; do
           [[ -d "$guideline_dir" ]] || continue
           dir_name="$(basename "$guideline_dir")"
           count=$(fd --type f --extension md --max-depth 1 . "$guideline_dir" | wc -l | tr -d ' ')
@@ -63,11 +68,11 @@ for arg in "$@"; do
       exit 0
       ;;
     --help|-h)
-      echo "Usage: install.zsh [--skip-checks] [--list]"
+      echo "Usage: install.zsh [--skip-checks] [--copy] [--list]"
       echo ""
-      echo "Idempotent installer for claude-devkit contributors."
-      echo "Symlinks all skills/agents/guidelines/settings/profiles into ~/.claude/"
-      echo "and force-reconfigures MCP servers from current environment variables."
+      echo "Idempotent installer for DevKit contributors."
+      echo "Symlinks (or copies with --copy) all skills/agents/settings/profiles"
+      echo "into ~/.claude/ and force-reconfigures MCP servers from current environment variables."
       echo ""
       echo "Run this script to:"
       echo "  - Fresh install after cloning the repo"
@@ -76,10 +81,11 @@ for arg in "$@"; do
       echo ""
       echo "For regular users, use the /plugin method in Claude Code:"
       echo "  /plugin marketplace add sujeet-pro/claude-devkit"
-      echo "  /plugin install devkit-full@claude-devkit"
+      echo "  /plugin install devkit@devkit-marketplace"
       echo ""
       echo "Options:"
       echo "  --skip-checks   Skip prerequisite and env var validation checks"
+      echo "  --copy          Copy files instead of symlinking (for testing without live edits)"
       echo "  --list          List all available skills, agents, and guidelines"
       echo ""
       echo "Environment variables:"
@@ -147,7 +153,15 @@ force_link() {
     mv "$dest" "$backup"
   fi
 
-  ln -s "$src" "$dest"
+  if [[ "$COPY_MODE" == "true" ]]; then
+    if [[ -d "$src" ]]; then
+      cp -R "$src" "$dest"
+    else
+      cp "$src" "$dest"
+    fi
+  else
+    ln -s "$src" "$dest"
+  fi
   INSTALLED_ITEMS+=("$dest")
 }
 
@@ -157,7 +171,7 @@ force_link() {
 mkdir -p "$CLAUDE_DIR"
 
 echo "========================================"
-echo "  claude-devkit installer"
+echo "  AKIT installer"
 echo "========================================"
 echo ""
 echo "Devkit dir: $DEVKIT_DIR"
@@ -213,9 +227,9 @@ fi
 echo ""
 
 # ---------------------------------------------------------------------------
-# Install guidelines
+# Install guidelines (sourced from skills/_references/guidelines/)
 # ---------------------------------------------------------------------------
-GUIDELINES_SRC="$DEVKIT_DIR/guidelines"
+GUIDELINES_SRC="$DEVKIT_DIR/skills/_references/guidelines"
 GUIDELINES_DEST="$CLAUDE_DIR/guidelines"
 
 echo "Guidelines:"
@@ -240,7 +254,7 @@ if [[ -d "$GUIDELINES_SRC" ]]; then
 
   echo "  Linked $guideline_count guideline(s)"
 else
-  echo "  No guidelines/ directory found — skipping"
+  echo "  No skills/_references/guidelines/ directory found — skipping"
 fi
 echo ""
 
@@ -263,16 +277,14 @@ if [[ -d "$SETTINGS_SRC" ]]; then
       echo '{}' > "$SETTINGS_TARGET"
     fi
 
-    # Extract devkit contextInstructions
-    devkit_ci="$(jq '.contextInstructions // []' "$BASE_SETTINGS")"
-
-    # Merge: replace contextInstructions in settings.json with devkit ones
+    # Merge all devkit-managed settings into settings.json
+    # base-settings.json keys overwrite settings.json keys; user-only keys are preserved
     tmp_settings="$(mktemp)"
-    jq --argjson ci "$devkit_ci" '.contextInstructions = $ci' "$SETTINGS_TARGET" > "$tmp_settings"
+    jq -s '.[0] * .[1]' "$SETTINGS_TARGET" "$BASE_SETTINGS" > "$tmp_settings"
     mv "$tmp_settings" "$SETTINGS_TARGET"
 
-    ci_count="$(echo "$devkit_ci" | jq 'length')"
-    echo "  Merged $ci_count context instruction(s) into $SETTINGS_TARGET"
+    managed_keys="$(jq -r 'keys | join(", ")' "$BASE_SETTINGS")"
+    echo "  Merged devkit settings ($managed_keys) into $SETTINGS_TARGET"
     settings_count=$((settings_count + 1))
     INSTALLED_ITEMS+=("settings:contextInstructions")
   fi
@@ -356,7 +368,7 @@ if [[ -f "$CLAUDE_JSON_TEMPLATE" ]]; then
     echo "  Warning: jq not found — skipping MCP server configuration"
     echo "  Install with: brew install jq"
   else
-    ENVSUBST_VARS='$CONFLUENCE_URL $CONFLUENCE_USERNAME $CONFLUENCE_API_TOKEN $BITBUCKET_TOKEN $GOOGLE_DRIVE_OAUTH_CREDENTIALS'
+    ENVSUBST_VARS='$CONFLUENCE_URL $CONFLUENCE_USERNAME $CONFLUENCE_API_TOKEN $BITBUCKET_URL $BITBUCKET_USERNAME $BITBUCKET_WORKSPACE $BITBUCKET_TOKEN $GOOGLE_DRIVE_OAUTH_CREDENTIALS'
     resolved_json="$(envsubst "$ENVSUBST_VARS" < "$CLAUDE_JSON_TEMPLATE")"
 
     if ! echo "$resolved_json" | jq empty 2>/dev/null; then
@@ -406,10 +418,29 @@ fi
 echo ""
 
 # ---------------------------------------------------------------------------
+# Node.js dependencies (shared utilities in lib/)
+# ---------------------------------------------------------------------------
+echo "Node.js utilities:"
+if [[ -f "$DEVKIT_DIR/scripts/setup-node.zsh" ]]; then
+  if command -v node &>/dev/null && command -v npm &>/dev/null; then
+    if zsh "$DEVKIT_DIR/scripts/setup-node.zsh" 2>/dev/null; then
+      echo "  Node.js dependencies installed"
+    else
+      echo "  Warning: Node.js dependency install failed (non-fatal)"
+    fi
+  else
+    echo "  Skipping: node or npm not found (optional — needed for advanced skill utilities)"
+  fi
+else
+  echo "  No scripts/setup-node.zsh found — skipping"
+fi
+echo ""
+
+# ---------------------------------------------------------------------------
 # Write manifest (for uninstall tracking)
 # ---------------------------------------------------------------------------
 {
-  echo "# claude-devkit manifest — generated $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  echo "# DevKit manifest — generated $(date -u +%Y-%m-%dT%H:%M:%SZ)"
   echo "# devkit_dir=$DEVKIT_DIR"
   for item in "${INSTALLED_ITEMS[@]}"; do
     echo "$item"
@@ -424,13 +455,17 @@ echo "  Installation complete"
 echo "========================================"
 echo ""
 echo "Installed ${#INSTALLED_ITEMS[@]} item(s)."
-echo ""
-echo "Symlinked items reflect changes immediately."
+if [[ "$COPY_MODE" == "true" ]]; then
+  echo "Mode: copy (files copied, not symlinked)"
+else
+  echo "Mode: symlink (changes reflect immediately)"
+fi
 echo "MCP servers configured from current environment variables."
 echo ""
 echo "Re-run this script to:"
 echo "  - Pick up new skills/agents after git pull or local edits"
 echo "  - Reconfigure MCP servers after updating env vars in ~/.zshenv"
 echo ""
+echo "To update:    /devkit:manage-update (inside Claude Code) or zsh scripts/update-devkit.zsh"
 echo "To uninstall: zsh $DEVKIT_DIR/uninstall.zsh"
-echo "To test MCP:  /validate-mcp (inside Claude Code)"
+echo "To test MCP:  /devkit:manage-validate (inside Claude Code)"

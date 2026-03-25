@@ -125,6 +125,6 @@ Tags can appear in:
 
 Once a repo type is detected:
 
-1. **PR Reviews**: Load the corresponding guidelines from `guidelines/` for the detected type.
+1. **PR Reviews**: Load the corresponding guidelines from `skills/_references/guidelines/` for the detected type.
 2. **Repo Config**: Suggest the appropriate `repo-configs/<type>/CLAUDE.md` if the repo lacks one.
 3. **Context**: Add type-specific context instructions for the session.

@@ -28,25 +28,22 @@ check_mcp() {
         printf "  ${GREEN}✓${NC} %-25s configured (${CYAN}%s${NC})\n" "$name" "$auth_type"
     elif [ "$required" = "required" ]; then
         printf "  ${RED}✗${NC} %-25s ${RED}NOT CONFIGURED${NC}\n" "$name"
-        ((errors++))
+        errors=$((errors + 1))
     else
         printf "  ${YELLOW}○${NC} %-25s ${YELLOW}not configured (optional)${NC}\n" "$name"
-        ((warnings++))
+        warnings=$((warnings + 1))
     fi
 }
 
-echo -e "${BOLD}Locally-configured MCP Servers${NC} (in ~/.claude.json):"
-check_mcp "atlassian-confluence" "required" "API token"
-check_mcp "bitbucket" "required" "App password via \$BITBUCKET_TOKEN"
-check_mcp "google-drive" "required" "OAuth browser flow"
-echo ""
-echo -e "${BOLD}Claude.ai Built-in Integrations${NC} (managed by Claude Desktop):"
-echo -e "  ${CYAN}ℹ${NC}  These are configured via Claude Desktop → Settings → Integrations"
-echo -e "  ${CYAN}ℹ${NC}  Slack, Gmail, Google Calendar — log in once via browser"
-echo -e "  ${CYAN}ℹ${NC}  Run ${BOLD}/validate-mcp${NC} skill in Claude Code to test connectivity"
+echo -e "${BOLD}AKIT MCP Servers${NC} (in ~/.claude.json):"
+check_mcp "github" "optional" "GitHub PR read/write"
+check_mcp "bitbucket" "optional" "Bitbucket PR read/write"
+check_mcp "atlassian-confluence" "optional" "Confluence read/write"
+check_mcp "google-drive" "optional" "Google Docs/Drive read/write"
 
 echo ""
 echo -e "${BOLD}MCP Configuration Reference${NC}:"
+echo -e "  ${CYAN}ℹ${NC}  GitHub:     github/github-mcp-server"
 echo -e "  ${CYAN}ℹ${NC}  Confluence: uvx mcp-atlassian (PyPI: mcp-atlassian)"
 echo -e "  ${CYAN}ℹ${NC}  Bitbucket:  npx bitbucket-mcp@latest (npm: bitbucket-mcp)"
 echo -e "  ${CYAN}ℹ${NC}  Google:     npx @piotr-agier/google-drive-mcp (OAuth tokens at ~/.config/google-drive-mcp/)"
@@ -58,7 +55,7 @@ if [ $errors -gt 0 ]; then
     exit 1
 elif [ $warnings -gt 0 ]; then
     echo -e "${YELLOW}${BOLD}○ $warnings optional MCP server(s) not configured.${NC}"
-    echo -e "${GREEN}${BOLD}✓ All required MCP servers configured.${NC}"
+    echo -e "${GREEN}${BOLD}✓ Configure the ones needed for your workflows.${NC}"
 else
     echo -e "${GREEN}${BOLD}✓ All MCP servers configured.${NC}"
 fi

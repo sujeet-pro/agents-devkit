@@ -22,7 +22,7 @@ Each idea includes a brief description, the MCP servers or tools involved, and a
 
 ### Slack Message Composer
 
-**Status**: Built (`/slack-compose`)
+**Status**: Removed (was `/slack-compose`, now handled via Slack MCP directly)
 
 Generate well-crafted Slack messages based on a prompt, with channel/thread context awareness, tone adjustment, and draft-first sending.
 
