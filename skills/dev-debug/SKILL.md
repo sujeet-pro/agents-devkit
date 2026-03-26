@@ -1,6 +1,19 @@
 ---
 name: dev-debug
 description: Use when investigating bugs, test failures, or unexpected behavior so you find root cause before applying fixes
+arguments:
+  - name: issue
+    description: "Description of the bug, test failure, or unexpected behavior"
+    required: false
+  - name: forensics
+    description: "Enable forensics mode for post-mortem investigation of a past incident (default: false)"
+    required: false
+  - name: resume
+    description: "Path to a previous debug session to resume"
+    required: false
+  - name: mode
+    description: "Workflow mode: interactive (default), auto-approve"
+    required: false
 ---
 
 # Systematic Debugging
@@ -79,3 +92,98 @@ Load these when the debugging scenario calls for them:
 | Condition-based waiting | `condition-based-waiting.md` | Flaky tests with arbitrary sleeps/timeouts |
 | Defense-in-depth | `defense-in-depth.md` | After finding root cause; want to make the bug structurally impossible |
 | Test pollution bisection | `find-polluter.sh` | Unknown test creates unwanted files or state |
+
+## Persistent Debug State
+
+Save debug session state to `.temp/debug/<issue-slug>.md` so debugging can resume across sessions:
+
+```markdown
+---
+issue: <brief description>
+created: <ISO-8601>
+updated: <ISO-8601>
+status: investigating | hypothesis-testing | root-cause-found | fixed | deferred
+---
+
+# Debug Session: <issue>
+
+## Evidence Collected
+- <evidence 1>
+- <evidence 2>
+
+## Hypotheses
+### Hypothesis 1: <description>
+- Status: [testing|confirmed|disproved]
+- Evidence for: <list>
+- Evidence against: <list>
+- Test performed: <what was tried>
+
+## Root Cause
+<identified root cause, or "still investigating">
+
+## Fix Applied
+<description of fix, or "pending">
+```
+
+When `resume` is provided, load the debug session and continue from where it left off.
+
+## Interactive Hypothesis Loop
+
+Present each hypothesis to the user for confirmation before testing:
+
+```text
+## Hypothesis [N] - Confidence: NN%
+
+Claim: "I believe <X> happens because <Y>"
+
+Evidence for:
+- <supporting evidence>
+
+Evidence against:
+- <contradicting evidence>
+
+Test plan: <how to confirm or disprove>
+
+Action: [T]est this hypothesis | [R]efine it | [S]kip to next | [I] need more evidence first
+```
+
+After testing, present results:
+```text
+## Hypothesis [N] Result
+
+Test: <what was tested>
+Result: [CONFIRMED ✓ | DISPROVED ✗ | INCONCLUSIVE ?]
+New evidence: <what we learned>
+
+Next: [P]roceed to fix | [N]ew hypothesis | [I]nvestigate deeper
+```
+
+## Forensics Mode
+
+When `forensics=true`, run post-mortem investigation of a past incident:
+1. **Collect artifacts**: logs, error reports, git history around the incident time
+2. **Build timeline**: reconstruct the sequence of events
+3. **Identify contributing factors**: what conditions made this possible
+4. **Root cause analysis**: use the 5 Whys technique
+5. **Present findings**:
+```text
+## Forensics Report
+
+Timeline:
+1. <event at time T>
+2. <event at time T+1>
+
+Contributing factors:
+- <factor 1>
+- <factor 2>
+
+Root cause: <identified cause>
+
+Recommendations:
+- <how to prevent recurrence>
+```
+
+## Adjacent Skills
+
+- `/devkit:dev-verify` — run after applying a fix to verify correctness
+- `/devkit:session-handoff` — pause a long debug session and hand off context

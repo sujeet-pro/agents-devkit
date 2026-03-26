@@ -44,6 +44,7 @@ Before doing substantial work, always check whether a more specific skill should
 - `/devkit:review-code-local` - Reviews staged, unstaged, or branch-local changes, including committed files since branch creation. Outputs a reusable review document instead of auto-fixing.
 - `/devkit:review-doc` - Reviews markdown, Confluence, or Google Docs without editing the source. Leaves comments where possible, otherwise emits a review artifact.
 - `/devkit:review-codebase` - Reviews an entire repository and produces a prioritized engineering improvement document.
+- `/devkit:review-ui` - Structured 6-pillar visual and UX audit of frontend code (layout, typography, color, responsiveness, accessibility, interaction states).
 - `/devkit:audit-security` - Runs a security-focused review against auth, data handling, dependencies, and attack surfaces.
 - `/devkit:audit-performance` - Reviews performance risks such as latency, bundle size, memory growth, and scaling hotspots.
 
@@ -76,21 +77,39 @@ Before doing substantial work, always check whether a more specific skill should
 - `/devkit:diagram-convert` - Converts rendered assets when the destination needs PNG, JPEG, or another delivery format.
 - `/devkit:design-frontend` - Generates intentional frontend or design-system directions with multiple parallel design passes.
 
+### Project Bootstrapping & Specification
+
+- `/devkit:project-init` - Full project initialization with discovery, research, requirements, constitution, and roadmap.
+- `/devkit:spec-write` - Writes formal feature specifications that separate intent from implementation with interactive clarification.
+- `/devkit:constitution-write` - Creates or updates a versioned project governance document with non-negotiable principles.
+- `/devkit:checklist-generate` - Generates "unit tests for English" that validate requirements quality before implementation.
+- `/devkit:spec-analyze` - Cross-artifact consistency checker for specs, plans, tasks, and implementation.
+
 ### Development Process
 
-- `/devkit:plan-brainstorm` - Turns rough ideas into sharper approaches, options, and specs.
-- `/devkit:plan-write` - Converts requirements into execution plans with checkpointed steps.
-- `/devkit:plan-execute` - Executes plans methodically while preserving review checkpoints, with per-task child agents.
+- `/devkit:plan-brainstorm` - Turns rough ideas into sharper approaches with optional party mode and structured voting.
+- `/devkit:plan-write` - Converts requirements into execution plans with interactive discussion phase and scope categorization.
+- `/devkit:plan-execute` - Executes plans with wave-based parallelism, deviation rules, and inter-wave checkpoints.
+- `/devkit:quick-task` - Fast execution for simple tasks without full planning overhead.
 - `/devkit:dev-tdd` - Enforces RED-GREEN-REFACTOR loops for feature work and bug fixing.
-- `/devkit:dev-debug` - Uses a structured root-cause workflow instead of guess-and-check fixes.
-- `/devkit:dev-verify` - Builds an evidence-based verification pass before work is declared done.
+- `/devkit:dev-debug` - Structured root-cause debugging with persistent state, forensics mode, and interactive hypothesis testing.
+- `/devkit:dev-verify` - Evidence-based verification with goal-backward 4-level checks (exists, substantive, wired, data-flowing).
+- `/devkit:verify-uat` - Interactive user acceptance testing that extracts testable deliverables and diagnoses failures.
 - `/devkit:pr-finalize` - Guides merge, PR, cleanup, and follow-through steps at the end of a branch.
 - `/devkit:dev-worktree` - Creates isolated workspaces when multiple branches or tasks need to run in parallel.
+
+### Session & Project Management
+
+- `/devkit:session-handoff` - Pause work and resume in a new session with full context reconstruction.
+- `/devkit:context-thread` - Persistent named context threads for ongoing work streams across sessions.
+- `/devkit:milestone-manage` - Create, track, audit, and archive development milestones and roadmap progress.
+- `/devkit:idea-capture` - Capture forward-looking ideas, manage a backlog parking lot, and promote items to specs or plans.
 
 ### Utility Skills
 
 - `/devkit:agent-multi` - Runs the same task through multiple providers or models for comparison or consensus.
 - `/devkit:agent-team` - Orchestrates larger tasks across multiple agents with explicit roles.
+- `/devkit:cross-review` - Multi-model peer review that synthesizes findings with consensus indicators.
 - `/devkit:manage-validate` - Checks that the needed MCP servers are configured before a source-backed workflow.
 - `/devkit:manage-skill` - Creates or updates DevKit skills while keeping naming, routing, and contracts consistent.
 - `/devkit:manage-update` - Updates DevKit from GitHub or a local filesystem source.

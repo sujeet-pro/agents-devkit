@@ -34,6 +34,12 @@ ls -la ~/.agents/skills/devkit
 cd ~/.devkit && git pull
 ```
 
+Or from within a Codex session:
+
+```
+/devkit:manage-update
+```
+
 ## Remove
 
 ```bash

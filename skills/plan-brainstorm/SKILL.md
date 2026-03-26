@@ -9,6 +9,12 @@ arguments:
   - name: scope
     description: "Scope: narrow, broad (default: broad)"
     required: false
+  - name: mode
+    description: "Workflow mode: interactive (default), auto-approve"
+    required: false
+  - name: party
+    description: "Enable party mode: multiple persona agents debate options (default: false)"
+    required: false
 ---
 
 # Brainstorming
@@ -31,6 +37,16 @@ Run at least these child agents in parallel:
 - **Options researcher** (`research-agent`): researches approaches used in similar projects, official recommendations, and industry best practices. Produces an options catalog with 2-5 approaches and their tradeoffs.
 - **Review agent**: reviews the proposed options for feasibility, risk, and alignment with the existing codebase. Flags unrealistic options and identifies hidden constraints.
 
+## Party Mode
+
+When `party=true`, run additional child agents as different personas debating the options:
+- **Pragmatist**: focuses on what can be shipped fastest with least risk
+- **Idealist**: focuses on the best long-term architecture regardless of short-term cost
+- **Risk Assessor**: focuses on what could go wrong, security implications, scaling concerns
+- **User Advocate**: focuses on user experience, accessibility, developer ergonomics
+
+Each persona reviews all options and provides a brief position statement. Synthesize into the options presentation.
+
 ## Workflow
 
 1. **Read context.** Launch the context analyst to scan the repo and gather constraints.
@@ -43,7 +59,44 @@ Run at least these child agents in parallel:
    - risk assessment (low, medium, high)
    - key assumptions
 5. **Review.** Launch the review agent to validate feasibility.
-6. **Write design summary.** Produce the final brainstorm output.
+6. **Interactive voting.** Present each option for scoring using the following format:
+
+   ```text
+   ## Option [N/total]: <name>
+
+   Approach: <description>
+   Effort: [small|medium|large]  Risk: [low|medium|high]
+
+   Pros:
+   - <pro>
+
+   Cons:
+   - <con>
+
+   Persona Views (if party mode):
+   - Pragmatist: "<position>"
+   - Idealist: "<position>"
+   - Risk Assessor: "<position>"
+   - User Advocate: "<position>"
+
+   Your score (1-5, or "skip"): ___
+   ```
+
+   After all options scored, present ranking:
+
+   ```text
+   ## Options Ranking
+
+   | Rank | Option | Your Score | AI Recommendation |
+   |------|--------|-----------|-------------------|
+   | 1 | <name> | 5 | ★ Recommended |
+   | 2 | <name> | 4 | |
+   | 3 | <name> | 2 | |
+
+   Select option: [1] | [2] | [3] | [D]iscuss further | [C]ombine options
+   ```
+
+7. **Write design summary.** Produce the final brainstorm output.
 
 Save intermediary artifacts to `.temp/brainstorm/`.
 
@@ -83,8 +136,31 @@ Save intermediary artifacts to `.temp/brainstorm/`.
 - <question 2>
 ```
 
+## Decision Capture
+
+After user selects an option, save the decision in ADR-compatible format to `.temp/brainstorm/<topic-slug>-decision.md`:
+```markdown
+# Decision: <chosen option name>
+
+## Context
+<problem statement>
+
+## Options Considered
+<all options with scores>
+
+## Decision
+<chosen option with justification>
+
+## Consequences
+<expected tradeoffs>
+```
+
+Reference `/devkit:write-adr` if a formal ADR is needed.
+
 ## Adjacent Skills
 
 - `/devkit:plan-write` for turning the chosen option into an execution plan
 - `/devkit:dev-implement` for implementing the planned feature
 - `/devkit:research` for deeper research on specific options
+- `/devkit:write-adr` for formalizing the decision
+- `/devkit:constitution-write` if the decision affects project principles

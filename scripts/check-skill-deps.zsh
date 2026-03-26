@@ -382,7 +382,13 @@ case "$skill" in
       esac
     fi
     ;;
-  review-local|review-code-local|self-review|review-codebase|codebase-review|research|research-quick|search|research-deep|deep-research|audit-security|security-audit|audit-performance|performance-audit)
+  review-local|review-code-local|self-review|review-codebase|codebase-review|research|research-quick|search|research-deep|deep-research|audit-security|security-audit|audit-performance|performance-audit|review-ui|cross-review)
+    need_cmd git
+    need_cmd rg
+    need_cmd fd
+    need_cmd jq
+    ;;
+  project-init|spec-write|spec-analyze|constitution-write|checklist-generate|verify-uat|quick-task|session-handoff|milestone-manage|idea-capture|context-thread)
     need_cmd git
     need_cmd rg
     need_cmd fd

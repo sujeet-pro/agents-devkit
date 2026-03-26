@@ -21,6 +21,12 @@ arguments:
   - name: previous-review
     description: "Optional path to a previous review artifact for cross-referencing (used in followup mode)"
     required: false
+  - name: focus
+    description: "Review focus areas (comma-separated): security, performance, correctness, architecture, ui, all (default: all)"
+    required: false
+  - name: ui
+    description: "Enable UI/visual review pass for frontend PRs (default: auto-detected)"
+    required: false
 ---
 
 # PR Review
@@ -57,6 +63,25 @@ When `mode=auto` (the default):
 3. If the current user has **prior review comments** on this PR -> treat as a **follow-up review** and use the **followup** flow.
 
 When `mode=standard`, `mode=interactive`, or `mode=followup`, skip auto-detection and use the specified flow directly.
+
+## Large PR Handling
+
+When the PR diff exceeds 500 changed lines:
+
+1. Present a PR structure overview:
+```text
+## Large PR Detected - <N> files, <M> lines changed
+
+Areas of change:
+1. <area 1>: N files, M lines — <brief description>
+2. <area 2>: N files, M lines — <brief description>
+3. <area 3>: N files, M lines — <brief description>
+
+Focus options:
+[A]ll areas | [1-3] Specific areas | [C]ritical paths only | [S]ecurity focus
+```
+
+2. Use the user's selection to prioritize review depth — deeply review selected areas, surface-scan others.
 
 ## Comment Reconciliation
 
@@ -112,6 +137,21 @@ Run at least these child agents in parallel:
 - one domain specialist pass for frontend, backend, or design-system concerns
 - `source-publisher` after consolidation if `publish` includes source posting
 
+## UI Review Pass
+
+When `ui=true` or when the PR is auto-detected as frontend (touches `.tsx`, `.jsx`, `.vue`, `.svelte`, `.css`, `.scss` files):
+
+Add a UI review child agent that checks:
+- Visual consistency with existing patterns
+- Accessibility (ARIA, keyboard nav, focus management)
+- Responsive design (breakpoint coverage)
+- Interaction states (empty, loading, error, disabled)
+- Component API ergonomics
+
+UI findings follow the same interactive loop and comment template as code review findings.
+
+For full visual audit, suggest `/devkit:review-ui` as a dedicated adjacent skill.
+
 ## Review Requirements
 
 Every review must cover:
@@ -122,6 +162,13 @@ Every review must cover:
 - tests, docs, and migration impact
 - code patterns and maintainability
 - reconciliation of prior comments and thread state
+
+When `focus` is specified, weight child agent priorities accordingly:
+- `security` -> security reviewer gets extra depth, others surface-scan
+- `performance` -> performance analysis prioritized
+- `ui` -> UI review pass activated, visual patterns prioritized
+- `correctness` -> correctness and regression analysis prioritized
+- `architecture` -> boundary, coupling, and migration impact prioritized
 
 ---
 
@@ -338,3 +385,8 @@ Reopened threads: N
 New comments posted: N
 Threads left open: N
 ```
+
+## Adjacent Skills
+
+- `/devkit:review-ui` for standalone 6-pillar visual audit
+- `/devkit:cross-review` for multi-model peer review

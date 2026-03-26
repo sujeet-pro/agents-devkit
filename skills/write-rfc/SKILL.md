@@ -12,6 +12,12 @@ arguments:
   - name: format
     description: "Output format: markdown, google-doc, confluence, pdf (default: markdown)"
     required: false
+  - name: stakeholders
+    description: "Enable stakeholder simulation: run personas that review the proposal (default: false)"
+    required: false
+  - name: mode
+    description: "Workflow mode: interactive (default), auto-approve"
+    required: false
 ---
 
 # RFC Writing
@@ -47,6 +53,27 @@ Run at least these child agents in parallel:
 - `doc-reviewer` for structure, clarity, and completeness against the RFC guideline checklist
 - a diagram pass through `/devkit:diagram` for architecture and flow diagrams
 - `source-publisher` if the final output is Confluence or Google Docs
+
+## Stakeholder Simulation
+
+When `stakeholders=true`, run additional child agents as organizational personas reviewing the proposal:
+- **Security Team**: reviews for security implications, compliance requirements, threat modeling gaps
+- **Platform/Infrastructure Team**: reviews for operational impact, scalability, deployment complexity
+- **Product Team**: reviews for user impact, business alignment, roadmap fit
+- **SRE/Operations Team**: reviews for observability, incident response, runbook needs
+
+Each persona produces a brief review:
+```text
+## Stakeholder Review [N/4] - <persona>
+
+Position: [Support | Concern | Block]
+Key feedback: <1-2 sentences>
+Conditions for approval: <what would need to change>
+
+Action: [A]cknowledge | [A]ddress concern | [D]iscuss
+```
+
+If any stakeholder "Blocks", the RFC flags the blocking concern for resolution before moving forward.
 
 ## RFC Structure
 
@@ -84,6 +111,27 @@ The recommended direction with enough detail to evaluate. Include 1-2 architectu
 
 At least two genuine alternative approaches with pros, cons, and rejection rationale for each. Strawman alternatives undermine the document.
 
+After alternatives are written, present each one interactively:
+```text
+## Alternative [N/total]: <name>
+
+Description: <approach>
+Pros: <list>
+Cons: <list>
+
+Stakeholder views (if simulation enabled):
+- Security: <position>
+- Platform: <position>
+- Product: <position>
+- SRE: <position>
+
+Compared to proposal:
+- Better at: <what>
+- Worse at: <what>
+
+Your assessment: [S]trong alternative | [W]eak alternative | [C]ombine with proposal
+```
+
 ### 7. Impact Analysis
 
 Impact across five dimensions: Engineering, Product/Business, Security/Compliance, Cost/Infrastructure, and Operational. Use a structured table.
@@ -111,6 +159,17 @@ Explicitly state what decision the reviewers are being asked to make.
 - When the RFC describes real code, inspect the repository first instead of inventing APIs.
 - The Motivation section must present the problem objectively without arguing for the proposed solution.
 
+### Decision Criteria Matrix
+
+When the RFC has 3+ alternatives, generate a decision criteria matrix:
+```text
+| Criterion | Weight | Proposal | Alt 1 | Alt 2 |
+|-----------|--------|----------|-------|-------|
+| <criterion> | N/10 | score | score | score |
+```
+
+Let user adjust weights and scores interactively.
+
 ## Final Step
 
 Before publishing, run an internal review loop with the doc-review team and fix all critical issues that block handoff. Verify the document against the review checklist in `skills/_references/guidelines/document/rfc.md`.
@@ -122,3 +181,5 @@ Before publishing, run an internal review loop with the doc-review team and fix 
 - `/devkit:write-proposal` for lighter decision proposals
 - `/devkit:diagram` for standalone architecture diagrams
 - `/devkit:publish-confluence` for publishing to Confluence
+- `/devkit:constitution-write` if decision affects project principles
+- `/devkit:plan-brainstorm` for deeper option exploration before RFC

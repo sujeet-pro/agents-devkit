@@ -15,6 +15,15 @@ arguments:
   - name: branch
     description: "Branch name to create for this feature"
     required: false
+  - name: mode
+    description: "Workflow mode: interactive (default), auto-approve"
+    required: false
+  - name: spec
+    description: "Path to a specification file to implement against (from /devkit:spec-write)"
+    required: false
+  - name: scope
+    description: "Scope definition: v1, v2, full (default: v1 — only must-have requirements)"
+    required: false
 ---
 
 # Feature Implementation
@@ -30,6 +39,30 @@ Before implementation, run:
 Verify that the project's test runner, linter, and type-checker are available and working. If a build tool is configured, confirm it produces a clean build from the current state.
 
 ## Flow
+
+### 0. Interactive Discussion
+
+When `mode=interactive` (default), run a discussion phase before planning:
+- Surface gray areas and implementation choices
+- Confirm scope boundaries (v1/v2/out-of-scope)
+- Capture decisions in `.temp/plans/<feature-slug>-context.md`
+
+Present decisions for approval:
+```text
+## Implementation Approach
+
+Scope: [v1 only | full]
+Key decisions:
+1. <decision 1>
+2. <decision 2>
+
+Gray areas resolved:
+- <gray area>: <chosen approach>
+
+Proceed to planning? [Y]es | [E]dit decisions | [D]iscuss more
+```
+
+If `spec` is provided, load the specification and extract scope from it instead of asking.
 
 ### 1. Planning
 
@@ -120,9 +153,30 @@ Plan: <plan file path>
 ...
 ```
 
+### 7. User Acceptance Testing
+
+After automated verification passes, run interactive UAT:
+- Extract testable deliverables from the spec or plan
+- Walk user through each one using `/devkit:verify-uat` patterns
+- Present each deliverable for manual verification:
+```text
+## UAT [N/total] - <testable behavior>
+
+Expected: <what should happen>
+
+Result: [P]ass | [F]ail (describe) | [S]kip
+```
+
+For failures, offer to loop back to Phase 3 (Task Execution) with a targeted fix.
+
+Display final UAT summary alongside the implementation summary.
+
 ## Adjacent Skills
 
 - `/devkit:plan-write` for standalone planning without implementation
 - `/devkit:dev-tdd` for TDD-only focus without the full implementation flow
 - `/devkit:dev-verify` for standalone verification
 - `/devkit:pr-finalize` to prepare a pull request after implementation is complete
+- `/devkit:spec-write` for writing specifications before implementation
+- `/devkit:verify-uat` for standalone UAT
+- `/devkit:session-handoff` for pausing long implementations

@@ -9,6 +9,9 @@ arguments:
   - name: scope
     description: "Plan scope: full, incremental (default: full)"
     required: false
+  - name: mode
+    description: "Workflow mode: interactive (default, confirms at each step), auto-approve (proceeds without confirmation)"
+    required: false
 ---
 
 # Writing Plans
@@ -52,6 +55,61 @@ status: draft | approved | in-progress | completed
   ...
 ```
 
+## Phase 0: Interactive Discussion
+
+Before any planning work begins, identify "gray areas" — implementation decisions where the user's intent is unclear or ambiguous. This phase resolves uncertainty upfront so the plan is built on solid assumptions.
+
+### Gray Area Categories
+
+Look for ambiguity in these categories:
+
+- **API shape** — endpoint design, request/response contracts, versioning
+- **UI layout** — component structure, responsive behavior, interaction patterns
+- **Error handling** — failure modes, retry strategies, user-facing messages
+- **Naming conventions** — variables, files, modules, routes
+- **Data flow** — state management, caching, synchronization
+- **Architecture boundaries** — service boundaries, module ownership, shared code
+
+### Capped Clarification
+
+Ask a maximum of **5 questions**, prioritized by `Impact x Uncertainty` (highest first). If there are fewer than 5 gray areas, ask only what is needed.
+
+Present each gray area interactively using this format:
+
+```
+## Clarification [N/total] - [category]
+
+Context: <what part of the feature this affects>
+
+Options:
+A) <option with tradeoff>
+B) <option with tradeoff>
+C) <user-specified>
+
+Your choice: [A] | [B] | [C] | [S]kip
+```
+
+### Bulk Skip
+
+Support bulk resolution: if the user replies "skip all remaining", use the AI's best judgment for every unresolved gray area.
+
+### Decision Log
+
+Save all discussion outcomes to `.temp/plans/<plan-id>-context.md` with three sections:
+
+```markdown
+## Decisions
+<!-- Locked — the user explicitly chose these -->
+
+## Discretion
+<!-- AI chooses — the user skipped or bulk-skipped these -->
+
+## Deferred
+<!-- Out of scope — acknowledged but not addressed in this plan -->
+```
+
+This context file is written alongside the plan file and should be referenced during task breakdown.
+
 ## Required Child Agents
 
 Run at least these child agents in parallel:
@@ -62,12 +120,13 @@ Run at least these child agents in parallel:
 
 ## Workflow
 
-1. **Analyze scope.** Launch the scope analyst to read the codebase and identify affected areas.
-2. **Break down tasks.** Launch the task planner to create discrete, ordered tasks.
-3. **Add verification.** Ensure every task has a verification command or check.
-4. **Review.** Launch the review agent to check for gaps and feasibility.
-5. **Write plan file.** Save the plan to `.temp/plans/<plan-id>.md`.
-6. **Present for approval.** Show the plan to the user before execution.
+1. **Discussion.** Run Phase 0 to identify and resolve gray areas interactively. Save decisions to `.temp/plans/<plan-id>-context.md`.
+2. **Analyze scope.** Launch the scope analyst to read the codebase and identify affected areas.
+3. **Break down tasks.** Launch the task planner to create discrete, ordered tasks.
+4. **Add verification.** Ensure every task has a verification command or check.
+5. **Review.** Launch the review agent to check for gaps and feasibility.
+6. **Write plan file.** Save the plan to `.temp/plans/<plan-id>.md`.
+7. **Present for approval.** Show the plan to the user before execution.
 
 ## Plan Requirements
 
@@ -76,6 +135,16 @@ Run at least these child agents in parallel:
 - Verification commands for each task
 - Docs and migration follow-ups
 - Review checkpoints after groups of related tasks
+
+### Scope Categorization
+
+Every item discovered during analysis must be categorized into one of three scope boundaries:
+
+- **v1 (must-have)** — required for this plan; will be broken into tasks
+- **v2 (future enhancement)** — tracked in the plan file under a "Future Work" section but not planned into tasks
+- **out-of-scope** — explicitly excluded; listed so stakeholders know what was considered and rejected
+
+Present the scope categorization to the user for interactive approval before proceeding to task breakdown. In `auto-approve` mode, present the categorization but continue without waiting for confirmation.
 
 ## Output
 
