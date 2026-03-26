@@ -18,7 +18,12 @@ arguments:
 
 Use `skills/_references/agentic-teams.md`, `skills/_references/output-formats.md`, and `skills/_references/preflight-validations.md`.
 
-Use this skill for concise decision proposals. For larger, more detailed proposals that need extensive design sections, use `/devkit:write-rfc`. To record the final decision after a proposal is accepted, use `/devkit:write-adr`.
+Use this skill for concise decision proposals — lighter than an RFC, focused on a specific decision with a clear recommendation. The three core engineering document types are:
+- **RFC** -> `/devkit:write-rfc` (pre-alignment: "should we do this?")
+- **Tech Spec** -> `/devkit:write-system-design` (implementation: "how will we build this?")
+- **ADR** -> `/devkit:write-adr` (durable decisions: "what did we decide?")
+
+A proposal is appropriate when the decision is smaller in scope than an RFC but still needs structured evaluation.
 
 ## Preflight
 

@@ -7,7 +7,7 @@ arguments:
     description: "Document title"
     required: true
   - name: doc-type
-    description: "Document type such as hld, lld, prd, article, blog, project, tdd, runbook, adr"
+    description: "Document type such as rfc, tech-spec, adr, hld, lld, prd, article, blog, project, runbook"
     required: false
   - name: output-dir
     description: "Output directory"
@@ -24,7 +24,12 @@ arguments:
 
 Use `skills/_references/agentic-teams.md`, `skills/_references/output-formats.md`, and `skills/_references/preflight-validations.md`.
 
-This skill produces markdown-first deliverables with inline diagrams, code samples, and optional Confluence sync preparation. For document types with dedicated skills (RFC, ADR, system design), prefer those skills. For comment-only review, use `/devkit:review-doc`.
+This skill produces markdown-first deliverables with inline diagrams, code samples, and optional Confluence sync preparation. For the three core engineering document types, prefer the dedicated skills:
+- **RFC** -> `/devkit:write-rfc` (pre-alignment: "should we do this?")
+- **Tech Spec / TDD** -> `/devkit:write-system-design` (implementation: "how will we build this?")
+- **ADR** -> `/devkit:write-adr` (durable decisions: "what did we decide?")
+
+For comment-only review, use `/devkit:review-doc`.
 
 ## Preflight
 
@@ -40,17 +45,22 @@ Always load:
 
 - `skills/_references/guidelines/document/general.md`
 
+For document types that require metadata, review tracking, or status lifecycle (RFC, Tech Spec, ADR), also load:
+
+- `skills/_references/guidelines/document/document-metadata.md`
+
 When `doc-type` is specified, also load the matching guideline:
 
+- rfc -> `skills/_references/guidelines/document/rfc.md`
+- tech-spec -> `skills/_references/guidelines/document/tdd.md`
+- adr -> `skills/_references/guidelines/document/adr.md`
 - hld -> `skills/_references/guidelines/document/hld.md`
 - lld -> `skills/_references/guidelines/document/lld.md`
 - prd -> `skills/_references/guidelines/document/prd.md`
 - article -> `skills/_references/guidelines/document/article.md`
 - blog -> `skills/_references/guidelines/document/blog.md`
 - project -> `skills/_references/guidelines/document/project.md`
-- tdd -> `skills/_references/guidelines/document/tdd.md`
 - runbook -> `skills/_references/guidelines/document/runbook.md`
-- adr -> `skills/_references/guidelines/document/adr.md`
 
 ## Required Child Agents
 

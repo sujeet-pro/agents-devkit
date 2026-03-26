@@ -1,8 +1,14 @@
 # High Level Design (HLD) Guidelines
 
-Guidelines for writing and reviewing High Level Design documents. An HLD describes the architecture of a system at a level that stakeholders, architects, and engineers from adjacent teams can understand without deep domain expertise.
+Guidelines for writing and reviewing High Level Design sections. An HLD describes the architecture of a system at a level that stakeholders, architects, and engineers from adjacent teams can understand without deep domain expertise.
+
+**Important**: HLD is typically a **section within a Tech Spec**, not a separate document. Use these guidelines when writing the "Proposed Design — High-Level (HLD)" section of a Tech Spec (see `tdd.md`). Create a standalone HLD document only when the system is large enough that the architecture overview requires its own review audience separate from the implementation details.
 
 **Audience**: Engineering leadership, architects, cross-team engineers, and technical program managers who need to understand the system's shape and constraints without implementation details.
+
+**References**:
+- [Design Docs at Google — Malte Ubl](https://www.industrialempathy.com/posts/design-docs-at-google/)
+- [HLD vs LLD — GeeksforGeeks](https://www.geeksforgeeks.org/system-design/difference-between-high-level-design-and-low-level-design/)
 
 ---
 

@@ -1,8 +1,14 @@
 # Low Level Design (LLD) Guidelines
 
-Guidelines for writing and reviewing Low Level Design documents. An LLD provides implementation-level detail for a single component or feature, sufficient for a developer to implement without guesswork about expected behavior, interfaces, or edge cases.
+Guidelines for writing and reviewing Low Level Design sections. An LLD provides implementation-level detail for a single component or feature, sufficient for a developer to implement without guesswork about expected behavior, interfaces, or edge cases.
+
+**Important**: LLD is typically a **section within a Tech Spec**, not a separate document. Use these guidelines when writing the "Detailed Design (LLD)" section of a Tech Spec (see `tdd.md`). Create a standalone LLD document only when the system is large enough that the implementation details require their own review audience separate from the architecture overview.
 
 **Audience**: Developers who will implement and maintain the component, and reviewers who need to verify the design is complete and correct.
+
+**References**:
+- [Design Docs at Google — Malte Ubl](https://www.industrialempathy.com/posts/design-docs-at-google/)
+- [HLD vs LLD — GeeksforGeeks](https://www.geeksforgeeks.org/system-design/difference-between-high-level-design-and-low-level-design/)
 
 ---
 

@@ -19,7 +19,7 @@ arguments:
     description: "Audience: developer, senior, staff, principal (default: senior)"
     required: false
   - name: doc-type
-    description: "Optional type such as hld, lld, prd, project, article, blog"
+    description: "Optional type such as rfc, tech-spec, adr, hld, lld, prd, project, article, blog"
     required: false
 ---
 
@@ -28,6 +28,13 @@ arguments:
 Use `skills/_references/agentic-teams.md`, `skills/_references/source-routing.md`, `skills/_references/output-formats.md`, and `skills/_references/preflight-validations.md`.
 
 Use this skill when the agent should improve the document directly. If you want comment-only review without source edits, use `/devkit:review-doc`.
+
+For the three core engineering document types, prefer the dedicated skills:
+- **RFC** -> `/devkit:write-rfc` (pre-alignment: "should we do this?")
+- **Tech Spec / TDD** -> `/devkit:write-system-design` (implementation: "how will we build this?")
+- **ADR** -> `/devkit:write-adr` (durable decisions: "what did we decide?")
+
+HLD and LLD are sections within a Tech Spec, not separate document types. If `doc-type` is `hld` or `lld`, consider whether the user actually needs a full Tech Spec.
 
 ## Preflight
 
@@ -53,8 +60,15 @@ Always load:
 
 - `skills/_references/guidelines/document/general.md`
 
+For document types that require metadata, review tracking, or status lifecycle (RFC, Tech Spec, ADR, or any formal engineering document), also load:
+
+- `skills/_references/guidelines/document/document-metadata.md`
+
 Then add the document-type guideline when matched:
 
+- RFC -> `skills/_references/guidelines/document/rfc.md`
+- tech-spec / TDD -> `skills/_references/guidelines/document/tdd.md`
+- ADR -> `skills/_references/guidelines/document/adr.md`
 - HLD -> `skills/_references/guidelines/document/hld.md`
 - LLD -> `skills/_references/guidelines/document/lld.md`
 - PRD -> `skills/_references/guidelines/document/prd.md`
