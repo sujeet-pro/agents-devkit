@@ -71,7 +71,7 @@ Explore team-based agent workflows where specialized agents hand off work to eac
 
 **What to explore**:
 - Sequential pipelines: research agent feeds into doc-write agent, which feeds into doc-review agent
-- Parallel fan-out: multiple code-reviewer agents analyze different aspects simultaneously (already implemented in /review-pr)
+- Parallel fan-out: multiple code-reviewer agents analyze different aspects simultaneously (already implemented in /review-code-pr)
 - Supervisory patterns: a coordinator agent delegates tasks and synthesizes results
 - Human-in-the-loop workflows: agents propose, humans approve, agents execute
 
@@ -170,7 +170,7 @@ Set up webhooks that trigger Claude PR reviews automatically on every new PR.
 - Bitbucket: Bitbucket webhook that calls a serverless function, which invokes Claude Code
 - Both: The function fetches the diff, runs the PR review skill, and posts comments
 
-**When to act**: After `/review-pr` has been used manually for several weeks and the team is confident in its accuracy. Automated posting requires high precision to avoid noise.
+**When to act**: After `/review-code-pr` has been used manually for several weeks and the team is confident in its accuracy. Automated posting requires high precision to avoid noise.
 
 ---
 
@@ -255,7 +255,7 @@ Deploy Claude as a GitHub App or Bitbucket webhook that automatically reviews al
 **What it looks like**:
 - A GitHub App installed on all repos in the org
 - On PR open or update, triggers a serverless function
-- The function runs the `/review-pr` workflow and posts findings as review comments
+- The function runs the `/review-code-pr` workflow and posts findings as review comments
 - A dashboard tracks review statistics, false positive rates, and team feedback
 
 **Challenges**: Requires high precision to avoid alert fatigue. Needs a feedback mechanism for teams to report false positives. Cost management for high-volume organizations.

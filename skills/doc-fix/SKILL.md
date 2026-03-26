@@ -37,26 +37,25 @@ Detect the platform from the URL:
 
 Read the full document content and all comments (including inline comments, page comments, and reply threads).
 
+## Required Child Agents
+
+Run at least these child agents in parallel:
+
+- **Comment classifier**: reads all comments and categorizes each as actionable (requires a document change), discussion (question or general feedback), or already-resolved. For actionable comments, extracts the specific change requested and the affected document section. Produces a classified comment list.
+- **Fix drafter**: for each actionable comment, reads the surrounding document context and drafts a proposed fix — the specific text change that addresses the reviewer's request. Ensures fixes are minimal and targeted. Produces a fix plan with before/after text for each comment.
+
 ## Phase 1: Read and Categorize Comments
 
 1. Fetch all comments on the document via the platform MCP:
    - Confluence: `mcp__atlassian-confluence__confluence_get_comments`
    - Google Docs: `mcp__google-drive__listComments`
-2. Categorize each comment:
-   - **Actionable**: contains a fix request, correction, suggestion, or improvement that requires a document change
-   - **Discussion**: a question, clarification request, or general feedback that does not require a document edit
-   - **Already resolved**: marked as resolved on the platform
-3. Filter out already-resolved comments. Present discussion comments as informational but do not attempt fixes for them.
+2. Launch the comment classifier agent.
+3. Filter out already-resolved comments. Present discussion comments as informational.
 
 ## Phase 2: Analyze and Propose Fixes
 
-For each actionable comment:
-
-1. Read the surrounding document context (the section or paragraph the comment references).
-2. Understand what the reviewer is asking for.
-3. Draft a proposed fix — the specific text change to the document.
-
-Save the plan to `.temp/plans/doc-fix.md` with each comment, its classification, and the proposed fix.
+1. Launch the fix drafter agent for all actionable comments.
+2. Save the plan to `.temp/plans/doc-fix.md` with each comment, its classification, and the proposed fix.
 
 ## Phase 3: Interactive Fix Loop
 
@@ -136,3 +135,10 @@ Document: <title>
 - Section "<heading>": <what changed>
 - Section "<heading>": <what changed>
 ```
+
+## Adjacent Skills
+
+- `/devkit:review-doc` for comment-only review of documents
+- `/devkit:review-doc-interactive` for interactive document review
+- `/devkit:publish-confluence` for publishing markdown to Confluence
+- `/devkit:write-doc` for drafting new documents

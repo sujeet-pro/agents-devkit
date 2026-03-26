@@ -119,5 +119,5 @@ Branch: <branch name or "current">
 ## Adjacent Skills
 
 - `/devkit:dev-implement` for building new features from scratch
-- `/devkit:review-local` for self-review of the changes before handoff
+- `/devkit:review-code-local` for self-review of the changes before handoff
 - `/devkit:dev-verify` for standalone verification

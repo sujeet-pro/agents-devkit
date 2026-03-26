@@ -15,9 +15,9 @@
         "diagramkit/": "skills/diagram-render/",
         "diagrams-troubleshoot/": "skills/diagram-troubleshoot/",
         "image-convert/": "skills/diagram-convert/",
-        "refs/mermaid/": "skills/_references/mermaid/",
-        "refs/excalidraw/": "skills/_references/excalidraw/",
-        "refs/drawio/": "skills/_references/drawio/"
+        "refs/mermaid/": "skills/diagram-mermaid/references/",
+        "refs/excalidraw/": "skills/diagram-excalidraw/references/",
+        "refs/drawio/": "skills/diagram-drawio/references/"
       },
       "last_sync": "2026-03-25T00:00:00Z",
       "last_commit": ""
@@ -36,9 +36,9 @@
         "test-driven-development/": "skills/dev-tdd/",
         "systematic-debugging/": "skills/dev-debug/",
         "verification-before-completion/": "skills/dev-verify/",
-        "requesting-code-review/": "skills/review-local/",
-        "receiving-code-review/": "skills/pr-fix/",
-        "finishing-a-development-branch/": "skills/pr-finish/",
+        "requesting-code-review/": "skills/review-code-local/",
+        "receiving-code-review/": "skills/pr-fix-comments/",
+        "finishing-a-development-branch/": "skills/pr-finalize/",
         "using-git-worktrees/": "skills/dev-worktree/",
         "writing-skills/": "skills/manage-skill/"
       },

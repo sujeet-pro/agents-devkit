@@ -84,18 +84,28 @@ Or standalone: `zsh scripts/update-devkit.zsh`
 
 ## Skills
 
-### Reviews
+### Reviewing Others' PRs
 
 | Skill | Use When |
 | --- | --- |
-| `/devkit:review` | Route a target to PR review, document review, or codebase review |
-| `/devkit:review-pr` | Review a GitHub or Bitbucket PR, reconcile existing comments, and optionally post comments back |
-| `/devkit:review-pr-interactive` | Review a PR with an interactive accept/reject/edit loop per comment |
-| `/devkit:pr-fix` | Read PR review comments, fix the code, and commit changes |
-| `/devkit:review-local` | Review staged, unstaged, or branch-local work without auto-fixing it |
+| `/devkit:review-code` | Route a code review request to PR review, local review, or codebase review |
+| `/devkit:review-code-pr` | Review a GitHub or Bitbucket PR — auto-detects fresh vs follow-up, defaults to interactive mode |
+
+### Managing My PRs
+
+| Skill | Use When |
+| --- | --- |
+| `/devkit:pr-describe` | Generate or update a PR description from the real diff |
+| `/devkit:pr-fix-comments` | Read PR review comments, fix the code, and commit changes |
+| `/devkit:pr-finalize` | Verify, review, and choose how to integrate the branch |
+
+### Other Reviews
+
+| Skill | Use When |
+| --- | --- |
+| `/devkit:review-code-local` | Review staged, unstaged, or branch-local work without auto-fixing it |
 | `/devkit:review-doc` | Review markdown, Confluence, or Google Docs without editing the source |
 | `/devkit:review-codebase` | Audit an entire repository and suggest improvements |
-| `/devkit:pr-describe` | Generate or update a PR description from the real diff |
 | `/devkit:audit-security` | Deep security-focused code review (OWASP, auth, data, deps) |
 | `/devkit:audit-performance` | Bundle size, latency, memory analysis with recommendations |
 
@@ -148,7 +158,7 @@ Or standalone: `zsh scripts/update-devkit.zsh`
 | `/devkit:dev-tdd` | RED-GREEN-REFACTOR cycle enforcement |
 | `/devkit:dev-debug` | 4-phase root cause analysis |
 | `/devkit:dev-verify` | Evidence-based verification |
-| `/devkit:pr-finish` | Merge/PR/cleanup workflow |
+| `/devkit:pr-finalize` | Merge/PR/cleanup workflow |
 | `/devkit:dev-worktree` | Isolated workspace creation |
 
 ### Utility

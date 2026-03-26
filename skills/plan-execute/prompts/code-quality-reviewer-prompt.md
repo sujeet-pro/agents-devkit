@@ -8,7 +8,7 @@ Use this template when dispatching a code quality reviewer child agent.
 
 ```
 Task tool (devkit:code-reviewer):
-  Use template at review-local/code-reviewer.md
+  Use template at review-code-local/code-reviewer.md
 
   WHAT_WAS_IMPLEMENTED: [from implementer's report]
   PLAN_OR_REQUIREMENTS: Task N from [plan-file]

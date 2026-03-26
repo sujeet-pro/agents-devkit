@@ -28,16 +28,22 @@ Before doing substantial work, always check whether a more specific skill should
 
 ## Skill Guide
 
-### Review Skills
+### Reviewing Others' PRs
 
-- `/devkit:review` - Entry router for review requests. Sends PRs, docs, local diffs, and repo-wide audits to the right `review-*` skill.
-- `/devkit:review-pr` - Reviews a GitHub or Bitbucket PR without editing the branch. Reconciles old comments before posting new ones.
-- `/devkit:review-pr-interactive` - Same PR review flow, but lets the user accept, edit, or reject each comment before posting.
-- `/devkit:review-local` - Reviews staged, unstaged, or branch-local changes, including committed files since branch creation. Outputs a reusable review document instead of auto-fixing.
+- `/devkit:review-code` - Entry router for code review requests. Sends PRs to `review-code-pr`, local changes to `review-code-local`, and repo-wide audits to `review-codebase`.
+- `/devkit:review-code-pr` - Reviews a GitHub or Bitbucket PR without editing the branch. Auto-detects fresh vs follow-up review and defaults to interactive mode for fresh reviews. Supports `mode=standard`, `mode=interactive`, `mode=followup` overrides.
+
+### Managing My PRs
+
+- `/devkit:pr-describe` - Generates or refreshes a PR description from the actual diff, risks, and tests.
+- `/devkit:pr-fix-comments` - Reads PR comments, applies targeted code fixes, and replies back after verification.
+- `/devkit:pr-finalize` - Guides merge, PR, cleanup, and follow-through steps at the end of a branch.
+
+### Other Reviews
+
+- `/devkit:review-code-local` - Reviews staged, unstaged, or branch-local changes, including committed files since branch creation. Outputs a reusable review document instead of auto-fixing.
 - `/devkit:review-doc` - Reviews markdown, Confluence, or Google Docs without editing the source. Leaves comments where possible, otherwise emits a review artifact.
 - `/devkit:review-codebase` - Reviews an entire repository and produces a prioritized engineering improvement document.
-- `/devkit:pr-fix` - Reads PR comments, applies targeted code fixes, and replies back after verification.
-- `/devkit:pr-describe` - Generates or refreshes a PR description from the actual diff, risks, and tests.
 - `/devkit:audit-security` - Runs a security-focused review against auth, data handling, dependencies, and attack surfaces.
 - `/devkit:audit-performance` - Reviews performance risks such as latency, bundle size, memory growth, and scaling hotspots.
 
@@ -78,7 +84,7 @@ Before doing substantial work, always check whether a more specific skill should
 - `/devkit:dev-tdd` - Enforces RED-GREEN-REFACTOR loops for feature work and bug fixing.
 - `/devkit:dev-debug` - Uses a structured root-cause workflow instead of guess-and-check fixes.
 - `/devkit:dev-verify` - Builds an evidence-based verification pass before work is declared done.
-- `/devkit:pr-finish` - Guides merge, PR, cleanup, and follow-through steps at the end of a branch.
+- `/devkit:pr-finalize` - Guides merge, PR, cleanup, and follow-through steps at the end of a branch.
 - `/devkit:dev-worktree` - Creates isolated workspaces when multiple branches or tasks need to run in parallel.
 
 ### Utility Skills

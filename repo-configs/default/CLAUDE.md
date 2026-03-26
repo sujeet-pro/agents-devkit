@@ -22,7 +22,7 @@ Invoke skills with the `/` command:
 
 | Skill | Command | Description |
 |-------|---------|-------------|
-| PR Review | `/review-pr <pr-number>` | Multi-agent code review for GitHub and Bitbucket PRs |
+| PR Review | `/review-code-pr <pr-number>` | Multi-agent code review for GitHub and Bitbucket PRs |
 | Diagram | `/diagram <description>` | Generate Mermaid or Excalidraw diagrams |
 | Doc Review | `/review-doc <url>` | Review Confluence or Google Docs with inline comments |
 | Doc Write | `/write-doc <topic>` | Write comprehensive documents with diagrams and research |
@@ -84,7 +84,7 @@ The following MCP servers are configured and available:
 
 ## Validation
 
-Commands to run after `/review-local` findings or before pushing. Update these to match your project:
+Commands to run after `/review-code-local` findings or before pushing. Update these to match your project:
 
 - lint: `npm run lint`
 - lint-fix: `npm run lint -- --fix`
@@ -94,12 +94,12 @@ Commands to run after `/review-local` findings or before pushing. Update these t
 
 ## PR Reviews
 
-To trigger a PR review, use the `/review-pr` skill:
+To trigger a PR review, use the `/review-code-pr` skill:
 
 ```
-/review-pr 42
-/review-pr https://github.com/org/repo/pull/42
-/review-pr 42 --tags=fe
+/review-code-pr 42
+/review-code-pr https://github.com/org/repo/pull/42
+/review-code-pr 42 --tags=fe
 ```
 
 ### Review Tags

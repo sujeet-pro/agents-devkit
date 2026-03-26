@@ -1,5 +1,5 @@
 ---
-name: diagramkit
+name: diagram-render
 description: Render Mermaid, Excalidraw, and draw.io sources to images while preserving editable sources and destination-appropriate formats
 user_invocable: true
 arguments:
@@ -25,7 +25,7 @@ Use `skills/_references/preflight-validations.md`.
 
 Before any render, run:
 
-`zsh scripts/check-skill-deps.zsh diagramkit format=<format>`
+`zsh scripts/check-skill-deps.zsh diagram-render format=<format>`
 
 If the check fails, stop and show the install commands instead of attempting a partial render:
 
@@ -35,10 +35,30 @@ If the check fails, stop and show the install commands instead of attempting a p
 
 Treat rendering as a validation step, not just a conversion step.
 
-Run in parallel:
+## Required Child Agents
 
-- a source integrity pass
-- a render pass
-- an output-fit pass that checks whether the chosen format matches the destination
+Run at least these child agents in parallel:
+
+- **Source integrity agent**: validates the diagram source file is well-formed and parseable. Checks for syntax errors, missing references, and unsupported features. Reports issues before attempting render.
+- **Render agent**: executes the `diagramkit` render command with the requested format and theme. Handles both single-file and directory-level rendering. Reports render success or failure with error details.
+- **Output-fit agent**: checks whether the rendered format matches the intended destination. Flags cases where SVG would be better than raster or vice versa. Verifies file sizes and image quality are acceptable.
+
+## Workflow
+
+1. **Validate source.** Launch the source integrity agent to check the input file or directory.
+2. **Render.** Launch the render agent with the specified format and theme.
+3. **Check output fit.** Launch the output-fit agent to verify the rendered output suits the destination.
+4. **Report.** Present the rendering results with any warnings or quality issues.
 
 Prefer SVG. Use PNG or JPEG only when the destination cannot reliably handle SVG.
+
+## Output
+
+Rendered diagram artifacts alongside the original editable source files. For directory-level rendering, produce a manifest of all rendered files with their status.
+
+## Adjacent Skills
+
+- `/devkit:diagram` for creating new diagrams with automatic engine selection
+- `/devkit:diagram-raster` for rendering directly to raster output
+- `/devkit:diagram-convert` for converting between image formats
+- `/devkit:diagram-troubleshoot` for diagnosing render failures

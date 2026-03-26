@@ -62,7 +62,7 @@ agents-devkit/
 ## Adding a Guideline
 
 1. Create in `skills/_references/guidelines/<category>/<name>.md`
-2. Update `skills/review-pr/SKILL.md` or `skills/write-doc/SKILL.md` guideline loading if applicable
+2. Update `skills/review-code-pr/SKILL.md` or `skills/write-doc/SKILL.md` guideline loading if applicable
 3. Cite authoritative sources (specs, official docs) over blog posts
 
 ## Adding an Agent

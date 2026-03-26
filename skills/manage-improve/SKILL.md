@@ -31,27 +31,25 @@ Before making any edits, check `manifest.json` at the repo root:
 
 1. Read the `last_sync` timestamp for each ref source
 2. If stale, pull the latest from the upstream repo
-3. Compare the upstream content against the current skill files listed in `ref_skills`
+3. Compare upstream content against current skill files listed in `ref_skills`
 4. Do NOT auto-apply changes — present a summary of what changed upstream and let the user decide
-5. If the user approves updates, edit the skill files to reflect new capabilities and update `last_sync`
+5. If the user approves, edit the skill files and update `last_sync`
 
 ## Sync Rules
 
-When improving DevKit itself:
-
-- first compare against the canonical GitHub source of truth at `https://github.com/sujeet-pro/agents-devkit` for skill definitions, references, and packaging docs before making local edits
-- refresh the mirrored diagram references from `../diagramkit/agent_skills/_references/`, for example with `rsync -a ../diagramkit/agent_skills/_references/ skills/_references/`
-- keep active coding and document guidance loaded from `skills/_references/guidelines/`
+- First compare against the canonical GitHub source before making local edits
+- Refresh mirrored diagram references from `../diagramkit/agent_skills/_references/`
+- Keep active coding and document guidance loaded from `skills/_references/guidelines/`
 
 ## Required Child Agents
 
 Run at least these child agents in parallel:
 
-- a **catalog auditor** for skills, agents, and docs completeness
-- a **manifest auditor** that checks sync freshness and source consistency
-- an **MCP and packaging auditor** that verifies platform adapters are consistent
-- a **research pass** for current ecosystem patterns, new tools, and official docs
-- an **editorial pass** that converts findings into a prioritized improvement plan
+- **Catalog auditor**: scans all skill directories, agent definitions, and documentation files for completeness. Checks that every skill has valid YAML frontmatter, description starting with "Use when...", proper `/devkit:` cross-references, and agentic-teams.md reference for non-trivial skills. Produces a gap report with specific files and missing elements.
+- **Manifest auditor**: checks `manifest.json` for sync freshness, validates that all `dest_paths` exist on disk, verifies `last_commit` matches upstream HEAD, and confirms no orphaned files. Produces a manifest health report.
+- **MCP and packaging auditor**: verifies platform adapters (`.claude-plugin`, `.cursor-plugin`, `.codex`, `.opencode`, gemini) are version-consistent and that `settings/base-settings.json` contextInstructions lists all current skills. Produces an adapter consistency report.
+- **Research agent** (`research-agent`): researches current ecosystem patterns, new tools, official docs updates, and community best practices relevant to DevKit's skill categories. Produces an opportunities brief.
+- **Editorial agent**: converts all findings into a prioritized improvement plan with checkbox steps. Groups by priority (critical, high, medium, nice-to-have). Produces the final plan file.
 
 ## Audit Checklist
 
@@ -61,9 +59,9 @@ The child agents should collectively cover:
 - [ ] All skills that reference other skills use the `/devkit:` prefix
 - [ ] All non-trivial skills reference `skills/_references/agentic-teams.md`
 - [ ] All skills that need external tools have a preflight section calling `check-skill-deps.zsh`
-- [ ] Platform adapters (.claude-plugin, .cursor-plugin, .codex, .opencode, gemini) are version-consistent
+- [ ] Platform adapters are version-consistent
 - [ ] `manifest.json` sources are current and all `dest_paths` exist
-- [ ] Guidelines cover all detected repo types in `profiles/detect.md`
+- [ ] Guidelines cover all detected repo types
 - [ ] `settings/base-settings.json` contextInstructions lists all current skills
 - [ ] No broken file references in SKILL.md files
 
@@ -73,9 +71,15 @@ Save the improvement plan to `.temp/plans/improve-<date>.md` with checkbox steps
 
 Produce:
 
-- current-state gaps
+- current-state gaps with file paths and line references
 - stale or broken manifest sources
 - missing or outdated skill references
 - platform adapter inconsistencies
-- opportunities to simplify skill design
-- recommended edits grouped by priority (critical → nice-to-have)
+- recommended edits grouped by priority
+
+## Adjacent Skills
+
+- `/devkit:manage-setup` for checking tool and MCP installation
+- `/devkit:manage-validate` for validating MCP server connectivity
+- `/devkit:manage-skill` for creating or updating individual skills
+- `/devkit:manage-update` for pulling updates from upstream

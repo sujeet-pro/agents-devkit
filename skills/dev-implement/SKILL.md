@@ -125,4 +125,4 @@ Plan: <plan file path>
 - `/devkit:plan-write` for standalone planning without implementation
 - `/devkit:dev-tdd` for TDD-only focus without the full implementation flow
 - `/devkit:dev-verify` for standalone verification
-- `/devkit:pr-finish` to prepare a pull request after implementation is complete
+- `/devkit:pr-finalize` to prepare a pull request after implementation is complete

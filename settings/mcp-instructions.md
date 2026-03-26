@@ -10,9 +10,9 @@ Before any MCP-backed workflow, run `zsh scripts/check-skill-deps.zsh <skill> ..
 
 | Task | Skill | Notes |
 |------|-------|-------|
-| Review a GitHub or Bitbucket PR | `/review-pr <pr>` | Reads existing comments first, reconciles thread state, and can post comments back |
-| Review local work before push | `/review-local` | Reviews staged, unstaged, or branch-local changes without auto-fixing them |
-| Route review target automatically | `/review <target>` | Chooses PR, document, or codebase review |
+| Review a GitHub or Bitbucket PR | `/review-code-pr <pr>` | Reads existing comments first, reconciles thread state, and can post comments back |
+| Review local work before push | `/review-code-local` | Reviews staged, unstaged, or branch-local changes without auto-fixing them |
+| Route code review target automatically | `/review-code <target>` | Chooses PR, local, or codebase review |
 | Review a local doc, Confluence page, or Google Doc | `/review-doc <source>` | Markdown-first review artifact plus optional source comments |
 | Review an entire repository | `/review-codebase` | Architecture, maintainability, docs, test, and modernization audit |
 | Generate a PR description | `/pr-describe <pr>` | Diff-based summary with risk, tests, and docs impact |

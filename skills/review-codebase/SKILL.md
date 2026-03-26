@@ -19,7 +19,9 @@ arguments:
 
 # Codebase Review
 
-Use the shared DevKit child-agent contract in `skills/_references/agentic-teams.md`, the review flow in `skills/_references/review-pipeline.md`, the source routing rules in `skills/_references/source-routing.md`, and the output rules in `skills/_references/output-formats.md`.
+Use the shared DevKit child-agent contract in `skills/_references/agentic-teams.md`, the review flow in `skills/_references/review-pipeline.md`, the source routing rules in `skills/_references/source-routing.md`, the output rules in `skills/_references/output-formats.md`, and the comment format in `skills/_references/review-comment-template.md`.
+
+**All review findings must follow the canonical format in `skills/_references/review-comment-template.md`.**
 
 This skill is review-only. Do not update repository files in place. Produce a review artifact or publish that artifact to a document destination.
 

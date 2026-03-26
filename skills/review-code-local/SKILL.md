@@ -1,5 +1,5 @@
 ---
-name: review-local
+name: review-code-local
 description: Use when you need a non-mutating review of staged, unstaged, or branch-local code changes, including commits made since the branch diverged from its base
 user_invocable: true
 arguments:
@@ -25,7 +25,9 @@ arguments:
 
 # Local Review
 
-Use the same review team and guideline loading model as `/devkit:review-pr`, but keep the result local instead of posting to a remote code review system.
+Use the same review team and guideline loading model as `/devkit:review-code-pr`, but keep the result local instead of posting to a remote code review system.
+
+**All review findings must follow the canonical format in `skills/_references/review-comment-template.md`.** This applies to the markdown review document and to findings presented in the interactive fix loop.
 
 This skill is review-only. Do not auto-fix findings. When inline comments are unavailable, generate a markdown review document that other agents can use to plan and implement changes.
 

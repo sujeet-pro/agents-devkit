@@ -1,6 +1,6 @@
 ---
-name: pr-fix
-description: Use when you want to read PR review comments, fix the code, and commit changes — must be run inside the cloned repository
+name: pr-fix-comments
+description: Use when you want to read PR review comments, apply targeted code fixes, and commit changes — must be run inside the cloned repository
 user_invocable: true
 arguments:
   - name: pr

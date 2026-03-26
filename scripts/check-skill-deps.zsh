@@ -277,7 +277,7 @@ resolve_provider() {
     fi
   done
 
-  if [[ "$skill" == "review-pr" || "$skill" == "pr-review" || "$skill" == "pr-describe" ]]; then
+  if [[ "$skill" == "review-pr" || "$skill" == "review-code-pr" || "$skill" == "pr-review" || "$skill" == "review-pr-followup" || "$skill" == "pr-review-followup" || "$skill" == "pr-describe" ]]; then
     candidate="$(detect_pr_provider_from_git)"
     if [[ -n "$candidate" ]]; then
       echo "$candidate"
@@ -300,14 +300,14 @@ format_value="${format_arg:-${output_arg:-}}"
 publish_value="${publish_arg:-}"
 
 case "$skill" in
-  review-pr|pr-review|review-pr-interactive|pr-review-interactive|pr-describe)
+  review-pr|review-code-pr|pr-review|review-pr-followup|pr-review-followup|pr-describe)
     need_cmd git
     need_cmd rg
     need_cmd fd
     need_cmd jq
     check_selected_mcp "$provider"
     ;;
-  pr-fix|pr-fix-comment)
+  pr-fix|pr-fix-comments|pr-fix-comment)
     need_cmd git
     need_cmd rg
     need_cmd fd
@@ -318,6 +318,33 @@ case "$skill" in
       fail "Not inside a git repository" "Run this skill from within a cloned repository"
     else
       ok "Inside a git repository"
+    fi
+    # Verify clean working tree
+    if [[ -n "$(git status --porcelain 2>/dev/null)" ]]; then
+      fail "Working tree is not clean" "Commit or stash your changes first"
+    else
+      ok "Working tree is clean"
+    fi
+    ;;
+  pr-finalize|pr-finish)
+    need_cmd git
+    need_cmd rg
+    need_cmd fd
+    need_cmd jq
+    check_selected_mcp "$provider"
+    # Verify we are in a git repo
+    if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+      fail "Not inside a git repository" "Run this skill from within a cloned repository"
+    else
+      ok "Inside a git repository"
+    fi
+    # Verify not on main/master
+    local current_branch
+    current_branch="$(git branch --show-current 2>/dev/null || true)"
+    if [[ "$current_branch" == "main" || "$current_branch" == "master" ]]; then
+      fail "Currently on $current_branch — switch to a feature branch first"
+    else
+      ok "On branch: $current_branch"
     fi
     # Verify clean working tree
     if [[ -n "$(git status --porcelain 2>/dev/null)" ]]; then
@@ -355,7 +382,7 @@ case "$skill" in
       esac
     fi
     ;;
-  review-local|self-review|review-codebase|codebase-review|research|research-quick|search|research-deep|deep-research|audit-security|security-audit|audit-performance|performance-audit)
+  review-local|review-code-local|self-review|review-codebase|codebase-review|research|research-quick|search|research-deep|deep-research|audit-security|security-audit|audit-performance|performance-audit)
     need_cmd git
     need_cmd rg
     need_cmd fd
