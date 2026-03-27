@@ -2,10 +2,10 @@
   "name": "devkit",
   "displayName": "DevKit",
   "description": "Shared software-development skills pack for coding agents: reviews, docs, research, codebase audits, diagrams, and source-aware publishing",
-  "version": "3.0.0",
+  "version": "1.0.0",
   "author": {
     "name": "Sujeet Kumar",
-    "email": "sujeet@example.com"
+    "email": "contact@sujeet.pro"
   },
   "homepage": "https://github.com/sujeet-pro/agents-devkit",
   "repository": "https://github.com/sujeet-pro/agents-devkit",

@@ -79,7 +79,7 @@ async function waitFor<T>(
 }
 ```
 
-Extend this pattern for domain-specific helpers (e.g., `waitForEvent`, `waitForEventCount`, `waitForEventMatch`) by wrapping the polling loop with typed parameters.
+See `condition-based-waiting-example.ts` in this directory for complete implementation with domain-specific helpers (`waitForEvent`, `waitForEventCount`, `waitForEventMatch`) from actual debugging session.
 
 ## Common Mistakes
 

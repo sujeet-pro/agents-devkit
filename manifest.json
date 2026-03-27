@@ -19,8 +19,8 @@
         "refs/excalidraw/": "skills/diagram-excalidraw/references/",
         "refs/drawio/": "skills/diagram-drawio/references/"
       },
-      "last_sync": "2026-03-25T00:00:00Z",
-      "last_commit": ""
+      "last_sync": "2026-03-27T05:02:50Z",
+      "last_commit": "046363036820611527e0c3904998d7a12b19052c"
     },
     "superpowers": {
       "type": "copy",
@@ -42,18 +42,20 @@
         "using-git-worktrees/": "skills/dev-worktree/",
         "writing-skills/": "skills/manage-skill/"
       },
-      "last_sync": "2026-03-25T00:00:00Z",
-      "last_commit": ""
+      "last_sync": "2026-03-27T05:02:53Z",
+      "last_commit": "eafe962b18f6c5dc70fb7c8cc7e83e61f4cdde06"
     },
     "pagesmith": {
       "type": "ref",
       "repo": "https://github.com/sujeet-pro/pagesmith",
       "branch": "main",
       "source_path": "packages/core/",
-      "ref_skills": ["write-markdown"],
+      "ref_skills": [
+        "write-markdown"
+      ],
       "notes": "Referenced for markdown feature capabilities (GFM, code highlighting, collapsible sections, math, code tabs). Skills are authored in DevKit but informed by pagesmith capabilities.",
-      "last_sync": "2026-03-25T00:00:00Z",
-      "last_commit": ""
+      "last_sync": "2026-03-27T05:02:51Z",
+      "last_commit": "8c59bd5a9dc924b1966db9aa9aed43b120accf23"
     }
   }
 }

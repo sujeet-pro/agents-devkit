@@ -19,15 +19,16 @@ Register the marketplace and install the plugin:
 
 Skills become available as `/devkit:<skill-name>` immediately.
 
-**For contributors** (symlinks so local edits reflect immediately):
+**For contributors** — clone the repo and link it as the active plugin so local edits reflect immediately:
 
 ```bash
 git clone https://github.com/sujeet-pro/agents-devkit.git
 cd agents-devkit
-zsh install.zsh
+# Inside Claude Code, run:
+/dev-link
 ```
 
-Use `zsh install.zsh --copy` to copy files instead of symlinking.
+This symlinks `~/.claude/plugins/marketplaces/devkit-marketplace` to your working directory. Run `/dev-link action=unlink` to restore the published version.
 
 See [SETUP.md](./SETUP.md) for MCP server configuration and dependency validation.
 
@@ -75,74 +76,35 @@ Restart OpenCode after updating the config. The plugin bridge registers the skil
 
 ## Update
 
-After publishing changes to GitHub, update any local DevKit installation using the approach matching your platform.
-
-### Claude Code
-
-**Plugin install** (recommended for end users):
+All platforms: run `/devkit:manage-update` from within your agent session. This pulls the latest from GitHub, syncs upstream sources, validates tools, and auto-installs missing dependencies.
 
 ```bash
-/plugin update devkit@devkit-marketplace
+/devkit:manage-update                              # Pull latest, auto-install deps
+/devkit:manage-update no-auto-install=true         # Pull latest, check only
+/devkit:manage-update dry-run=true                 # Preview changes without applying
+/devkit:manage-update refresh-mcp=true             # Re-read ~/.zshenv and refresh MCP config
 ```
 
-**Contributor install** (local clone with symlinks):
+After update, the skill automatically runs `/devkit:manage-setup` to validate and install any new dependencies.
+
+### Platform-Specific Notes
+
+| Platform | What `/devkit:manage-update` does | Post-update |
+|----------|----------------------------------|-------------|
+| Claude Code | `git pull` in `~/.claude/plugins/marketplaces/devkit-marketplace` | Run `/reload-plugins` |
+| Cursor | `git pull` in Cursor plugin cache | Restart Cursor |
+| Codex CLI | `git pull` in `~/.devkit` | Auto-reflects via symlinks |
+| Gemini CLI | `git pull` in extensions directory | Restart Gemini CLI |
+| OpenCode | `git pull` in plugin cache | Restart OpenCode |
+
+### Setup Validation
+
+Run setup independently at any time (idempotent):
 
 ```bash
-# Via skill (inside Claude Code)
-/devkit:manage-update
-
-# Via script (from terminal)
-cd /path/to/agents-devkit && zsh scripts/update-devkit.zsh
-```
-
-Symlinked contributor installs reflect local edits immediately — `git pull` is all that's needed. The update skill also syncs upstream sources (diagramkit, superpowers) and re-links everything.
-
-### Cursor
-
-Plugin marketplace updates are automatic when Cursor refreshes plugins. To force a refresh, reinstall:
-
-```
-/add-plugin devkit
-```
-
-### Codex CLI
-
-```bash
-cd ~/.devkit && git pull
-```
-
-Or from within a Codex session: `/devkit:manage-update`
-
-### Gemini CLI
-
-```bash
-gemini extensions install https://github.com/sujeet-pro/agents-devkit
-```
-
-Re-running install pulls the latest version.
-
-### OpenCode
-
-Restart OpenCode to pull the latest from the git-backed plugin source. Or from within a session:
-
-```
-/devkit:manage-update
-```
-
-### Advanced Options
-
-```bash
-# Preview what would change without applying
-/devkit:manage-update dry-run=true
-
-# Update from a local filesystem path (contributor testing)
-/devkit:manage-update source=fs path=/local/path
-
-# Sync only upstream manifest sources
-zsh scripts/sync-sources.zsh
-
-# Sync a specific upstream source
-zsh scripts/sync-sources.zsh --source diagramkit
+/devkit:manage-setup                               # Check + auto-install missing required tools
+/devkit:manage-setup no-auto-install=true           # Check only, no installs
+/devkit:manage-setup refresh-mcp=true               # Re-read ~/.zshenv, refresh MCP servers
 ```
 
 ## Skills

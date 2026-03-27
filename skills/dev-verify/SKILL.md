@@ -1,137 +1,139 @@
 ---
-name: dev-verify
-description: Use before claiming work is complete so you have fresh verification evidence for tests, builds, or runtime behavior
-user_invocable: true
-arguments:
-  - name: scope
-    description: "Verification scope: full, tests, build, behavior (default: full)"
-    required: false
-  - name: target
-    description: "Specific file, directory, or test pattern to verify"
-    required: false
-  - name: mode
-    description: "Workflow mode: interactive (default), auto-approve"
-    required: false
-  - name: plan
-    description: "Path to plan file to extract expected deliverables from"
-    required: false
+name: verification-before-completion
+description: Use when about to claim work is complete, fixed, or passing, before committing or creating PRs - requires running verification commands and confirming output before making any success claims; evidence before assertions always
 ---
 
 # Verification Before Completion
 
-Use `skills/_references/agentic-teams.md` and `skills/_references/preflight-validations.md`.
+## Overview
 
-Every completion claim needs fresh evidence. Do not rely on prior test runs or cached results.
+Claiming work is complete without verification is dishonesty, not efficiency.
 
-## Preflight
+**Core principle:** Evidence before claims, always.
 
-Before running verification, run:
+**Violating the letter of this rule is violating the spirit of this rule.**
 
-`zsh scripts/check-skill-deps.zsh dev-verify`
-
-Detect the project's test runner, linter, type-checker, and build tool from configuration files (`package.json`, `Makefile`, `Cargo.toml`, `pyproject.toml`, `go.mod`, etc.).
-
-## Required Child Agents
-
-When the platform supports child agents, run at least these in parallel:
-
-- **Test runner**: executes the full test suite (or targeted tests when `target` is specified). Reports pass/fail counts, failure details, and coverage when available.
-- **Build and static analysis runner**: executes the linter, type-checker, and build command. Reports each as clean or lists specific failures with file and line references.
-- **Behavioral verifier**: identifies the specific behavior or output changed by the current work (from the git diff). Runs a targeted verification of that behavior — specific test files, a curl against a local server, a CLI invocation, or a manual inspection.
-
-## Workflow
-
-1. **Detect tools.** Identify the test runner, linter, type-checker, and build tool from project configuration.
-2. **Launch verification agents.** Run test, build/static-analysis, and behavioral passes in parallel.
-3. **Collect results.** Merge all verification output.
-4. **Report.** Present a structured verification summary.
-
-## Output
+## The Iron Law
 
 ```
-## Verification Summary
-
-### Tests
-- Runner: <test framework>
-- Result: <pass count>/<total count> passed
-- Failures: <list if any>
-
-### Static Analysis
-- Lint: <clean or N issues>
-- Types: <clean or N issues>
-- Build: <success or failure>
-
-### Behavioral Check
-- Changed behavior: <description>
-- Verification method: <what was run>
-- Result: <confirmed working or issue found>
-
-### Verdict: <PASS or FAIL with blockers listed>
+NO COMPLETION CLAIMS WITHOUT FRESH VERIFICATION EVIDENCE
 ```
 
-## Goal-Backward Verification
+If you haven't run the verification command in this message, you cannot claim it passes.
 
-The automated checks above (tests, lint, types, build) confirm that code is *correct*. Goal-backward verification confirms that code is *complete* — that every planned deliverable actually exists, does real work, is connected, and carries live data.
-
-Run this layer **after** the automated verification passes. If a `plan` argument is provided, extract expected deliverables from the plan file. Otherwise, infer deliverables from the git diff and any linked issue or PR description.
-
-### 4-Level Verification Cascade
-
-Every expected deliverable must pass all four levels in order. Stop at the first failure.
-
-| Level | Check | Pass criteria | Failure status |
-|-------|-------|---------------|----------------|
-| 1. Exists | File or component is present on disk | Path resolves to an existing file | `MISSING` |
-| 2. Substantive | Not a stub or placeholder | >20 meaningful lines, no empty returns, no placeholder text, no TODO-only content | `STUB` |
-| 3. Wired | Imported AND used by at least one other module | At least one import/require referencing this module from another file; not orphaned | `ORPHANED` |
-| 4. Data flowing | Upstream data sources produce real data; props/args are connected to live state | Data sources return non-hardcoded values; component props are bound to store/context/API responses | `HOLLOW` |
-
-### Stub Detection Patterns
-
-Use these concrete patterns when evaluating Level 2 (Substantive):
-
-- **Empty function bodies**: functions whose body is only `{}`, `pass`, `return`, `return null`, `return undefined`, or `return None`
-- **TODO-only content**: files or functions where the only non-whitespace content is `// TODO`, `# TODO`, `/* TODO */`, or similar markers
-- **Placeholder text**: presence of "Lorem ipsum", "Sample data", "Test content", "placeholder", "FIXME: implement" as the primary content
-- **Render-nothing components**: React/Vue/Svelte components that return `null`, an empty fragment, or only a bare `<div />` / `<div></div>` with no meaningful children
-- **Hardcoded API responses**: route handlers or API functions that return static/literal objects without reading from any data source, database, or external service
-
-### Interactive Deliverable Verification
-
-For each expected deliverable, produce a structured assessment. When `mode` is `interactive` (the default), prompt the user for an action on each non-VERIFIED deliverable. When `mode` is `auto-approve`, automatically choose `[F]ix now` for STUB/ORPHANED/HOLLOW and flag MISSING for investigation.
+## The Gate Function
 
 ```
-## Deliverable [N/total] - <expected outcome>
+BEFORE claiming any status or expressing satisfaction:
 
-Level 1 (Exists): ✓/✗ <path or MISSING>
-Level 2 (Substantive): ✓/✗ <line count, stub patterns found>
-Level 3 (Wired): ✓/✗ <import count, usage sites>
-Level 4 (Data flowing): ✓/✗ <data source status>
+1. IDENTIFY: What command proves this claim?
+2. RUN: Execute the FULL command (fresh, complete)
+3. READ: Full output, check exit code, count failures
+4. VERIFY: Does output confirm the claim?
+   - If NO: State actual status with evidence
+   - If YES: State claim WITH evidence
+5. ONLY THEN: Make the claim
 
-Overall: [VERIFIED|MISSING|STUB|ORPHANED|HOLLOW]
-
-Action: [F]ix now | [D]efer | [A]ccept as-is | [I]nvestigate
+Skip any step = lying, not verifying
 ```
 
-After all deliverables are assessed, append a **Goal-Backward Summary** to the Verification Summary output:
+## Common Failures
 
+| Claim | Requires | Not Sufficient |
+|-------|----------|----------------|
+| Tests pass | Test command output: 0 failures | Previous run, "should pass" |
+| Linter clean | Linter output: 0 errors | Partial check, extrapolation |
+| Build succeeds | Build command: exit 0 | Linter passing, logs look good |
+| Bug fixed | Test original symptom: passes | Code changed, assumed fixed |
+| Regression test works | Red-green cycle verified | Test passes once |
+| Agent completed | VCS diff shows changes | Agent reports "success" |
+| Requirements met | Line-by-line checklist | Tests passing |
+
+## Red Flags - STOP
+
+- Using "should", "probably", "seems to"
+- Expressing satisfaction before verification ("Great!", "Perfect!", "Done!", etc.)
+- About to commit/push/PR without verification
+- Trusting agent success reports
+- Relying on partial verification
+- Thinking "just this once"
+- Tired and wanting work over
+- **ANY wording implying success without having run verification**
+
+## Rationalization Prevention
+
+| Excuse | Reality |
+|--------|---------|
+| "Should work now" | RUN the verification |
+| "I'm confident" | Confidence ≠ evidence |
+| "Just this once" | No exceptions |
+| "Linter passed" | Linter ≠ compiler |
+| "Agent said success" | Verify independently |
+| "I'm tired" | Exhaustion ≠ excuse |
+| "Partial check is enough" | Partial proves nothing |
+| "Different words so rule doesn't apply" | Spirit over letter |
+
+## Key Patterns
+
+**Tests:**
 ```
-### Goal-Backward Verification
-- Deliverables checked: <total>
-- Verified: <count>
-- Missing: <count>
-- Stubs: <count>
-- Orphaned: <count>
-- Hollow: <count>
-
-### Goal-Backward Verdict: <PASS or FAIL with list of non-verified deliverables>
+✅ [Run test command] [See: 34/34 pass] "All tests pass"
+❌ "Should pass now" / "Looks correct"
 ```
 
-The overall verification verdict is PASS only when **both** the automated checks and the goal-backward checks pass.
+**Regression tests (TDD Red-Green):**
+```
+✅ Write → Run (pass) → Revert fix → Run (MUST FAIL) → Restore → Run (pass)
+❌ "I've written a regression test" (without red-green verification)
+```
 
-## Adjacent Skills
+**Build:**
+```
+✅ [Run build] [See: exit 0] "Build passes"
+❌ "Linter passed" (linter doesn't check compilation)
+```
 
-- `/devkit:dev-implement` for full implementation with built-in verification, including goal-backward checks
-- `/devkit:pr-finalize` for branch finalization with verification and review
-- `/devkit:dev-debug` for investigating verification failures
-- `/devkit:verify-uat` for user acceptance testing after technical verification passes
+**Requirements:**
+```
+✅ Re-read plan → Create checklist → Verify each → Report gaps or completion
+❌ "Tests pass, phase complete"
+```
+
+**Agent delegation:**
+```
+✅ Agent reports success → Check VCS diff → Verify changes → Report actual state
+❌ Trust agent report
+```
+
+## Why This Matters
+
+From 24 failure memories:
+- your human partner said "I don't believe you" - trust broken
+- Undefined functions shipped - would crash
+- Missing requirements shipped - incomplete features
+- Time wasted on false completion → redirect → rework
+- Violates: "Honesty is a core value. If you lie, you'll be replaced."
+
+## When To Apply
+
+**ALWAYS before:**
+- ANY variation of success/completion claims
+- ANY expression of satisfaction
+- ANY positive statement about work state
+- Committing, PR creation, task completion
+- Moving to next task
+- Delegating to agents
+
+**Rule applies to:**
+- Exact phrases
+- Paraphrases and synonyms
+- Implications of success
+- ANY communication suggesting completion/correctness
+
+## The Bottom Line
+
+**No shortcuts for verification.**
+
+Run the command. Read the output. THEN claim the result.
+
+This is non-negotiable.

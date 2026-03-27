@@ -1,158 +1,152 @@
 ---
-name: plan-write
-description: Use when turning requirements into an execution plan that can be carried out by engineers or child-agent teams with minimal ambiguity
-user_invocable: true
-arguments:
-  - name: feature
-    description: "Feature or task to plan"
-    required: true
-  - name: scope
-    description: "Plan scope: full, incremental (default: full)"
-    required: false
-  - name: mode
-    description: "Workflow mode: interactive (default, confirms at each step), auto-approve (proceeds without confirmation)"
-    required: false
+name: writing-plans
+description: Use when you have a spec or requirements for a multi-step task, before touching code
 ---
 
 # Writing Plans
 
-Use `skills/_references/agentic-teams.md` and `skills/_references/preflight-validations.md`.
+## Overview
 
-Plans should be executable by a human or by DevKit child-agent teams with minimal ambiguity.
+Write comprehensive implementation plans assuming the engineer has zero context for our codebase and questionable taste. Document everything they need to know: which files to touch for each task, code, testing, docs they might need to check, how to test it. Give them the whole plan as bite-sized tasks. DRY. YAGNI. TDD. Frequent commits.
 
-## Preflight
+Assume they are a skilled developer, but know almost nothing about our toolset or problem domain. Assume they don't know good test design very well.
 
-Before creating a plan, run:
+**Announce at start:** "I'm using the writing-plans skill to create the implementation plan."
 
-`zsh scripts/check-skill-deps.zsh plan-write`
+**Context:** This should be run in a dedicated worktree (created by brainstorming skill).
 
-## Plan Storage
+**Save plans to:** `docs/superpowers/plans/YYYY-MM-DD-<feature-name>.md`
+- (User preferences for plan location override this default)
 
-Save all plans to `.temp/plans/<plan-id>.md` in the current working directory. If `.temp/` does not exist, create it and ensure it is listed in `.gitignore`.
+## Scope Check
 
-Use this plan file format:
+If the spec covers multiple independent subsystems, it should have been broken into sub-project specs during brainstorming. If it wasn't, suggest breaking this into separate plans — one per subsystem. Each plan should produce working, testable software on its own.
 
-```markdown
----
-plan_id: <short-id>
-created: <ISO-8601>
-updated: <ISO-8601>
-skill: <skill-that-created-this>
-status: draft | approved | in-progress | completed
----
+## File Structure
 
-# <Plan Title>
+Before defining tasks, map out which files will be created or modified and what each one is responsible for. This is where decomposition decisions get locked in.
 
-## Context
-<Why this plan exists, what triggered it>
+- Design units with clear boundaries and well-defined interfaces. Each file should have one clear responsibility.
+- You reason best about code you can hold in context at once, and your edits are more reliable when files are focused. Prefer smaller, focused files over large ones that do too much.
+- Files that change together should live together. Split by responsibility, not by technical layer.
+- In existing codebases, follow established patterns. If the codebase uses large files, don't unilaterally restructure - but if a file you're modifying has grown unwieldy, including a split in the plan is reasonable.
 
-## Tasks
+This structure informs the task decomposition. Each task should produce self-contained changes that make sense independently.
 
-- [ ] Task 1: <description>
-  - Files: <exact paths>
-  - Verification: <command or check>
-- [ ] Task 2: <description>
-  ...
-```
+## Bite-Sized Task Granularity
 
-## Phase 0: Interactive Discussion
+**Each step is one action (2-5 minutes):**
+- "Write the failing test" - step
+- "Run it to make sure it fails" - step
+- "Implement the minimal code to make the test pass" - step
+- "Run the tests and make sure they pass" - step
+- "Commit" - step
 
-Before any planning work begins, identify "gray areas" — implementation decisions where the user's intent is unclear or ambiguous. This phase resolves uncertainty upfront so the plan is built on solid assumptions.
+## Plan Document Header
 
-### Gray Area Categories
-
-Look for ambiguity in these categories:
-
-- **API shape** — endpoint design, request/response contracts, versioning
-- **UI layout** — component structure, responsive behavior, interaction patterns
-- **Error handling** — failure modes, retry strategies, user-facing messages
-- **Naming conventions** — variables, files, modules, routes
-- **Data flow** — state management, caching, synchronization
-- **Architecture boundaries** — service boundaries, module ownership, shared code
-
-### Capped Clarification
-
-Ask a maximum of **5 questions**, prioritized by `Impact x Uncertainty` (highest first). If there are fewer than 5 gray areas, ask only what is needed.
-
-Present each gray area interactively using this format:
-
-```
-## Clarification [N/total] - [category]
-
-Context: <what part of the feature this affects>
-
-Options:
-A) <option with tradeoff>
-B) <option with tradeoff>
-C) <user-specified>
-
-Your choice: [A] | [B] | [C] | [S]kip
-```
-
-### Bulk Skip
-
-Support bulk resolution: if the user replies "skip all remaining", use the AI's best judgment for every unresolved gray area.
-
-### Decision Log
-
-Save all discussion outcomes to `.temp/plans/<plan-id>-context.md` with three sections:
+**Every plan MUST start with this header:**
 
 ```markdown
-## Decisions
-<!-- Locked — the user explicitly chose these -->
+# [Feature Name] Implementation Plan
 
-## Discretion
-<!-- AI chooses — the user skipped or bulk-skipped these -->
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-## Deferred
-<!-- Out of scope — acknowledged but not addressed in this plan -->
+**Goal:** [One sentence describing what this builds]
+
+**Architecture:** [2-3 sentences about approach]
+
+**Tech Stack:** [Key technologies/libraries]
+
+---
 ```
 
-This context file is written alongside the plan file and should be referenced during task breakdown.
+## Task Structure
 
-## Required Child Agents
+````markdown
+### Task N: [Component Name]
 
-Run at least these child agents in parallel:
+**Files:**
+- Create: `exact/path/to/file.py`
+- Modify: `exact/path/to/existing.py:123-145`
+- Test: `tests/exact/path/to/test.py`
 
-- **Scope analyst**: reads the repository to identify affected files, existing patterns, and dependencies. Produces a scope brief with file inventory and dependency map.
-- **Task planner**: breaks the feature into discrete, verifiable tasks with clear boundaries. Ensures tasks can be parallelized where possible and sequential where dependencies exist.
-- **Review agent**: reviews the plan for gaps, missing dependencies, unclear ownership, and testability. Flags tasks that lack verification commands.
+- [ ] **Step 1: Write the failing test**
 
-## Workflow
+```python
+def test_specific_behavior():
+    result = function(input)
+    assert result == expected
+```
 
-1. **Discussion.** Run Phase 0 to identify and resolve gray areas interactively. Save decisions to `.temp/plans/<plan-id>-context.md`.
-2. **Analyze scope.** Launch the scope analyst to read the codebase and identify affected areas.
-3. **Break down tasks.** Launch the task planner to create discrete, ordered tasks.
-4. **Add verification.** Ensure every task has a verification command or check.
-5. **Review.** Launch the review agent to check for gaps and feasibility.
-6. **Write plan file.** Save the plan to `.temp/plans/<plan-id>.md`.
-7. **Present for approval.** Show the plan to the user before execution.
+- [ ] **Step 2: Run test to verify it fails**
 
-## Plan Requirements
+Run: `pytest tests/path/test.py::test_name -v`
+Expected: FAIL with "function not defined"
 
-- Exact files and responsibilities per task
-- Clear task boundaries so tasks can be parallelized
-- Verification commands for each task
-- Docs and migration follow-ups
-- Review checkpoints after groups of related tasks
+- [ ] **Step 3: Write minimal implementation**
 
-### Scope Categorization
+```python
+def function(input):
+    return expected
+```
 
-Every item discovered during analysis must be categorized into one of three scope boundaries:
+- [ ] **Step 4: Run test to verify it passes**
 
-- **v1 (must-have)** — required for this plan; will be broken into tasks
-- **v2 (future enhancement)** — tracked in the plan file under a "Future Work" section but not planned into tasks
-- **out-of-scope** — explicitly excluded; listed so stakeholders know what was considered and rejected
+Run: `pytest tests/path/test.py::test_name -v`
+Expected: PASS
 
-Present the scope categorization to the user for interactive approval before proceeding to task breakdown. In `auto-approve` mode, present the categorization but continue without waiting for confirmation.
+- [ ] **Step 5: Commit**
 
-## Output
+```bash
+git add tests/path/test.py src/path/file.py
+git commit -m "feat: add specific feature"
+```
+````
 
-A plan file saved to `.temp/plans/` with the format above, ready for execution by `/devkit:plan-execute`.
+## No Placeholders
 
-## Adjacent Skills
+Every step must contain the actual content an engineer needs. These are **plan failures** — never write them:
+- "TBD", "TODO", "implement later", "fill in details"
+- "Add appropriate error handling" / "add validation" / "handle edge cases"
+- "Write tests for the above" (without actual test code)
+- "Similar to Task N" (repeat the code — the engineer may be reading tasks out of order)
+- Steps that describe what to do without showing how (code blocks required for code steps)
+- References to types, functions, or methods not defined in any task
 
-- `/devkit:plan-brainstorm` for exploring options before planning
-- `/devkit:plan-execute` for executing the plan
-- `/devkit:plan-track` for monitoring plan progress
-- `/devkit:dev-implement` for full implementation with built-in planning
+## Remember
+- Exact file paths always
+- Complete code in every step — if a step changes code, show the code
+- Exact commands with expected output
+- DRY, YAGNI, TDD, frequent commits
+
+## Self-Review
+
+After writing the complete plan, look at the spec with fresh eyes and check the plan against it. This is a checklist you run yourself — not a subagent dispatch.
+
+**1. Spec coverage:** Skim each section/requirement in the spec. Can you point to a task that implements it? List any gaps.
+
+**2. Placeholder scan:** Search your plan for red flags — any of the patterns from the "No Placeholders" section above. Fix them.
+
+**3. Type consistency:** Do the types, method signatures, and property names you used in later tasks match what you defined in earlier tasks? A function called `clearLayers()` in Task 3 but `clearFullLayers()` in Task 7 is a bug.
+
+If you find issues, fix them inline. No need to re-review — just fix and move on. If you find a spec requirement with no task, add the task.
+
+## Execution Handoff
+
+After saving the plan, offer execution choice:
+
+**"Plan complete and saved to `docs/superpowers/plans/<filename>.md`. Two execution options:**
+
+**1. Subagent-Driven (recommended)** - I dispatch a fresh subagent per task, review between tasks, fast iteration
+
+**2. Inline Execution** - Execute tasks in this session using executing-plans, batch execution with checkpoints
+
+**Which approach?"**
+
+**If Subagent-Driven chosen:**
+- **REQUIRED SUB-SKILL:** Use superpowers:subagent-driven-development
+- Fresh subagent per task + two-stage review
+
+**If Inline Execution chosen:**
+- **REQUIRED SUB-SKILL:** Use superpowers:executing-plans
+- Batch execution with checkpoints for review

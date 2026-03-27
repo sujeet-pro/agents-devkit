@@ -1,215 +1,200 @@
 ---
-name: pr-finalize
-description: Use when implementation is complete and you need to verify, run a final review, and choose how to integrate the branch (merge, squash, or rebase)
-user_invocable: true
-arguments:
-  - name: base
-    description: "Base branch to compare against (default: main)"
-    required: false
-  - name: strategy
-    description: "Integration strategy: merge, squash, rebase, or ask (default: ask)"
-    required: false
-  - name: pr
-    description: "Existing PR number or URL to update instead of creating a new one"
-    required: false
-  - name: publish
-    description: "Where to send the PR: source, markdown, both (default: source)"
-    required: false
+name: finishing-a-development-branch
+description: Use when implementation is complete, all tests pass, and you need to decide how to integrate the work - guides completion of development work by presenting structured options for merge, PR, or cleanup
 ---
 
 # Finishing a Development Branch
 
-Use `skills/_references/agentic-teams.md`, `skills/_references/preflight-validations.md`, `skills/_references/source-routing.md`, and `skills/_references/output-formats.md`.
+## Overview
 
-## Preflight
+Guide completion of development work by presenting clear options and handling chosen workflow.
 
-Before verification or review, run:
+**Core principle:** Verify tests → Present options → Execute choice → Clean up.
 
-`zsh scripts/check-skill-deps.zsh pr-finalize pr=<pr> publish=<publish>`
+**Announce at start:** "I'm using the finishing-a-development-branch skill to complete this work."
 
-Then confirm:
+## The Process
 
-- The current branch is not `main` or `master`.
-- The working tree is clean (no uncommitted changes). If dirty, stop and ask the user to commit or stash first.
-- The branch has at least one commit ahead of `base`.
+### Step 1: Verify Tests
 
-## Phase 1: Fresh Verification
+**Before presenting options, verify tests pass:**
 
-Run verification in parallel when child agents are available:
-
-### Test Pass
-
-- Detect the project's test runner from `package.json`, `Makefile`, `Cargo.toml`, `pyproject.toml`, `go.mod`, or similar.
-- Run the full test suite. Report pass/fail counts.
-
-### Build and Static Analysis Pass
-
-- Run the linter if configured.
-- Run the type-checker if configured.
-- Run the build command if configured.
-- Report each as clean or list failures.
-
-### Behavioral Spot-Check
-
-- Identify the specific behavior or output changed by the branch (from the diff against `base`).
-- Run a targeted verification of that behavior (e.g., specific test files, a curl against a local server, a CLI invocation).
-
-If any verification step fails, stop and present the failures. Do not proceed to review or integration until all checks pass. Ask the user whether to fix the issues or continue anyway.
-
-## Phase 2: Final Review
-
-Run review child agents in parallel:
-
-- `code-reviewer` for correctness, security, performance, and code patterns across the full branch diff
-- `repo-auditor` for architecture, dependency direction, and change isolation
-- `doc-reviewer` for docs impact, naming, migration notes, and reviewer ergonomics
-
-Load coding guidelines following the same model as `/devkit:review-code-local`:
-
-- Always load `skills/_references/guidelines/coding/general.md` and `skills/_references/guidelines/coding/architecture.md`
-- Add repo-type guidance based on the files changed (frontend, backend, design-system, scripts, etc.)
-- Load `skills/_references/guidelines/coding/security.md` if security-sensitive files are touched
-- Load `skills/_references/guidelines/coding/testing.md` if test files are touched
-
-Consolidate findings: deduplicate across agents, assign severity and confidence, and filter below 80% confidence.
-
-### Review Gate
-
-Present the consolidated findings to the user:
-
-```text
-## Final Review
-
-### Findings
-| Severity | File | Issue | Confidence |
-|----------|------|-------|------------|
-| ...      | ...  | ...   | ...        |
-
-### Blockers: N critical/high findings
-### Warnings: N medium/low findings
+```bash
+# Run project's test suite
+npm test / cargo test / pytest / go test ./...
 ```
 
-If there are critical or high-severity findings:
+**If tests fail:**
+```
+Tests failing (<N> failures). Must fix before completing:
 
-- Present them individually and ask whether to fix before integrating or proceed anyway.
-- If the user chooses to fix, apply changes and re-run verification (Phase 1) on affected files only.
+[Show failures]
 
-If there are no blockers, proceed to Phase 3.
-
-## Phase 3: Branch Status Summary
-
-Present a full branch status before offering integration options:
-
-```text
-## Branch Status
-
-Branch: <current branch>
-Base: <base branch>
-Commits ahead: N
-Files changed: N
-
-### Verification
-- Tests: <pass count>/<total count> passed
-- Lint: <clean or N issues>
-- Types: <clean or N issues>
-- Build: <success or failure>
-
-### Review
-- Critical: N
-- High: N
-- Medium: N
-- Low: N
-- All blockers resolved: yes/no
-
-### Risk Assessment
-- <1-3 bullet points summarizing key risks, breaking changes, or deployment considerations>
+Cannot proceed with merge/PR until tests pass.
 ```
 
-## Phase 4: Integration
+Stop. Don't proceed to Step 2.
 
-### Strategy Selection
+**If tests pass:** Continue to Step 2.
 
-If `strategy=ask` (the default), present the options with a recommendation:
+### Step 2: Determine Base Branch
 
-```text
-## Integration Options
-
-1. **Squash merge** — combine all N commits into one clean commit on base
-   Best when: the branch has messy WIP commits or the feature is a single logical change
-
-2. **Merge commit** — preserve full branch history with a merge commit
-   Best when: the branch has well-structured commits that tell a useful story
-
-3. **Rebase** — replay commits on top of base without a merge commit
-   Best when: the branch has clean, atomic commits and you want linear history
-
-Recommended: <recommendation based on commit count, message quality, and branch complexity>
+```bash
+# Try common base branches
+git merge-base HEAD main 2>/dev/null || git merge-base HEAD master 2>/dev/null
 ```
 
-If `strategy` is explicitly set to `merge`, `squash`, or `rebase`, skip the selection prompt.
+Or ask: "This branch split from main - is that correct?"
 
-### PR Creation or Update
+### Step 3: Present Options
 
-Detect GitHub or Bitbucket from the repository remote using source routing.
+Present exactly these 4 options:
 
-**If `pr` is provided**: update the existing PR description using the branch status and review summary.
+```
+Implementation complete. What would you like to do?
 
-**If no `pr` is provided**: ask the user whether to:
+1. Merge back to <base-branch> locally
+2. Push and create a Pull Request
+3. Keep the branch as-is (I'll handle it later)
+4. Discard this work
 
-1. **Create a PR** — generate a PR description from the diff, commits, and review findings, then create it through the matching MCP.
-2. **Merge locally** — perform the selected merge strategy locally without creating a PR.
-
-When creating or updating a PR, base the description on the real diff, commits, and review findings. Include:
-
-- What changed and why
-- Verification results
-- Risk and rollback notes
-- Test and docs impact
-- Follow-up items if any
-
-Post through the GitHub or Bitbucket MCP when `publish` includes source updates.
-
-### Local Merge (when chosen)
-
-If the user chooses local merge instead of a PR:
-
-1. Confirm the strategy one more time.
-2. Execute the merge:
-   - `squash`: `git checkout <base> && git merge --squash <branch> && git commit`
-   - `merge`: `git checkout <base> && git merge --no-ff <branch>`
-   - `rebase`: `git rebase <base>` (on the feature branch, then fast-forward base)
-3. Do not push unless the user explicitly asks.
-4. Do not delete the feature branch unless the user explicitly asks.
-
-## Output
-
-Display a final summary:
-
-```text
-## Finalize Complete
-
-Branch: <branch>
-Base: <base>
-Strategy: <merge | squash | rebase | PR created>
-PR: <PR URL if created or updated, otherwise "local merge">
-
-### Verification
-- Tests: passed
-- Lint: clean
-- Types: clean
-- Build: success
-
-### Review
-- Findings: N total (N resolved, N accepted as-is)
-- Blockers: none
-
-### Next Steps
-- <push, deploy, delete branch, or other follow-up actions>
+Which option?
 ```
 
-## Adjacent Skills
+**Don't add explanation** - keep options concise.
 
-- `/devkit:dev-implement` for the full implementation flow that hands off to this skill
-- `/devkit:dev-verify` for standalone verification without the review and integration steps
-- `/devkit:review-code-local` for a standalone local review without integration
-- `/devkit:pr-describe` for generating or updating a PR description without verification or review
+### Step 4: Execute Choice
+
+#### Option 1: Merge Locally
+
+```bash
+# Switch to base branch
+git checkout <base-branch>
+
+# Pull latest
+git pull
+
+# Merge feature branch
+git merge <feature-branch>
+
+# Verify tests on merged result
+<test command>
+
+# If tests pass
+git branch -d <feature-branch>
+```
+
+Then: Cleanup worktree (Step 5)
+
+#### Option 2: Push and Create PR
+
+```bash
+# Push branch
+git push -u origin <feature-branch>
+
+# Create PR
+gh pr create --title "<title>" --body "$(cat <<'EOF'
+## Summary
+<2-3 bullets of what changed>
+
+## Test Plan
+- [ ] <verification steps>
+EOF
+)"
+```
+
+Then: Cleanup worktree (Step 5)
+
+#### Option 3: Keep As-Is
+
+Report: "Keeping branch <name>. Worktree preserved at <path>."
+
+**Don't cleanup worktree.**
+
+#### Option 4: Discard
+
+**Confirm first:**
+```
+This will permanently delete:
+- Branch <name>
+- All commits: <commit-list>
+- Worktree at <path>
+
+Type 'discard' to confirm.
+```
+
+Wait for exact confirmation.
+
+If confirmed:
+```bash
+git checkout <base-branch>
+git branch -D <feature-branch>
+```
+
+Then: Cleanup worktree (Step 5)
+
+### Step 5: Cleanup Worktree
+
+**For Options 1, 2, 4:**
+
+Check if in worktree:
+```bash
+git worktree list | grep $(git branch --show-current)
+```
+
+If yes:
+```bash
+git worktree remove <worktree-path>
+```
+
+**For Option 3:** Keep worktree.
+
+## Quick Reference
+
+| Option | Merge | Push | Keep Worktree | Cleanup Branch |
+|--------|-------|------|---------------|----------------|
+| 1. Merge locally | ✓ | - | - | ✓ |
+| 2. Create PR | - | ✓ | ✓ | - |
+| 3. Keep as-is | - | - | ✓ | - |
+| 4. Discard | - | - | - | ✓ (force) |
+
+## Common Mistakes
+
+**Skipping test verification**
+- **Problem:** Merge broken code, create failing PR
+- **Fix:** Always verify tests before offering options
+
+**Open-ended questions**
+- **Problem:** "What should I do next?" → ambiguous
+- **Fix:** Present exactly 4 structured options
+
+**Automatic worktree cleanup**
+- **Problem:** Remove worktree when might need it (Option 2, 3)
+- **Fix:** Only cleanup for Options 1 and 4
+
+**No confirmation for discard**
+- **Problem:** Accidentally delete work
+- **Fix:** Require typed "discard" confirmation
+
+## Red Flags
+
+**Never:**
+- Proceed with failing tests
+- Merge without verifying tests on result
+- Delete work without confirmation
+- Force-push without explicit request
+
+**Always:**
+- Verify tests before offering options
+- Present exactly 4 options
+- Get typed confirmation for Option 4
+- Clean up worktree for Options 1 & 4 only
+
+## Integration
+
+**Called by:**
+- **subagent-driven-development** (Step 7) - After all tasks complete
+- **executing-plans** (Step 5) - After all batches complete
+
+**Pairs with:**
+- **using-git-worktrees** - Cleans up worktree created by that skill

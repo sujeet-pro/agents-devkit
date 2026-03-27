@@ -3,17 +3,17 @@
   "description": "Marketplace manifest for the DevKit multi-agent skills pack",
   "owner": {
     "name": "Sujeet Kumar",
-    "email": "sujeet@example.com"
+    "email": "contact@sujeet.pro"
   },
   "plugins": [
     {
       "name": "devkit",
       "description": "Full DevKit install: software-development skills, agents, guidelines, scripts, and platform-ready packaging metadata.",
-      "version": "3.0.0",
+      "version": "1.0.0",
       "source": "./",
       "author": {
         "name": "Sujeet Kumar",
-        "email": "sujeet@example.com"
+        "email": "contact@sujeet.pro"
       }
     }
   ]

@@ -1,101 +1,127 @@
 ---
 name: diagram-mermaid
-description: Use when Mermaid is the best fit for a text-first engineering diagram that should diff well in Git
+description: Generate Mermaid diagram source files (.mermaid). Produces the source file only; use /diagramkit to render.
 user_invocable: true
 arguments:
   - name: description
-    description: "What to diagram"
+    description: 'Description of what to diagram'
     required: true
   - name: type
-    description: "Mermaid diagram type: flowchart, sequence, class, state, er, gantt, journey, mindmap, timeline, c4, architecture, quadrant, sankey, block, pie, radar, xy, gitgraph, kanban, packet, requirement"
+    description: 'Diagram type: flowchart, sequence, class, state, er, gantt, gitgraph, mindmap, timeline, c4, kanban, quadrant, sankey, xy, block, packet, radar, journey, requirement, pie (default: auto-detect)'
     required: false
   - name: theme
-    description: "Theme: default, neutral, forest, dark, base (default: default)"
-    required: false
-  - name: format
-    description: "Rendered format: svg, png, jpeg, webp (default: svg)"
+    description: 'Mermaid theme: default, forest, dark, neutral, base (default: default)'
     required: false
 ---
 
-# Mermaid Diagram
+# Mermaid Diagram Generation
 
-Use `skills/_references/agentic-teams.md`, `skills/_references/output-formats.md`, and `skills/_references/preflight-validations.md`.
+Generate diagrams using Mermaid syntax. Supports all 20+ Mermaid v11 diagram types. This skill writes a `.mermaid` source file only -- use `/diagramkit` or `diagramkit render` to produce images.
 
-Use this skill for flowcharts, sequence diagrams, ERDs, class diagrams, state machines, and any text-first diagram that should diff well in Git. For freeform architecture overviews, use `/devkit:diagram-excalidraw`. For precise enterprise layouts, use `/devkit:diagram-drawio`.
+Accepted file extensions: `.mermaid`, `.mmd`, `.mmdc`
 
-## Preflight
+Render the output with `/diagramkit` or:
 
-Before generating source or rendering, run:
-
-`zsh scripts/check-skill-deps.zsh diagram-mermaid format=<format>`
-
-This must confirm:
-
-- global `diagramkit` installed
-- Playwright Chromium ready via `diagramkit warmup`
-- global `sharp` when `format` is `png`, `jpeg`, `jpg`, or `webp`
-
-If any check fails, stop and show the install commands before continuing.
-
-## Reference Loading
-
-Load the appropriate diagram type reference from `skills/diagram-mermaid/references/` based on the requested or inferred diagram type:
-
-- `flowchart.md` for flowcharts and decision trees
-- `sequence.md` for sequence diagrams
-- `class.md` for class diagrams
-- `state.md` for state machines
-- `er.md` for entity-relationship diagrams
-- `c4.md` for C4 model diagrams
-- `architecture.md` for architecture diagrams
-- `gantt.md` for Gantt charts
-- `journey.md` for user journey maps
-- `mindmap.md` for mind maps
-- `timeline.md` for timelines
-- `block.md` for block diagrams
-- `quadrant.md` for quadrant charts
-- `sankey.md` for Sankey diagrams
-- `pie.md` for pie charts
-- `radar.md` for radar charts
-- `xy.md` for XY charts
-- `gitgraph.md` for git graph diagrams
-- `kanban.md` for Kanban boards
-- `packet.md` for packet diagrams
-- `requirement.md` for requirement diagrams
-
-For theming, always load `skills/diagram-mermaid/references/theming.md`.
-
-## Required Child Agents
-
-Run at least these child agents in parallel:
-
-- **Structure agent**: analyzes the description to identify entities, relationships, flows, and groupings. Determines the best Mermaid diagram type if not specified. Produces a structured outline of nodes, edges, and subgraphs.
-- **Notation agent**: translates the structure into valid Mermaid syntax. Applies the requested theme. Uses the correct diagram type syntax from the loaded reference file. Ensures node IDs are clean, labels are readable, and the diagram follows Mermaid best practices.
-- **Validation agent**: verifies the generated Mermaid source parses without errors, the diagram renders cleanly, labels do not overlap or truncate, and the visual output matches the requested description.
+```bash
+diagramkit render diagram.mermaid
+```
 
 ## Workflow
 
-1. **Analyze requirements.** Read the description and determine the diagram type, entities, and relationships.
-2. **Select diagram type.** If `type` is not specified, infer the best Mermaid diagram type from the description.
-3. **Load references.** Read the matching diagram type reference and `theming.md` from `skills/diagram-mermaid/references/`.
-4. **Launch child agents.** Run structure, notation, and validation passes in parallel.
-5. **Merge and resolve.** Combine child-agent outputs, resolve syntax issues, and produce the final Mermaid source file.
-6. **Render.** Use `diagramkit` to render the Mermaid source to the requested format (SVG by default) with the requested theme.
-7. **Deliver both artifacts.** Save the editable Mermaid source (`.mmd` or `.mermaid`) and the rendered output side by side.
+### Phase 1: Determine Diagram Type
 
-## Output
+If `type` is not specified, auto-detect from the description (see `/diagrams` orchestrator skill for detection rules). If `type` is specified, use it directly.
 
-Produce both:
+### Phase 2: Generate Mermaid Source
 
-- the editable Mermaid source file (`.mmd` or `.mermaid`)
-- at least one rendered artifact in the requested format (SVG preferred)
+Write a `.mermaid` file following the syntax in the reference files below. Apply these quality standards:
 
-Keep both files together so the diagram remains editable for future changes.
+1. **Clear labels**: Use descriptive text, not single letters (e.g., `API Gateway` not `A`).
+2. **Meaningful IDs**: Use readable IDs like `api_gateway` not `A`.
+3. **Proper spacing**: Use subgraphs to group related components.
+4. **Visual hierarchy**: Important nodes should be visually prominent.
+5. **Readable flow**: Prefer `TD` for hierarchies, `LR` for sequences/timelines.
+6. **Theme compatibility**: Avoid hardcoded colors unless necessary. Use `classDef` for styling.
+7. **Comments**: Add a header comment with the diagram title.
 
-## Adjacent Skills
+File header:
 
-- `/devkit:diagram` for automatic engine selection
-- `/devkit:diagram-excalidraw` for freeform architecture overviews
-- `/devkit:diagram-drawio` for precise enterprise and infrastructure layouts
-- `/devkit:diagram-render` to re-render existing sources
-- `/devkit:diagram-convert` for format conversion of rendered assets
+```
+%% Diagram: <title>
+%% Type: <diagram-type>
+```
+
+### Phase 3: Report Output
+
+```
+Mermaid source file written:
+  Source: ./diagrams/auth-flow.mermaid
+
+Render with: diagramkit render ./diagrams/auth-flow.mermaid
+```
+
+For inline rendering in markdown (light mode only, no dark variant), use a mermaid code fence.
+
+---
+
+## Diagram Type Reference
+
+Each type has a dedicated reference file with full syntax, examples, and best practices. Read the appropriate reference before generating a diagram of that type.
+
+| Type         | Directive                          | Reference                      |
+| ------------ | ---------------------------------- | ------------------------------ |
+| Flowchart    | `flowchart TD`                     | `refs/mermaid/flowchart.md`    |
+| Sequence     | `sequenceDiagram`                  | `refs/mermaid/sequence.md`     |
+| Class        | `classDiagram`                     | `refs/mermaid/class.md`        |
+| State        | `stateDiagram-v2`                  | `refs/mermaid/state.md`        |
+| ER           | `erDiagram`                        | `refs/mermaid/er.md`           |
+| Gantt        | `gantt`                            | `refs/mermaid/gantt.md`        |
+| GitGraph     | `gitGraph`                         | `refs/mermaid/gitgraph.md`     |
+| Mindmap      | `mindmap`                          | `refs/mermaid/mindmap.md`      |
+| Timeline     | `timeline`                         | `refs/mermaid/timeline.md`     |
+| C4           | `C4Context` / `C4Container` / etc. | `refs/mermaid/c4.md`           |
+| Architecture | `architecture-beta`                | `refs/mermaid/architecture.md` |
+| Kanban       | `kanban`                           | `refs/mermaid/kanban.md`       |
+| Quadrant     | `quadrantChart`                    | `refs/mermaid/quadrant.md`     |
+| Sankey       | `sankey-beta`                      | `refs/mermaid/sankey.md`       |
+| XY Chart     | `xychart-beta`                     | `refs/mermaid/xy.md`           |
+| Packet       | `packet-beta`                      | `refs/mermaid/packet.md`       |
+| Radar        | `radar-beta`                       | `refs/mermaid/radar.md`        |
+| User Journey | `journey`                          | `refs/mermaid/journey.md`      |
+| Pie          | `pie`                              | `refs/mermaid/pie.md`          |
+| Requirement  | `requirementDiagram`               | `refs/mermaid/requirement.md`  |
+| Block        | `block-beta`                       | `refs/mermaid/block.md`        |
+
+See `refs/mermaid/theming.md` for theme configuration and dark mode behavior with diagramkit.
+
+---
+
+## Quality Standards
+
+1. **Max ~15 nodes per diagram** -- split complex systems into focused diagrams.
+2. **Semantic IDs everywhere** -- `api_gateway` not `A`, `auth_service` not `B`.
+3. **Use subgraphs** to group related components (3+ related nodes).
+4. **Consistent edge styling** -- solid for synchronous, dotted for async, thick for critical path.
+5. **Avoid custom colors** unless necessary -- diagramkit's dark mode contrast fix handles default theme colors well. Custom colors may not survive the transformation.
+6. **Use `classDef`** for consistent styling when multiple nodes need the same appearance.
+
+## Known Limitations
+
+1. **Character/size limits**: Some platforms cap at ~5000 bytes.
+2. **"Too many edges" error**: Very large flowcharts crash the renderer.
+3. **Reserved words**: `end`, `default` cannot be bare node IDs -- capitalize or quote.
+4. **Self-loops**: Render poorly compared to Graphviz.
+5. **Beta types** (`sankey-beta`, `architecture-beta`, etc.): May have breaking changes.
+6. **Theme engine**: Only accepts hex colors, not color names.
+
+## Composability
+
+This skill is called by:
+
+- **`/diagrams`** orchestrator -- when Mermaid is the selected engine.
+- Other skills that need structured diagrams.
+- **Standalone**: User invokes directly with `/diagram-mermaid`.
+
+```
+
+```

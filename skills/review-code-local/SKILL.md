@@ -1,103 +1,105 @@
 ---
-name: review-code-local
-description: Use when you need a non-mutating review of staged, unstaged, or branch-local code changes, including commits made since the branch diverged from its base
-user_invocable: true
-arguments:
-  - name: scope
-    description: "What to review: staged, unstaged, worktree, branch, files, range (default: branch)"
-    required: false
-  - name: base
-    description: "Base branch or commit used for branch comparison (default: merge-base with main)"
-    required: false
-  - name: files
-    description: "Optional comma-separated file list when scope=files"
-    required: false
-  - name: confidence
-    description: "Minimum confidence threshold (0-100, default: 80)"
-    required: false
-  - name: format
-    description: "Output format: markdown, google-doc, confluence, pdf (default: markdown)"
-    required: false
-  - name: fix
-    description: "When true, enter the interactive fix loop after producing the review (default: false)"
-    required: false
+name: requesting-code-review
+description: Use when completing tasks, implementing major features, or before merging to verify work meets requirements
 ---
 
-# Local Review
+# Requesting Code Review
 
-Use the same review team and guideline loading model as `/devkit:review-code-pr`, but keep the result local instead of posting to a remote code review system.
+Dispatch superpowers:code-reviewer subagent to catch issues before they cascade. The reviewer gets precisely crafted context for evaluation — never your session's history. This keeps the reviewer focused on the work product, not your thought process, and preserves your own context for continued work.
 
-**All review findings must follow the canonical format in `skills/_references/review-comment-template.md`.** This applies to the markdown review document and to findings presented in the interactive fix loop.
+**Core principle:** Review early, review often.
 
-This skill is review-only. Do not auto-fix findings. When inline comments are unavailable, generate a markdown review document that other agents can use to plan and implement changes.
+## When to Request Review
 
-## Scope Rules
+**Mandatory:**
+- After each task in subagent-driven development
+- After completing major feature
+- Before merge to main
 
-- `staged`: review the staged diff only
-- `unstaged`: review only unstaged working-tree changes
-- `worktree`: review staged plus unstaged changes
-- `branch`: review everything changed since the branch diverged from `base`, including already committed files
-- `files`: review only the named files
-- `range`: review a caller-specified git range
+**Optional but valuable:**
+- When stuck (fresh perspective)
+- Before refactoring (baseline check)
+- After fixing complex bug
 
-## Required Child Agents
+## How to Request
 
-Run at least these child agents in parallel:
-
-- `code-reviewer`
-- `repo-auditor`
-- `doc-reviewer`
-- one domain specialist based on the affected area
-
-## Intermediate Review Dispatch
-
-If you need a focused intermediate review before the full review pass (e.g., early feedback on a tricky change), launch a `code-reviewer` child agent with:
-
-- the requirement or plan
-- the changed files or diff
-- relevant guidelines
-- the specific review question you want answered
-
-Ask for review early enough that fixes are still cheap.
-
-## Output
-
-Always produce a review document with:
-
-- severity-ordered findings
-- file and line references when available
-- open questions and assumptions
-- a follow-up checklist suitable for implementation planning
-
-## Interactive Fix Loop
-
-When `fix=true`, enter the interactive fix loop after producing the review document.
-
-### Cycle
-
-1. Present each finding to the user one at a time with its severity, file, line, and description.
-2. For each finding the user can choose:
-   - **Accept** — apply the suggested fix automatically.
-   - **Reject** — skip the finding entirely.
-   - **Edit** — ask the user what to change, then apply the modified fix.
-3. After all findings have been triaged, apply accepted and edited fixes to the codebase.
-4. Run build/lint validation:
-   - Detect the project's build command from `package.json` scripts, `Makefile`, `Cargo.toml`, `pyproject.toml`, or similar.
-   - Run the detected lint and build commands. Report any failures.
-5. Re-run the review on changed files only to catch regressions or new issues introduced by the fixes.
-6. Repeat the cycle up to 3 times or until no more findings are reported.
-
-### Progress Reporting
-
-After each cycle, display a progress summary:
-
-```text
-## Fix Loop — Cycle N/3
-
-Findings fixed this cycle: N
-Findings remaining: N
-Total findings fixed so far: N
-New issues introduced: N
+**1. Get git SHAs:**
+```bash
+BASE_SHA=$(git rev-parse HEAD~1)  # or origin/main
+HEAD_SHA=$(git rev-parse HEAD)
 ```
 
-If no findings remain or 3 cycles have completed, exit the loop and display the final summary.
+**2. Dispatch code-reviewer subagent:**
+
+Use Task tool with superpowers:code-reviewer type, fill template at `code-reviewer.md`
+
+**Placeholders:**
+- `{WHAT_WAS_IMPLEMENTED}` - What you just built
+- `{PLAN_OR_REQUIREMENTS}` - What it should do
+- `{BASE_SHA}` - Starting commit
+- `{HEAD_SHA}` - Ending commit
+- `{DESCRIPTION}` - Brief summary
+
+**3. Act on feedback:**
+- Fix Critical issues immediately
+- Fix Important issues before proceeding
+- Note Minor issues for later
+- Push back if reviewer is wrong (with reasoning)
+
+## Example
+
+```
+[Just completed Task 2: Add verification function]
+
+You: Let me request code review before proceeding.
+
+BASE_SHA=$(git log --oneline | grep "Task 1" | head -1 | awk '{print $1}')
+HEAD_SHA=$(git rev-parse HEAD)
+
+[Dispatch superpowers:code-reviewer subagent]
+  WHAT_WAS_IMPLEMENTED: Verification and repair functions for conversation index
+  PLAN_OR_REQUIREMENTS: Task 2 from docs/superpowers/plans/deployment-plan.md
+  BASE_SHA: a7981ec
+  HEAD_SHA: 3df7661
+  DESCRIPTION: Added verifyIndex() and repairIndex() with 4 issue types
+
+[Subagent returns]:
+  Strengths: Clean architecture, real tests
+  Issues:
+    Important: Missing progress indicators
+    Minor: Magic number (100) for reporting interval
+  Assessment: Ready to proceed
+
+You: [Fix progress indicators]
+[Continue to Task 3]
+```
+
+## Integration with Workflows
+
+**Subagent-Driven Development:**
+- Review after EACH task
+- Catch issues before they compound
+- Fix before moving to next task
+
+**Executing Plans:**
+- Review after each batch (3 tasks)
+- Get feedback, apply, continue
+
+**Ad-Hoc Development:**
+- Review before merge
+- Review when stuck
+
+## Red Flags
+
+**Never:**
+- Skip review because "it's simple"
+- Ignore Critical issues
+- Proceed with unfixed Important issues
+- Argue with valid technical feedback
+
+**If reviewer wrong:**
+- Push back with technical reasoning
+- Show code/tests that prove it works
+- Request clarification
+
+See template at: requesting-code-review/code-reviewer.md

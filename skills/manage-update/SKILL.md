@@ -1,16 +1,16 @@
 ---
 name: manage-update
-description: Use to update DevKit skills, agents, and guidelines from GitHub or from a local filesystem path
+description: Use to update DevKit skills, agents, and guidelines from GitHub with automatic setup validation and platform-native reload
 user_invocable: true
 arguments:
-  - name: source
-    description: "Update source: github (default), fs"
-    required: false
-  - name: path
-    description: "Local filesystem path when source=fs (required when source=fs)"
-    required: false
   - name: dry-run
     description: "Preview changes without applying (default: false)"
+    required: false
+  - name: no-auto-install
+    description: "Skip auto-installing missing tools after update (default: false — auto-install is ON)"
+    required: false
+  - name: refresh-mcp
+    description: "Re-read ~/.zshenv and refresh MCP server configuration (default: false)"
     required: false
 ---
 
@@ -18,83 +18,138 @@ arguments:
 
 ## Overview
 
-Updates the DevKit installation with the latest skills, agents, guidelines, and scripts. Can pull from GitHub (default) or copy from a local filesystem path for contributor testing.
+Updates the DevKit installation by pulling the latest from GitHub, syncing upstream sources, and running setup validation. Works across all platforms — users always install via the official approach for their platform.
+
+## Platform Install Paths
+
+Detect which platform this is running on and locate the DevKit repo directory:
+
+| Platform | DevKit Repo Location | How Users Install |
+|----------|---------------------|-------------------|
+| Claude Code | `~/.claude/plugins/marketplaces/devkit-marketplace` | `/plugin marketplace add sujeet-pro/agents-devkit` then `/plugin install devkit@devkit-marketplace` |
+| Cursor | `~/.cursor/plugins/devkit` or Cursor plugin cache | `/add-plugin devkit` in Cursor |
+| Codex CLI | `~/.devkit` | Clone to `~/.devkit`, symlink skills |
+| Gemini CLI | Gemini extensions directory | `gemini extensions install https://github.com/sujeet-pro/agents-devkit` |
+| OpenCode | OpenCode plugin cache (git-backed) | Add to `opencode.json` plugin array |
+
+Resolution order:
+1. `CLAUDE_DEVKIT_DIR` environment variable (if set)
+2. Platform-specific path based on detected host
+3. Fall back to the directory containing this skill (traverse up from SKILL.md to repo root)
 
 ## Preflight
 
-1. Verify `git`, `jq`, and `rsync` are available
-2. If `source=github` (default): verify internet connectivity
-3. If `source=fs`: verify the provided `path` exists and contains a valid DevKit repo (has `skills/` and `agents/` directories)
+1. Verify `git` is available
+2. Verify internet connectivity (try `git ls-remote` on the repo)
+3. Log: `Updating DevKit from GitHub...`
+4. Log: `DevKit directory: <resolved-path>`
+5. Log: `Platform: <detected-platform>`
 
-## GitHub Update (default)
+## Update Flow
 
-When `source=github` or no source specified:
+### 1. Git Pull
 
-1. Locate the DevKit installation directory
-   - Check `CLAUDE_DEVKIT_DIR` environment variable
-   - Check `~/.claude/.devkit-manifest` for the recorded `devkit_dir`
-   - Fall back to the directory containing this skill
-2. Run `git pull --ff-only` in the DevKit directory
-   - If ff-only fails, warn the user about local modifications
-3. Run `zsh scripts/sync-sources.zsh` to sync copy-type upstream sources (diagramkit, superpowers)
-4. Check ref-type sources (pagesmith) for updates and report changes
-5. Run `zsh scripts/setup-node.zsh` to update Node.js dependencies
-6. Run `zsh install.zsh --skip-checks` to re-link everything
-7. Display summary of what changed
+```bash
+cd <devkit-dir>
+git pull --ff-only
+```
 
-## Filesystem Update
+- If ff-only fails, warn: "Fast-forward pull failed. You may have local modifications. Consider: `git stash && git pull --ff-only && git stash pop`"
+- Log each step so the user can see progress and stop if needed
 
-When `source=fs`:
+### 2. Sync Upstream Sources
 
-<HARD-GATE>
-The `path` argument is required when `source=fs`. Abort if not provided.
-</HARD-GATE>
+```bash
+zsh scripts/sync-sources.zsh
+```
 
-1. Validate the source path exists and contains DevKit files
-2. Copy files from the source path to the DevKit installation:
-   ```
-   rsync -a --exclude='.git' --exclude='node_modules' --exclude='.temp' --exclude='lib/node_modules' <path>/ <devkit-dir>/
-   ```
-   Note: This copies files, NOT symlinks. This is intentional for contributor testing.
-3. Run `zsh scripts/setup-node.zsh` to update Node.js dependencies
-4. Run `zsh install.zsh --skip-checks` to re-link everything
-5. Display summary of what changed
+Syncs copy-type sources (diagramkit, superpowers) and checks ref-type sources (pagesmith).
+
+### 3. Node.js Dependencies
+
+```bash
+zsh scripts/setup-node.zsh
+```
+
+### 4. Platform Reload
+
+After pulling updates, trigger the platform-specific reload:
+
+| Platform | Reload Action |
+|----------|---------------|
+| Claude Code | Tell the user to run `/reload-plugins` to pick up changes. If the plugin was installed via marketplace, also suggest `/plugin update devkit@devkit-marketplace` |
+| Cursor | Tell the user to restart Cursor or re-add the plugin |
+| Codex CLI | Symlinks auto-reflect; no action needed |
+| Gemini CLI | Tell the user to restart Gemini CLI |
+| OpenCode | Tell the user to restart OpenCode |
+
+### 5. Run Setup Validation
+
+After the update, automatically run the `/devkit:manage-setup` flow:
+
+- **Default**: auto-install mode is ON — missing required tools and packages will be installed automatically
+- **If `no-auto-install=true`**: run in check-only mode, report what's missing without installing
+- Log: `Running post-update setup validation (auto-install: ON)...`
+- Log: `To skip auto-install, run: /devkit:manage-update no-auto-install=true`
+
+The setup validation covers:
+- CLI tools (required + recommended)
+- npm packages
+- MCP server connectivity
+- If anything is missing, ask the user whether to install it (unless auto-install is on, in which case install and log)
+
+### 6. MCP Configuration Refresh (when `refresh-mcp=true`)
+
+When the user has updated environment variables in `~/.zshenv` (e.g., rotated API tokens):
+
+1. Source `~/.zshenv` to pick up new values
+2. Re-run the MCP server configuration from the `claude.json` template using `envsubst`
+3. Write updated MCP entries to `~/.claude.json`
+4. Log which servers were reconfigured
+5. Validate connectivity for each reconfigured server
+
+This is also triggered automatically if the update introduces new environment variables that aren't set.
 
 ## Dry Run
 
 When `dry-run=true`:
 
-- For GitHub: run `git fetch` and show `git log HEAD..origin/main --oneline`
-- For filesystem: run `rsync -an` (dry-run mode) and show what would change
+- Run `git fetch` and show `git log HEAD..origin/main --oneline`
 - Do not apply any changes
+- Show what setup validation would check
 
 ## Output
 
+Log each step in real time so the user can monitor progress:
+
 ```
-## DevKit Update Summary
+## DevKit Update
 
-Source: github | fs (<path>)
-Mode: applied | dry-run
+[1/6] Git pull...
+  Already up to date. | Pulled 3 new commits.
 
-### Changes
-- N skills updated
-- N agents updated
-- N guidelines updated
-- N scripts updated
-- Upstream sources: diagramkit (synced/skipped), superpowers (synced/skipped)
+[2/6] Syncing upstream sources...
+  diagramkit: synced (commit abc1234)
+  superpowers: synced (commit def5678)
+  pagesmith: checked (ref only, no changes)
 
-### Actions Taken
-- git pull: <result>
-- sync-sources: <result>
-- install: <result>
+[3/6] Node.js dependencies...
+  Up to date.
+
+[4/6] Platform reload...
+  Claude Code: run /reload-plugins to apply changes.
+
+[5/6] Setup validation (auto-install: ON)...
+  CLI tools: 7/7 required OK, 2 recommended missing
+  npm packages: 3/3 required OK
+  MCP servers: 4/4 configured
+  Installing missing: brew install sd yq... done.
+
+[6/6] Complete.
+  DevKit updated successfully.
 ```
 
-## Script Alternative
+## Adjacent Skills
 
-This skill can also be run as a standalone script:
-
-```bash
-zsh scripts/update-devkit.zsh                    # GitHub update
-zsh scripts/update-devkit.zsh --fs /path/to/repo # Filesystem update
-zsh scripts/update-devkit.zsh --dry-run           # Preview only
-```
+- `/devkit:manage-setup` for standalone setup validation and tool installation
+- `/devkit:manage-validate` for MCP-only validation

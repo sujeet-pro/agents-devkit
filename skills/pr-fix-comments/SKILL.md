@@ -1,171 +1,213 @@
 ---
-name: pr-fix-comments
-description: Use when you want to read PR review comments, apply targeted code fixes, and commit changes — must be run inside the cloned repository
-user_invocable: true
-arguments:
-  - name: pr
-    description: "PR number or URL"
-    required: true
-  - name: comment
-    description: "Optional specific comment ID to fix (default: all actionable comments)"
-    required: false
-  - name: auto-commit
-    description: "Auto-commit fixes without asking (default: false)"
-    required: false
-  - name: interactive
-    description: "Present comments for accept/reject/edit triage before fixing (default: true)"
-    required: false
+name: receiving-code-review
+description: Use when receiving code review feedback, before implementing suggestions, especially if feedback seems unclear or technically questionable - requires technical rigor and verification, not performative agreement or blind implementation
 ---
 
-# PR Fix Comments
+# Code Review Reception
 
-Use the shared contracts in `skills/_references/source-routing.md` and `skills/_references/preflight-validations.md`.
+## Overview
 
-## Preflight
+Code review requires technical evaluation, not emotional performance.
 
-<HARD-GATE>
-This skill MUST be run inside a git repository. Abort immediately if any of these checks fail.
-</HARD-GATE>
+**Core principle:** Verify before implementing. Ask before assuming. Technical correctness over social comfort.
 
-Before any work, run these validations in order:
-
-1. `zsh scripts/check-skill-deps.zsh pr-fix pr=<pr>`
-2. Verify the current directory is a git repository (`git rev-parse --is-inside-work-tree`)
-3. Verify the working tree is clean (`git status --porcelain` must be empty)
-4. Detect the PR's source branch and check it out if not already on it
-5. Verify the branch is up to date with remote
-
-If the working tree is not clean, ask the user to stash or commit changes first. Do NOT proceed with uncommitted changes.
-
-## Phase 1: Read Comments
-
-1. Detect source (GitHub or Bitbucket) from the PR URL or repository remote
-2. Read all review comments on the PR via the source-native MCP
-3. Filter to actionable comments:
-   - Unresolved (not marked as resolved/outdated)
-   - Contains a code suggestion, fix request, or improvement request
-   - Exclude questions, praise, and general discussion
-4. If a specific `comment` ID was provided, filter to only that comment
-
-## Phase 2: Create Plan
-
-Save a plan to `.temp/plans/pr-fix-<pr-number>.md` with:
-
-```markdown
----
-plan_id: pr-fix-<pr-number>
-created: <ISO-8601>
-updated: <ISO-8601>
-skill: pr-fix
-status: in-progress
----
-
-# Fix PR Comments for PR #<number>
-
-## Comments to Fix
-
-- [ ] Comment 1: [author] on file:line — <summary>
-- [ ] Comment 2: [author] on file:line — <summary>
-...
-```
-
-## Interactive Comment Triage
-
-When `interactive=true` (the default), present all actionable comments to the user before fixing anything.
-
-### Triage Steps
-
-1. After reading comments in Phase 1, display ALL actionable comments in a numbered list:
-
-```text
-## Actionable PR Comments
-
-1. [author] file.ext:42 — <summary of the comment>
-2. [author] file.ext:87 — <summary of the comment>
-...
-```
-
-2. For each comment, allow the user to mark it as one of:
-   - **Accept** — will fix as suggested.
-   - **Reject** — will not fix; a reply explaining why will be posted.
-   - **Edit** — will fix differently; ask the user what approach to take.
-
-3. For comments marked **Edit**, prompt the user for the alternative approach before proceeding.
-
-4. After all comments are triaged, display the triage summary and ask "Any changes?" before proceeding. The user can revise any decision at this point.
-
-5. Proceed to Phase 3 only with accepted and edited comments.
-
-6. For rejected comments, post a reply in Phase 5 explaining why the comment was not addressed.
-
-When `interactive=false`, treat all actionable comments as accepted and proceed directly to Phase 3.
-
-## Phase 3: Fix Each Comment
-
-For each actionable comment:
-
-1. Read the referenced file and surrounding context
-2. Understand the issue described in the comment
-3. Read any code suggestion or inline diff provided
-4. Apply the fix to the file
-5. Run available verification (lint, type-check, test) if configured
-6. Mark the step as done in the plan file
-
-### Fix Rules
-
-- Fix only what the comment asks for — do not refactor surrounding code
-- If the comment is ambiguous, make the most conservative interpretation
-- If a fix would break other code, note it and ask the user before proceeding
-- Preserve the existing code style and conventions
-
-### Validation Before Accepting
-
-Treat review comments as technical input, not instructions to follow blindly. For each comment:
-
-1. Restate the issue in your own terms
-2. Verify it against the codebase and tests
-3. Decide whether to fix, clarify, or push back
-4. Update docs or tests when the fix changes behavior
-
-If the feedback is unclear, ask the reviewer for clarification before implementing.
-
-## Phase 4: Review and Commit
-
-After all comments are fixed:
-
-1. Show a summary of all changes (`git diff`)
-2. Run full verification if available (lint + test + build)
-3. If `auto-commit=true`, commit with message: `fix: address PR review comments from #<pr-number>`
-4. If `auto-commit=false` (default), present the changes and ask the user to confirm before committing
-5. After committing, ask if the user wants to push
-
-## Phase 5: Reply to Comments
-
-After changes are committed and pushed:
-
-1. For each fixed comment, post a reply via MCP:
-   - GitHub: `mcp__github__add_reply_to_pull_request_comment`
-   - Bitbucket: `mcp__bitbucket__updatePullRequestComment` or reply
-2. Reply text: "Fixed in [commit-sha]. [brief description of the fix]"
-3. If the platform supports it, mark the comment thread as resolved
-
-## Output
-
-Display a summary:
+## The Response Pattern
 
 ```
-## PR Fix Summary
+WHEN receiving code review feedback:
 
-| Status  | Count |
-|---------|-------|
-| Fixed   |     N |
-| Skipped |     N |
-| Failed  |     N |
-
-### Changes
-- file1.ext: <what changed>
-- file2.ext: <what changed>
-
-### Commit
-<commit-sha> fix: address PR review comments from #<pr-number>
+1. READ: Complete feedback without reacting
+2. UNDERSTAND: Restate requirement in own words (or ask)
+3. VERIFY: Check against codebase reality
+4. EVALUATE: Technically sound for THIS codebase?
+5. RESPOND: Technical acknowledgment or reasoned pushback
+6. IMPLEMENT: One item at a time, test each
 ```
+
+## Forbidden Responses
+
+**NEVER:**
+- "You're absolutely right!" (explicit CLAUDE.md violation)
+- "Great point!" / "Excellent feedback!" (performative)
+- "Let me implement that now" (before verification)
+
+**INSTEAD:**
+- Restate the technical requirement
+- Ask clarifying questions
+- Push back with technical reasoning if wrong
+- Just start working (actions > words)
+
+## Handling Unclear Feedback
+
+```
+IF any item is unclear:
+  STOP - do not implement anything yet
+  ASK for clarification on unclear items
+
+WHY: Items may be related. Partial understanding = wrong implementation.
+```
+
+**Example:**
+```
+your human partner: "Fix 1-6"
+You understand 1,2,3,6. Unclear on 4,5.
+
+❌ WRONG: Implement 1,2,3,6 now, ask about 4,5 later
+✅ RIGHT: "I understand items 1,2,3,6. Need clarification on 4 and 5 before proceeding."
+```
+
+## Source-Specific Handling
+
+### From your human partner
+- **Trusted** - implement after understanding
+- **Still ask** if scope unclear
+- **No performative agreement**
+- **Skip to action** or technical acknowledgment
+
+### From External Reviewers
+```
+BEFORE implementing:
+  1. Check: Technically correct for THIS codebase?
+  2. Check: Breaks existing functionality?
+  3. Check: Reason for current implementation?
+  4. Check: Works on all platforms/versions?
+  5. Check: Does reviewer understand full context?
+
+IF suggestion seems wrong:
+  Push back with technical reasoning
+
+IF can't easily verify:
+  Say so: "I can't verify this without [X]. Should I [investigate/ask/proceed]?"
+
+IF conflicts with your human partner's prior decisions:
+  Stop and discuss with your human partner first
+```
+
+**your human partner's rule:** "External feedback - be skeptical, but check carefully"
+
+## YAGNI Check for "Professional" Features
+
+```
+IF reviewer suggests "implementing properly":
+  grep codebase for actual usage
+
+  IF unused: "This endpoint isn't called. Remove it (YAGNI)?"
+  IF used: Then implement properly
+```
+
+**your human partner's rule:** "You and reviewer both report to me. If we don't need this feature, don't add it."
+
+## Implementation Order
+
+```
+FOR multi-item feedback:
+  1. Clarify anything unclear FIRST
+  2. Then implement in this order:
+     - Blocking issues (breaks, security)
+     - Simple fixes (typos, imports)
+     - Complex fixes (refactoring, logic)
+  3. Test each fix individually
+  4. Verify no regressions
+```
+
+## When To Push Back
+
+Push back when:
+- Suggestion breaks existing functionality
+- Reviewer lacks full context
+- Violates YAGNI (unused feature)
+- Technically incorrect for this stack
+- Legacy/compatibility reasons exist
+- Conflicts with your human partner's architectural decisions
+
+**How to push back:**
+- Use technical reasoning, not defensiveness
+- Ask specific questions
+- Reference working tests/code
+- Involve your human partner if architectural
+
+**Signal if uncomfortable pushing back out loud:** "Strange things are afoot at the Circle K"
+
+## Acknowledging Correct Feedback
+
+When feedback IS correct:
+```
+✅ "Fixed. [Brief description of what changed]"
+✅ "Good catch - [specific issue]. Fixed in [location]."
+✅ [Just fix it and show in the code]
+
+❌ "You're absolutely right!"
+❌ "Great point!"
+❌ "Thanks for catching that!"
+❌ "Thanks for [anything]"
+❌ ANY gratitude expression
+```
+
+**Why no thanks:** Actions speak. Just fix it. The code itself shows you heard the feedback.
+
+**If you catch yourself about to write "Thanks":** DELETE IT. State the fix instead.
+
+## Gracefully Correcting Your Pushback
+
+If you pushed back and were wrong:
+```
+✅ "You were right - I checked [X] and it does [Y]. Implementing now."
+✅ "Verified this and you're correct. My initial understanding was wrong because [reason]. Fixing."
+
+❌ Long apology
+❌ Defending why you pushed back
+❌ Over-explaining
+```
+
+State the correction factually and move on.
+
+## Common Mistakes
+
+| Mistake | Fix |
+|---------|-----|
+| Performative agreement | State requirement or just act |
+| Blind implementation | Verify against codebase first |
+| Batch without testing | One at a time, test each |
+| Assuming reviewer is right | Check if breaks things |
+| Avoiding pushback | Technical correctness > comfort |
+| Partial implementation | Clarify all items first |
+| Can't verify, proceed anyway | State limitation, ask for direction |
+
+## Real Examples
+
+**Performative Agreement (Bad):**
+```
+Reviewer: "Remove legacy code"
+❌ "You're absolutely right! Let me remove that..."
+```
+
+**Technical Verification (Good):**
+```
+Reviewer: "Remove legacy code"
+✅ "Checking... build target is 10.15+, this API needs 13+. Need legacy for backward compat. Current impl has wrong bundle ID - fix it or drop pre-13 support?"
+```
+
+**YAGNI (Good):**
+```
+Reviewer: "Implement proper metrics tracking with database, date filters, CSV export"
+✅ "Grepped codebase - nothing calls this endpoint. Remove it (YAGNI)? Or is there usage I'm missing?"
+```
+
+**Unclear Item (Good):**
+```
+your human partner: "Fix items 1-6"
+You understand 1,2,3,6. Unclear on 4,5.
+✅ "Understand 1,2,3,6. Need clarification on 4 and 5 before implementing."
+```
+
+## GitHub Thread Replies
+
+When replying to inline review comments on GitHub, reply in the comment thread (`gh api repos/{owner}/{repo}/pulls/{pr}/comments/{id}/replies`), not as a top-level PR comment.
+
+## The Bottom Line
+
+**External feedback = suggestions to evaluate, not orders to follow.**
+
+Verify. Question. Then implement.
+
+No performative agreement. Technical rigor always.

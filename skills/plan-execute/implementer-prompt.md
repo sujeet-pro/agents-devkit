@@ -1,6 +1,6 @@
 # Implementer Subagent Prompt Template
 
-Use this template when dispatching an implementer child agent.
+Use this template when dispatching an implementer subagent.
 
 ```
 Task tool (general-purpose):
@@ -10,7 +10,7 @@ Task tool (general-purpose):
 
     ## Task Description
 
-    [FULL TEXT of task from plan - paste it here, don't make the child agent read the file]
+    [FULL TEXT of task from plan - paste it here, don't make subagent read file]
 
     ## Context
 

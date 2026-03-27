@@ -117,13 +117,13 @@ Run at least these in parallel:
 
 - **Platform auditor**: Verifies all platform adapters (`.claude-plugin`, `.cursor-plugin`, `.codex`, `.opencode`, `GEMINI.md`) are version-consistent, have current references, and include update instructions. Checks `settings/base-settings.json` contextInstructions lists all skills. Produces an adapter consistency report.
 
-- **Ecosystem research agent** (`research-agent`): Researches current ecosystem patterns by checking:
-  - Upstream sources: Superpowers (obra/superpowers) for new skills or workflow changes
-  - Competitor frameworks: BMAD (bmad-code-org/BMAD-METHOD) for agent persona patterns, document sharding, scale-adaptive workflows
-  - Competitor frameworks: GSD (gsd-build/get-shit-done) for context engineering, wave-based execution, artifact cascade patterns
-  - Community: awesome-claude-code, awesome-agent-skills, anthropics/skills for new patterns
-  - Official docs: Claude Code docs, Agent Skills standard (agentskills.io) for spec changes
-  - Produces an opportunities brief with specific actionable items
+- **Ecosystem research agent**: Use `subagent_type: devkit:research-agent` (NOT `devkit:research-quick`). This agent must do actual deep web research — fetch GitHub repos, read READMEs, check changelogs, compare architectures. Spawn multiple research agents in parallel, one per topic:
+  - **Upstream tracker**: Check Superpowers (obra/superpowers) for new skills, workflow changes, version updates
+  - **BMAD analyst**: Check BMAD (bmad-code-org/BMAD-METHOD) for agent persona patterns, document sharding, scale-adaptive workflows
+  - **GSD analyst**: Check GSD (gsd-build/get-shit-done) for context engineering, wave-based execution, artifact cascade patterns
+  - **Community scanner**: Check awesome-claude-code, awesome-agent-skills, anthropics/skills for new patterns and emerging tools
+  - **Docs tracker**: Check Claude Code docs, Agent Skills standard (agentskills.io) for spec changes
+  - Each produces an opportunities brief with specific actionable items and links to sources
 
 - **Editorial agent**: Converts all findings into a prioritized improvement plan with checkbox steps. Groups by priority (critical, high, medium, nice-to-have). Marks items that require upstream sync vs. local-only changes.
 

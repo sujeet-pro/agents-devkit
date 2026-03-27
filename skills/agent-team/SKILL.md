@@ -1,114 +1,182 @@
 ---
-name: agent-team
-description: Use when orchestrating a complex task across multiple child agents with explicit ownership boundaries, handoff protocols, and conflict resolution
-user_invocable: true
-arguments:
-  - name: task
-    description: "High-level task description"
-    required: true
-  - name: team-size
-    description: "Number of agents to spawn (default: auto, based on task complexity)"
-    required: false
-  - name: strategy
-    description: "Coordination strategy: parallel, pipeline, review-loop (default: parallel)"
-    required: false
+name: dispatching-parallel-agents
+description: Use when facing 2+ independent tasks that can be worked on without shared state or sequential dependencies
 ---
 
-# Team Dispatch
-
-Use `skills/_references/agentic-teams.md` for the child-agent contract.
-
-## Preflight
-
-`zsh scripts/check-skill-deps.zsh agent-team`
+# Dispatching Parallel Agents
 
 ## Overview
 
-This skill is the "supervisor" pattern for complex tasks that require multiple agents working together. It decomposes a task into agent-sized work items, assigns roles, manages handoffs, and resolves conflicts.
+You delegate tasks to specialized agents with isolated context. By precisely crafting their instructions and context, you ensure they stay focused and succeed at their task. They should never inherit your session's context or history — you construct exactly what they need. This also preserves your own context for coordination work.
 
-## Phase 1: Task Decomposition
+When you have multiple unrelated failures (different test files, different subsystems, different bugs), investigating them sequentially wastes time. Each investigation is independent and can happen in parallel.
 
-1. Analyze the task to identify independent work streams
-2. Map each stream to a standard team shape from `skills/_references/agentic-teams.md` or define custom roles
-3. Identify dependencies between streams (which must complete before others can start)
-4. Create a coordination plan in `.temp/plans/team-<timestamp>.md`
+**Core principle:** Dispatch one agent per independent problem domain. Let them work concurrently.
 
-## Phase 2: Agent Assignment
+## When to Use
 
-For each work stream, define:
+```dot
+digraph when_to_use {
+    "Multiple failures?" [shape=diamond];
+    "Are they independent?" [shape=diamond];
+    "Single agent investigates all" [shape=box];
+    "One agent per problem domain" [shape=box];
+    "Can they work in parallel?" [shape=diamond];
+    "Sequential agents" [shape=box];
+    "Parallel dispatch" [shape=box];
 
-```markdown
-### Agent: <role-name>
-- **Task**: <specific deliverable>
-- **Inputs**: <what this agent needs>
-- **Outputs**: <what this agent produces>
-- **Constraints**: <boundaries — what NOT to touch>
-- **Dependencies**: <which agents must complete first>
-- **Tools needed**: <MCP servers, CLI tools>
+    "Multiple failures?" -> "Are they independent?" [label="yes"];
+    "Are they independent?" -> "Single agent investigates all" [label="no - related"];
+    "Are they independent?" -> "Can they work in parallel?" [label="yes"];
+    "Can they work in parallel?" -> "Parallel dispatch" [label="yes"];
+    "Can they work in parallel?" -> "Sequential agents" [label="no - shared state"];
+}
 ```
 
-## Phase 3: Dispatch
+**Use when:**
+- 3+ test files failing with different root causes
+- Multiple subsystems broken independently
+- Each problem can be understood without context from others
+- No shared state between investigations
 
-### Parallel Strategy (default)
-- Launch all independent agents simultaneously
-- Each agent receives full context for its task, not fragments
-- Agents that depend on others wait for predecessor completion
-- Monitor for conflicts (two agents trying to edit the same file)
+**Don't use when:**
+- Failures are related (fix one might fix others)
+- Need to understand full system state
+- Agents would interfere with each other
 
-### Pipeline Strategy
-- Agents execute in sequence, each receiving the previous agent's output
-- Use when tasks have strict ordering requirements
-- Example: research → design → implement → review
+## The Pattern
 
-### Review-Loop Strategy
-- Implementation agent produces work
-- Review agent checks it
-- If issues found, implementation agent fixes
-- Loop until review passes (max 3 iterations before escalating to user)
+### 1. Identify Independent Domains
 
-## Phase 4: Conflict Resolution
+Group failures by what's broken:
+- File A tests: Tool approval flow
+- File B tests: Batch completion behavior
+- File C tests: Abort functionality
 
-When agents produce conflicting outputs:
+Each domain is independent - fixing tool approval doesn't affect abort tests.
 
-1. **File conflicts**: If two agents edit the same file, the agent with the more specific scope wins. Present the conflict to the user if unclear.
-2. **Design conflicts**: Use `consensus-agent` to merge perspectives. Preserve minority views.
-3. **Scope creep**: If an agent drifts outside its assigned boundaries, discard the out-of-scope work and note it for the user.
+### 2. Create Focused Agent Tasks
 
-## Phase 5: Integration
+Each agent gets:
+- **Specific scope:** One test file or subsystem
+- **Clear goal:** Make these tests pass
+- **Constraints:** Don't change other code
+- **Expected output:** Summary of what you found and fixed
 
-1. Collect outputs from all agents
-2. Verify no conflicts or regressions
-3. Run integration verification (lint, test, build) if applicable
-4. Present unified result to the user
+### 3. Dispatch in Parallel
 
-## Platform Adaptation
+```typescript
+// In Claude Code / AI environment
+Task("Fix agent-tool-abort.test.ts failures")
+Task("Fix batch-completion-behavior.test.ts failures")
+Task("Fix tool-approval-race-conditions.test.ts failures")
+// All three run concurrently
+```
 
-- **Claude Code**: Use Agent tool with `run_in_background` for parallel dispatch
-- **Codex**: Use child agents with full context
-- **Gemini CLI**: Use native agents or sequential role-based passes
-- **Cursor**: Stay inside Cursor, use built-in agent/model capabilities only
-- **OpenCode**: Use built-in agent features; fall back to sequential if no parallel support
+### 4. Review and Integrate
 
-## Output
+When agents return:
+- Read each summary
+- Verify fixes don't conflict
+- Run full test suite
+- Integrate all changes
+
+## Agent Prompt Structure
+
+Good agent prompts are:
+1. **Focused** - One clear problem domain
+2. **Self-contained** - All context needed to understand the problem
+3. **Specific about output** - What should the agent return?
 
 ```markdown
-## Team Dispatch Summary
+Fix the 3 failing tests in src/agents/agent-tool-abort.test.ts:
 
-### Task
-<original task description>
+1. "should abort tool with partial output capture" - expects 'interrupted at' in message
+2. "should handle mixed completed and aborted tools" - fast tool aborted instead of completed
+3. "should properly track pendingToolCount" - expects 3 results but gets 0
 
-### Team Composition
-| Agent | Role | Status | Duration |
-|-------|------|--------|----------|
-| agent-1 | <role> | completed | Xs |
-| agent-2 | <role> | completed | Xs |
+These are timing/race condition issues. Your task:
 
-### Results
-<integrated output from all agents>
+1. Read the test file and understand what each test verifies
+2. Identify root cause - timing issues or actual bugs?
+3. Fix by:
+   - Replacing arbitrary timeouts with event-based waiting
+   - Fixing bugs in abort implementation if found
+   - Adjusting test expectations if testing changed behavior
 
-### Conflicts Resolved
-<any conflicts and how they were resolved>
+Do NOT just increase timeouts - find the real issue.
 
-### Open Items
-<anything that needs human decision>
+Return: Summary of what you found and what you fixed.
 ```
+
+## Common Mistakes
+
+**❌ Too broad:** "Fix all the tests" - agent gets lost
+**✅ Specific:** "Fix agent-tool-abort.test.ts" - focused scope
+
+**❌ No context:** "Fix the race condition" - agent doesn't know where
+**✅ Context:** Paste the error messages and test names
+
+**❌ No constraints:** Agent might refactor everything
+**✅ Constraints:** "Do NOT change production code" or "Fix tests only"
+
+**❌ Vague output:** "Fix it" - you don't know what changed
+**✅ Specific:** "Return summary of root cause and changes"
+
+## When NOT to Use
+
+**Related failures:** Fixing one might fix others - investigate together first
+**Need full context:** Understanding requires seeing entire system
+**Exploratory debugging:** You don't know what's broken yet
+**Shared state:** Agents would interfere (editing same files, using same resources)
+
+## Real Example from Session
+
+**Scenario:** 6 test failures across 3 files after major refactoring
+
+**Failures:**
+- agent-tool-abort.test.ts: 3 failures (timing issues)
+- batch-completion-behavior.test.ts: 2 failures (tools not executing)
+- tool-approval-race-conditions.test.ts: 1 failure (execution count = 0)
+
+**Decision:** Independent domains - abort logic separate from batch completion separate from race conditions
+
+**Dispatch:**
+```
+Agent 1 → Fix agent-tool-abort.test.ts
+Agent 2 → Fix batch-completion-behavior.test.ts
+Agent 3 → Fix tool-approval-race-conditions.test.ts
+```
+
+**Results:**
+- Agent 1: Replaced timeouts with event-based waiting
+- Agent 2: Fixed event structure bug (threadId in wrong place)
+- Agent 3: Added wait for async tool execution to complete
+
+**Integration:** All fixes independent, no conflicts, full suite green
+
+**Time saved:** 3 problems solved in parallel vs sequentially
+
+## Key Benefits
+
+1. **Parallelization** - Multiple investigations happen simultaneously
+2. **Focus** - Each agent has narrow scope, less context to track
+3. **Independence** - Agents don't interfere with each other
+4. **Speed** - 3 problems solved in time of 1
+
+## Verification
+
+After agents return:
+1. **Review each summary** - Understand what changed
+2. **Check for conflicts** - Did agents edit same code?
+3. **Run full suite** - Verify all fixes work together
+4. **Spot check** - Agents can make systematic errors
+
+## Real-World Impact
+
+From debugging session (2025-10-03):
+- 6 failures across 3 files
+- 3 agents dispatched in parallel
+- All investigations completed concurrently
+- All fixes integrated successfully
+- Zero conflicts between agent changes
