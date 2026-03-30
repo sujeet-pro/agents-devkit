@@ -15,7 +15,7 @@ Unified design skill: creates distinctive, production-grade frontend interfaces 
 
 > **Important**: The `framework` and `style` arguments define the *final deliverable* format. All preview rounds use **pure HTML/CSS/vanilla JS** so the user can visually compare without any build step.
 
-Load references: `references/workflow-6phase.md`, `references/agentic-teams.md`, `references/principal-engineer.md`, `references/communication-style.md`, `references/preflight.md`, `references/output-formats.md`.
+Load references: `references/workflow-6phase.md`, `references/communication-style.md`, `references/preflight.md`, `references/output-formats.md`. For Medium/Large: also load `references/agentic-teams.md`, `references/principal-engineer.md`.
 
 ## Help
 

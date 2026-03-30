@@ -1,6 +1,6 @@
 ---
 name: setup
-description: "[full] [setup] Use when setting up, validating, or updating CLI tools and MCP server configurations for DevKit skills"
+description: "[abbreviated] [setup] Use when setting up, validating, or updating CLI tools and MCP server configurations for DevKit skills"
 user-invocable: true
 argument-hint: "[--type tools|mcps|all] [--check-only] [--skip-update] [--server <name>] [--tool <name>] [--verbosity short|standard|detailed] [--help]"
 allowed-tools: [Read, Bash, Write]
@@ -83,7 +83,7 @@ When `--help` is passed, display this reference and stop.
 
 
 
-Load references: `references/workflow-6phase.md`, `references/agentic-teams.md`, `references/principal-engineer.md`, `references/communication-style.md`, `references/preflight.md`, `references/output-formats.md`.
+Load references: `references/workflow-6phase.md`, `references/communication-style.md`, `references/preflight.md`, `references/output-formats.md`. For Medium/Large: also load `references/agentic-teams.md`, `references/principal-engineer.md`.
 
 
 ## Phase Applicability

@@ -25,7 +25,7 @@ This skill must make the workflow human-in-the-loop as early as possible:
 4. confirm the approach and plan with the user
 5. execute without asking for more information unless reality changes
 
-Load references: `references/workflow-6phase.md`, `references/agentic-teams.md`, `references/principal-engineer.md`, `references/communication-style.md`, `references/preflight.md`, `references/output-formats.md`, `references/intent-expansion.md`.
+Load references: `references/workflow-6phase.md`, `references/communication-style.md`, `references/preflight.md`, `references/output-formats.md`, `references/intent-expansion.md`. For Medium/Large: also load `references/agentic-teams.md`, `references/principal-engineer.md`.
 
 ## Help
 

@@ -12,7 +12,9 @@ workflow-tier: full
 
 # Review
 
-Use the shared contracts in `references/agentic-teams.md`, `references/review-pipeline.md`, `references/source-routing.md`, `references/output-formats.md`, `references/preflight.md`, and `references/review-comment-template.md`.
+Load references: `references/workflow-6phase.md`, `references/communication-style.md`, `references/preflight.md`, `references/output-formats.md`. For Medium/Large: also load `references/agentic-teams.md`, `references/principal-engineer.md`.
+
+Use the shared contracts in `references/review-pipeline.md`, `references/source-routing.md`, and `references/review-comment-template.md`.
 
 **All review comments posted to a PR must follow the canonical format in `references/review-comment-template.md`.**
 
@@ -163,7 +165,7 @@ If no token is found in `~/.zshenv`:
 
 3. **Start the git-based review** without waiting for the token. Use the git diff approach described in the Dual Diff Review section of the pr-review stage.
 
-4. In this mode, the output is a **markdown file only** (`.temp/pr-review/<branch>-review.md`) containing all findings in the canonical comment template format. The user can manually post these comments or re-run with the token configured.
+4. In this mode, the output is a **markdown file only** (`.temp/pr-review/pr-<number>-review.md`) containing all findings in the canonical comment template format. The user can manually post these comments or re-run with the token configured.
 
 ---
 

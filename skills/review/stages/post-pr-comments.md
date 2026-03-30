@@ -88,9 +88,9 @@ For comments that were marked outdated/resolved but the issue persists:
 
 When no MCP or API is available:
 
-1. Write all accepted comments to `.temp/pr-review/<branch>-review.md`
+1. Write all accepted comments to `.temp/pr-review/pr-<number>-review.md`
 2. Each entry includes file path, line number, severity, and full comment body
-3. Inform the user: "Review saved to .temp/pr-review/<branch>-review.md -- post these comments manually or re-run with the token configured."
+3. Inform the user: "Review saved to .temp/pr-review/pr-<number>-review.md -- post these comments manually or re-run with the token configured."
 
 ---
 

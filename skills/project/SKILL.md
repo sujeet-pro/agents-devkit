@@ -13,7 +13,7 @@ workflow-tier: full
 
 Unified project skill: bootstraps new projects through structured discovery and research, manages milestone tracking and auditing, and captures ideas for the backlog. Auto-detects the right mode from context, or accepts an explicit `--mode`.
 
-Load references: `references/workflow-6phase.md`, `references/agentic-teams.md`, `references/principal-engineer.md`, `references/communication-style.md`, `references/preflight.md`, `references/output-formats.md`.
+Load references: `references/workflow-6phase.md`, `references/communication-style.md`, `references/preflight.md`, `references/output-formats.md`. For Medium/Large: also load `references/agentic-teams.md`, `references/principal-engineer.md`.
 
 ## Help
 

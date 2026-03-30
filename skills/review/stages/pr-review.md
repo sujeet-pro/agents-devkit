@@ -74,7 +74,7 @@ Each review session is fully isolated. Session data also uses the PR number for 
 
 ### Merging Both Approaches
 
-Deduplicate findings from both approaches. If a finding appears in both, keep the one with more context. If a finding only appears in the branch checkout review, mark it as `[full-context]` in the output.
+Deduplicate findings from both approaches. If a finding appears in both, keep the one with more context. If a finding only appears in the worktree full-file review, mark it as `[full-context]` in the output.
 
 ---
 
@@ -291,7 +291,7 @@ Used when `mode=interactive` or when auto-detection selects a fresh review (the 
 ### Phase 1: Review
 
 1. Run the full review pipeline: preflight, source handling, comment reconciliation, guideline loading, child agents.
-2. Run the Dual Diff Review (both PR diff and branch checkout approaches).
+2. Run the Dual Diff Review (both PR diff and worktree full-file approaches).
 3. Consolidate findings: deduplicate, assign severity and confidence scores.
 4. Filter findings below the confidence threshold.
 
@@ -417,7 +417,7 @@ Used when `mode=followup` or when auto-detection finds the current user has prio
 
 For each previous review comment in the ledger:
 
-1. Read the current state of the referenced file and surrounding context (use branch checkout, not just the diff).
+1. Read the current state of the referenced file and surrounding context from the worktree (`.temp/worktrees/pr-<number>/`), not just the diff.
 2. Check the commits since the last review for changes to the referenced area.
 3. Classify the comment into one of these buckets:
 

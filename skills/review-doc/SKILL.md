@@ -56,7 +56,7 @@ For Confluence and Google Docs, follow that with one lightweight MCP read of the
 - Confluence -> `mcp__atlassian-confluence__confluence_get_page`
 - Google Docs -> `mcp__google-drive__getDocumentInfo`
 
-Load references: `references/workflow-6phase.md`, `references/agentic-teams.md`, `references/principal-engineer.md`, `references/communication-style.md`, `references/preflight.md`, `references/output-formats.md`.
+Load references: `references/workflow-6phase.md`, `references/communication-style.md`, `references/preflight.md`, `references/output-formats.md`. For Medium/Large: also load `references/agentic-teams.md`, `references/principal-engineer.md`.
 
 ## Stage Selection
 

@@ -13,7 +13,7 @@ See [CONTRIBUTING.md](./CONTRIBUTING.md) for how to add skills, guidelines, agen
 - **Self-sufficient**: Each skill references only files within its own `skill-name/` directory. No cross-skill file references.
 - **Delegation, not file sharing**: When a skill needs another skill's capability, it invokes that skill (e.g., "invoke `/research`"), never references its sub-files. The invoking skill specifies the output format it needs, not how to do the work.
 - **All reference material lives under `references/`**, with subfolders when grouping aids readability.
-- **Consistent structure**: Every skill follows the same directory layout (`SKILL.md`, `references/`, `stages/`, `scripts/`).
+- **Consistent structure**: Every skill has `SKILL.md`, `references/`, and `scripts/`. Multi-mode skills also have `stages/` for conditional stage files.
 
 ## Cross-Skill Update Dependencies
 

@@ -154,8 +154,8 @@ Shared agent definitions in `agents/` provide reusable prompts for child agents 
 
 Skills automatically load relevant guidelines based on repository type:
 
-- **Coding guidelines** (`skills/coding/guidelines/`) — 16 files: general, architecture, frontend, backend (Java, Kotlin, Node.js, Python), design system, JS/TS library, scripts, API design, testing, observability, security, expressive code
-- **Document guidelines** (`skills/doc-writing/guidelines/`) — 24 files: general, RFC, ADR, article, blog, changelog, runbook, system design, tool evaluation, research, deep dive, and more
+- **Coding guidelines** (`skills/coding/references/coding-guidelines/`) — 16 files: general, architecture, frontend, backend (Java, Kotlin, Node.js, Python), design system, JS/TS library, scripts, API design, testing, observability, security, expressive code
+- **Document guidelines** (`skills/doc-writing/references/doc-guidelines/`) — 24 files: general, RFC, ADR, article, blog, changelog, runbook, system design, tool evaluation, research, deep dive, and more
 
 ## MCP Integrations
 
@@ -199,8 +199,8 @@ agents-devkit/
 │   ├── team/                Multi-model review, agent dispatch
 │   ├── use/                 Orchestrator
 │   └── <skill>/             Each skill directory contains:
-│       ├── SKILL.md         Skill definition with the 6-phase workflow
-│       ├── stages/          Conditional stage files (multi-stage only)
+│       ├── SKILL.md         Entry point with workflow and stage routing
+│       ├── stages/          Conditional stage files (when skill has multiple modes)
 │       ├── references/      Reference documents (self-contained)
 │       └── scripts/         Preflight and utility scripts
 ├── .claude-plugin/          Claude Code plugin metadata

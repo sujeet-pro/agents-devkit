@@ -47,8 +47,8 @@ Every skill declares a `workflow-tier` in its YAML frontmatter:
 
 | Tier | Description | Skills |
 |------|-------------|--------|
-| `full` | Uses the full 6-phase framework, often with stage-specific skipping rules | review, review-doc, write, develop, plan, diagram, spec, project, audit, research, design, test, handoff, team, setup, etc. |
-| `partial` | Reserved for skills that use the framework but permanently skip some middle phases | currently unused |
+| `full` | Uses the full 6-phase framework, often with stage-specific skipping rules | review, review-doc, write, develop, plan, diagram, spec, project, audit, research, design, handoff, team |
+| `abbreviated` | Uses the framework but permanently skips some middle phases (e.g., approach selection, planning) | test, setup |
 | `helper` | Auto-invoked by other skills, does not own the workflow | coding, doc-writing |
 | `orchestrator` | Multi-skill pipeline manager | use |
 
@@ -81,14 +81,14 @@ This propagates changes to all skill directories. Use `--dry-run` to preview cha
 
 | Skill | Purpose |
 |---|---|
-| `/coding` | Detects repo stack (languages, frameworks), loads matching coding guidelines from `coding/guidelines/` |
-| `/doc-writing` | Detects document type, loads matching writing guidelines from `doc-writing/guidelines/` |
+| `/coding` | Detects repo stack (languages, frameworks), loads matching coding guidelines from `coding/references/coding-guidelines/` |
+| `/doc-writing` | Detects document type, loads matching writing guidelines from `doc-writing/references/doc-guidelines/` |
 
 These are invoked automatically by other skills. `/use` should be the default route for general prompts and includes them when needed.
 
 ### Core Skills
 
-Each unified skill contains conditional `stages/*.md` files loaded based on context. Routing logic is embedded in the main SKILL.md — there are no separate router skills.
+Multi-mode skills contain conditional `stages/*.md` files loaded based on context. Simpler skills embed all logic directly in SKILL.md. Routing logic is always in the main SKILL.md — there are no separate router skills.
 
 | Skill | Area | Description |
 |---|---|---|
@@ -159,8 +159,8 @@ Each unified skill contains conditional `stages/*.md` files loaded based on cont
 
 ## Adding a Guideline
 
-1. **Coding guidelines**: Add to `skills/coding/guidelines/<name>.md`
-2. **Document guidelines**: Add to `skills/doc-writing/guidelines/<name>.md`
+1. **Coding guidelines**: Add to `skills/coding/references/coding-guidelines/<name>.md`
+2. **Document guidelines**: Add to `skills/doc-writing/references/doc-guidelines/<name>.md`
 3. Cite authoritative sources (specs, official docs) over blog posts
 
 ## Adding an Agent
@@ -199,7 +199,7 @@ done
 ## Conventions
 
 - **Skill descriptions**: start with "Use when..."
-- **Workflow tier**: declare in frontmatter (`full`, `abbreviated`, `router`, `helper`, `orchestrator`)
+- **Workflow tier**: declare in frontmatter (`full`, `abbreviated`, `helper`, `orchestrator`)
 - **Scripts**: prefer Python (`#!/usr/bin/env python3`), then shell, then JavaScript
 - **Skill cross-references**: use `/<skill-name>` format (mention by name, don't reference files)
 - **Skill file references**: use `${CLAUDE_SKILL_DIR}/references/` or `${CLAUDE_SKILL_DIR}/scripts/`

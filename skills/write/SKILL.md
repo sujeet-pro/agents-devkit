@@ -2,7 +2,7 @@
 name: write
 description: "[full] [write] Use when creating or updating any engineering document — auto-detects type and loads the right stage, with optional Confluence/Google Docs publishing"
 user-invocable: true
-argument-hint: "<topic> [--type adr|rfc|api|blog|article|changelog|runbook|migration|onboarding|project|proposal|system-design|tech-radar|tool-eval|fix] [--format] [--publish] [--publish-space] [--publish-parent] [--publish-update] [--verbosity short|standard|detailed] [--help]"
+argument-hint: "<topic> [--type adr|rfc|api|blog|article|changelog|runbook|migration|onboarding|project|proposal|system-design|tech-radar|tool-eval|fix] [--template <path-or-url>] [--format] [--publish] [--publish-space] [--publish-parent] [--publish-update] [--verbosity short|standard|detailed] [--help]"
 allowed-tools: [Glob, Grep, Read, Edit, Write, Bash, WebSearch, WebFetch, Agent]
 dependencies:
   commands: [git]
@@ -12,7 +12,7 @@ workflow-tier: full
 
 # Document Writing
 
-Load references: `references/workflow-6phase.md`, `references/agentic-teams.md`, `references/principal-engineer.md`, `references/communication-style.md`, `references/preflight.md`, `references/output-formats.md`.
+Load references: `references/workflow-6phase.md`, `references/communication-style.md`, `references/preflight.md`, `references/output-formats.md`. For Medium/Large: also load `references/agentic-teams.md`, `references/principal-engineer.md`.
 
 Use this skill when the agent should create or update any engineering document. It auto-detects the document type from the prompt or an explicit `--type` flag, loads the matching stage file for type-specific guidance, and runs the 6-phase workflow. This skill also handles publishing to Confluence or Google Docs when `--publish` is specified.
 

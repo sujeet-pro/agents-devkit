@@ -13,7 +13,7 @@ workflow-tier: full
 
 Unified diagram skill: creates diagrams using the best engine for the job. Auto-detects the right engine from context and diagram type, or accepts an explicit `--engine`. Supports Mermaid, Excalidraw, draw.io, and Graphviz.
 
-Load references: `references/workflow-6phase.md`, `references/agentic-teams.md`, `references/principal-engineer.md`, `references/communication-style.md`, `references/preflight.md`, `references/output-formats.md`.
+Load references: `references/workflow-6phase.md`, `references/communication-style.md`, `references/preflight.md`, `references/output-formats.md`. For Medium/Large: also load `references/agentic-teams.md`, `references/principal-engineer.md`.
 
 ## Help
 
