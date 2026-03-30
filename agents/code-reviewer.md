@@ -2,7 +2,7 @@
 name: code-reviewer
 description: Multi-perspective code reviewer for PRs and repository audits covering correctness, security, performance, architecture, tests, and documentation impact
 model: opus
-tools:
+allowed-tools:
   - Glob
   - Grep
   - Read

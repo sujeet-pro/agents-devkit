@@ -1,6 +1,6 @@
 # MCP Server Setup Guide
 
-AKIT's core workflows rely on four MCP integrations:
+DevKit skills that interact with external sources use MCP (Model Context Protocol) servers:
 
 | MCP Server | Package or Image | Auth | Typical Use |
 |---|---|---|---|
@@ -11,9 +11,7 @@ AKIT's core workflows rely on four MCP integrations:
 
 ## GitHub MCP
 
-GitHub now maintains an official MCP server.
-
-For hosts that support remote MCP servers, the official hosted endpoint is the easiest path:
+GitHub maintains an official MCP server. The official hosted endpoint is the easiest path:
 
 ```json
 "github": {
@@ -22,7 +20,7 @@ For hosts that support remote MCP servers, the official hosted endpoint is the e
 }
 ```
 
-If your host requires a local `stdio` server, use the official local server.
+If your host requires a local `stdio` server:
 
 1. Create a GitHub Personal Access Token with the scopes you need.
 2. Add it to `~/.zshenv`:
@@ -37,11 +35,8 @@ If your host requires a local `stdio` server, use the official local server.
    "github": {
      "command": "docker",
      "args": [
-       "run",
-       "-i",
-       "--rm",
-       "-e",
-       "GITHUB_PERSONAL_ACCESS_TOKEN",
+       "run", "-i", "--rm",
+       "-e", "GITHUB_PERSONAL_ACCESS_TOKEN",
        "ghcr.io/github/github-mcp-server"
      ],
      "env": {
@@ -94,12 +89,9 @@ If you do not use Docker, build the server from the official repository and run 
      "command": "uvx",
      "args": [
        "mcp-atlassian",
-       "--confluence-url",
-       "$CONFLUENCE_BASE_URL",
-       "--confluence-username",
-       "$CONFLUENCE_EMAIL",
-       "--confluence-token",
-       "$CONFLUENCE_API_TOKEN"
+       "--confluence-url", "$CONFLUENCE_BASE_URL",
+       "--confluence-username", "$CONFLUENCE_EMAIL",
+       "--confluence-token", "$CONFLUENCE_API_TOKEN"
      ],
      "env": {
        "CONFLUENCE_URL": "$CONFLUENCE_BASE_URL",
@@ -127,13 +119,10 @@ If you do not use Docker, build the server from the official repository and run 
 
 ## Validation
 
-After configuration:
+After configuration, validate from within a skill by running:
 
 ```bash
-zsh scripts/check-env.zsh
-zsh scripts/validate-mcp.zsh
-zsh scripts/check-skill-deps.zsh review-pr pr=https://github.com/org/repo/pull/42
-zsh scripts/check-skill-deps.zsh review-doc source=https://docs.google.com/document/d/123/edit
+python3 skills/_shared/preflight.py skills/<skill-name> pr=https://github.com/org/repo/pull/42
 ```
 
-Inside AKIT-enabled hosts, use `/manage-validate` for a workflow-oriented check.
+Skills automatically check their MCP dependencies via the shared `preflight.py` script before starting work.

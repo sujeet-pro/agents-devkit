@@ -2,7 +2,7 @@
 name: migration-analyst
 description: Framework and library migration analyst that maps upgrade paths to specific codebase usage patterns and identifies breaking changes
 model: opus
-tools:
+allowed-tools:
   - Glob
   - Grep
   - Read

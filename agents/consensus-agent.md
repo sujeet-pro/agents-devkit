@@ -2,7 +2,7 @@
 name: consensus-agent
 description: Synthesizes outputs from multiple child agents or multiple AI providers into a unified, confidence-aware result
 model: opus
-tools:
+allowed-tools:
   - Read
   - Write
   - Bash

@@ -2,7 +2,7 @@
 name: source-publisher
 description: Publishes markdown review or documentation outputs back to GitHub, Bitbucket, Confluence, or Google Docs using the source-native MCP
 model: opus
-tools:
+allowed-tools:
   - Read
   - Grep
   - Bash

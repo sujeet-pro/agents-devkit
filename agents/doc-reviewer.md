@@ -2,7 +2,7 @@
 name: doc-reviewer
 description: Expert reviewer for technical docs, design docs, PR descriptions, Confluence pages, and Google Docs with structured findings and confidence scoring
 model: opus
-tools:
+allowed-tools:
   - Read
   - WebSearch
   - WebFetch

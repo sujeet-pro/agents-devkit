@@ -1,124 +1,188 @@
 ---
 name: use
-description: Use when starting a session to pick the right DevKit skill family, understand related skills, and apply the shared child-agent contract before substantial work
+description: "[orchestrator] [pipeline] Use when starting any task to expand intent, identify the right DevKit skills, confirm the plan early with the user, and then execute the approved workflow"
+user-invocable: true
+argument-hint: "<task description> [--verbosity short|standard|detailed] [--help]"
+allowed-tools: [Glob, Grep, Read, Edit, Write, Bash, WebSearch, WebFetch, Agent]
+dependencies:
+  commands: [git]
+workflow-tier: orchestrator
 ---
 
 <CHILD-AGENT-STOP>
 If you were launched as a child agent for a focused task, skip this skill.
 </CHILD-AGENT-STOP>
 
-# Using DevKit
+# DevKit Orchestrator
 
-## Purpose
+`/use` is the default entry point for DevKit. Start here unless the user explicitly names a specific skill and clearly wants to bypass routing.
 
-DevKit is centered on software-development workflows:
+This skill must make the workflow human-in-the-loop as early as possible:
 
-- review workflows that leave comments or review artifacts without mutating the source
-- write workflows that directly draft or revise professional engineering documents
-- research (quick, standard, deep)
-- codebase review and security audit
-- diagrams and rendering, with Mermaid, Excalidraw, and draw.io preferred over Graphviz
-- source-native publishing to GitHub, Bitbucket, Confluence, and Google Docs
-- engineering workflows: ADR, dependency audit, migration guides, changelogs, runbooks
-- multi-agent and multi-model execution
+1. expand the user's intent before doing real work
+2. show concise visible reasoning
+3. identify skills, scripts, tools, and MCPs
+4. confirm the approach and plan with the user
+5. execute without asking for more information unless reality changes
 
-## First Decision
+Load references: `references/workflow-6phase.md`, `references/agentic-teams.md`, `references/principal-engineer.md`, `references/communication-style.md`, `references/preflight.md`, `references/output-formats.md`, `references/intent-expansion.md`.
 
-Before doing substantial work, always check whether a more specific skill should own the task. If one skill obviously delegates to a more specific sibling, use the more specific skill and inherit its preflight and rules.
+## Help
 
-## Skill Guide
+When `--help` is passed, display this reference and stop.
 
-### Reviewing Others' PRs
+### Parameters
 
-- `/devkit:review-code` - Entry router for code review requests. Sends PRs to `review-code-pr`, local changes to `review-code-local`, and repo-wide audits to `review-codebase`.
-- `/devkit:review-code-pr` - Reviews a GitHub or Bitbucket PR without editing the branch. Auto-detects fresh vs follow-up review and defaults to interactive mode for fresh reviews. Supports `mode=standard`, `mode=interactive`, `mode=followup` overrides.
+| Parameter | Values | Default | Description |
+|-----------|--------|---------|-------------|
+| `<task description>` | free-text | required | Describe what you want to accomplish |
+| `--verbosity` | `short`, `standard`, `detailed` | `standard` | Output detail level for all downstream skills |
 
-### Managing My PRs
+### Behavior Variations
 
-- `/devkit:pr-describe` - Generates or refreshes a PR description from the actual diff, risks, and tests.
-- `/devkit:pr-fix-comments` - Reads PR comments, applies targeted code fixes, and replies back after verification.
-- `/devkit:pr-finalize` - Guides merge, PR, cleanup, and follow-through steps at the end of a branch.
+- **Trivial tasks**: inline intent confirmation, abbreviated plan, direct execution, quick validation
+- **Small tasks**: inline or lightweight confirmation, light research, brief plan approval, execution, verification
+- **Medium tasks**: full intent review, research/options, interactive approach selection, approved implementation plan, tracked execution
+- **Large tasks**: same as medium plus Principal Engineer check, stronger questioning, phased execution, and progress dashboard
+- **Explicit skill invocation by the user**: keep that skill in the pipeline, but still run Phase 0 and plan-before-execute
+- **Direct `/review`, `/develop`, `/write`, etc.**: those skills may still be called directly, but this orchestrator should be the preferred route for general prompts
 
-### Other Reviews
+### Examples
 
-- `/devkit:review-code-local` - Reviews staged, unstaged, or branch-local changes, including committed files since branch creation. Outputs a reusable review document instead of auto-fixing.
-- `/devkit:review-doc` - Reviews markdown, Confluence, or Google Docs without editing the source. Leaves comments where possible, otherwise emits a review artifact.
-- `/devkit:review-codebase` - Reviews an entire repository and produces a prioritized engineering improvement document.
-- `/devkit:review-ui` - Structured 6-pillar visual and UX audit of frontend code (layout, typography, color, responsiveness, accessibility, interaction states).
-- `/devkit:audit-security` - Runs a security-focused review against auth, data handling, dependencies, and attack surfaces.
-- `/devkit:audit-performance` - Reviews performance risks such as latency, bundle size, memory growth, and scaling hotspots.
+```text
+/use review this PR: https://github.com/org/repo/pull/42
+/use implement user authentication with OAuth2
+/use write an ADR for our caching strategy
+/use debug the failing CI pipeline
+/use audit this codebase for security and performance
+```
 
-### Write Skills
+## Core Rules
 
-- `/devkit:write-doc` - Drafts or directly revises a professional engineering document. Use this when the agent should update the content, not leave comments.
-- `/devkit:write-project-docs` - Generates or refreshes professional project documentation from the codebase, including diagrams and setup guidance.
-- `/devkit:write-article` - Produces or revises deep engineering articles with exhaustive research and strong technical grounding.
-- `/devkit:write-blog` - Produces or revises engineering blog posts, release notes, or technical announcements in a polished narrative format.
-- `/devkit:write-api-docs` - Builds or refreshes API reference documentation from code or an OpenAPI spec.
-- `/devkit:write-adr` - Creates or updates Architecture Decision Records from code, PRs, or discussion notes.
-- `/devkit:write-runbook` - Creates or refreshes operational runbooks for services, deployments, and incident response.
-- `/devkit:write-changelog` - Creates or updates changelogs from git history with clean categorization and release-ready formatting.
-- `/devkit:write-migration-guide` - Creates or refreshes step-by-step migration guides mapped to real repository files.
-- `/devkit:write-onboarding` - Produces or updates onboarding guides for new hires, transfers, or contributors.
-- `/devkit:write-tech-radar` - Produces or updates technology radar documents with evidence-backed recommendations.
-- `/devkit:write-markdown` - Produces markdown-first deliverables while keeping diagrams and assets organized for later publishing.
-- `/devkit:publish-confluence` - Publishes prepared markdown docs and assets to Confluence when writing is already complete.
+1. Run **Phase 0: Intent Expansion** before selecting the final pipeline.
+2. Make reasoning visible, but concise and decision-oriented.
+   Never dump hidden chain-of-thought or a long internal monologue.
+3. For Medium and Large work, challenge the approach like a Principal Engineer:
+   do we need this, what is the simplest version, what are the alternatives, and what is the maintenance cost?
+4. The user must approve the direction before execution starts.
+5. For non-trivial work, execution starts only after an approved plan exists.
+6. Every downstream skill invocation must be explainable from the confirmed intent.
 
-### Research And Diagram Skills
+## Phase 0: Intent Expansion
 
-- `/devkit:research` - Standard software engineering research using official docs, source code, and implementation notes.
-- `/devkit:research-quick` - Quick research pass when you need a fast answer or shortlist.
-- `/devkit:research-deep` - Exhaustive multi-pass research for high-stakes or broad technical questions.
-- `/devkit:diagram` - Chooses the best diagram engine and produces editable source plus renders.
-- `/devkit:diagram-mermaid` - Best for text-first diagrams that should diff well in Git.
-- `/devkit:diagram-excalidraw` - Best for architecture overviews, ownership maps, and exploratory visuals.
-- `/devkit:diagram-drawio` - Best for precise infrastructure, enterprise, or process diagrams.
-- `/devkit:diagram-graphviz` - Fallback for existing DOT assets or strict layout needs. Prefer Mermaid, Excalidraw, or draw.io for new docs.
-- `/devkit:diagram-convert` - Converts rendered assets when the destination needs PNG, JPEG, or another delivery format.
-- `/devkit:design-frontend` - Generates intentional frontend or design-system directions with multiple parallel design passes.
+Start by expanding the prompt using `references/intent-expansion.md`.
 
-### Project Bootstrapping & Specification
+For Medium and Large work, use `intent-analyst` to pressure-test the prompt expansion before presenting it to the user.
 
-- `/devkit:project-init` - Full project initialization with discovery, research, requirements, constitution, and roadmap.
-- `/devkit:spec-write` - Writes formal feature specifications that separate intent from implementation with interactive clarification.
-- `/devkit:constitution-write` - Creates or updates a versioned project governance document with non-negotiable principles.
-- `/devkit:checklist-generate` - Generates "unit tests for English" that validate requirements quality before implementation.
-- `/devkit:spec-analyze` - Cross-artifact consistency checker for specs, plans, tasks, and implementation.
+### What to Produce
 
-### Development Process
+Create a compact intent summary with:
 
-- `/devkit:plan-brainstorm` - Turns rough ideas into sharper approaches with optional party mode and structured voting.
-- `/devkit:plan-write` - Converts requirements into execution plans with interactive discussion phase and scope categorization.
-- `/devkit:plan-execute` - Executes plans with wave-based parallelism, deviation rules, and inter-wave checkpoints.
-- `/devkit:quick-task` - Fast execution for simple tasks without full planning overhead.
-- `/devkit:dev-tdd` - Enforces RED-GREEN-REFACTOR loops for feature work and bug fixing.
-- `/devkit:dev-debug` - Structured root-cause debugging with persistent state, forensics mode, and interactive hypothesis testing.
-- `/devkit:dev-verify` - Evidence-based verification with goal-backward 4-level checks (exists, substantive, wired, data-flowing).
-- `/devkit:verify-uat` - Interactive user acceptance testing that extracts testable deliverables and diagnoses failures.
-- `/devkit:pr-finalize` - Guides merge, PR, cleanup, and follow-through steps at the end of a branch.
-- `/devkit:dev-worktree` - Creates isolated workspaces when multiple branches or tasks need to run in parallel.
+- one-line goal
+- 2-4 reasoning bullets
+- assumptions and ambiguities
+- required skills in order
+- required tools, scripts, and MCPs with status
+- complexity and rationale
+- PE check for Medium or Large work
 
-### Session & Project Management
+### Visible Reasoning Format
 
-- `/devkit:session-handoff` - Pause work and resume in a new session with full context reconstruction.
-- `/devkit:context-thread` - Persistent named context threads for ongoing work streams across sessions.
-- `/devkit:milestone-manage` - Create, track, audit, and archive development milestones and roadmap progress.
-- `/devkit:idea-capture` - Capture forward-looking ideas, manage a backlog parking lot, and promote items to specs or plans.
+Use this style:
 
-### Utility Skills
+```text
+Intent:
+- Goal: <one line>
+- Why this pipeline: <reasoning bullet>
+- Skills: <skill list with short why>
+- Tools/MCPs: <available / missing / optional>
+- Complexity: <level> because <brief rationale>
+```
 
-- `/devkit:agent-multi` - Runs the same task through multiple providers or models for comparison or consensus.
-- `/devkit:agent-team` - Orchestrates larger tasks across multiple agents with explicit roles.
-- `/devkit:cross-review` - Multi-model peer review that synthesizes findings with consensus indicators.
-- `/devkit:manage-validate` - Checks that the needed MCP servers are configured before a source-backed workflow.
-- `/devkit:manage-skill` - Creates or updates DevKit skills while keeping naming, routing, and contracts consistent.
-- `/devkit:manage-update` - Updates DevKit from GitHub or a local filesystem source.
-- `/devkit:manage-improve` - Audits and improves the DevKit repository itself.
+### Confirmation
 
-## Core Rule
+- **Trivial / Small**: inline confirmation is enough
+- **Medium / Large**: write `intent.json`, launch `python3 ${CLAUDE_SKILL_DIR}/scripts/tui/intent_confirm.py <session_dir>`, and wait for approval or edits
 
-If the chosen skill does non-trivial work, apply the child-agent rules from `skills/_references/agentic-teams.md`.
+If the user simplifies or edits the intent, re-run the expansion and only then continue.
 
-## Intermediary Artifacts
+## Skill Routing
 
-Skills that produce plans, drafts, or research notes should store them in `.temp/<skill-name>/` in the current working directory. Plans use checkbox steps (`- [ ]` / `- [x]`) for resume capability.
+Load `references/routing-patterns.md` for the full routing table and parameter resolution rules.
+
+Pick the smallest useful pipeline that covers the confirmed intent. Resolve parameters by reading each skill's `argument-hint` and `Parameters` section, inferring what the prompt provides, and marking the rest as defaults or needing confirmation.
+
+## Complexity and Phase Use
+
+Use `references/workflow-6phase.md` as the source of truth.
+
+- **Trivial**: inline intent confirm, no separate options phase, direct execution
+- **Small**: inline intent confirm, light research, brief planning, direct execution
+- **Medium**: full Phase 0-5
+- **Large**: full Phase 0-5 plus PE check and phased execution
+
+When uncertain, classify as Medium.
+
+## Approach Selection
+
+For Medium and Large work, do not lock the pipeline silently.
+
+1. research enough to present 2-3 viable options
+2. call out the simplest option explicitly
+3. explain pros, cons, effort, and risk
+4. let the user pick, mix, or simplify
+
+Use `python3 ${CLAUDE_SKILL_DIR}/scripts/tui/approach_select.py <session_dir>` when a TUI is appropriate.
+
+## Planning Gate
+
+Execution must follow an approved plan.
+
+### Plan Expectations
+
+The approved plan must include:
+
+- tasks or waves
+- affected files or deliverables
+- verification steps
+- explicit sequencing when dependencies exist
+
+For Medium and Large work:
+
+1. draft the plan
+2. review it with `plan-reviewer`
+3. let the user approve it
+4. only then execute it
+
+Use `python3 ${CLAUDE_SKILL_DIR}/scripts/tui/plan_approve.py <session_dir>` for Medium and Large tasks.
+
+## Execution
+
+Once the user approves the plan:
+
+1. invoke the selected downstream skills in order
+2. keep progress visible at natural checkpoints
+3. avoid asking for more information unless the approved assumptions are broken by reality
+4. for Medium and Large execution, write progress updates, use `progress-tracker` to summarize status, and optionally launch `python3 ${CLAUDE_SKILL_DIR}/scripts/tui/progress_dashboard.py <session_dir>`
+
+## Validation and Learning
+
+End every `/use` run with:
+
+- what was done
+- what was verified
+- what changed from the initial idea, if anything
+- a short “what to know” note so the user learns why the chosen path made sense
+
+## Output Format
+
+Adapt output to `--verbosity`, but keep it concise.
+
+- **short**: one-line summary + next action
+- **standard**: intent, approved pipeline, progress, outcome
+- **detailed**: standard output plus decision notes and artifact paths
+
+## Adjacent Skills
+
+- `/plan` — use directly when the user explicitly asks to brainstorm, write, execute, or track a plan
+- `/team` — use when the user explicitly wants multi-model or multi-agent orchestration as the primary task

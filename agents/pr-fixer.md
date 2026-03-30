@@ -2,7 +2,7 @@
 name: pr-fixer
 description: Specialized agent for reading PR review comments and applying targeted code fixes without touching unrelated code
 model: sonnet
-tools:
+allowed-tools:
   - Glob
   - Grep
   - Read

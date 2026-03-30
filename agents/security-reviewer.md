@@ -2,7 +2,7 @@
 name: security-reviewer
 description: Security-focused code reviewer specializing in OWASP Top 10, authentication/authorization patterns, data handling, and dependency vulnerabilities
 model: opus
-tools:
+allowed-tools:
   - Glob
   - Grep
   - Read

@@ -1,0 +1,202 @@
+---
+name: audit
+description: "[full] [audit] Use when performing a codebase, security, performance, or dependency audit -- auto-detects focus or use --focus to specify"
+user-invocable: true
+argument-hint: "[--focus codebase|security|performance|dependency|all] [--scope] [--format] [--verbosity short|standard|detailed] [--help]"
+allowed-tools: [Glob, Grep, Read, Bash, WebSearch, WebFetch, Agent]
+dependencies:
+  commands: [git, node, npm]
+workflow-tier: full
+---
+
+# Audit
+
+Use the shared DevKit child-agent contract in `references/agentic-teams.md`, the review flow in `references/review-pipeline.md`, the source routing rules in `references/source-routing.md`, the output rules in `references/output-formats.md`, and the comment format in `references/review-comment-template.md`.
+
+**All review findings must follow the canonical format in `references/review-comment-template.md`.**
+
+This skill is review-only. Do not update repository files in place. Produce a review artifact or publish that artifact to a document destination.
+
+---
+
+## Help
+
+When `--help` is passed, display this reference and stop.
+
+### Parameters
+
+| Parameter | Values | Default | Description |
+|-----------|--------|---------|-------------|
+| `--focus` | `codebase`, `security`, `performance`, `dependency`, `all` | `all` | Audit focus area. Can be a single value or comma-separated combination |
+| `--scope` | `all`, file path, glob pattern, `production`, `development` | `all` | Limit audit to specific files, directories, or dependency scope |
+| `--format` | `markdown`, `pr` | `markdown` | Output as markdown report or PR description with checklist |
+| `--publish` | off, document destination | off | Publish the final artifact to a document destination (Confluence, Google Docs) |
+| `--verbosity` | `short`, `standard`, `detailed` | `standard` | Output detail level |
+| `--help` | -- | -- | Show this help section and exit |
+
+### Behavior Variations
+
+- **Default** (`--focus all`): runs all four audit dimensions -- codebase, security, performance, dependency.
+- **Focused** (`--focus <area>`): limits audit to one or more specified areas, reducing execution time.
+- **Auto-detection**: when `--focus` is not set, the skill auto-detects focus from context keywords:
+  - OWASP, auth, CVE, vulnerability, injection, XSS -> `security`
+  - bundle size, latency, memory, N+1, cache, profiling -> `performance`
+  - outdated, dependency, npm audit, license, CVE, package -> `dependency`
+  - architecture, code quality, duplication, structure -> `codebase`
+  - If no keywords match or multiple areas match, defaults to `all`
+- **`--scope <path>`**: limits scanning to specified files or directories
+- **`--scope production`**: for dependency audits, only audits production/runtime dependencies
+- **`--scope development`**: for dependency audits, only audits dev/build dependencies
+- **`--format pr`**: structures output as a PR description with severity-ordered remediation checklist
+- **`--publish`**: after producing the markdown artifact, publishes it to the specified document platform
+- **`--verbosity short`**: executive summary with top findings only
+- **`--verbosity detailed`**: full findings with code excerpts, references, and remediation examples
+
+### Examples
+
+```
+/audit
+/audit --focus security
+/audit --focus codebase --scope src/
+/audit --focus performance --scope src/api/ --verbosity detailed
+/audit --focus dependency --scope production --format pr
+/audit --focus security,performance
+/audit --publish --verbosity detailed
+/audit --focus codebase --publish
+```
+
+---
+
+## Preflight
+
+Before scanning the codebase or launching child agents, run:
+
+`python3 ${CLAUDE_SKILL_DIR}/scripts/preflight.py ${CLAUDE_SKILL_DIR}`
+
+Load references: `references/workflow-6phase.md`, `references/agentic-teams.md`, `references/principal-engineer.md`, `references/communication-style.md`, `references/preflight.md`, `references/output-formats.md`.
+
+## Phase Applicability
+
+| Phase | Applies | Skill-Specific Notes |
+|-------|---------|----------------------|
+| 0. Intent Expansion | yes | Confirm the goal, assumptions, required tools, and success criteria before acting |
+| 1. Research & Options | yes | Analyze scope, detect source type, load guidelines, auto-detect focus; Focused research on chosen approach, proposal at ./temp/proposal/ |
+| 2. Approach Selection | yes | Present 2-3 approaches, user picks or mixes; Iterate on proposal with user feedback |
+| 3. Planning | yes | Break into tasks/waves for parallel agentic teams |
+| 4. Execute | yes | Produce the review using parallel child agents per focus area |
+| 5. Validate & Learn | yes | Verify review completeness, accuracy, and actionability |
+
+## Output Format
+
+All output is markdown by default. Structure varies by deliverable type -- see the focus-area stage files for exact format.
+
+## Focus Area Resolution
+
+1. If `--focus` is explicitly provided, use that value.
+2. Otherwise, scan the user's prompt for context keywords (see auto-detection rules above).
+3. If auto-detection matches a single area, use that.
+4. If auto-detection matches multiple areas, use those areas combined.
+5. If nothing matches, default to `all`.
+
+Once the focus is resolved, load the corresponding stage file(s):
+
+- `codebase` -> `stages/codebase.md`
+- `security` -> `stages/security.md`
+- `performance` -> `stages/performance.md`
+- `dependency` -> `stages/dependency.md`
+- `all` -> load all four stage files
+
+## Guideline Loading
+
+Invoke the `/coding` helper skill to detect the repo stack and load the appropriate coding guidelines. For codebase focus, use full detection (not scoped to changed files).
+
+## Required Team
+
+The team composition depends on the resolved focus area(s). When running `all`, launch all teams in parallel.
+
+### Codebase Focus Team
+
+- `repo-auditor` for system-level architecture and maintainability
+- `code-reviewer` for correctness, security, performance, and code patterns
+- `doc-reviewer` for docs drift, onboarding quality, and examples
+- one domain specialist based on the detected repo type: frontend, backend, or design system
+
+### Security Focus Team
+
+- `auth-reviewer` for authentication and authorization flows, session management, JWT handling
+- `data-flow-analyzer` to trace sensitive data through the system, check encryption, logging, exposure
+- `dependency-scanner` to check for known CVEs, outdated packages, license issues
+- `owasp-checker` for systematic OWASP Top 10 review against the codebase
+
+### Performance Focus Team
+
+- `bundle-analyzer` for dependency size breakdown, duplication, code-splitting gaps, and asset optimization
+- `latency-analyzer` for API call patterns, caching gaps, database query issues, and middleware overhead
+- `memory-analyzer` for potential leaks, data structures, and resource management
+- `anti-pattern-scanner` for performance anti-patterns with impact estimates
+
+### Dependency Focus Team
+
+- `vulnerability-scanner` to check dependencies against known CVE databases and advisory sources
+- `update-compatibility-checker` to research changelogs and identify breaking changes, migration steps, and peer dependency conflicts
+- `remediation-planner` to synthesize findings into a prioritized action plan grouped by effort and risk
+
+## Output
+
+Produce a unified audit report. Include only the sections relevant to the resolved focus area(s).
+
+### Executive Summary
+
+Always present. Summarizes overall posture, top action items, and focus areas covered.
+
+### Codebase Findings (when focus includes `codebase`)
+
+- Repository structure and ownership boundaries
+- Build, test, and release ergonomics
+- Public APIs and documentation quality
+- Code patterns, duplication, and modernization opportunities
+- Missing diagrams or architecture docs
+- Prioritized improvement backlog
+- Quick wins vs. strategic initiatives
+- Documentation and diagram follow-ups
+
+### Security Findings (when focus includes `security`)
+
+- OWASP Top 10 findings
+- Authentication and authorization issues
+- Data handling and encryption gaps
+- Secret detection results
+- Dependency vulnerability summary
+- Findings ordered by severity with remediation guidance
+
+### Performance Findings (when focus includes `performance`)
+
+- Technology stack summary
+- Bundle analysis (frontend)
+- Latency analysis
+- Memory analysis
+- Anti-pattern findings with impact estimates and code examples
+- Prioritized recommendations by impact-to-effort ratio
+- Quick wins and strategic improvements
+
+### Dependency Findings (when focus includes `dependency`)
+
+- Ecosystem breakdown, total dependencies, vulnerability counts by severity
+- Vulnerability findings with affected package, severity, description, and fix
+- Outdated dependencies table grouped by update type
+- License issues
+- Remediation plan with effort estimates and exact update commands
+- Risk notes for unmaintained or deprecated packages
+
+### Follow-Up
+
+- Clear next steps that another agent can use to plan implementation
+- Checklist of action items
+
+When `--format pr`, structure the output as a PR description with a severity-ordered checklist of remediation tasks suitable for tracking progress.
+
+If `--publish` is set, publish the final markdown artifact to the requested document source after the review completes.
+
+## Adjacent Skills
+
+- See the parent router skill for related skills

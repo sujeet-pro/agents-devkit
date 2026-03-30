@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "description": "Tracks upstream sources that AKIT copies or references. Used by /devkit:manage-improve and /devkit:manage-update to sync content.",
+  "description": "Tracks upstream sources that DevKit copies or references.",
   "sources": {
     "diagramkit": {
       "type": "copy",
@@ -8,40 +8,20 @@
       "branch": "main",
       "source_path": "agent_skills/",
       "mapping": {
-        "diagrams/": "skills/diagram/",
-        "diagram-mermaid/": "skills/diagram-mermaid/",
-        "diagram-excalidraw/": "skills/diagram-excalidraw/",
-        "diagram-drawio/": "skills/diagram-drawio/",
-        "diagramkit/": "skills/diagram-render/",
-        "diagrams-troubleshoot/": "skills/diagram-troubleshoot/",
-        "image-convert/": "skills/diagram-convert/",
-        "refs/mermaid/": "skills/diagram-mermaid/references/",
-        "refs/excalidraw/": "skills/diagram-excalidraw/references/",
-        "refs/drawio/": "skills/diagram-drawio/references/"
+        "refs/mermaid/": "skills/diagram/references/mermaid/",
+        "refs/excalidraw/": "skills/diagram/references/excalidraw/",
+        "refs/drawio/": "skills/diagram/references/drawio/"
       },
+      "notes": "Diagram reference material is copied into the unified /diagram skill.",
       "last_sync": "2026-03-27T05:02:50Z",
       "last_commit": "046363036820611527e0c3904998d7a12b19052c"
     },
     "superpowers": {
-      "type": "copy",
+      "type": "ref",
       "repo": "https://github.com/obra/superpowers",
       "branch": "main",
       "source_path": "skills/",
-      "mapping": {
-        "brainstorming/": "skills/plan-brainstorm/",
-        "writing-plans/": "skills/plan-write/",
-        "executing-plans/": "skills/plan-execute/",
-        "subagent-driven-development/": "skills/plan-execute/",
-        "dispatching-parallel-agents/": "skills/agent-team/",
-        "test-driven-development/": "skills/dev-tdd/",
-        "systematic-debugging/": "skills/dev-debug/",
-        "verification-before-completion/": "skills/dev-verify/",
-        "requesting-code-review/": "skills/review-code-local/",
-        "receiving-code-review/": "skills/pr-fix-comments/",
-        "finishing-a-development-branch/": "skills/pr-finalize/",
-        "using-git-worktrees/": "skills/dev-worktree/",
-        "writing-skills/": "skills/manage-skill/"
-      },
+      "notes": "Skills are authored in DevKit but informed by superpowers patterns. Consolidated into unified /develop, /plan, /review skills.",
       "last_sync": "2026-03-27T05:02:53Z",
       "last_commit": "eafe962b18f6c5dc70fb7c8cc7e83e61f4cdde06"
     },
@@ -51,7 +31,7 @@
       "branch": "main",
       "source_path": "packages/core/",
       "ref_skills": [
-        "write-markdown"
+        "write"
       ],
       "notes": "Referenced for markdown feature capabilities (GFM, code highlighting, collapsible sections, math, code tabs). Skills are authored in DevKit but informed by pagesmith capabilities.",
       "last_sync": "2026-03-27T05:02:51Z",

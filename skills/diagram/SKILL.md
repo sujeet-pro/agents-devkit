@@ -1,223 +1,134 @@
 ---
-name: diagrams
-description: Generate diagrams using the best engine (mermaid, excalidraw, or draw.io) and render with diagramkit
-user_invocable: true
-arguments:
-  - name: description
-    description: 'Description of what to diagram'
-    required: true
-  - name: type
-    description: 'Diagram type: flowchart, sequence, class, state, er, architecture, freeform, mindmap, timeline, gantt, c4, gitgraph, kanban, quadrant, sankey, xy, packet, radar, journey, network, deployment (default: auto-detect)'
-    required: false
-  - name: engine
-    description: 'Rendering engine: mermaid, excalidraw, drawio, auto (default: auto)'
-    required: false
-  - name: format
-    description: 'Output format: svg, png, jpeg, webp (default: svg)'
-    required: false
-  - name: output-dir
-    description: 'Output directory (default: .diagrams sibling)'
-    required: false
+name: diagram
+description: "[full] [diagram] Use when creating diagrams — auto-detects engine or use --engine flag"
+user-invocable: true
+argument-hint: "<description> [--engine mermaid|excalidraw|drawio|graphviz] [--type flowchart|sequence|class|state|er|gantt|mindmap|...] [--verbosity short|standard|detailed] [--help]"
+allowed-tools: [Glob, Grep, Read, Edit, Write, Bash, WebSearch, WebFetch, Agent]
+dependencies:
+  commands: [git]
+workflow-tier: full
 ---
 
-# Diagram Orchestrator
+# Diagram
 
-Select the best diagramming engine and delegate generation to the appropriate skill. This skill is the entry point for all diagram creation -- it analyzes the request, picks the right engine, and composes the output.
+Unified diagram skill: creates diagrams using the best engine for the job. Auto-detects the right engine from context and diagram type, or accepts an explicit `--engine`. Supports Mermaid, Excalidraw, draw.io, and Graphviz.
 
-## Engine Selection Rules
+Load references: `references/workflow-6phase.md`, `references/agentic-teams.md`, `references/principal-engineer.md`, `references/communication-style.md`, `references/preflight.md`, `references/output-formats.md`.
 
-### When to use Excalidraw
+## Help
 
-Prefer Excalidraw for diagrams that benefit from a **visual, spatial, hand-drawn aesthetic** or **freeform layout**:
+### Parameters
 
-| Use Case                                   | Why Excalidraw                                                                  |
-| ------------------------------------------ | ------------------------------------------------------------------------------- |
-| **Architecture overview diagrams**         | Spatial layout, color-coded components, hand-drawn feel makes them approachable |
-| **System context diagrams** (top of a doc) | Overview diagrams look best with visual richness                                |
-| **Infrastructure / cloud diagrams**        | AWS/Azure/GCP layouts with grouped services, VPCs, subnets                      |
-| **Freeform / whiteboard-style**            | No rigid structure -- boxes, arrows, annotations placed freely                  |
-| **Hub-and-spoke diagrams**                 | Central orchestrator with radiating connections                                 |
-| **Deployment diagrams**                    | Servers, containers, networking topology                                        |
-| **User flow / journey maps** (visual)      | When spatial layout matters more than strict sequence                           |
-| **PR description overview**                | A quick visual summary of what changed architecturally                          |
-| **Project summary / codebase overview**    | Analyzing a codebase and producing a visual architecture map                    |
+| Parameter | Values | Default | Description |
+|-----------|--------|---------|-------------|
+| `--engine` | `mermaid`, `excalidraw`, `drawio`, `graphviz` | auto-detect | Force a specific diagram engine |
+| `--type` | `flowchart`, `sequence`, `class`, `state`, `er`, `gantt`, `mindmap`, `timeline`, `architecture`, `network`, `freeform`, etc. | auto-detect | Diagram type hint for engine selection |
+| `--render` | flag | off | Render to image after generating source |
+| `--format` | `svg`, `png`, `jpeg`, `webp` | `svg` | Output image format (when rendering) |
+| `--theme` | `both`, `light`, `dark` | `both` | Theme variants to render |
+| `--scale` | `<number>` | `1` | Scale factor for raster output |
+| `--quality` | `<number>` | `85` | Quality for lossy formats |
+| `--palette` | `<name>` | default | Color palette (Excalidraw) |
+| `--style` | `<name>` | none | Style preset |
+| `--verbosity` | `short`, `standard`, `detailed` | `standard` | Output detail level |
+| `--help` | flag | off | Show this help section |
 
-### When to use Mermaid
+### Behavior Variations
 
-Prefer Mermaid for diagrams that need **structured, precise, text-based** representations:
+- **`--engine mermaid`**: Text-based diagrams. Best for flowcharts, sequence, ER, class, state, timeline, mindmap, Gantt, C4. Diffs well in Git.
+- **`--engine excalidraw`**: Hand-drawn feel. Best for architecture overviews, system context, freeform layouts, hub-and-spoke. Produces `.excalidraw` JSON.
+- **`--engine drawio`**: Precise layout with rich icon library. Best for network topology, enterprise architecture, BPMN, multi-page. Produces `.drawio` XML.
+- **`--engine graphviz`**: Strict DOT layout. Best for existing `.dot` assets, dependency graphs, strict graph layout. Use only when repo already uses Graphviz.
 
-| Use Case                         | Why Mermaid                                                                     |
-| -------------------------------- | ------------------------------------------------------------------------------- |
-| **Sequence diagrams**            | Mermaid's sequence syntax is excellent -- lifelines, activation, alt/par blocks |
-| **Flowcharts / decision trees**  | Structured flow with clear branching and subgraphs                              |
-| **Class diagrams / data models** | UML-style with inheritance, composition, interfaces                             |
-| **State machines**               | State transitions with guards and composite states                              |
-| **ER diagrams**                  | Database schema with cardinality notation                                       |
-| **Gantt charts**                 | Project timelines with dependencies                                             |
-| **Git branching strategies**     | gitGraph for branch/merge visualization                                         |
-| **C4 model diagrams**            | Context, Container, Component, Deployment views                                 |
-| **Mindmaps**                     | Hierarchical topic exploration                                                  |
-| **Timelines**                    | Historical / sequential events                                                  |
-| **Kanban boards**                | Task status tracking                                                            |
-| **Packet / protocol diagrams**   | Network packet structure with bit fields                                        |
-| **Sankey / flow diagrams**       | Energy/data flow with proportional widths                                       |
-| **XY charts**                    | Bar and line charts                                                             |
-| **Quadrant charts**              | 2x2 comparison matrices                                                         |
-| **Inline in markdown**           | Mermaid renders natively in GitHub, GitLab, Confluence                          |
-
-### When to use Draw.io
-
-Prefer Draw.io for diagrams that need **precision layout, rich shape libraries, or corporate/enterprise styling**:
-
-| Use Case                                | Why Draw.io                                                       |
-| --------------------------------------- | ----------------------------------------------------------------- |
-| **Network topology diagrams**           | Extensive networking shape library, rack diagrams, firewall icons |
-| **Detailed AWS/Azure/GCP architecture** | Official cloud provider shape stencils                            |
-| **BPMN / business process diagrams**    | Full BPMN 2.0 shape support                                       |
-| **UML diagrams with precise layout**    | When you need exact pixel control over positioning                |
-| **Org charts**                          | Tree layout with containers and swimlanes                         |
-| **Floor plans / physical layouts**      | Grid-precise positioning with measurement support                 |
-| **Diagrams with embedded images**       | Draw.io supports inline image references                          |
-| **Multi-page diagrams**                 | Multiple diagram tabs in a single file                            |
-| **Enterprise documentation**            | When the organization already uses draw.io/diagrams.net           |
-
-### Auto-Detection Logic
-
-When `engine=auto` (default), apply these rules in order:
-
-1. If `engine` is explicitly set to `mermaid`, `excalidraw`, or `drawio` -- use that.
-2. If `type=freeform` -- **Excalidraw**.
-3. If `type=network` and description mentions "topology", "rack", "physical" -- **Draw.io**.
-4. If `type=architecture` and description mentions "overview", "high-level", "system context", "infrastructure" -- **Excalidraw**.
-5. If `type=architecture` and description mentions "AWS", "Azure", "GCP" with "detailed", "precise" -- **Draw.io**.
-6. If `type` is one of: `sequence`, `class`, `state`, `er`, `gantt`, `gitgraph`, `mindmap`, `timeline`, `kanban`, `quadrant`, `sankey`, `xy`, `packet`, `radar`, `journey`, `c4` -- **Mermaid** (these types have dedicated Mermaid syntax).
-7. If description mentions "BPMN", "business process", "org chart", "multi-page" -- **Draw.io**.
-8. If description mentions "codebase", "project structure", "repo overview", "architecture diagram" -- **Excalidraw**.
-9. If description mentions "PR overview", "what changed", "system overview" -- **Excalidraw**.
-10. If description mentions "network topology", "rack diagram", "physical layout" -- **Draw.io**.
-11. If description mentions "detailed", "low-level", "LLD", "API contract", "data flow steps" -- **Mermaid**.
-12. If description mentions "flowchart", "process", "workflow", "pipeline", "decision tree" -- **Mermaid**.
-13. Default -- **Mermaid** (most universally renderable).
-
-### Type Auto-Detection
-
-When `type` is not specified, detect from the description:
-
-| Keywords in Description                                              | Detected Type  |
-| -------------------------------------------------------------------- | -------------- |
-| process, workflow, decision, pipeline, steps, branching, if/then     | `flowchart`    |
-| interactions, request/response, API calls, message passing, temporal | `sequence`     |
-| object, inheritance, data model, interface, type hierarchy, class    | `class`        |
-| state machine, lifecycle, status transition, "when X happens"        | `state`        |
-| database schema, tables, relationships, foreign keys, entities       | `er`           |
-| architecture, system, infrastructure, services, deployment, overview | `architecture` |
-| freeform, whiteboard, hand-drawn, spatial layout                     | `freeform`     |
-| timeline, history, chronological, milestones                         | `timeline`     |
-| mindmap, brainstorm, concept map, topic exploration                  | `mindmap`      |
-| project plan, schedule, dependencies, deadlines                      | `gantt`        |
-| branching strategy, merge, git flow, release process                 | `gitgraph`     |
-| context, container, component, C4                                    | `c4`           |
-| kanban, board, task status, todo/doing/done                          | `kanban`       |
-| comparison matrix, quadrant, priority/effort                         | `quadrant`     |
-| flow distribution, energy flow, proportional                         | `sankey`       |
-| chart, bar, line, data visualization                                 | `xy`           |
-| packet, protocol, bit field, header structure                        | `packet`       |
-| network topology, switches, routers, firewall, rack                  | `network`      |
-| servers, containers, pods, nodes, deploy                             | `deployment`   |
-
-## Workflow
-
-### Step 1: Analyze Request
-
-Parse the description, type, and engine arguments. Apply auto-detection rules above to determine:
-
-- The diagram type
-- The rendering engine
-- The output format
-
-When `format` is omitted, default to SVG. Only switch to a raster format when the destination explicitly calls for it, especially email or Confluence.
-
-### Step 2: Delegate to Engine Skill
-
-Based on the selected engine, invoke the appropriate skill to write the source file:
-
-- **Mermaid**: Use the `/diagram-mermaid` skill with the resolved type and description. It writes a `.mermaid` file.
-- **Excalidraw**: Use the `/diagram-excalidraw` skill with the description. It writes a `.excalidraw` file.
-- **Draw.io**: Use the `/diagram-drawio` skill with the description. It writes a `.drawio` file.
-
-These skills only produce the diagram source file. They do NOT render it.
-
-### Step 3: Render with diagramkit
-
-After generating the source file, render it with diagramkit:
-
-```bash
-diagramkit render <source-file> --format <format>
-```
-
-diagramkit handles:
-
-- Light and dark theme rendering
-- Dark mode contrast optimization (for SVG)
-- Manifest-based caching
-- Output to `.diagrams/` sibling folder
-
-### Step 4: Handle Output Format
-
-- **`format=svg`** (default): diagramkit produces SVG directly. Use this unless the destination needs raster.
-- **`format=png`**: diagramkit rasterizes via Playwright screenshot. Use for email or Confluence when SVG is not appropriate.
-- **`format=jpeg`**: diagramkit rasterizes with white background. Use for email/Confluence when smaller raster files are preferred.
-- **`format=webp`**: diagramkit rasterizes with best compression. Use only when a raster asset is required and the destination supports WebP.
-
-### Step 5: Report Output
-
-Print the generated files and embedding instructions:
+### Examples
 
 ```
-Diagram generated:
-  Engine: mermaid
-  Source: ./diagrams/auth-flow.mermaid
-  Output: .diagrams/auth-flow-light.svg
-          .diagrams/auth-flow-dark.svg
-
-Embed in markdown:
-  <picture>
-    <source srcset=".diagrams/auth-flow-dark.svg" media="(prefers-color-scheme: dark)">
-    <img src=".diagrams/auth-flow-light.svg" alt="Auth Flow">
-  </picture>
+/diagram architecture overview of the auth system
+/diagram --engine mermaid --type sequence user login flow
+/diagram --engine excalidraw system architecture from codebase
+/diagram --engine drawio AWS infrastructure layout
+/diagram --engine graphviz update the dependency graph
+/diagram --render --format png --scale 2 deployment pipeline
 ```
 
-## Engine Comparison Summary
+## Preflight
 
-| Criterion              | Mermaid                     | Excalidraw               | Draw.io                    |
-| ---------------------- | --------------------------- | ------------------------ | -------------------------- |
-| **Syntax**             | Text DSL                    | JSON                     | XML                        |
-| **Layout**             | Auto (dagre)                | Manual positioning       | Manual positioning         |
-| **Aesthetic**          | Clean/formal                | Hand-drawn/approachable  | Professional/precise       |
-| **Diagram types**      | 20+ built-in                | Freeform                 | Freeform + stencils        |
-| **Dark mode**          | Native theme + contrast fix | diagramkit darkMode flag | diagramkit darkMode flag   |
-| **Inline in markdown** | Yes (GitHub/GitLab)         | No (needs rendering)     | No (needs rendering)       |
-| **Edit in browser**    | mermaid.live                | excalidraw.com           | app.diagrams.net           |
-| **Best for**           | Structured/typed diagrams   | Visual overviews         | Enterprise/precise layouts |
+`python3 ${CLAUDE_SKILL_DIR}/scripts/preflight.py ${CLAUDE_SKILL_DIR}`
 
-## Composability
+## Stage Selection
 
-This skill is designed to be called from other skills and workflows:
+If `--engine` is explicitly provided, load the matching stage file directly. Otherwise, auto-detect the engine:
 
-- **Standalone**: Invoked directly by the user with `/diagrams`.
-- **From document workflows**: When a document needs inline diagrams.
-- **From PR reviews**: To generate visual summaries of architectural changes.
-- **From research tasks**: To visualize findings and relationships.
+| Signal | Engine | Stage File |
+|---|---|---|
+| Flowchart, sequence, ER, class, state, timeline, mindmap, Gantt, C4, gitgraph, kanban, quadrant, sankey, XY, packet, radar, journey, pie, requirement, block | mermaid | `stages/mermaid.md` |
+| Architecture overview, system context, freeform, hub-and-spoke, codebase map, PR overview | excalidraw | `stages/excalidraw.md` |
+| Network topology, enterprise, BPMN, org chart, multi-page, AWS/Azure/GCP detailed infrastructure | drawio | `stages/drawio.md` |
+| Existing `.dot` files, strict graph layout, dependency graphs, legacy Graphviz assets | graphviz | `stages/graphviz.md` |
 
-When called from another skill, respect the caller's `format` preferences and output directory. If no format is specified, choose SVG by default and reserve raster for email/Confluence-style targets.
+### Engine Selection Rules
 
-## Prerequisites
+When `--engine` is not specified, auto-detect:
 
-diagramkit must be installed:
+1. `--type=freeform` -> **Excalidraw**.
+2. `--type=network` with "topology", "rack", "physical" -> **Draw.io**.
+3. `--type=architecture` with "overview", "high-level", "system context" -> **Excalidraw**.
+4. `--type=architecture` with "AWS", "Azure", "GCP" + "detailed" -> **Draw.io**.
+5. `--type` is `sequence`, `class`, `state`, `er`, `gantt`, `gitgraph`, `mindmap`, `timeline`, `kanban`, `quadrant`, `sankey`, `xy`, `packet`, `radar`, `journey`, `c4` -> **Mermaid**.
+6. "BPMN", "business process", "org chart", "multi-page" -> **Draw.io**.
+7. "codebase", "project structure", "repo overview", "architecture diagram" -> **Excalidraw**.
+8. "flowchart", "process", "workflow", "pipeline", "decision tree" -> **Mermaid**.
+9. Default -> **Mermaid**.
 
-```bash
-npm add diagramkit
-diagramkit warmup  # Install Playwright chromium
-```
+### Default Preference Order
 
-All rendering engines (mermaid, excalidraw, draw.io) are bundled. Only `sharp` is an optional peer dependency (needed for PNG/JPEG/WebP raster output).
+When the diagram type could work with multiple engines: **Mermaid > Excalidraw > draw.io > Graphviz**
+
+### Context Signals
+
+- If the project already uses a specific engine (check for `.mmd`, `.mermaid`, `.excalidraw`, `.drawio`, `.dot` files), prefer that engine for consistency.
+- If `--render` is specified, ensure the selected engine can produce rendered output.
+
+After selecting the engine, load the corresponding stage file and follow its instructions.
+
+## Common Phases
+
+All engines share the 6-phase workflow from `references/workflow-6phase.md`. Each stage file defines which phases apply.
+
+### Phase 0: Intent Expansion
+
+Follow the stage file's intent confirmation guidance. Always run this phase before taking action.
+
+### Phase 1: Research & Options
+
+Follow the stage file's exploration guidance. Every engine uses this phase, though simpler requests may keep it brief.
+
+### Phase 2: Approach Selection
+
+Use this phase when the user needs to choose notation, layout, or scope. Simpler requests may skip it.
+
+### Phase 3: Planning
+
+Use this phase when the diagram needs a multi-step build plan. Simpler requests may skip it and move directly from approval to execution.
+
+### Phase 4: Execute
+
+Follow the stage file's execution instructions.
+
+### Phase 5: Validate & Learn
+
+Follow the stage file's validation criteria. End with a concise summary of what changed, what was verified, and what the user should know.
+
+## Output Format
+
+Use the output format defined in the loaded stage file. Adapt verbosity based on `--verbosity`:
+
+- **short**: Source file path only
+- **standard**: Full report with engine, source path, and rendered output paths
+- **detailed**: Standard output plus engine selection rationale, validation results, and rendering details
+
+## Adjacent Skills
+
+- `/plan` -- planning workflows that may need architecture diagrams
+- `/spec` -- specifications that may need visual documentation
+- `/write` -- documentation that may embed diagrams

@@ -2,7 +2,7 @@
 name: frontend-designer
 description: Creates distinctive, production-grade frontend and design-system directions with strong accessibility, responsiveness, and implementation detail
 model: opus
-tools:
+allowed-tools:
   - Read
   - Write
   - Bash

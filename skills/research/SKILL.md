@@ -1,75 +1,96 @@
 ---
 name: research
-description: Multi-agent software engineering research with citations, official-source bias, and markdown or document output
-user_invocable: true
-arguments:
-  - name: topic
-    description: "Topic to research"
-    required: true
-  - name: depth
-    description: "Depth: quick, standard, deep, exhaustive (default: standard)"
-    required: false
-  - name: output
-    description: "Output format: markdown, outline, notes, google-doc, confluence (default: markdown)"
-    required: false
-  - name: save
-    description: "Optional file path to save the research"
-    required: false
+description: "[full] [research] Use when you need to research a software engineering topic — searches official sources, implementations, and community patterns, then produces structured markdown with citations"
+user-invocable: true
+argument-hint: "<topic> [--deep] [--save path] [--verbosity short|standard|detailed] [--help]"
+allowed-tools: [Glob, Grep, Read, Bash, WebSearch, WebFetch, Agent]
+dependencies:
+  commands: [git]
+workflow-tier: full
 ---
 
 # Research
 
-Use `skills/_references/agentic-teams.md`, `skills/_references/source-routing.md`, and `skills/_references/output-formats.md`.
+Read `references/agentic-teams.md` for the child-agent contract.
 
-## Preflight
+Load `references/research-methodology.md` for research quality standards.
 
-Before launching child agents, run:
+---
 
-`zsh scripts/check-skill-deps.zsh research output=<output>`
+## Help
 
-If the output target is Google Docs or Confluence, verify MCP connectivity with a lightweight read.
+When `--help` is passed, display this reference and stop.
 
-## Guideline Loading
+### Parameters
 
-Always load:
+| Parameter | Values | Default | Description |
+|-----------|--------|---------|-------------|
+| `<topic>` | free-text description | (required) | The topic to research |
+| `--deep` | flag | off | Enable in-depth search with 4 agents instead of 2 |
+| `--save` | file path | (inline output) | Save research output to a file |
+| `--verbosity` | `short`, `standard`, `detailed` | `standard` | Output detail level |
 
-- `skills/_references/guidelines/document/research-and-fact-checking.md`
+### Behavior Variations
 
-## Required Child Agents
+- **Standard search** (default): 2 child agents (primary-source + implementation researcher), fast turnaround
+- **`--deep`**: 4 child agents (primary-source, implementation, risk analyst, synthesis), thorough investigation
+- **`--save <path>`**: writes output to the specified file instead of returning inline
+- **`--verbosity short`**: key findings and sources list only
+- **`--verbosity detailed`**: full subtopic analysis with confidence ratings, risks, and code examples
 
-Choose child-agent count and roles by depth:
+### Examples
 
-### quick (2 agents)
-- **Primary-source researcher** (`research-agent`): searches official docs, specs, and maintainers' guidance for the topic. Produces findings with citations and publication dates.
-- **Implementation researcher** (`research-agent`): searches real repositories, migration notes, and practical examples. Produces implementation patterns with source links.
+```
+/research "Next.js App Router migration patterns"
+/research "gRPC vs REST for microservices" --deep
+/research "React Server Components" --save ./docs/rsc-research.md
+/research "Kubernetes autoscaling strategies" --deep --verbosity detailed
+/research "SQLite WAL mode" --verbosity short
+```
 
-### standard (3 agents)
-- **Primary-source researcher**: same as quick.
-- **Implementation researcher**: same as quick.
-- **Risk analyst**: identifies edge cases, tradeoffs, version compatibility issues, and open questions. Produces a risk brief with severity ratings.
+---
 
-### deep (4 agents)
-- All standard agents, plus:
-- **Synthesis agent** (`consensus-agent`): merges findings from all agents, resolves contradictions, and produces a unified research document with confidence ratings per claim.
 
-### exhaustive (5 agents)
-- All deep agents, plus:
-- **Publishing agent** (`source-publisher`): formats and publishes the final research to the target output (Google Docs or Confluence) when requested.
 
-## Workflow
+Load references: `references/workflow-6phase.md`, `references/agentic-teams.md`, `references/principal-engineer.md`, `references/communication-style.md`, `references/preflight.md`, `references/output-formats.md`.
 
-1. **Scope.** Clarify the research question, boundaries, and expected deliverables.
-2. **Launch agents.** Run the appropriate number of child agents in parallel based on `depth`.
-3. **Merge.** Combine findings: deduplicate overlapping results, resolve contradictions, and assign confidence ratings.
-4. **Format.** Produce the output in the requested format:
-   - **markdown**: structured document with sections, citations, and code examples
-   - **outline**: hierarchical bullet points with key findings
-   - **notes**: brief, flat list of findings with links
-   - **google-doc**: publish through Google Drive MCP
-   - **confluence**: publish through Confluence MCP
-5. **Save.** If `save` is provided, write the output to the specified path.
 
-Save intermediary artifacts to `.temp/research/`.
+## Phase Applicability
+
+| Phase | Applies | Skill-Specific Notes |
+|-------|---------|----------------------|
+| 0. Intent Expansion | yes | Confirm the goal, assumptions, required tools, and success criteria before acting |
+| 1. Research & Options | yes | Define research scope, identify primary sources; Focused research on chosen approach, proposal at ./temp/proposal/ |
+| 2. Approach Selection | yes | Present 2-3 approaches, user picks or mixes; Iterate on proposal with user feedback |
+| 3. Planning | yes | Break into tasks/waves for parallel agentic teams |
+| 4. Execute | yes | Launch research child agents in parallel |
+| 5. Validate & Learn | yes | Verify citations, cross-reference findings, check for gaps |
+
+## Output Format
+
+All output is markdown by default. Structure varies by deliverable type — see the skill-specific execution sections above for the exact format.
+
+## Depth
+
+By default, run a **standard search** (2 agents, fast). When the user asks for deep/detailed/exhaustive research, or uses `--deep`, run an **in-depth search** (4 agents, thorough).
+
+## Standard Search (default)
+
+Launch 2 child agents in parallel:
+
+1. **Primary-source researcher** (`research-agent`): searches official docs, specs, RFCs, and maintainer guidance. Produces findings with citations and publication dates.
+2. **Implementation researcher** (`research-agent`): searches real repositories, migration notes, practical examples, and community patterns. Produces implementation snippets with source links.
+
+After both complete, merge findings: deduplicate, resolve contradictions, assign confidence ratings.
+
+## In-Depth Search (`--deep`)
+
+Launch 4 child agents in parallel:
+
+1. **Primary-source researcher** (`research-agent`): same as standard.
+2. **Implementation researcher** (`research-agent`): same as standard, but broader — also covers Stack Overflow, GitHub issues, and migration case studies.
+3. **Risk analyst**: identifies edge cases, tradeoffs, version compatibility issues, breaking changes, and open questions. Produces a risk brief with severity ratings.
+4. **Synthesis agent** (`consensus-agent`): merges findings from all agents, resolves contradictions, assigns confidence ratings per claim, and produces a unified document.
 
 ## Research Rules
 
@@ -81,18 +102,39 @@ Save intermediary artifacts to `.temp/research/`.
 
 ## Output
 
-A research document containing:
+Structured markdown — designed to be consumed by other skills or read directly:
 
-- **Executive Summary**: key findings in 2-3 sentences
-- **Detailed Findings**: organized by subtopic with citations
-- **Code Examples**: practical snippets when relevant
-- **Risk and Tradeoffs**: edge cases, limitations, and open questions
-- **Sources**: numbered reference list with URLs and dates
-- **Confidence Ratings**: per-section confidence (high, medium, low) based on source quality
+```markdown
+## Research: <topic>
+
+### Key Findings
+- <finding 1> [Source](url)
+- <finding 2> [Source](url)
+
+### <Subtopic 1>
+<detailed findings with inline citations>
+
+### <Subtopic N>
+...
+
+### Code Examples
+<practical snippets when relevant>
+
+### Risks & Tradeoffs
+<edge cases, limitations, open questions — only in deep mode>
+
+### Sources
+1. [Source Title](url) — <what it covers>
+2. ...
+
+### Confidence
+<per-section: high/medium/low based on source quality>
+```
+
+If `--save <path>` is provided, write output to that path. Otherwise return inline.
+
+This output is designed to be consumed by other skills (`/write`, `/spec --mode write`, etc.) as a structured text corpus.
 
 ## Adjacent Skills
 
-- `/devkit:research-quick` for fast, 2-agent research
-- `/devkit:research-deep` for exhaustive, 5-agent research
-- `/devkit:write-article` for research-backed article drafting
-- `/devkit:write-tool-eval` for structured tool comparisons
+- See the parent router skill for related skills

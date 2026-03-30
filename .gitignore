@@ -1,9 +1,13 @@
 # Intermediary artifacts (plans, drafts, research notes)
 .temp/
 
+# Python bytecode
+__pycache__/
+*.pyc
+*.pyo
+
 # Node.js dependencies
 node_modules/
-lib/node_modules/
 
 # OS files
 .DS_Store

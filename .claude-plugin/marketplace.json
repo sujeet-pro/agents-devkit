@@ -2,7 +2,7 @@
   "name": "devkit-marketplace",
   "description": "Marketplace manifest for the DevKit multi-agent skills pack",
   "owner": {
-    "name": "Sujeet Kumar",
+    "name": "Sujeet Jaiswal",
     "email": "contact@sujeet.pro"
   },
   "plugins": [
@@ -12,7 +12,7 @@
       "version": "1.0.0",
       "source": "./",
       "author": {
-        "name": "Sujeet Kumar",
+        "name": "Sujeet Jaiswal",
         "email": "contact@sujeet.pro"
       }
     }

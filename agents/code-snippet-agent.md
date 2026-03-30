@@ -2,7 +2,7 @@
 name: code-snippet-agent
 description: Specialized agent for writing and reviewing code examples in technical documents, PR descriptions, and architecture docs
 model: opus
-tools:
+allowed-tools:
   - Read
   - Grep
   - Glob

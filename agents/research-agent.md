@@ -2,7 +2,7 @@
 name: research-agent
 description: Deep research specialist for software engineering topics that gathers, verifies, and cites primary sources and open-source implementation references
 model: opus
-tools:
+allowed-tools:
   - WebSearch
   - WebFetch
   - Read

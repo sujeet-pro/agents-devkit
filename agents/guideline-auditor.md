@@ -2,7 +2,7 @@
 name: guideline-auditor
 description: Audits coding and document guidelines against authoritative sources to ensure accuracy, completeness, and currency
 model: opus
-tools:
+allowed-tools:
   - Glob
   - Grep
   - Read

@@ -1,16 +1,60 @@
 # DevKit
 
-DevKit is a shared skills pack for software-development agents. It provides code review, documentation, research, codebase audits, diagrams, engineering workflows, and source-native publishing across Claude, Codex, Cursor, Gemini, OpenCode, and related hosts.
+Shared skills pack for software-development agents: code review, documentation, research, codebase audits, diagrams, engineering workflows, and source-native publishing.
 
-`review-*` skills leave comments or produce review artifacts without mutating the source. `write-*` skills draft or directly revise professional engineering documents.
+Route general prompts through `/use` first. Invoke a specific skill directly only when the user explicitly names it or clearly wants that exact workflow. Every skill supports `--help` to see parameters and behavior variations.
 
 Inspired by [superpowers](https://github.com/obra/superpowers). Diagram skills from [diagramkit](https://github.com/sujeet-pro/diagramkit). Markdown capabilities informed by [pagesmith](https://github.com/sujeet-pro/pagesmith).
 
+## Philosophy
+
+- **Human-readable, maintainable, extensible** — code and docs should be clear to the next person
+- **Minimum changes required** — do only what is needed, no gold-plating
+- **No over-engineering** — don't implement features that might be needed in the future
+- **Markdown by default** — all outputs are markdown unless the user requests otherwise
+- **Self-sufficient skills** — every skill works independently, regardless of installation method
+- **Parallel agentic teams** — non-trivial work uses child agents with distinct roles
+- **Human-in-the-loop** — decisions happen interactively, execution happens automatically
+- **Approach selection** — after initial research, present 2-3 approaches for user to choose from
+
+## The 6-Phase Workflow
+
+Every non-trivial skill follows a standardized 6-phase workflow. Human interaction happens first, not after hidden research.
+
+| Phase | Name | What Happens |
+|-------|------|-------------|
+| 0 | **Intent Expansion** | Expand the prompt, show concise reasoning, identify skills/tools/MCPs, and confirm direction early |
+| 1 | **Research & Options** | Research the problem, scan the codebase, and surface 2-3 viable options |
+| 2 | **Approach Selection** | Let the user choose, mix, or simplify the direction |
+| 3 | **Planning** | Produce an executable plan with files, sequencing, and verification |
+| 4 | **Execute** | Run the approved plan |
+| 5 | **Validate & Learn** | Validate the result, simplify when needed, and explain the key takeaway |
+
+### Complexity-Adaptive Skipping
+
+| Complexity | Files | Phases Used |
+|------------|-------|-------------|
+| Trivial | 1 | 0 inline, 4, 5 quick |
+| Small | 2-3 | 0 inline, 1 lite, 3 brief, 4, 5 |
+| Medium | 4-8 | All 6 phases |
+| Large | >8 | All 6 phases with PE check and phased execution |
+
 ## Install
 
-### Claude Code
+### For All Agents (Recommended)
 
-Register the marketplace and install the plugin:
+```bash
+# Install all skills
+npx skills add sujeet-pro/agents-devkit
+
+# Install specific skills
+npx skills add sujeet-pro/agents-devkit/skills/review
+npx skills add sujeet-pro/agents-devkit/skills/write
+```
+
+Visit [skills.sh](https://skills.sh) for more details.
+
+### Claude Code Only
 
 ```bash
 /plugin marketplace add sujeet-pro/agents-devkit
@@ -19,260 +63,160 @@ Register the marketplace and install the plugin:
 
 Skills become available as `/devkit:<skill-name>` immediately.
 
-**For contributors** — clone the repo and link it as the active plugin so local edits reflect immediately:
+### Contributors — Local Clone
 
 ```bash
-git clone https://github.com/sujeet-pro/agents-devkit.git
-cd agents-devkit
-# Inside Claude Code, run:
-/dev-link
+git clone https://github.com/sujeet-pro/agents-devkit.git ~/.devkit
 ```
 
-This symlinks `~/.claude/plugins/marketplaces/devkit-marketplace` to your working directory. Run `/dev-link action=unlink` to restore the published version.
+## Skills (18)
 
-See [SETUP.md](./SETUP.md) for MCP server configuration and dependency validation.
+### Core Skills
 
-### Cursor
+Each skill auto-detects the right mode from context, or accepts explicit flags. Use `--help` on any skill to see all parameters.
 
-Install via the Cursor plugin marketplace:
+| Skill | Area | Description |
+|-------|------|-------------|
+| `/review` | Review | Code review: PR, local, branch + fix/comment/interactive |
+| `/develop` | Dev | Implement features, fix bugs, enhance code, TDD |
+| `/write` | Docs | Create/update any document (ADR, RFC, blog, changelog, etc.) |
+| `/plan` | Plan | Brainstorm, write, execute, and track implementation plans |
+| `/spec` | Spec | Write specs, analyze consistency, generate checklists |
+| `/research` | Research | Multi-agent research with citations |
+| `/diagram` | Diagram | Create diagrams (Mermaid, Excalidraw, draw.io, Graphviz) |
+| `/design` | Design | UI/UX design direction + visual audit |
+| `/audit` | Quality | Audit: codebase, security, performance, dependencies |
+| `/review-doc` | Review | Review documents (local, Confluence, Google Docs) |
+| `/test` | QA | User acceptance testing with interactive verification |
+| `/project` | Project | Initialize projects, manage milestones and ideas |
+| `/handoff` | Session | Pause/resume work sessions, context threads |
+| `/setup` | Setup | Configure CLI tools and MCP servers |
+
+### Meta Skills
+
+| Skill | Description |
+|-------|-------------|
+| `/team` | Multi-model review, agent team dispatch |
+| `/use` | Orchestrator: expand intent, confirm the route, approve the plan, then execute |
+
+### Helper Skills (auto-invoked)
+
+| Skill | Description |
+|-------|-------------|
+| `/coding` | Detects repo stack, loads matching coding guidelines |
+| `/doc-writing` | Detects document type, loads matching writing guidelines |
+
+## Using --help
+
+Every skill supports `--help` to see parameters and behavior variations:
 
 ```
-/add-plugin devkit
+/review --help
+/write --help
+/develop --help
 ```
 
-Or search "devkit" in the Cursor plugin marketplace UI.
+## Output Modes
 
-Skills and agents are registered automatically from `.cursor-plugin/plugin.json`.
+All skills support `--verbosity short|standard|detailed`:
 
-### Codex CLI
+| Mode | Use | Characteristics |
+|------|-----|-----------------|
+| `short` | Quick feedback | 1-3 lines, senior dev tone |
+| `standard` | PR comments, reviews (default) | Full structured format, all sections |
+| `detailed` | Documentation, audits | Expanded with rationale and examples |
 
-Tell Codex to fetch and follow the install instructions:
-
-```text
-Fetch and follow instructions from https://raw.githubusercontent.com/sujeet-pro/agents-devkit/refs/heads/main/.codex/INSTALL.md
-```
-
-This clones the repo to `~/.devkit` and symlinks the skills directory into `~/.agents/skills/devkit` for native discovery. See [docs/README.codex.md](./docs/README.codex.md) for details.
-
-### Gemini CLI
-
-```bash
-gemini extensions install https://github.com/sujeet-pro/agents-devkit
-```
-
-Gemini loads `GEMINI.md` as context and maps DevKit tool references to native Gemini equivalents. See [GEMINI.md](./GEMINI.md) for runtime rules.
-
-### OpenCode
-
-Add DevKit as a git-backed plugin in your `opencode.json`:
-
-```json
-{
-  "plugin": ["devkit@git+https://github.com/sujeet-pro/agents-devkit.git"]
-}
-```
-
-Restart OpenCode after updating the config. The plugin bridge registers the skills directory and injects the bootstrap skill. See [docs/README.opencode.md](./docs/README.opencode.md) for details.
-
-## Update
-
-All platforms: run `/devkit:manage-update` from within your agent session. This pulls the latest from GitHub, syncs upstream sources, validates tools, and auto-installs missing dependencies.
-
-```bash
-/devkit:manage-update                              # Pull latest, auto-install deps
-/devkit:manage-update no-auto-install=true         # Pull latest, check only
-/devkit:manage-update dry-run=true                 # Preview changes without applying
-/devkit:manage-update refresh-mcp=true             # Re-read ~/.zshenv and refresh MCP config
-```
-
-After update, the skill automatically runs `/devkit:manage-setup` to validate and install any new dependencies.
-
-### Platform-Specific Notes
-
-| Platform | What `/devkit:manage-update` does | Post-update |
-|----------|----------------------------------|-------------|
-| Claude Code | `git pull` in `~/.claude/plugins/marketplaces/devkit-marketplace` | Run `/reload-plugins` |
-| Cursor | `git pull` in Cursor plugin cache | Restart Cursor |
-| Codex CLI | `git pull` in `~/.devkit` | Auto-reflects via symlinks |
-| Gemini CLI | `git pull` in extensions directory | Restart Gemini CLI |
-| OpenCode | `git pull` in plugin cache | Restart OpenCode |
-
-### Setup Validation
-
-Run setup independently at any time (idempotent):
-
-```bash
-/devkit:manage-setup                               # Check + auto-install missing required tools
-/devkit:manage-setup no-auto-install=true           # Check only, no installs
-/devkit:manage-setup refresh-mcp=true               # Re-read ~/.zshenv, refresh MCP servers
-```
-
-## Skills
-
-### Reviewing Others' PRs
-
-| Skill | Use When |
-| --- | --- |
-| `/devkit:review-code` | Route a code review request to PR review, local review, or codebase review |
-| `/devkit:review-code-pr` | Review a GitHub or Bitbucket PR — auto-detects fresh vs follow-up, defaults to interactive mode |
-
-### Managing My PRs
-
-| Skill | Use When |
-| --- | --- |
-| `/devkit:pr-describe` | Generate or update a PR description from the real diff |
-| `/devkit:pr-fix-comments` | Read PR review comments, fix the code, and commit changes |
-| `/devkit:pr-finalize` | Verify, review, and choose how to integrate the branch |
-
-### Other Reviews
-
-| Skill | Use When |
-| --- | --- |
-| `/devkit:review-code-local` | Review staged, unstaged, or branch-local work without auto-fixing it |
-| `/devkit:review-doc` | Review markdown, Confluence, or Google Docs without editing the source |
-| `/devkit:review-codebase` | Audit an entire repository and suggest improvements |
-| `/devkit:audit-security` | Deep security-focused code review (OWASP, auth, data, deps) |
-| `/devkit:audit-performance` | Bundle size, latency, memory analysis with recommendations |
-
-### Documentation and Research
-
-| Skill | Use When |
-| --- | --- |
-| `/devkit:write-doc` | Draft or directly revise engineering docs with research, code examples, and diagrams |
-| `/devkit:write-project-docs` | Generate or refresh professional project documentation from the codebase |
-| `/devkit:write-article` | Draft or revise a deep engineering article |
-| `/devkit:write-blog` | Draft or revise an engineering blog post |
-| `/devkit:write-markdown` | Produce markdown-first engineering deliverables |
-| `/devkit:publish-confluence` | Publish markdown docs and assets to Confluence |
-| `/devkit:research` | Multi-agent software engineering research |
-| `/devkit:research-quick` | Quick research pass |
-| `/devkit:research-deep` | Exhaustive research pass |
-
-### Engineering Workflows
-
-| Skill | Use When |
-| --- | --- |
-| `/devkit:write-adr` | Generate or refresh Architecture Decision Records |
-| `/devkit:audit-dependency` | Scan for outdated/vulnerable dependencies |
-| `/devkit:write-migration-guide` | Generate framework/library migration guides |
-| `/devkit:write-changelog` | Generate changelogs from git history |
-| `/devkit:write-onboarding` | Generate repo-specific onboarding docs |
-| `/devkit:write-api-docs` | Generate API documentation from code |
-| `/devkit:write-runbook` | Create operational runbooks |
-| `/devkit:write-tech-radar` | Evaluate and classify technologies |
-
-### Diagrams and Design
-
-| Skill | Use When |
-| --- | --- |
-| `/devkit:diagram` | Pick the right diagram engine and generate source plus render |
-| `/devkit:diagram-mermaid` | Generate Mermaid diagrams |
-| `/devkit:diagram-excalidraw` | Generate Excalidraw diagrams |
-| `/devkit:diagram-drawio` | Generate draw.io diagrams |
-| `/devkit:diagram-graphviz` | Maintain or create Graphviz/DOT diagrams when the repo already uses them |
-| `/devkit:diagram-convert` | Convert rendered assets when PNG or JPEG is required |
-| `/devkit:design-frontend` | Create frontend or design-system directions |
-
-### Development Process
-
-| Skill | Use When |
-| --- | --- |
-| `/devkit:plan-brainstorm` | Design refinement and specification |
-| `/devkit:plan-write` | Turn requirements into execution plans |
-| `/devkit:plan-execute` | Execute plans with review checkpoints and per-task child agents |
-| `/devkit:dev-tdd` | RED-GREEN-REFACTOR cycle enforcement |
-| `/devkit:dev-debug` | 4-phase root cause analysis |
-| `/devkit:dev-verify` | Evidence-based verification |
-| `/devkit:pr-finalize` | Merge/PR/cleanup workflow |
-| `/devkit:dev-worktree` | Isolated workspace creation |
-
-### Utility
-
-| Skill | Use When |
-| --- | --- |
-| `/devkit:agent-multi` | Run a task through multiple providers or models |
-| `/devkit:agent-team` | Orchestrate complex tasks across multiple agents |
-| `/devkit:manage-validate` | Validate MCP server configuration |
-| `/devkit:manage-update` | Update DevKit from GitHub or local filesystem |
-| `/devkit:manage-improve` | Audit and improve DevKit itself |
-| `/devkit:manage-skill` | Create or update DevKit skills |
-| `/devkit:use` | Choose the right entry skill at session start |
+For PR comments, verbosity auto-selects based on severity: Blocker/Critical use detailed, Should Have/May Have use standard, Nitpick/Question use short.
 
 ## Agents
 
+Shared agent definitions in `agents/` provide reusable prompts for child agents spawned by skills.
+
 | Agent | Purpose |
-| --- | --- |
-| `code-reviewer` | Diff-aware code review |
+|-------|---------|
+| `code-reviewer` | Multi-perspective code review |
 | `repo-auditor` | Whole-codebase architecture and maintainability review |
 | `doc-reviewer` | Technical document review |
 | `research-agent` | Primary-source and implementation research |
-| `source-publisher` | Publish results to GitHub, Bitbucket, Confluence, or Google Docs |
-| `consensus-agent` | Merge agent or provider outputs |
-| `frontend-designer` | Frontend and design-system direction |
+| `source-publisher` | Publish to GitHub, Bitbucket, Confluence, or Google Docs |
+| `consensus-agent` | Merge and reconcile multi-agent outputs |
+| `frontend-designer` | Frontend and design system direction |
 | `pr-fixer` | Read PR comments and apply targeted code fixes |
 | `security-reviewer` | Security-focused code review (OWASP, auth, data) |
 | `migration-analyst` | Framework/library migration analysis |
 | `guideline-auditor` | Audit guidelines against authoritative sources |
+| `code-snippet-agent` | Code snippet extraction and formatting |
+| `intent-analyst` | Expand user intent, assumptions, complexity, and routing choices |
+| `plan-reviewer` | Review implementation plans for completeness and sequencing |
+| `progress-tracker` | Monitor execution progress, stalls, and recovery options |
 
 ## Guidelines
 
-### Coding
-General, Architecture, Frontend (Next.js), Design System, Backend (General, Java, Python, Kotlin, Node.js), JS/TS Library, Scripts, API Design, Testing, Observability, Security
+Skills automatically load relevant guidelines based on repository type:
 
-### Document
-General, Article, Blog, PRD, HLD, LLD, TDD, Project, Tool Evaluation, Research, ADR, System Design, Deep Dive, Runbook, API Reference, Changelog
+- **Coding guidelines** (`skills/coding/guidelines/`) — 16 files: general, architecture, frontend, backend (Java, Kotlin, Node.js, Python), design system, JS/TS library, scripts, API design, testing, observability, security, expressive code
+- **Document guidelines** (`skills/doc-writing/guidelines/`) — 24 files: general, RFC, ADR, article, blog, changelog, runbook, system design, tool evaluation, research, deep dive, and more
 
 ## MCP Integrations
 
-| MCP | Use |
-| --- | --- |
-| GitHub | PR review, code operations, comments |
-| Bitbucket | PR review, code operations, comments |
-| Atlassian Confluence | Document review, publishing |
-| Google Drive | Google Docs review, publishing |
+Some skills use MCP servers for source-native operations. Most skills work without any MCP.
 
-See [settings/mcp-setup.md](./settings/mcp-setup.md) for setup details.
-
-## Source Manifest
-
-DevKit tracks upstream sources in `manifest.json`:
-
-| Source | Type | What |
-| --- | --- | --- |
-| [diagramkit](https://github.com/sujeet-pro/diagramkit) | copy | Diagram skills and reference docs |
-| [superpowers](https://github.com/obra/superpowers) | copy | Development process skills |
-| [pagesmith](https://github.com/sujeet-pro/pagesmith) | ref | Markdown capabilities reference |
-
-Sync with: `zsh scripts/sync-sources.zsh`
-
-## Validation
-
-```bash
-zsh scripts/check-prerequisites.zsh          # CLI tools
-zsh scripts/check-env.zsh                    # Environment variables
-zsh scripts/check-skill-deps.zsh review-pr   # Skill-specific deps
-zsh install.zsh --list                       # List all installable items
-```
+| MCP Server | Used By | Setup |
+|------------|---------|-------|
+| GitHub | review (PR mode), publish | [mcp-setup.md](./settings/mcp-setup.md) |
+| Bitbucket | review (PR mode) | [mcp-setup.md](./settings/mcp-setup.md) |
+| Confluence | review-doc, publish, write | [mcp-setup.md](./settings/mcp-setup.md) |
+| Google Drive | review-doc, write | [mcp-setup.md](./settings/mcp-setup.md) |
 
 ## Repo Layout
 
-```text
+```
 agents-devkit/
-├── .claude-plugin/      # Claude Code plugin metadata
-├── .cursor-plugin/      # Cursor plugin metadata
-├── .codex/              # Codex setup docs
-├── .opencode/           # OpenCode setup docs
-├── agents/              # Agent definitions
-├── lib/                 # Shared Node.js utilities
-├── profiles/            # Repo-type detection rules
-├── scripts/             # Validation, setup, sync scripts
-├── settings/            # Settings and MCP docs
-├── skills/              # Skill library
-│   └── _references/     # Guidelines, reference docs, diagram specs
-├── manifest.json        # Upstream source tracking
-└── install.zsh          # Idempotent installer
+├── templates/skill/         Canonical templates and shared references
+│   ├── SKILL-TEMPLATE.md    Boilerplate for new skills
+│   ├── references/          Master copies of shared reference docs
+│   ├── common/              Cross-skill guidelines and conventions
+│   └── scripts/             Preflight, propagation, and shared Textual TUI scripts
+├── agents/                  Shared agent definitions (15 agents)
+├── settings/                MCP setup guides
+├── skills/
+│   ├── coding/              Helper: coding guidelines loader (16 guidelines)
+│   ├── doc-writing/         Helper: document guidelines loader (24 guidelines)
+│   ├── review/              Code review
+│   ├── develop/             Development
+│   ├── write/               Documentation
+│   ├── plan/                Planning
+│   ├── spec/                Specs
+│   ├── research/            Research
+│   ├── diagram/             Diagrams
+│   ├── design/              UI/UX design
+│   ├── audit/               Codebase/security/performance/dependency audits
+│   ├── review-doc/          Document review
+│   ├── test/                User acceptance testing
+│   ├── project/             Project management
+│   ├── handoff/             Session management
+│   ├── setup/               CLI tools and MCP setup
+│   ├── team/                Multi-model review, agent dispatch
+│   ├── use/                 Orchestrator
+│   └── <skill>/             Each skill directory contains:
+│       ├── SKILL.md         Skill definition with the 6-phase workflow
+│       ├── stages/          Conditional stage files (multi-stage only)
+│       ├── references/      Reference documents (self-contained)
+│       └── scripts/         Preflight and utility scripts
+├── .claude-plugin/          Claude Code plugin metadata
+├── manifest.json            Upstream source tracking
+└── README.md
+```
+
+## Updating Shared References
+
+Edit files in `templates/skill/references/` or `templates/skill/common/`, then propagate:
+
+```bash
+python3 templates/skill/scripts/propagate.py        # Apply to all skills
+python3 templates/skill/scripts/propagate.py --dry-run  # Preview changes
 ```
 
 ## Contributing
 
-See [CONTRIBUTING.md](./CONTRIBUTING.md) for how to add skills, guidelines, agents, and test locally.
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for how to add skills, agents, and guidelines.
