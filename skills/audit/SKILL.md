@@ -80,7 +80,7 @@ Load references: `references/workflow-6phase.md`, `references/communication-styl
 | Phase | Applies | Skill-Specific Notes |
 |-------|---------|----------------------|
 | 0. Intent Expansion | yes | Confirm the goal, assumptions, required tools, and success criteria before acting |
-| 1. Research & Options | yes | Analyze scope, detect source type, load guidelines, auto-detect focus; Focused research on chosen approach, proposal at ./temp/proposal/ |
+| 1. Research & Options | yes | Analyze scope, detect source type, load guidelines, auto-detect focus; Focused research on chosen approach, proposal at .temp/proposal/ |
 | 2. Approach Selection | yes | Present 2-3 approaches, user picks or mixes; Iterate on proposal with user feedback |
 | 3. Planning | yes | Break into tasks/waves for parallel agentic teams |
 | 4. Execute | yes | Produce the review using parallel child agents per focus area |
@@ -123,23 +123,27 @@ The team composition depends on the resolved focus area(s). When running `all`, 
 
 ### Security Focus Team
 
-- `auth-reviewer` for authentication and authorization flows, session management, JWT handling
-- `data-flow-analyzer` to trace sensitive data through the system, check encryption, logging, exposure
-- `dependency-scanner` to check for known CVEs, outdated packages, license issues
-- `owasp-checker` for systematic OWASP Top 10 review against the codebase
+- `security-reviewer` (role: auth-reviewer) for authentication and authorization flows, session management, JWT handling
+- `security-reviewer` (role: data-flow-analyzer) to trace sensitive data through the system, check encryption, logging, exposure
+- `security-reviewer` (role: dependency-scanner) to check for known CVEs, outdated packages, license issues
+- `security-reviewer` (role: owasp-checker) for systematic OWASP Top 10 review against the codebase
+
+Each agent is a `security-reviewer` child agent launched with a distinct role focus passed in its prompt context.
 
 ### Performance Focus Team
 
-- `bundle-analyzer` for dependency size breakdown, duplication, code-splitting gaps, and asset optimization
-- `latency-analyzer` for API call patterns, caching gaps, database query issues, and middleware overhead
-- `memory-analyzer` for potential leaks, data structures, and resource management
-- `anti-pattern-scanner` for performance anti-patterns with impact estimates
+- `code-reviewer` (role: bundle-analyzer) for dependency size breakdown, duplication, code-splitting gaps, and asset optimization
+- `code-reviewer` (role: latency-analyzer) for API call patterns, caching gaps, database query issues, and middleware overhead
+- `code-reviewer` (role: memory-analyzer) for potential leaks, data structures, and resource management
+- `code-reviewer` (role: anti-pattern-scanner) for performance anti-patterns with impact estimates
+
+Each agent is a `code-reviewer` child agent launched with a performance-specific role focus.
 
 ### Dependency Focus Team
 
-- `vulnerability-scanner` to check dependencies against known CVE databases and advisory sources
-- `update-compatibility-checker` to research changelogs and identify breaking changes, migration steps, and peer dependency conflicts
-- `remediation-planner` to synthesize findings into a prioritized action plan grouped by effort and risk
+- `security-reviewer` (role: vulnerability-scanner) to check dependencies against known CVE databases and advisory sources
+- `research-agent` (role: update-compatibility-checker) to research changelogs and identify breaking changes, migration steps, and peer dependency conflicts
+- `code-reviewer` (role: remediation-planner) to synthesize findings into a prioritized action plan grouped by effort and risk
 
 ## Output
 

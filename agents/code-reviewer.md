@@ -61,7 +61,7 @@ For each finding, output:
 ```
 ### Finding: [short title]
 - **File**: path/to/file.ext:L10-L20
-- **Severity**: CRITICAL | WARNING | SUGGESTION | NICE-TO-HAVE | QUESTION
+- **Severity**: Blocker | Critical | Should Have | May Have | Nitpick | Question
 - **Confidence**: 85/100
 - **Category**: bug | security | performance | architecture | testing | docs | code-patterns
 - **Description**: Detailed explanation of the issue

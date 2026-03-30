@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 """
-DevKit TUI Base — Shared classes for all DevKit Textual apps.
+DevKit TUI Base — Shared utilities for all DevKit Textual apps.
 ===============================================================
 
 Provides:
-  - ICONS / CSS constants
+  - ICONS / CSS / color constants shared across TUI scripts
   - load_json / save_json helpers
   - EditModal — reusable modal dialog for text input
-  - DevKitApp — base App subclass with session_dir handling and JSON I/O
 
-All concrete TUI screens inherit from DevKitApp.
+Importing this module triggers auto-install of textual if missing,
+so all TUI scripts should import from base before importing textual.
 
 Usage (standalone test):
   python3 base.py <session_dir>
@@ -132,9 +132,17 @@ EditModal {
 def load_json(path: Path) -> dict:
     """Read and parse a JSON file, returning an empty dict on failure."""
     try:
-        return json.loads(path.read_text())
-    except (FileNotFoundError, json.JSONDecodeError):
+        data = json.loads(path.read_text())
+    except FileNotFoundError:
+        print(f"Error: {path} not found")
         return {}
+    except json.JSONDecodeError as e:
+        print(f"Error: {path} contains invalid JSON: {e}")
+        return {}
+    if not isinstance(data, dict):
+        print(f"Error: {path} must contain a JSON object, got {type(data).__name__}")
+        return {}
+    return data
 
 
 def save_json(path: Path, data: Any) -> None:
@@ -171,34 +179,6 @@ class EditModal(ModalScreen[str]):
         self.dismiss("")
 
 
-# ── Base application ─────────────────────────────────────────────────
-class DevKitApp(App):
-    """Base class for all DevKit TUI applications.
-
-    Subclasses should:
-      1. Set INPUT_FILE to the expected input JSON filename.
-      2. Set OUTPUT_FILE to the output JSON filename.
-      3. Override compose() for their layout.
-      4. Call self.load_input() to read input data.
-      5. Call self.save_output(data) to write results.
-    """
-
-    INPUT_FILE: str = "input.json"
-    OUTPUT_FILE: str = "output.json"
-
-    def __init__(self, session_dir: Path) -> None:
-        super().__init__()
-        self.session_dir = session_dir
-
-    def load_input(self) -> dict:
-        """Read the input JSON file from the session directory."""
-        return load_json(self.session_dir / self.INPUT_FILE)
-
-    def save_output(self, data: Any) -> None:
-        """Write the output JSON file to the session directory."""
-        save_json(self.session_dir / self.OUTPUT_FILE, data)
-
-
 # ── CLI entry point (self-test) ──────────────────────────────────────
 def main() -> None:
     if len(sys.argv) != 2:
@@ -220,7 +200,7 @@ def main() -> None:
             data = load_json(f)
             keys = list(data.keys()) if isinstance(data, dict) else f"[{len(data)} items]"
             print(f"  {f.name}: {keys}")
-    print("\nbase.py loaded successfully. Exports: DevKitApp, EditModal, ICONS, load_json, save_json")
+    print("\nbase.py loaded successfully. Exports: EditModal, ICONS, load_json, save_json")
 
 
 if __name__ == "__main__":

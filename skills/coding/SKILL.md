@@ -46,7 +46,7 @@ When `--help` is passed, display this reference and stop.
 
 
 
-Load references: `references/workflow-6phase.md`, `references/communication-style.md`, `references/preflight.md`, `references/output-formats.md`. For Medium/Large: also load `references/agentic-teams.md`, `references/principal-engineer.md`.
+Load references: `references/communication-style.md` (for tone consistency with the invoking skill).
 
 
 ## Workflow

@@ -33,46 +33,19 @@ Keys:
 """
 
 import json
-import subprocess
 import sys
 from pathlib import Path
 
-# ── Auto-install textual on first run ─────────────────────────────────
-try:
-    from textual.app import App, ComposeResult
-except ImportError:
-    print("First run — installing textual...")
-    try:
-        subprocess.check_call(
-            [sys.executable, "-m", "pip", "install", "-q", "textual>=1.0.0"]
-        )
-    except Exception:
-        print("Failed. Please run manually: pip install 'textual>=1.0.0'")
-        sys.exit(1)
-    print("Done.")
-    from textual.app import App, ComposeResult
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from base import TOOL_STATUS_ICONS, EditModal, load_json, save_json
+else:
+    from .base import TOOL_STATUS_ICONS, EditModal, load_json, save_json
 
+from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import VerticalScroll
 from textual.widgets import Footer, Header, Markdown, Static
-
-if __package__ in (None, ""):
-    sys.path.insert(0, str(Path(__file__).resolve().parent))
-    from base import EditModal, load_json, save_json
-else:
-    from .base import EditModal, load_json, save_json
-
-# ── Tool/MCP status icons ────────────────────────────────────────────
-TOOL_ICONS = {
-    "configured": "✓",
-    "missing":    "✗",
-    "optional":   "○",
-}
-TOOL_COLORS = {
-    "configured": "green",
-    "missing":    "red",
-    "optional":   "dim",
-}
 
 COMPLEXITY_COLORS = {
     "Trivial": "dim",
@@ -171,7 +144,7 @@ class IntentConfirmApp(App):
                 for tool in tools:
                     name = tool.get("name", "?")
                     status = tool.get("status", "optional")
-                    icon = TOOL_ICONS.get(status, "?")
+                    icon, _ = TOOL_STATUS_ICONS.get(status, ("?", "dim"))
                     parts.append(f"- {icon} **{name}** ({status})")
                 parts.append("")
 

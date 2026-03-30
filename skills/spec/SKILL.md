@@ -22,7 +22,7 @@ Load references: `references/workflow-6phase.md`, `references/communication-styl
 | Parameter | Values | Default | Description |
 |-----------|--------|---------|-------------|
 | `--mode` | `analyze`, `write`, `checklist`, `constitution` | auto-detect | Force a specific specification mode |
-| `--spec` | `<path>` | none | Path to existing spec (implies analyze mode unless combined with `--mode`) |
+| `--spec` | `<path>` | none | Path to existing spec. Without `--mode`: implies analyze. With `--mode write`: uses the spec as input context for the new spec. With `--mode checklist`: validates the given spec. |
 | `--depth` | `quick`, `standard`, `thorough` | `standard` | Analysis/checklist depth level |
 | `--action` | `create`, `update`, `audit` | auto-detect | Constitution action type |
 | `--scope` | `<path>` | none | Limit analysis to specific sections or files |

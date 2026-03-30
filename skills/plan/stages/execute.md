@@ -51,14 +51,14 @@ digraph process {
 
     subgraph cluster_per_task {
         label="Per Task";
-        "Dispatch implementer subagent (./implementer-prompt.md)" [shape=box];
-        "Implementer subagent asks questions?" [shape=diamond];
+        "Dispatch implementer child agent" [shape=box];
+        "Implementer asks questions?" [shape=diamond];
         "Answer questions, provide context" [shape=box];
-        "Implementer subagent implements, tests, commits, self-reviews" [shape=box];
-        "Dispatch spec reviewer subagent (./spec-reviewer-prompt.md)" [shape=box];
-        "Spec reviewer subagent confirms code matches spec?" [shape=diamond];
-        "Implementer subagent fixes spec gaps" [shape=box];
-        "Dispatch code quality reviewer subagent (./code-quality-reviewer-prompt.md)" [shape=box];
+        "Implementer implements, tests, commits, self-reviews" [shape=box];
+        "Dispatch spec reviewer child agent" [shape=box];
+        "Spec reviewer confirms code matches spec?" [shape=diamond];
+        "Implementer fixes spec gaps" [shape=box];
+        "Dispatch code quality reviewer child agent" [shape=box];
         "Code quality reviewer subagent approves?" [shape=diamond];
         "Implementer subagent fixes quality issues" [shape=box];
         "Mark task complete in TodoWrite" [shape=box];
@@ -67,26 +67,26 @@ digraph process {
     "Read plan, extract all tasks with full text, note context, create TodoWrite" [shape=box];
     "More tasks remain?" [shape=diamond];
     "Dispatch final code reviewer subagent for entire implementation" [shape=box];
-    "Use superpowers:finishing-a-development-branch" [shape=box style=filled fillcolor=lightgreen];
+    "Finalize development branch" [shape=box style=filled fillcolor=lightgreen];
 
-    "Read plan, extract all tasks with full text, note context, create TodoWrite" -> "Dispatch implementer subagent (./implementer-prompt.md)";
-    "Dispatch implementer subagent (./implementer-prompt.md)" -> "Implementer subagent asks questions?";
-    "Implementer subagent asks questions?" -> "Answer questions, provide context" [label="yes"];
-    "Answer questions, provide context" -> "Dispatch implementer subagent (./implementer-prompt.md)";
-    "Implementer subagent asks questions?" -> "Implementer subagent implements, tests, commits, self-reviews" [label="no"];
-    "Implementer subagent implements, tests, commits, self-reviews" -> "Dispatch spec reviewer subagent (./spec-reviewer-prompt.md)";
-    "Dispatch spec reviewer subagent (./spec-reviewer-prompt.md)" -> "Spec reviewer subagent confirms code matches spec?";
-    "Spec reviewer subagent confirms code matches spec?" -> "Implementer subagent fixes spec gaps" [label="no"];
-    "Implementer subagent fixes spec gaps" -> "Dispatch spec reviewer subagent (./spec-reviewer-prompt.md)" [label="re-review"];
-    "Spec reviewer subagent confirms code matches spec?" -> "Dispatch code quality reviewer subagent (./code-quality-reviewer-prompt.md)" [label="yes"];
-    "Dispatch code quality reviewer subagent (./code-quality-reviewer-prompt.md)" -> "Code quality reviewer subagent approves?";
-    "Code quality reviewer subagent approves?" -> "Implementer subagent fixes quality issues" [label="no"];
-    "Implementer subagent fixes quality issues" -> "Dispatch code quality reviewer subagent (./code-quality-reviewer-prompt.md)" [label="re-review"];
+    "Read plan, extract all tasks with full text, note context, create TodoWrite" -> "Dispatch implementer child agent";
+    "Dispatch implementer child agent" -> "Implementer asks questions?";
+    "Implementer asks questions?" -> "Answer questions, provide context" [label="yes"];
+    "Answer questions, provide context" -> "Dispatch implementer child agent";
+    "Implementer asks questions?" -> "Implementer implements, tests, commits, self-reviews" [label="no"];
+    "Implementer implements, tests, commits, self-reviews" -> "Dispatch spec reviewer child agent";
+    "Dispatch spec reviewer child agent" -> "Spec reviewer confirms code matches spec?";
+    "Spec reviewer confirms code matches spec?" -> "Implementer fixes spec gaps" [label="no"];
+    "Implementer fixes spec gaps" -> "Dispatch spec reviewer child agent" [label="re-review"];
+    "Spec reviewer confirms code matches spec?" -> "Dispatch code quality reviewer child agent" [label="yes"];
+    "Dispatch code quality reviewer child agent" -> "Code quality reviewer subagent approves?";
+    "Code quality reviewer subagent approves?" -> "Implementer fixes quality issues" [label="no"];
+    "Implementer fixes quality issues" -> "Dispatch code quality reviewer child agent" [label="re-review"];
     "Code quality reviewer subagent approves?" -> "Mark task complete in TodoWrite" [label="yes"];
     "Mark task complete in TodoWrite" -> "More tasks remain?";
-    "More tasks remain?" -> "Dispatch implementer subagent (./implementer-prompt.md)" [label="yes"];
+    "More tasks remain?" -> "Dispatch implementer child agent" [label="yes"];
     "More tasks remain?" -> "Dispatch final code reviewer subagent for entire implementation" [label="no"];
-    "Dispatch final code reviewer subagent for entire implementation" -> "Use superpowers:finishing-a-development-branch";
+    "Dispatch final code reviewer subagent for entire implementation" -> "Finalize development branch";
 }
 ```
 
@@ -123,18 +123,20 @@ Implementer subagents report one of four statuses. Handle each appropriately:
 
 **Never** ignore an escalation or force the same model to retry without changes. If the implementer said it's stuck, something needs to change.
 
-## Prompt Templates
+## Child Agent Roles
 
-- `./implementer-prompt.md` - Dispatch implementer subagent
-- `./spec-reviewer-prompt.md` - Dispatch spec compliance reviewer subagent
-- `./code-quality-reviewer-prompt.md` - Dispatch code quality reviewer subagent
+Dispatch child agents using the shared agent definitions from `agents/`:
+
+- **Implementer**: use `code-reviewer` with implementation-focused prompt context (the task description, affected files, verification commands)
+- **Spec compliance reviewer**: use `doc-reviewer` to verify the implementation matches the spec
+- **Code quality reviewer**: use `code-reviewer` to review the implemented code for quality, patterns, and correctness
 
 ## Example Workflow
 
 ```
 You: I'm using the plan skill (execute mode) to execute this plan.
 
-[Read plan file once: docs/superpowers/plans/feature-plan.md]
+[Read plan file once: .temp/plans/feature-plan.md]
 [Extract all 5 tasks with full text and context]
 [Create TodoWrite with all tasks]
 
@@ -145,7 +147,7 @@ Task 1: Hook installation script
 
 Implementer: "Before I begin - should the hook be installed at user or system level?"
 
-You: "User level (~/.config/superpowers/hooks/)"
+You: "User level (~/.config/hooks/)"
 
 Implementer: "Got it. Implementing now..."
 [Later] Implementer:
@@ -265,11 +267,8 @@ Done!
 
 ## Integration
 
-**Required workflow skills:**
-- **superpowers:using-git-worktrees** - REQUIRED: Set up isolated workspace before starting
-- **superpowers:writing-plans** - Creates the plan this skill executes
-- **superpowers:requesting-code-review** - Code review template for reviewer subagents
-- **superpowers:finishing-a-development-branch** - Complete development after all tasks
-
-**Subagents should use:**
-- **superpowers:test-driven-development** - Subagents follow TDD for each task
+**Related DevKit skills:**
+- `/develop --mode worktree` — set up isolated workspace before starting
+- `/plan --mode write` — creates the plan this stage executes
+- `/review` — code review after all tasks complete
+- `/develop --mode tdd` — subagents follow TDD for each task

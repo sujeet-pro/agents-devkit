@@ -45,7 +45,7 @@ Load references: `references/workflow-6phase.md`, `references/communication-styl
 ```text
 /plan brainstorm a notification system for the app
 /plan --mode write implement user authentication based on the spec
-/plan --mode execute docs/superpowers/plans/auth-plan.md
+/plan --mode execute .temp/plans/auth-plan.md
 /plan --mode track
 /plan --plan .temp/plans/auth-plan.md --mode track
 ```

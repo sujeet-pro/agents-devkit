@@ -58,7 +58,7 @@ Research the chosen approach in depth:
 - Launch child agents in parallel (see `references/agentic-teams.md`):
   - **Implementation researcher**: patterns, examples, libraries relevant to chosen approach
   - **Risk analyst**: edge cases, failure modes, performance implications
-- Produce a finalized proposal at `./temp/proposal/<feature-slug>.md` containing:
+- Produce a finalized proposal at `.temp/proposal/<feature-slug>.md` containing:
   - Goals and acceptance criteria
   - Architecture and approach details
   - File-by-file change plan
@@ -68,7 +68,7 @@ Research the chosen approach in depth:
 ## Interactive Improvement
 
 - Present the proposal to the user for review
-- After each round of feedback, update `./temp/proposal/<feature-slug>.md` in place
+- After each round of feedback, update `.temp/proposal/<feature-slug>.md` in place
 - Continue until the user accepts the proposal
 
 ## Implementation Plan

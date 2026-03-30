@@ -42,25 +42,16 @@ Keys:
 """
 
 import json
-import subprocess
 import sys
 from pathlib import Path
 
-# ── Auto-install textual on first run ─────────────────────────────────
-try:
-    from textual.app import App, ComposeResult
-except ImportError:
-    print("First run — installing textual...")
-    try:
-        subprocess.check_call(
-            [sys.executable, "-m", "pip", "install", "-q", "textual>=1.0.0"]
-        )
-    except Exception:
-        print("Failed. Please run manually: pip install 'textual>=1.0.0'")
-        sys.exit(1)
-    print("Done.")
-    from textual.app import App, ComposeResult
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from base import RISK_COLORS, EditModal, load_json, save_json
+else:
+    from .base import RISK_COLORS, EditModal, load_json, save_json
 
+from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, VerticalScroll
 from textual.widgets import (
@@ -72,19 +63,6 @@ from textual.widgets import (
     Markdown,
     Static,
 )
-
-if __package__ in (None, ""):
-    sys.path.insert(0, str(Path(__file__).resolve().parent))
-    from base import EditModal, load_json, save_json
-else:
-    from .base import EditModal, load_json, save_json
-
-# ── Risk coloring ────────────────────────────────────────────────────
-RISK_COLORS = {
-    "Low":    "green",
-    "Medium": "yellow",
-    "High":   "red",
-}
 
 
 # ── Approach Selection App ───────────────────────────────────────────
@@ -120,9 +98,10 @@ class ApproachSelectApp(App):
     """
 
     BINDINGS = [
-        Binding("1", "select_1", "Select 1", show=True),
-        Binding("2", "select_2", "Select 2", show=True),
-        Binding("3", "select_3", "Select 3", show=True),
+        Binding("enter", "select_highlighted", "Select", show=True),
+        Binding("1", "select_1", "1", show=True),
+        Binding("2", "select_2", "2", show=True),
+        Binding("3", "select_3", "3", show=True),
         Binding("m", "mix", "Mix", show=True),
         Binding("d", "discuss", "Discuss", show=True),
         Binding("q", "cancel", "Cancel", show=True),
@@ -255,6 +234,9 @@ class ApproachSelectApp(App):
                 f"No approach #{idx + 1} (only {len(self.approaches)} available)",
                 severity="warning",
             )
+
+    def action_select_highlighted(self) -> None:
+        self._select_approach(self._idx)
 
     def action_select_1(self) -> None:
         self._select_approach(0)

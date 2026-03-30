@@ -5,7 +5,7 @@
 | Phase | Applies | Skill-Specific Notes |
 |-------|---------|----------------------|
 | 0. Intent Expansion | yes | Confirm the goal, assumptions, required tools, and success criteria before acting |
-| 1. Research & Options | yes | Understand requirements, scan existing plans and context; Focused research on chosen approach, proposal at ./temp/proposal/ |
+| 1. Research & Options | yes | Understand requirements, scan existing plans and context; Focused research on chosen approach, proposal at .temp/proposal/ |
 | 2. Approach Selection | yes | Present 2-3 approaches, user picks or mixes; Iterate on proposal with user feedback |
 | 3. Planning | yes | Break into tasks/waves for parallel agentic teams |
 | 4. Execute | yes | Execute the planning workflow |
@@ -23,7 +23,7 @@ Assume they are a skilled developer, but know almost nothing about our toolset o
 
 **Context:** This should be run in a dedicated worktree (created by brainstorm mode).
 
-**Save plans to:** `docs/superpowers/plans/YYYY-MM-DD-<feature-name>.md`
+**Save plans to:** `.temp/plans/YYYY-MM-DD-<feature-name>.md`
 - (User preferences for plan location override this default)
 
 ## Scope Check
@@ -57,7 +57,7 @@ This structure informs the task decomposition. Each task should produce self-con
 ```markdown
 # [Feature Name] Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** Use `/plan --mode execute` or dispatch child agents per the agentic-teams contract to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** [One sentence describing what this builds]
 
@@ -143,7 +143,7 @@ If you find issues, fix them inline. No need to re-review — just fix and move 
 
 After saving the plan, offer execution choice:
 
-**"Plan complete and saved to `docs/superpowers/plans/<filename>.md`. Two execution options:**
+**"Plan complete and saved to `.temp/plans/<filename>.md`. Two execution options:**
 
 **1. Subagent-Driven (recommended)** - I dispatch a fresh subagent per task, review between tasks, fast iteration
 

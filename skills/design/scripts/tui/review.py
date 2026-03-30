@@ -47,25 +47,16 @@ Keys:
 """
 
 import json
-import subprocess
 import sys
 from pathlib import Path
 
-# ── Auto-install textual on first run ─────────────────────────────────
-try:
-    from textual.app import App, ComposeResult
-except ImportError:
-    print("First run — installing textual...")
-    try:
-        subprocess.check_call(
-            [sys.executable, "-m", "pip", "install", "-q", "textual>=1.0.0"]
-        )
-    except Exception:
-        print("Failed. Please run manually: pip install 'textual>=1.0.0'")
-        sys.exit(1)
-    print("Done.")
-    from textual.app import App, ComposeResult
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from base import ICONS, PRIORITY_COLORS, EditModal, load_json, save_json
+else:
+    from .base import ICONS, PRIORITY_COLORS, EditModal, load_json, save_json
 
+from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, VerticalScroll
 from textual.widgets import (
@@ -78,21 +69,7 @@ from textual.widgets import (
     Static,
 )
 
-if __package__ in (None, ""):
-    sys.path.insert(0, str(Path(__file__).resolve().parent))
-    from base import ICONS, EditModal, load_json, save_json
-else:
-    from .base import ICONS, EditModal, load_json, save_json
-
 # ── Mode-specific constants ──────────────────────────────────────────
-PRIORITY_COLORS = {
-    "Blocker":     "red",
-    "Critical":    "red",
-    "Should Have": "yellow",
-    "May Have":    "default",
-    "Nitpick":     "default",
-    "Question":    "cyan",
-}
 
 CATEGORY_COLORS = {
     "accuracy":     "red",

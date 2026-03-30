@@ -37,43 +37,20 @@ Keys:
 """
 
 import json
-import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
 
-# ── Auto-install textual on first run ─────────────────────────────────
-try:
-    from textual.app import App, ComposeResult
-except ImportError:
-    print("First run — installing textual...")
-    try:
-        subprocess.check_call(
-            [sys.executable, "-m", "pip", "install", "-q", "textual>=1.0.0"]
-        )
-    except Exception:
-        print("Failed. Please run manually: pip install 'textual>=1.0.0'")
-        sys.exit(1)
-    print("Done.")
-    from textual.app import App, ComposeResult
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from base import STATUS_ICONS, load_json
+else:
+    from .base import STATUS_ICONS, load_json
 
+from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import VerticalScroll
 from textual.widgets import Footer, Header, Markdown, Static
-
-if __package__ in (None, ""):
-    sys.path.insert(0, str(Path(__file__).resolve().parent))
-    from base import load_json
-else:
-    from .base import load_json
-
-# ── Status icons ─────────────────────────────────────────────────────
-STATUS_ICONS = {
-    "completed": ("✓", "green"),
-    "running":   ("◉", "yellow"),
-    "failed":    ("✗", "red"),
-    "pending":   ("○", "dim"),
-}
 
 
 # ── Progress Dashboard App ───────────────────────────────────────────

@@ -135,7 +135,7 @@ Template sources:
 | Phase | Applies | Notes |
 |-------|---------|-------|
 | 0. Intent Expansion | yes | Confirm the goal, assumptions, required tools, and success criteria before acting |
-| 1. Research & Options | yes | Research the topic, scan related docs and code; Focused research on chosen approach, proposal at ./temp/proposal/ |
+| 1. Research & Options | yes | Research the topic, scan related docs and code; Focused research on chosen approach, proposal at .temp/proposal/ |
 | 2. Approach Selection | yes | Present 2-3 approaches, user picks or mixes; Iterate on proposal with user feedback |
 | 3. Planning | yes | Break into tasks/waves for parallel agentic teams |
 | 4. Execute | yes | Write the document using child agents for research, writing, fact-checking |

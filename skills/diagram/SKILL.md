@@ -6,6 +6,7 @@ argument-hint: "<description> [--engine mermaid|excalidraw|drawio|graphviz] [--t
 allowed-tools: [Glob, Grep, Read, Edit, Write, Bash, WebSearch, WebFetch, Agent]
 dependencies:
   commands: [git]
+  npm-packages: [diagramkit]
 workflow-tier: full
 ---
 
@@ -39,6 +40,7 @@ Load references: `references/workflow-6phase.md`, `references/communication-styl
 - **`--engine excalidraw`**: Hand-drawn feel. Best for architecture overviews, system context, freeform layouts, hub-and-spoke. Produces `.excalidraw` JSON.
 - **`--engine drawio`**: Precise layout with rich icon library. Best for network topology, enterprise architecture, BPMN, multi-page. Produces `.drawio` XML.
 - **`--engine graphviz`**: Strict DOT layout. Best for existing `.dot` assets, dependency graphs, strict graph layout. Use only when repo already uses Graphviz.
+- **Engine-specific parameters** (`--palette`, `--style`): Silently ignored when the selected engine does not support them.
 
 ### Examples
 

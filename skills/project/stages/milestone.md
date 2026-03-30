@@ -7,7 +7,7 @@ Milestones are high-level roadmap checkpoints that group phases, requirements, a
 | Phase | Applies | Skill-Specific Notes |
 |-------|---------|----------------------|
 | 0. Intent Expansion | yes | Confirm the goal, assumptions, required tools, and success criteria before acting |
-| 1. Research & Options | yes | Analyze project requirements and existing structure; Focused research on chosen approach, proposal at ./temp/proposal/ |
+| 1. Research & Options | yes | Analyze project requirements and existing structure; Focused research on chosen approach, proposal at .temp/proposal/ |
 | 2. Approach Selection | yes | Present 2-3 approaches, user picks or mixes; Iterate on proposal with user feedback |
 | 3. Planning | yes | Break into tasks/waves for parallel agentic teams |
 | 4. Execute | yes | Execute project setup or management tasks |

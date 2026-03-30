@@ -218,7 +218,7 @@ def main():
 
     # Auto-detect from git if skill is PR-related
     if not detected_provider and skill_name in (
-        "review-code-pr", "pr-describe", "pr-fix-comments", "pr-finalize"
+        "review", "review-doc", "audit"
     ):
         detected_provider = detect_git_provider()
 

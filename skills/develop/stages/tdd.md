@@ -37,7 +37,7 @@ Write the test first. Watch it fail. Write minimal code to pass.
 
 ## Deep Research and Proposal
 
-Produce a test plan at `./temp/proposal/<feature-slug>.md`:
+Produce a test plan at `.temp/proposal/<feature-slug>.md`:
 - List of test cases with descriptions
 - Expected API shape
 - Edge cases and error conditions

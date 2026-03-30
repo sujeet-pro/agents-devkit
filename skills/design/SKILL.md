@@ -61,7 +61,7 @@ Otherwise, proceed with the design workflow below.
 | Phase | Applies | Skill-Specific Notes |
 |-------|---------|----------------------|
 | 0. Intent Expansion | yes | Confirm the goal, assumptions, required tools, and success criteria before acting |
-| 1. Research & Options | yes | Analyze design requirements, scan existing patterns; Focused research on chosen approach, proposal at ./temp/proposal/ |
+| 1. Research & Options | yes | Analyze design requirements, scan existing patterns; Focused research on chosen approach, proposal at .temp/proposal/ |
 | 2. Approach Selection | yes | Present 2-3 approaches, user picks or mixes; Iterate on proposal with user feedback |
 | 3. Planning | yes | Break into tasks/waves for parallel agentic teams |
 | 4. Execute | yes | Create design deliverables using child agents |

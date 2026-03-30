@@ -45,13 +45,13 @@ Identify the full impact of the proposed change:
 - **Dependencies**: upstream and downstream code that depends on changed interfaces
 - **Risk areas**: parts of the change most likely to cause regressions
 
-Produce a finalized proposal at `./temp/proposal/<enhancement-slug>.md`.
+Produce a finalized proposal at `.temp/proposal/<enhancement-slug>.md`.
 
 ## Interactive Improvement
 
 - Present the impact analysis and proposal to the user
 - If the impact is larger than expected, confirm scope adjustments
-- Update `./temp/proposal/<enhancement-slug>.md` after each round of feedback
+- Update `.temp/proposal/<enhancement-slug>.md` after each round of feedback
 - Continue until accepted
 
 ## Implementation Plan
