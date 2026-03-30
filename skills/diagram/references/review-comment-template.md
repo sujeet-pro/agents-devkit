@@ -3,10 +3,12 @@
 Every non-trivial review comment **must** follow this canonical format. The goal is that the PR author can immediately answer all of these just by reading the comment:
 
 - What is wrong?
+- Where exactly is the problem?
 - When does it fail?
 - What happens today?
 - What should happen instead?
 - Why is it worth fixing now?
+- What standard or best practice does it violate?
 - What is the likely fix?
 
 ---
@@ -17,9 +19,9 @@ Every non-trivial review comment **must** follow this canonical format. The goal
 [<PRIORITY>][<PRINCIPLE>] <Short, specific title>
 
 **Summary**
+- Location: `<file-path>:<line-range>`
 - Confidence: <score>/100
-- Agent: devkit (skill plugin tool)
-- Principle violated: <principle>
+- Guideline: <which coding guideline, best practice, or standard is violated — or "project convention" / "language idiom">
 
 **Issue**
 <What is wrong, in which code path, and under what condition.>
@@ -70,6 +72,25 @@ Use one or more:
 
 ---
 
+## Guideline References
+
+The **Guideline** field connects the finding to the specific standard being violated. This helps developers understand *why* this is considered an issue beyond the reviewer's opinion.
+
+Use one of:
+
+| Source | Example |
+|---|---|
+| DevKit coding guideline | `coding-guidelines/security: input validation` |
+| DevKit doc guideline | `doc-guidelines/api-reference: parameter descriptions` |
+| Language/framework idiom | `TypeScript: strict null checks` |
+| Industry standard | `OWASP A03: Injection` |
+| Project convention | `project convention: error handling pattern in src/errors/` |
+| Official documentation | `React docs: Rules of Hooks` |
+
+When no specific guideline applies, use a concise description of the violated principle: `defensive programming`, `fail-fast validation`, `single source of truth`.
+
+---
+
 ## Writing Rules for "Where it fails"
 
 - Include **2–3 representative cases**, not every possible case.
@@ -112,6 +133,11 @@ Make the title describe the actual problem, not just the area.
 
 ## Section Guidance
 
+### Summary
+- **Location** is required. Use `file:line` or `file:start-end` format. For inline PR comments where the platform attaches to the line, this field confirms the reference.
+- **Confidence** is 0–100. Be honest: 60–70 means "I think this is an issue but could be wrong"; 90+ means "this is clearly wrong".
+- **Guideline** names the specific standard violated. This is what makes the comment *educational* — the developer learns the principle, not just the fix.
+
 ### Issue
 - 1–3 sentences describing the exact problem in the current code path.
 - Call out the condition or trigger that makes the issue happen.
@@ -146,41 +172,46 @@ Use the full template with all sections. These comments justify the detail.
 The full template is recommended. You may abbreviate "Where it fails" to 1–2 cases if the issue is straightforward.
 
 ### Nitpick
-Use a shortened form — title, a 1–2 sentence issue description, and a suggested fix. Skip "Where it fails" and "Suggested tests" unless they add real clarity.
+Use a shortened form — title, a 1–2 sentence issue description, and a suggested fix. Skip "Where it fails", "Why it matters", and "Suggested tests" unless they add real clarity.
 
 ```md
 [Nitpick][Maintainability] Unused import `lodash/merge`
 
 **Issue**
-`lodash/merge` is imported but not used after the refactor in this PR.
+`lodash/merge` is imported at `src/utils/cart.ts:3` but not used after the refactor in this PR.
 
 **Suggested fix**
 Remove the import.
 ```
 
 ### Question
-Use the title and a 1–3 sentence description of what you're asking about. Do not include a suggested fix unless you have a concrete recommendation.
+Use the title and a 1–3 sentence description of what you're asking about. Include location. Do not include a suggested fix unless you have a concrete recommendation.
 
 ```md
 [Question][Correctness] Is the retry count intentionally unbounded here?
 
+**Summary**
+- Location: `src/client.ts:42`
+- Confidence: 55/100
+- Guideline: defensive programming — unbounded loops
+
 **Issue**
-The retry loop at `src/client.ts:42` has no max-attempts guard. If this is intentional (e.g., the upstream guarantees eventual success), it would help to add a comment. Otherwise, consider adding a cap.
+The retry loop has no max-attempts guard. If this is intentional (e.g., the upstream guarantees eventual success), a comment would help future readers. Otherwise, consider adding a cap.
 ```
 
 ---
 
 ## Examples
 
-### Example 1 — Correctness Issue
+### Example 1 — Correctness Issue (Blocker)
 
 ````md
 [Blocker][Correctness] Potential null dereference when accessing `user.profile.id`
 
 **Summary**
+- Location: `src/handlers/user.ts:47-49`
 - Confidence: 97/100
-- Agent: devkit (skill plugin tool)
-- Principle violated: Correctness, Reliability
+- Guideline: `coding-guidelines/backend-general: null safety` — guard nullable references before access
 
 **Issue**
 The code reads `user.profile.id` before verifying that `user.profile` exists. This path is reachable for users created through the lightweight signup flow.
@@ -214,15 +245,15 @@ const profileId = user.profile.id;
 - succeeds when `profile.id` is present
 ````
 
-### Example 2 — Performance Issue
+### Example 2 — Performance Issue (Should Have)
 
 ````md
 [Should Have][Performance] N+1 query pattern in order list endpoint
 
 **Summary**
+- Location: `src/routes/orders.ts:23-35`
 - Confidence: 91/100
-- Agent: devkit (skill plugin tool)
-- Principle violated: Performance
+- Guideline: `coding-guidelines/backend-general: query patterns` — batch related queries instead of looping
 
 **Issue**
 The endpoint fetches orders first and then loads customer data inside a loop, resulting in one additional query per order.
@@ -256,15 +287,15 @@ const orders = await db.order.findMany({
 - validates response shape remains unchanged after batching
 ````
 
-### Example 3 — Maintainability Issue
+### Example 3 — Maintainability Issue (Should Have)
 
 ````md
 [Should Have][Maintainability] Pricing rules duplicated across checkout paths
 
 **Summary**
+- Location: `checkout/cart.ts:45-67` and `checkout/retry.ts:30-52`
 - Confidence: 88/100
-- Agent: devkit (skill plugin tool)
-- Principle violated: Maintainability, Consistency
+- Guideline: single source of truth — business rules should be defined once and reused
 
 **Issue**
 Tax and discount calculation logic is implemented in both `checkout/cart.ts` and `checkout/retry.ts` with slightly different conditions, creating two sources of truth for the same business rule.

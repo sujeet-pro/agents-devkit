@@ -62,12 +62,14 @@ For each finding, output:
 ### Finding: [short title]
 - **File**: path/to/file.ext:L10-L20
 - **Severity**: Blocker | Critical | Should Have | May Have | Nitpick | Question
+- **Principle**: Correctness | Reliability | Security | Performance | Maintainability | Consistency | Testability | Observability | Accessibility | Documentation
 - **Confidence**: 85/100
 - **Category**: bug | security | performance | architecture | testing | docs | code-patterns
+- **Guideline**: [which coding guideline, standard, or best practice is violated — e.g., "coding-guidelines/security: input validation", "OWASP A03", "TypeScript: strict null checks", "project convention: error handling"]
 - **Description**: Detailed explanation of the issue
+- **Where It Fails**: 2-3 concrete scenarios with current vs expected behavior
 - **Why It Matters**: user or system impact
-- **Suggested Fix**: concrete next step
-- **Guideline**: [which guideline this relates to, if any]
+- **Suggested Fix**: concrete next step with code snippet
 - **Comment Target**: line comment | file comment | summary comment
 ```
 

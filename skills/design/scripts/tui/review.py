@@ -35,15 +35,17 @@ items.json schema:
 results.json schema:
   {
     "results": [
-      {"id": "unique-id", "action": "accepted|rejected|edit|pending", "prompt": "..."}
+      {"id": "unique-id", "action": "accepted|rejected|edit|skipped|pending", "prompt": "..."}
     ],
-    "summary": {"total": N, "accepted": N, "rejected": N, "edit": N, "pending": N}
+    "summary": {"total": N, "accepted": N, "rejected": N, "edit": N, "skipped": N, "pending": N}
   }
 
 Keys:
-  ↑/↓   Navigate       a  Accept       r  Reject
-  e      Edit (prompt)  u  Undo         d  Done (exit)
-  q      Quit (save & exit even if pending)
+  ↑/↓   Navigate       a  Accept           r  Reject
+  e      Edit (prompt)  s  Skip (defer)     u  Undo
+  A      Accept all Nitpick/May Have items
+  f      Cycle filter by priority
+  d      Done (exit)    q  Quit (save & exit even if pending)
 """
 
 import json
@@ -108,6 +110,7 @@ MODE_DETAIL_FIELDS: dict[str, list[tuple[str, str]]] = {
         ("priority", "Priority"),
         ("principle", "Principle"),
         ("confidence", "Confidence"),
+        ("guideline", "Guideline"),
         ("source", "Source"),
     ],
     "doc": [
@@ -160,7 +163,10 @@ class ReviewApp(App):
         Binding("a", "mark_accept", "Accept", show=True),
         Binding("r", "mark_reject", "Reject", show=True),
         Binding("e", "mark_edit", "Edit", show=True),
+        Binding("s", "mark_skip", "Skip", show=True),
         Binding("u", "mark_undo", "Undo", show=True),
+        Binding("A", "bulk_accept_nitpicks", "Acc Nitpicks", show=True),
+        Binding("f", "cycle_filter", "Filter", show=True),
         Binding("d", "finish", "Done", show=True),
         Binding("q", "quit_app", "Quit", show=True),
     ]
@@ -183,6 +189,9 @@ class ReviewApp(App):
             for i, d in enumerate(data.get("items", []))
         ]
         self._idx: int = 0
+        self._filter: str = ""
+        self._filter_cycle = ["", "Blocker", "Critical", "Should Have", "May Have", "Nitpick", "Question"]
+        self._filter_pos: int = 0
 
     # ── Layout ────────────────────────────────────────────────────────
     def compose(self) -> ComposeResult:
@@ -210,12 +219,22 @@ class ReviewApp(App):
             self._show_detail(0)
 
     # ── Rendering helpers ─────────────────────────────────────────────
+    def _is_filtered_out(self, it: dict) -> bool:
+        """Check if an item is hidden by the current filter."""
+        if not self._filter:
+            return False
+        tag_field = MODE_TAG_FIELD.get(self.mode, "priority")
+        return it["meta"].get(tag_field, "") != self._filter
+
     def _label(self, i: int) -> str:
         """Render a list item label with status icon and mode-appropriate tag."""
         it = self.items[i]
-        sym, col = ICONS[it["status"]]
 
-        # Determine the tag field and color map based on mode
+        if self._is_filtered_out(it):
+            return f"[dim]  {i + 1}. (filtered)[/dim]"
+
+        sym, col = ICONS.get(it["status"], ("?", "dim"))
+
         tag_field = MODE_TAG_FIELD.get(self.mode, "")
         tag_colors = MODE_TAG_COLORS.get(self.mode, {})
 
@@ -229,7 +248,6 @@ class ReviewApp(App):
                 else:
                     tag = f"[{t_col}]\\[{val}][/{t_col}] "
         elif not self.mode:
-            # Default mode: show first non-empty metadata value as tag
             for key, val in it["meta"].items():
                 if val:
                     tag = f"\\[{val}] " if isinstance(val, str) else ""
@@ -240,15 +258,18 @@ class ReviewApp(App):
 
     def _status_text(self) -> str:
         """Render the bottom status bar with counts."""
-        c = {"pending": 0, "accepted": 0, "rejected": 0, "edit": 0}
+        c = {"pending": 0, "accepted": 0, "rejected": 0, "edit": 0, "skipped": 0}
         for it in self.items:
-            c[it["status"]] += 1
+            c[it["status"]] = c.get(it["status"], 0) + 1
+        filter_tag = f"  |  Filter: [bold]{self._filter}[/]" if self._filter else ""
         return (
             f" Total: {len(self.items)}  |  "
             f"[green]✓ {c['accepted']}[/]  |  "
             f"[red]✗ {c['rejected']}[/]  |  "
             f"[cyan]✎ {c['edit']}[/]  |  "
+            f"[dim]⊘ {c['skipped']}[/]  |  "
             f"[yellow]● {c['pending']}[/]"
+            f"{filter_tag}"
         )
 
     def _show_detail(self, i: int) -> None:
@@ -350,15 +371,38 @@ class ReviewApp(App):
             on_result,
         )
 
+    def action_mark_skip(self) -> None:
+        self._set_status("skipped")
+        self.notify("⊘ Skipped (deferred)", severity="information")
+
     def action_mark_undo(self) -> None:
         self._set_status("pending")
         self.notify("↩ Reset to pending")
+
+    def action_bulk_accept_nitpicks(self) -> None:
+        count = 0
+        for it in self.items:
+            if it["status"] == "pending" and it["meta"].get("priority") in ("Nitpick", "May Have"):
+                it["status"] = "accepted"
+                count += 1
+        if count:
+            self._refresh_ui()
+            self.notify(f"✓ Accepted {count} Nitpick/May Have items", severity="information")
+        else:
+            self.notify("No pending Nitpick/May Have items", severity="warning")
+
+    def action_cycle_filter(self) -> None:
+        self._filter_pos = (self._filter_pos + 1) % len(self._filter_cycle)
+        self._filter = self._filter_cycle[self._filter_pos]
+        self._refresh_ui()
+        label = self._filter if self._filter else "All"
+        self.notify(f"Filter: {label}")
 
     def action_finish(self) -> None:
         pending = sum(1 for it in self.items if it["status"] == "pending")
         if pending:
             self.notify(
-                f"{pending} item{'s' if pending != 1 else ''} still pending",
+                f"{pending} item{'s' if pending != 1 else ''} still pending — use Skip (s) to defer",
                 severity="warning",
             )
             return
@@ -373,13 +417,13 @@ class ReviewApp(App):
     def _save_results(self) -> None:
         """Write results.json to the session directory."""
         results = []
-        counts = {"pending": 0, "accepted": 0, "rejected": 0, "edit": 0}
+        counts = {"pending": 0, "accepted": 0, "rejected": 0, "edit": 0, "skipped": 0}
         for it in self.items:
             entry: dict = {"id": it["id"], "action": it["status"]}
             if it["status"] == "edit":
                 entry["prompt"] = it["prompt"]
             results.append(entry)
-            counts[it["status"]] += 1
+            counts[it["status"]] = counts.get(it["status"], 0) + 1
 
         output = {
             "results": results,

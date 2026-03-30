@@ -48,6 +48,7 @@ ICONS = {
     "accepted": ("✓", "green"),
     "rejected": ("✗", "red"),
     "edit":     ("✎", "cyan"),
+    "skipped":  ("⊘", "dim"),
 }
 
 PRIORITY_COLORS = {

@@ -316,6 +316,7 @@ Write `.temp/interactive/pr-<number>/items.json`:
 ```json
 {
   "title": "Review: <PR title> (#<number>)",
+  "mode": "code",
   "items": [
     {
       "id": "finding-<N>",
@@ -327,6 +328,7 @@ Write `.temp/interactive/pr-<number>/items.json`:
         "priority": "<Blocker|Critical|Should Have|May Have|Nitpick|Question>",
         "principle": "<Correctness|Security|Performance|...>",
         "confidence": "<score>",
+        "guideline": "<which standard or best practice is violated>",
         "source": "<diff-only|full-context|both>"
       }
     }
@@ -356,6 +358,7 @@ Read `.temp/interactive/pr-<number>/results.json` and process:
 
 - **`accepted`** → Post to source platform immediately (see Posting below)
 - **`rejected`** → Discard. Do not post.
+- **`skipped`** → Deferred by the user. Save to `.temp/pr-review/pr-<number>-deferred.md` for future review sessions. Do not post.
 - **`edit`** → Regenerate the comment using the `prompt` field from results. Apply the same auto-validation to the regenerated comment.
 
 #### Step 4: Edit Loop
@@ -390,10 +393,12 @@ After all rounds complete, display:
 TUI rounds: N
 Accepted: N
 Rejected: N
+Skipped (deferred): N
 Resolved old threads: N
 Reopened critical threads: N
 Auto-validation discarded: N
 Output: [PR comments posted | Markdown saved to <path>]
+Deferred: [N items saved to <path> | none]
 ```
 
 ---

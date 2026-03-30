@@ -63,14 +63,14 @@ For documents (not PR comments), mode applies to the entire document. Default: `
 ```md
 [<PRIORITY>][<PRINCIPLE>] <Short, specific title>
 
-<1-2 sentence description.> <Optional inline suggestion.>
+<1-2 sentence description with file:line reference.> <Optional inline suggestion.>
 ```
 
 **Example:**
 ```md
 [Nitpick][Maintainability] Unused import `lodash/merge`
 
-Remove the import — it's unused after the refactor in this PR.
+`src/utils/cart.ts:3` — remove the import, it's unused after the refactor in this PR.
 ```
 
 ### Standard Mode (Should Have / May Have)
@@ -78,10 +78,15 @@ Remove the import — it's unused after the refactor in this PR.
 ```md
 [<PRIORITY>][<PRINCIPLE>] <Short, specific title>
 
+**Summary**
+- Location: `<file>:<line>`
+- Confidence: <score>/100
+- Guideline: <which standard or best practice is violated>
+
 **Issue**
 <1-3 sentences: what is wrong, which code path, under what condition.>
 
-**Impact**
+**Why it matters**
 <1-2 sentences on practical consequence.>
 
 **Suggested fix**
@@ -96,10 +101,15 @@ Remove the import — it's unused after the refactor in this PR.
 ```md
 [Should Have][Performance] N+1 query in order list endpoint
 
+**Summary**
+- Location: `src/routes/orders.ts:23-35`
+- Confidence: 91/100
+- Guideline: `coding-guidelines/backend-general: query patterns`
+
 **Issue**
 The endpoint fetches orders then loads customer data in a loop — one extra query per order. Scales linearly with result size.
 
-**Impact**
+**Why it matters**
 Latency grows with data volume. Not obvious in local testing but costly in production under concurrent load.
 
 **Suggested fix**
@@ -121,9 +131,9 @@ Use the full canonical template from `review-comment-template.md`:
 [<PRIORITY>][<PRINCIPLE>] <Short, specific title>
 
 **Summary**
+- Location: `<file>:<line-range>`
 - Confidence: <score>/100
-- Agent: devkit (skill plugin tool)
-- Principle violated: <principle>
+- Guideline: <which standard or best practice is violated>
 
 **Issue**
 <What is wrong, in which code path, and under what condition.>

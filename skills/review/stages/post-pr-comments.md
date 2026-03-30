@@ -24,9 +24,9 @@ Format each finding using the canonical comment template from `references/review
 [<PRIORITY>][<PRINCIPLE>] <Short, specific title>
 
 **Summary**
+- Location: `<file-path>:<line-range>`
 - Confidence: <score>/100
-- Agent: devkit (skill plugin tool)
-- Principle violated: <principle>
+- Guideline: <which standard or best practice is violated>
 
 **Issue**
 <description>
