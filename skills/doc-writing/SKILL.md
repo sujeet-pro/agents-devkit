@@ -1,5 +1,5 @@
 ---
-name: doc-writing
+name: adk-doc-writing
 description: "[helper] [guidelines] Helper skill that detects the document type being written and loads matching document guidelines — invoked by write skills, review-doc skills, and doc-fix, not directly by users"
 user-invocable: false
 argument-hint: "[--type <doc-type>] [--help]"
@@ -37,10 +37,10 @@ When `--help` is passed, display this reference and stop.
 ### Examples
 
 ```
-(invoked automatically by /write, /review-doc)
-/doc-writing --type rfc
-/doc-writing --type changelog
-/doc-writing --type article
+(invoked automatically by /adk-write, /adk-review-doc)
+/adk-doc-writing --type rfc
+/adk-doc-writing --type changelog
+/adk-doc-writing --type article
 ```
 
 ---

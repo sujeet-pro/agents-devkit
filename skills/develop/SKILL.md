@@ -1,5 +1,5 @@
 ---
-name: develop
+name: adk-develop
 description: "[full] [develop] Use when implementing features, debugging, enhancing code, or running TDD — auto-detects mode from context"
 user-invocable: true
 argument-hint: "<task> [--mode implement|enhance|debug|tdd|verify|worktree|quick] [--fix] [--verbosity short|standard|detailed] [--help]"
@@ -45,13 +45,13 @@ Load references: `references/workflow-6phase.md`, `references/communication-styl
 ### Examples
 
 ```
-/develop add user authentication with JWT tokens
-/develop --mode debug the login form crashes on empty email
-/develop --mode tdd implement retry logic for API calls
-/develop --mode enhance refactor the caching layer to support TTL
-/develop --mode quick fix the typo in the README
-/develop --mode worktree feature/new-dashboard
-/develop --mode verify check all tests pass after the migration
+/adk-develop add user authentication with JWT tokens
+/adk-develop --mode debug the login form crashes on empty email
+/adk-develop --mode tdd implement retry logic for API calls
+/adk-develop --mode enhance refactor the caching layer to support TTL
+/adk-develop --mode quick fix the typo in the README
+/adk-develop --mode worktree feature/new-dashboard
+/adk-develop --mode verify check all tests pass after the migration
 ```
 
 ## Preflight
@@ -129,7 +129,7 @@ Use the output format defined in the loaded stage file. Adapt verbosity based on
 
 ## Adjacent Skills
 
-- `/plan --mode write` — standalone planning before development
-- `/review` — code review after development
-- `/handoff` — pause long development sessions
-- `/spec --mode write` — write specifications before implementation
+- `/adk-plan --mode write` — standalone planning before development
+- `/adk-review-pr` — code review after development
+- `/adk-handoff` — pause long development sessions
+- `/adk-spec --mode write` — write specifications before implementation

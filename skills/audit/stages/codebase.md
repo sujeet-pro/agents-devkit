@@ -24,7 +24,7 @@ Run at least these child agents in parallel:
 ## Workflow
 
 1. **Detect repo type.** Analyze the repository to determine the primary technology stack, frameworks, and domain (frontend, backend, fullstack, design system, library, CLI tool, etc.).
-2. **Load coding guidelines.** Invoke `/coding` to detect repo frameworks and load matching coding guidelines. Use full detection (not scoped to changed files).
+2. **Load coding guidelines.** Invoke `/adk-coding` to detect repo frameworks and load matching coding guidelines. Use full detection (not scoped to changed files).
 3. **Scan repository structure.** Audit directory layout, module boundaries, dependency graph, and configuration files. Check for clear ownership boundaries and separation of concerns.
 4. **Analyze code quality.** Scan for anti-patterns, dead code, duplication, inconsistent patterns, and modernization opportunities. Evaluate test coverage and testing strategy.
 5. **Review build and release.** Check build configuration, CI/CD setup, release process, and developer experience tooling (linting, formatting, type checking).

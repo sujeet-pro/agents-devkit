@@ -1,5 +1,5 @@
 ---
-name: plan
+name: adk-plan
 description: "[full] [plan] Use when brainstorming, approving, executing, or tracking implementation plans with explicit human checkpoints before execution"
 user-invocable: true
 argument-hint: "<task> [--mode brainstorm|write|execute|track] [--verbosity short|standard|detailed] [--help]"
@@ -43,11 +43,11 @@ Load references: `references/workflow-6phase.md`, `references/communication-styl
 ### Examples
 
 ```text
-/plan brainstorm a notification system for the app
-/plan --mode write implement user authentication based on the spec
-/plan --mode execute .temp/plans/auth-plan.md
-/plan --mode track
-/plan --plan .temp/plans/auth-plan.md --mode track
+/adk-plan brainstorm a notification system for the app
+/adk-plan --mode write implement user authentication based on the spec
+/adk-plan --mode execute .temp/plans/auth-plan.md
+/adk-plan --mode track
+/adk-plan --plan .temp/plans/auth-plan.md --mode track
 ```
 
 ## Hard Gates
@@ -68,7 +68,7 @@ If `--mode` is explicitly provided, load the matching stage file directly. Other
 | Signal | Mode | Stage File |
 |---|---|---|
 | rough idea, “brainstorm”, “explore”, “what if”, vague request | brainstorm | `stages/brainstorm.md` |
-| spec exists, requirements are known, “write a plan”, “plan for” | write | `stages/write.md` |
+| spec exists, requirements are known, “write a plan”, “plan for” | write | `stages/adk-write.md` |
 | plan file exists, “execute”, “implement the plan”, “carry this out” | execute | `stages/execute.md` |
 | “track”, “status”, “progress”, “dashboard”, “what’s left” | track | `stages/track.md` |
 
@@ -135,12 +135,12 @@ All modes end with:
 ## Output Format
 
 - **short**: one-line status
-- **standard**: summary, decision/plan/status, next step
+- **standard**: summary, decision/adk-plan/status, next step
 - **detailed**: standard output plus rationale, options considered, and artifact paths
 
 ## Adjacent Skills
 
-- `/spec` — formal requirements before planning
-- `/develop` — implementation after planning
-- `/review` — review after development
-- `/handoff` — pause or resume long planning sessions
+- `/adk-spec` — formal requirements before planning
+- `/adk-develop` — implementation after planning
+- `/adk-review-pr` — review after development
+- `/adk-handoff` — pause or resume long planning sessions

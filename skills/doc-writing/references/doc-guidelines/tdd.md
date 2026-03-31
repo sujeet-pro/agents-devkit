@@ -108,7 +108,7 @@ This is the implementation section. It covers "how" at the component level.
 - **Component responsibilities**: What each component owns, delegates, and assumes.
 - **APIs / Contracts**: Full endpoint specifications — method, path, request/response schemas, error codes, auth requirements, rate limits. Use typed schemas (OpenAPI, Protobuf), not pseudocode.
 - **Schema / Data model changes**: Table definitions with column types, constraints, indexes, partitioning. Include migration scripts for schema changes.
-- **Storage / Caching / Messaging**: Technology choices with justification, read/write patterns, cache invalidation strategy.
+- **Storage / Caching / Messaging**: Technology choices with justification, read/adk-write patterns, cache invalidation strategy.
 - **State transitions**: State machines for entities with complex lifecycles.
 - **Error handling**: Enumerated error codes with HTTP status, condition, user message, and recovery action. Retry policies with max retries, backoff strategy, and jitter.
 - **Idempotency / Retries / Concurrency**: How the system handles duplicate requests, retries, and concurrent access.

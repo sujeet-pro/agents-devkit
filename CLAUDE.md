@@ -1,6 +1,6 @@
 # DevKit
 
-Use skills from `skills/` directory. Route general prompts through `/use` first. Invoke a specific skill directly only when the user explicitly names that skill or clearly wants that exact workflow.
+Use skills from `skills/` directory. Route general prompts through `/adk-use` first. Invoke a specific skill directly only when the user explicitly names that skill or clearly wants that exact workflow.
 
 Every skill supports `--help` to see parameters and behavior variations.
 
@@ -11,7 +11,7 @@ See [CONTRIBUTING.md](./CONTRIBUTING.md) for how to add skills, guidelines, agen
 ## Skill Architecture Rules
 
 - **Self-sufficient**: Each skill references only files within its own `skill-name/` directory. No cross-skill file references.
-- **Delegation, not file sharing**: When a skill needs another skill's capability, it invokes that skill (e.g., "invoke `/research`"), never references its sub-files. The invoking skill specifies the output format it needs, not how to do the work.
+- **Delegation, not file sharing**: When a skill needs another skill's capability, it invokes that skill (e.g., "invoke `/adk-research`"), never references its sub-files. The invoking skill specifies the output format it needs, not how to do the work.
 - **All reference material lives under `references/`**, with subfolders when grouping aids readability.
 - **Consistent structure**: Every skill has `SKILL.md`, `references/`, and `scripts/`. Multi-mode skills also have `stages/` for conditional stage files.
 
@@ -21,9 +21,9 @@ When updating shared concepts, these skills need coordinated updates:
 
 | What Changed | Skills to Update |
 |---|---|
-| **Coding guidelines** (`coding/references/coding-guidelines/`) | `review`, `develop`, `design`, `audit` — all invoke `/coding` |
-| **Doc-writing guidelines** (`doc-writing/references/doc-guidelines/`) | `write`, `review-doc`, `spec` — all invoke `/doc-writing` |
-| **Research methodology** (`research/references/research-methodology.md`) | `write`, `plan`, `spec`, `design` — all may invoke `/research` |
+| **Coding guidelines** (`coding/references/coding-guidelines/`) | `adk-review-pr`, `adk-develop`, `adk-design`, `adk-audit` — all invoke `/adk-coding` |
+| **Doc-writing guidelines** (`doc-writing/references/doc-guidelines/`) | `adk-write`, `adk-review-doc`, `adk-spec` — all invoke `/adk-doc-writing` |
+| **Research methodology** (`research/references/research-methodology.md`) | `adk-write`, `adk-plan`, `adk-spec`, `adk-design` — all may invoke `/adk-research` |
 | **Review comment format** (`templates/skill/references/review-comment-template.md`) | `review`, `audit` — all produce review comments |
 | **6-phase workflow** (`templates/skill/references/workflow-6phase.md`) | All full-tier skills — propagate via `propagate.py` |
 | **Agentic teams contract** (`templates/skill/references/agentic-teams.md`) | All skills that spawn child agents — propagate via `propagate.py` |

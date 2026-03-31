@@ -24,7 +24,7 @@ Report which files were found and which ecosystems are present before proceeding
 
 Run at least these child agents in parallel:
 
-- **vulnerability-scanner**: for each ecosystem, check dependencies against known CVE databases and advisory sources. Classify findings by severity (Critical, High, Medium, Low). Use `/research` with `depth=standard` for any CVE that needs additional context.
+- **vulnerability-scanner**: for each ecosystem, check dependencies against known CVE databases and advisory sources. Classify findings by severity (Critical, High, Medium, Low). Use `/adk-research` with `depth=standard` for any CVE that needs additional context.
 - **update-compatibility-checker**: for each outdated dependency, research the changelog between the current and latest version. Identify breaking changes, required migration steps, and peer dependency conflicts. Flag major version bumps that need careful review.
 - **remediation-planner**: synthesize vulnerability and compatibility findings into a prioritized action plan. Group remediations by effort (drop-in update, minor migration, major migration) and risk (security-critical, quality-of-life, optional).
 

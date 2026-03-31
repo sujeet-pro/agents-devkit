@@ -67,7 +67,7 @@ When writing about topics where behavior has changed:
 
 ## Research Output Contract
 
-When `/doc-writing` invokes `/research --deep`, the research output must include:
+When `/adk-doc-writing` invokes `/adk-research --deep`, the research output must include:
 
 - **Key findings** with inline citations and source URLs
 - **Per-subtopic sections** with confidence ratings (high/medium/low)

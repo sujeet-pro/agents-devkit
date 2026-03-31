@@ -1,5 +1,5 @@
 ---
-name: audit
+name: adk-audit
 description: "[full] [audit] Use when performing a codebase, security, performance, or dependency audit -- auto-detects focus or use --focus to specify"
 user-invocable: true
 argument-hint: "[--focus codebase|security|performance|dependency|all] [--scope] [--format] [--verbosity short|standard|detailed] [--help]"
@@ -55,14 +55,14 @@ When `--help` is passed, display this reference and stop.
 ### Examples
 
 ```
-/audit
-/audit --focus security
-/audit --focus codebase --scope src/
-/audit --focus performance --scope src/api/ --verbosity detailed
-/audit --focus dependency --scope production --format pr
-/audit --focus security,performance
-/audit --publish --verbosity detailed
-/audit --focus codebase --publish
+/adk-audit
+/adk-audit --focus security
+/adk-audit --focus codebase --scope src/
+/adk-audit --focus performance --scope src/api/ --verbosity detailed
+/adk-audit --focus dependency --scope production --format pr
+/adk-audit --focus security,performance
+/adk-audit --publish --verbosity detailed
+/adk-audit --focus codebase --publish
 ```
 
 ---
@@ -108,7 +108,7 @@ Once the focus is resolved, load the corresponding stage file(s):
 
 ## Guideline Loading
 
-Invoke the `/coding` helper skill to detect the repo stack and load the appropriate coding guidelines. For codebase focus, use full detection (not scoped to changed files).
+Invoke the `/adk-coding` helper skill to detect the repo stack and load the appropriate coding guidelines. For codebase focus, use full detection (not scoped to changed files).
 
 ## Required Team
 

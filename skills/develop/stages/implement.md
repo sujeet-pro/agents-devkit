@@ -73,7 +73,7 @@ Research the chosen approach in depth:
 
 ## Implementation Plan
 
-Create a plan following `/plan --mode write` conventions:
+Create a plan following `/adk-plan --mode write` conventions:
 - Break into discrete, verifiable tasks
 - Identify files to create or modify per task
 - Define verification commands per task

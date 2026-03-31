@@ -1,5 +1,5 @@
 ---
-name: diagram
+name: adk-diagram
 description: "[full] [diagram] Use when creating diagrams — auto-detects engine or use --engine flag"
 user-invocable: true
 argument-hint: "<description> [--engine mermaid|excalidraw|drawio|graphviz] [--type flowchart|sequence|class|state|er|gantt|mindmap|...] [--verbosity short|standard|detailed] [--help]"
@@ -45,12 +45,12 @@ Load references: `references/workflow-6phase.md`, `references/communication-styl
 ### Examples
 
 ```
-/diagram architecture overview of the auth system
-/diagram --engine mermaid --type sequence user login flow
-/diagram --engine excalidraw system architecture from codebase
-/diagram --engine drawio AWS infrastructure layout
-/diagram --engine graphviz update the dependency graph
-/diagram --render --format png --scale 2 deployment pipeline
+/adk-diagram architecture overview of the auth system
+/adk-diagram --engine mermaid --type sequence user login flow
+/adk-diagram --engine excalidraw system architecture from codebase
+/adk-diagram --engine drawio AWS infrastructure layout
+/adk-diagram --engine graphviz update the dependency graph
+/adk-diagram --render --format png --scale 2 deployment pipeline
 ```
 
 ## Preflight
@@ -131,6 +131,6 @@ Use the output format defined in the loaded stage file. Adapt verbosity based on
 
 ## Adjacent Skills
 
-- `/plan` -- planning workflows that may need architecture diagrams
-- `/spec` -- specifications that may need visual documentation
-- `/write` -- documentation that may embed diagrams
+- `/adk-plan` -- planning workflows that may need architecture diagrams
+- `/adk-spec` -- specifications that may need visual documentation
+- `/adk-write` -- documentation that may embed diagrams

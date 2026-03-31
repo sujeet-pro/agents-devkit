@@ -69,7 +69,7 @@ VS Code: Install the draw.io extension and open the file directly.
         <!-- Diagram elements go here -->
       </root>
     </mxGraphModel>
-  </diagram>
+  </adk-diagram>
 </mxfile>
 ```
 
@@ -319,7 +319,7 @@ Note: When elements are inside a container, their x/y coordinates are relative t
         <!-- Overview diagram -->
       </root>
     </mxGraphModel>
-  </diagram>
+  </adk-diagram>
   <diagram id="detail-api" name="API Detail">
     <mxGraphModel>
       <root>
@@ -328,7 +328,7 @@ Note: When elements are inside a container, their x/y coordinates are relative t
         <!-- API detail diagram -->
       </root>
     </mxGraphModel>
-  </diagram>
+  </adk-diagram>
 </mxfile>
 ```
 
@@ -413,7 +413,7 @@ diagramkit handles dark mode rendering automatically, but follow these guideline
         </mxCell>
       </root>
     </mxGraphModel>
-  </diagram>
+  </adk-diagram>
 </mxfile>
 ```
 
@@ -489,7 +489,7 @@ diagramkit handles dark mode rendering automatically, but follow these guideline
         </mxCell>
       </root>
     </mxGraphModel>
-  </diagram>
+  </adk-diagram>
 </mxfile>
 ```
 

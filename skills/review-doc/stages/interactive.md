@@ -1,6 +1,6 @@
 # Interactive Document Review
 
-This stage runs an interactive review loop for Confluence or Google Docs. The user accepts, edits, rejects, or skips each comment before it is posted to the platform. Activated with `--interactive`.
+This stage runs an interactive review loop for Confluence or Google Docs. The user accepts, edits, rejects, or skips each comment before it is posted to the platform.
 
 ## Source Handling
 
@@ -13,11 +13,20 @@ Read the full document content, existing comments, and any resolution state befo
 
 ## Guideline Loading
 
-Invoke the `/coding` helper skill to detect the repo stack and load the appropriate coding guidelines.
+Invoke the `/adk-coding` helper skill to detect the repo stack and load the appropriate coding guidelines.
 
-## Interactive Review TUI
+## Interaction Mode
 
-After generating and validating all findings, launch the interactive review TUI.
+Check flags:
+
+- **`-i`** (default): Use inline interactivity — render findings in the conversation per `references/inline-interaction.md`
+- **`-tui`**: Use TUI interactivity — write `items.json`, print the terminal command, wait for user to return with results
+
+If neither flag is specified, default to `-i`.
+
+## Interactive Review
+
+After generating and validating all findings, filter out any with confidence below the `--confidence` threshold (default: 80%). Present the remaining findings to the user.
 
 ### Step 1: Prepare Session
 
@@ -32,6 +41,7 @@ Write `.temp/interactive/doc-review-<slug>/items.json`:
 ```json
 {
   "title": "Doc Review: <document title>",
+  "mode": "doc",
   "items": [
     {
       "id": "finding-<N>",
@@ -40,7 +50,8 @@ Write `.temp/interactive/doc-review-<slug>/items.json`:
       "metadata": {
         "section": "<document section>",
         "priority": "<Critical|Should Have|May Have|Nitpick>",
-        "category": "<accuracy|clarity|structure|style|completeness>"
+        "category": "<accuracy|clarity|structure|style|completeness>",
+        "confidence": "<score>"
       }
     }
   ]
@@ -49,38 +60,89 @@ Write `.temp/interactive/doc-review-<slug>/items.json`:
 
 Sort items by severity (critical first).
 
-### Step 2: Launch TUI
+### Step 2: Present Findings
 
-```bash
-python3 ${CLAUDE_SKILL_DIR}/scripts/tui/review.py .temp/interactive/doc-review-<slug>/
+#### If `-tui` flag is set:
+
+```
+Session ready. Run in a separate terminal:
+
+    python3 ${CLAUDE_SKILL_DIR}/scripts/tui/adk-review-pr.py .temp/interactive/doc-review-<slug>/
+
+Tell me when you're done and I'll process the results.
 ```
 
-The TUI auto-installs its dependency (`textual`) on first run. The user reviews each finding and marks it as:
+Skip to Step 3 when user returns.
 
-- **Accept** (a): queue for posting
-- **Reject** (r): discard
-- **Edit** (e): mark for regeneration with a user-provided prompt
+#### If `-i` flag (default):
+
+Use the **Review Findings** protocol from `references/inline-interaction.md`. Render a summary header then each finding as a structured card:
+
+```
+## Review Findings
+
+**<N> findings** | <critical-count> Critical | <should-count> Should Have | <may-count> May Have | <nitpick-count> Nitpick
+
+---
+
+**1.** [<Priority>] <Short description>
+*Section: <section name>* | *<Category>* | Confidence: **<score>%**
+> <1-2 sentence explanation of the issue>
+> *Suggestion:* <1 sentence recommended change>
+
+---
+
+**2.** [<Priority>] <Short description>
+*Section: <section name>* | *<Category>* | Confidence: **<score>%**
+> <1-2 sentence explanation of the issue>
+> *Suggestion:* <1 sentence recommended change>
+
+---
+
+> **Actions:** **a** accept | **r** reject | **e** edit | **s** skip — by number
+> Example: `a-1,4,5 r-2 e-3 s-6`
+> Also: `a-all` | `details <N>` | `tui` (switch to TUI) | `done`
+```
+
+The user responds with compact syntax: `a-1,4,5 r-2 e-3`
+
+If the user types **`tui`**, switch to TUI mode: write pending items to `items.json`, print the terminal command, and wait for the user to return.
 
 ### Step 3: Process Results
 
-Read `.temp/interactive/doc-review-<slug>/results.json` and process:
+After the user responds (inline or via TUI), process each finding:
 
-- **`accepted`** → Post to platform immediately:
+- **`accepted`** -> Post to platform or produce manual comment file:
   - Confluence: `mcp__atlassian-confluence__confluence_add_comment`
-  - Google Docs: `mcp__google-drive__addComment`
-- **`rejected`** → Discard
-- **`edit`** → Regenerate the comment using the `prompt` field
+  - Google Docs: do **not** post via MCP (unreliable). Instead, collect all accepted comments and produce a markdown file at `.temp/adk-review-doc/<doc-title>-comments.md` listing each comment with its target section/paragraph and content. Present the file path and ask the user to add comments manually.
+- **`rejected`** -> Discard
+- **`edit`** -> Handle in edit loop (Step 4)
+- **`skipped`** -> Defer, do not post
+
+Write `results.json` to the session directory for traceability.
 
 Do NOT edit the document content itself. This stage posts review comments only.
 
 ### Step 4: Edit Loop
 
-If any results have `action: "edit"`:
+If any findings were marked for edit, handle them one at a time:
 
-1. Regenerate those comments based on each item's edit `prompt`
-2. Write a new `items.json` with only the regenerated items
-3. Launch the TUI again (back to Step 2)
-4. Repeat until all items are `accepted` or `rejected`
+```
+## Edit Finding <N>
+
+**Current:**
+> <full finding body>
+
+**Edit instructions?** (type your changes, or `skip` to defer)
+```
+
+After the user provides instructions:
+1. Regenerate the comment based on the user's instructions
+2. Show the regenerated finding in the same card format
+3. Ask: **accept** or **edit again**
+4. Once resolved, move to the next edit item
+
+After all edits are resolved, if any items are still pending, re-render the remaining list and prompt again. Repeat until all items are `accepted` or `rejected`.
 
 ### Summary
 
@@ -91,11 +153,14 @@ After all rounds complete, display:
 
 Platform: [Confluence | Google Docs]
 Document: <title>
-TUI rounds: N
+Rounds: N
 
-Accepted: N
-Rejected: N
-Posted to platform: N
+- **Accepted:** N
+- **Rejected:** N
+- **Edited:** N
+- **Skipped:** N
+- **Posted to platform:** N (Confluence only)
+- **Manual comment file:** [path | N/A] (Google Docs only)
 ```
 
 If `--verbosity detailed` is set, also produce a markdown review artifact with all findings (accepted and rejected) for reference.

@@ -95,7 +95,7 @@ Description: <brief>
 Trigger: <condition>
 Age: <days since capture>
 
-Action: [P]romote to spec/plan | [D]efer | [R]emove | [E]dit | [S]kip
+Action: [P]romote to spec/adk-plan | [D]efer | [R]emove | [E]dit | [S]kip
 ```
 
 4. **Handle actions:**
@@ -129,13 +129,13 @@ Convert an idea into a spec task or execution plan.
 
 ```text
 Promote "<title>" to:
-[S]pec -- create a detailed specification via /spec --mode write
-[P]lan -- create an execution plan via /plan --mode write
-[T]ask -- create a quick-task via /develop --mode quick
+[S]pec -- create a detailed specification via /adk-spec --mode write
+[P]lan -- create an execution plan via /adk-plan --mode write
+[T]ask -- create a quick-task via /adk-develop --mode quick
 ```
 
 3. **Hand off.** Pass the idea description, trigger condition, and notes as context to the chosen skill.
-4. **Update status.** Set the idea `status` to `promoted` and add a note with the path to the created spec/plan/task.
+4. **Update status.** Set the idea `status` to `promoted` and add a note with the path to the created spec/adk-plan/task.
 
 ### 4. List (`action=list`)
 

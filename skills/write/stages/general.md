@@ -50,7 +50,7 @@ Links to related documents, external resources, and source material.
 - `research-agent` for official docs, standards, and migration notes
 - `code-snippet-agent` for examples grounded in the repository or ecosystem
 - `doc-reviewer` for structure and clarity
-- a diagram pass through `/diagram` when the topic benefits from visuals
+- a diagram pass through `/adk-diagram` when the topic benefits from visuals
 - `source-publisher` if the final output is Confluence or Google Docs
 
 ## Writing Rules

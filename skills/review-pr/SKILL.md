@@ -1,8 +1,8 @@
 ---
-name: review
-description: "[full] [review] Use when reviewing code — PR, local, or branch. Handles review, fix, describe, finalize with conditional stages"
+name: adk-review-pr
+description: "[full] [review-pr] Use when reviewing code — PR, local, or branch. Handles review, fix, describe, finalize with conditional stages"
 user-invocable: true
-argument-hint: "<target> [--fix] [--action describe|fix|finalize|status] [--focus security|performance|deps|ui|codebase] [--mode auto|standard|interactive|followup] [--verbosity short|standard|detailed] [--cross] [--help]"
+argument-hint: "<target> [--fix] [--action describe|fix|finalize|status] [--focus security|performance|deps|ui|codebase] [--mode auto|standard|interactive|followup] [-i|-tui] [--verbosity short|standard|detailed] [--cross] [--context <url>...] [--help]"
 allowed-tools: [Glob, Grep, Read, Edit, Write, Bash, WebSearch, WebFetch, Agent]
 dependencies:
   commands: [git]
@@ -20,6 +20,16 @@ Use the shared contracts in `references/review-pipeline.md`, `references/source-
 
 This skill is the single entry point for all code review workflows — PR review, local change review, branch review, PR management (describe, fix, finalize), and report generation.
 
+Key review behaviors:
+- **Smart parameter detection**: Infers `--mode`, `--action`, and `--focus` from prompt context and PR state (e.g., existing comments trigger re-review mode automatically)
+- **Comment consolidation**: Multiple findings on the same line are merged into a single comment; multiple replies to the same thread are combined
+- **Praise**: Recognizes well-crafted code with specific, genuine praise (1-3 per review, never forced)
+- **Visual clarity**: Comments use icons and concise metadata for easy scanning on PR platforms
+- **Context-aware**: Reads PR description, linked Jira tickets, Google Docs, Confluence pages, and other context documents before reviewing code
+- **10 review dimensions**: Syntax, correctness, security, performance, design, reliability, testing, documentation, UI/UX (conditional), spec compliance (conditional)
+- **Dual tagging**: Every comment carries both a Concern domain (what area) and Review Depth (how deep) classification
+- **Platform-adaptive**: Uses italic pipe-separated metadata that renders cleanly on both GitHub and Bitbucket
+
 ---
 
 ## Help
@@ -35,11 +45,14 @@ When `--help` is passed, display this reference and stop.
 | `--action` | `describe`, `fix`, `finalize`, `status` | auto-detect | Force a specific PR management action |
 | `--focus` | `security`, `performance`, `deps`, `ui`, `codebase` | all | Weight review toward a specific concern |
 | `--mode` | `auto`, `standard`, `interactive`, `followup` | `auto` | Review interaction mode |
+| `-i` | flag | on | Inline interactivity — render review findings in the conversation |
+| `-tui` | flag | off | TUI interactivity — user runs TUI in a separate terminal |
 | `--verbosity` | `short`, `standard`, `detailed` | `standard` | Output detail level |
 | `--cross` | flag | off | Enable multi-model peer review (built-in cross-review mode) |
 | `--publish` | flag | off | Post comments to the PR source |
 | `--ui` | flag | auto-detect | Force UI review pass |
-| `--confidence` | number | 70 | Minimum confidence threshold for findings |
+| `--confidence` | number | 80 | Minimum confidence threshold for findings (only findings at or above this score are shown) |
+| `--context` | URL(s) | none | Additional context URLs (Google Docs, Confluence, Jira tickets, markdown files) to read before reviewing. Multiple URLs separated by spaces |
 
 ### Behavior Variations
 
@@ -47,25 +60,27 @@ When `--help` is passed, display this reference and stop.
 - **PR URL provided, you ARE the author**: manages the PR (fix comments, describe, finalize)
 - **Branch name provided**: reviews branch diff against base
 - **No target**: reviews local staged/unstaged changes
-- **`--focus security`**: delegates to `/audit --focus security`
-- **`--focus performance`**: delegates to `/audit --focus performance`
-- **`--focus deps`**: delegates to `/audit --focus dependency`
+- **`--focus security`**: delegates to `/adk-audit --focus security`
+- **`--focus performance`**: delegates to `/adk-audit --focus performance`
+- **`--focus deps`**: delegates to `/adk-audit --focus dependency`
 - **`--focus ui`**: runs built-in UI/UX visual audit (6-pillar review covering layout, typography, color, responsiveness, accessibility, interaction states)
-- **`--focus codebase`**: delegates to `/audit --focus codebase`
+- **`--focus codebase`**: delegates to `/adk-audit --focus codebase`
 - **`--cross`**: runs built-in multi-model peer review with consensus scoring
 
 ### Examples
 
 ```
-/review https://github.com/org/repo/pull/42
-/review https://github.com/org/repo/pull/42 --mode interactive
-/review https://github.com/org/repo/pull/42 --action fix
-/review https://github.com/org/repo/pull/42 --action describe
-/review https://github.com/org/repo/pull/42 --action finalize
-/review feature/auth-v2
-/review --fix
-/review --focus security
-/review
+/adk-review-pr https://github.com/org/repo/pull/42
+/adk-review-pr https://github.com/org/repo/pull/42 --mode interactive
+/adk-review-pr https://github.com/org/repo/pull/42 --mode interactive -tui
+/adk-review-pr https://github.com/org/repo/pull/42 --action fix
+/adk-review-pr https://github.com/org/repo/pull/42 --action describe
+/adk-review-pr https://github.com/org/repo/pull/42 --action finalize
+/adk-review-pr https://github.com/org/repo/pull/42 --context https://docs.google.com/document/d/abc123 https://jira.company.com/browse/PROJ-456
+/adk-review-pr feature/auth-v2
+/adk-review-pr --fix
+/adk-review-pr --focus security
+/adk-review-pr
 ```
 
 ---
@@ -179,11 +194,11 @@ After preflight, select the primary stage and action stage.
 |--------|-----------|-------------|
 | PR URL provided | `stages/pr-review.md` | Full PR review with dual-diff, child agents, interactive loop |
 | Source branch name provided (no PR) | `stages/branch-review.md` | Branch-to-branch diff review |
-| `--focus security` | Delegate to `/audit --focus security` | Security-focused audit |
-| `--focus performance` | Delegate to `/audit --focus performance` | Performance-focused audit |
-| `--focus deps` | Delegate to `/audit --focus dependency` | Dependency-focused audit |
+| `--focus security` | Delegate to `/adk-audit --focus security` | Security-focused audit |
+| `--focus performance` | Delegate to `/adk-audit --focus performance` | Performance-focused audit |
+| `--focus deps` | Delegate to `/adk-audit --focus dependency` | Dependency-focused audit |
 | `--focus ui` | `stages/ui-review.md` | Built-in 6-pillar UI/UX visual audit |
-| `--focus codebase` | Delegate to `/audit --focus codebase` | Full codebase review |
+| `--focus codebase` | Delegate to `/adk-audit --focus codebase` | Full codebase review |
 | `--cross` | `stages/cross-review.md` | Built-in multi-model peer review with consensus |
 | Default (no target, no focus) | `stages/local-review.md` | Review staged/unstaged/branch-local changes |
 
@@ -261,10 +276,12 @@ All output is markdown by default. Structure varies by stage -- see the stage-sp
 
 Every review output includes:
 
-- severity-ordered findings
-- confidence scores
+- severity-ordered findings (Must Fix -> Suggestion -> Note -> Praise)
+- confidence scores, Concern domain, and Review Depth tags per finding
+- review dimension attribution (which sub-agent identified the issue)
 - source tag (`[diff-only]`, `[full-context]`, `[both]`) per finding (when applicable)
 - auto-validation summary (when applicable)
+- context documents consumed (linked Jira tickets, Google Docs, Confluence pages)
 - open questions and assumptions
 - summary of what was posted back to the PR (or saved to markdown)
 - comment reconciliation summary covering carried-forward, resolved, reopened, and skipped threads
@@ -273,7 +290,7 @@ Every review output includes:
 
 ## Adjacent Skills
 
-- `/audit` for codebase quality audits (security, performance, dependency)
-- `/setup` to configure tools and MCP servers
-- `/develop --mode verify` for standalone verification before finalizing
-- `/write --type changelog` for release changelogs after merge
+- `/adk-audit` for codebase quality audits (security, performance, dependency)
+- `/adk-setup` to configure tools and MCP servers
+- `/adk-develop --mode verify` for standalone verification before finalizing
+- `/adk-write --type changelog` for release changelogs after merge

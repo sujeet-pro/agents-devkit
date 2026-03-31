@@ -57,7 +57,7 @@ This structure informs the task decomposition. Each task should produce self-con
 ```markdown
 # [Feature Name] Implementation Plan
 
-> **For agentic workers:** Use `/plan --mode execute` or dispatch child agents per the agentic-teams contract to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** Use `/adk-plan --mode execute` or dispatch child agents per the agentic-teams contract to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** [One sentence describing what this builds]
 
@@ -76,7 +76,7 @@ This structure informs the task decomposition. Each task should produce self-con
 **Files:**
 - Create: `exact/path/to/file.py`
 - Modify: `exact/path/to/existing.py:123-145`
-- Test: `tests/exact/path/to/test.py`
+- Test: `tests/exact/path/to/adk-test.py`
 
 - [ ] **Step 1: Write the failing test**
 
@@ -88,7 +88,7 @@ def test_specific_behavior():
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `pytest tests/path/test.py::test_name -v`
+Run: `pytest tests/path/adk-test.py::test_name -v`
 Expected: FAIL with "function not defined"
 
 - [ ] **Step 3: Write minimal implementation**
@@ -100,13 +100,13 @@ def function(input):
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `pytest tests/path/test.py::test_name -v`
+Run: `pytest tests/path/adk-test.py::test_name -v`
 Expected: PASS
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add tests/path/test.py src/path/file.py
+git add tests/path/adk-test.py src/path/file.py
 git commit -m "feat: add specific feature"
 ```
 ````

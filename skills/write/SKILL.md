@@ -1,5 +1,5 @@
 ---
-name: write
+name: adk-write
 description: "[full] [write] Use when creating or updating any engineering document — auto-detects type and loads the right stage, with optional Confluence/Google Docs publishing"
 user-invocable: true
 argument-hint: "<topic> [--type adr|rfc|api|blog|article|changelog|runbook|migration|onboarding|project|proposal|system-design|tech-radar|tool-eval|fix] [--template <path-or-url>] [--format] [--publish] [--publish-space] [--publish-parent] [--publish-update] [--verbosity short|standard|detailed] [--help]"
@@ -16,7 +16,7 @@ Load references: `references/workflow-6phase.md`, `references/communication-styl
 
 Use this skill when the agent should create or update any engineering document. It auto-detects the document type from the prompt or an explicit `--type` flag, loads the matching stage file for type-specific guidance, and runs the 6-phase workflow. This skill also handles publishing to Confluence or Google Docs when `--publish` is specified.
 
-If you only want comment-only review without source edits, use `/review`.
+If you only want comment-only review without source edits, use `/adk-review-pr`.
 
 ## Help
 
@@ -57,20 +57,20 @@ If you only want comment-only review without source edits, use `/review`.
 ### Examples
 
 ```
-/write "Authentication service migration to OAuth2" --type rfc
-/write "ADR for choosing PostgreSQL over DynamoDB"
-/write changelog --since v2.1.0
-/write runbook "Incident response for payment service"
-/write "API reference for user service" --type api --format confluence
-/write --type fix https://docs.google.com/document/d/abc123
-/write "New hire onboarding guide" --audience new-hires --depth comprehensive
-/write "Q1 Architecture Review" --publish both --publish-space ENG
-/write "Cache Strategy" --type system-design --verbosity detailed --output-dir docs/
-/write docs/architecture.md --publish source --publish-space ENG --publish-parent "RFCs"
-/write docs/runbook.md --publish source --publish-space OPS --publish-title "Deploy Runbook v2"
-/write docs/design.md --publish source --publish-space ENG --publish-update 12345
-/write "Onboarding guide" --template docs/templates/onboarding-template.md
-/write "Q2 RFC" --template https://company.atlassian.net/wiki/spaces/ENG/pages/99999
+/adk-write "Authentication service migration to OAuth2" --type rfc
+/adk-write "ADR for choosing PostgreSQL over DynamoDB"
+/adk-write changelog --since v2.1.0
+/adk-write runbook "Incident response for payment service"
+/adk-write "API reference for user service" --type api --format confluence
+/adk-write --type fix https://docs.google.com/document/d/abc123
+/adk-write "New hire onboarding guide" --audience new-hires --depth comprehensive
+/adk-write "Q1 Architecture Review" --publish both --publish-space ENG
+/adk-write "Cache Strategy" --type system-design --verbosity detailed --output-dir docs/
+/adk-write docs/architecture.md --publish source --publish-space ENG --publish-parent "RFCs"
+/adk-write docs/runbook.md --publish source --publish-space OPS --publish-title "Deploy Runbook v2"
+/adk-write docs/adk-design.md --publish source --publish-space ENG --publish-update 12345
+/adk-write "Onboarding guide" --template docs/templates/onboarding-template.md
+/adk-write "Q2 RFC" --template https://company.atlassian.net/wiki/spaces/ENG/pages/99999
 ```
 
 ## Preflight
@@ -84,7 +84,7 @@ If the document will be published to Confluence or Google Docs, do a lightweight
 - For Confluence (`--publish source` or `--format confluence`): verify access via `mcp__atlassian-confluence__confluence_search` with the space key. If `--publish-update` is provided, verify the page exists via `mcp__atlassian-confluence__confluence_get_page`.
 - For Google Docs (`--format google-doc`): verify Google Drive MCP connectivity.
 
-If the document needs diagrams, inherit the `/diagram` preflight before rendering assets.
+If the document needs diagrams, inherit the `/adk-diagram` preflight before rendering assets.
 
 ## Stage Selection
 
@@ -191,7 +191,7 @@ Unless the stage file specifies a different composition, run at least these chil
 - `research-agent` for official docs, standards, and migration notes
 - `code-snippet-agent` for examples grounded in the repository or ecosystem
 - `doc-reviewer` for structure and clarity
-- a diagram pass through `/diagram` when the topic benefits from visuals
+- a diagram pass through `/adk-diagram` when the topic benefits from visuals
 - `source-publisher` if the final output is Confluence or Google Docs (see Confluence Publish Workflow below)
 
 ## Confluence Publish Workflow
@@ -203,7 +203,7 @@ When `--publish source` or `--publish both` is specified with a Confluence targe
 Run at least these child agents in parallel:
 
 - **Markdown converter**: reads the markdown source and converts it to Confluence storage format (XHTML). Handles headings, code blocks, tables, admonitions, and inline formatting. Replaces local image references with Confluence attachment references.
-- **Attachment and diagram agent**: identifies all referenced images, diagrams, and rendered assets in the markdown. Uploads each as a Confluence attachment. For diagram source files (`.mmd`, `.excalidraw`, `.drawio`), uploads both the editable source and the rendered output. Uses `/diagram` if rendering is needed.
+- **Attachment and diagram agent**: identifies all referenced images, diagrams, and rendered assets in the markdown. Uploads each as a Confluence attachment. For diagram source files (`.mmd`, `.excalidraw`, `.drawio`), uploads both the editable source and the rendered output. Uses `/adk-diagram` if rendering is needed.
 - **Page reviewer** (`doc-reviewer`): reviews the converted page for formatting issues, broken references, and missing attachments before publishing. Verifies all images render correctly in the Confluence preview.
 
 ### Publish Steps
@@ -235,7 +235,7 @@ Action: <created | updated>
 
 ## Guideline Loading
 
-Invoke the `/coding` helper skill to detect the repo stack and load the appropriate coding guidelines when the document describes real code or architecture.
+Invoke the `/adk-coding` helper skill to detect the repo stack and load the appropriate coding guidelines when the document describes real code or architecture.
 
 ## Writing Rules (All Types)
 
@@ -252,7 +252,7 @@ All output is markdown by default. Structure varies by document type -- see the 
 
 ## Adjacent Skills
 
-- `/review` for comment-only review of documents
-- `/diagram` for standalone architecture diagrams
-- `/coding` for coding guidelines detection
-- `/doc-writing` for document writing guidelines
+- `/adk-review-pr` for comment-only review of documents
+- `/adk-diagram` for standalone architecture diagrams
+- `/adk-coding` for coding guidelines detection
+- `/adk-doc-writing` for document writing guidelines

@@ -32,7 +32,7 @@ Starting from the provided `path`, discover all related artifacts by scanning th
 - **Implementation code**: source files referenced in plan task `Files:` entries or spec `Out of Scope` boundaries
 - **Test files**: test files corresponding to implementation files discovered above
 
-Build an artifact inventory before launching child agents. If no specs or plans are found at the target path, stop and suggest write mode or `/plan` to create them.
+Build an artifact inventory before launching child agents. If no specs or plans are found at the target path, stop and suggest write mode or `/adk-plan` to create them.
 
 ### Artifact Inventory Display
 

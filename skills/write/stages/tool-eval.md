@@ -1,6 +1,6 @@
 # Stage: Tool Evaluation
 
-Use this stage to produce a structured comparison of tools or technologies against defined criteria. For deeper investigation of a single tool, use `/research --deep`.
+Use this stage to produce a structured comparison of tools or technologies against defined criteria. For deeper investigation of a single tool, use `/adk-research --deep`.
 
 ## Type-Specific Phase Guidance
 

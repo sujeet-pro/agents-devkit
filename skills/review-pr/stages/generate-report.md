@@ -12,15 +12,15 @@ This stage runs after the primary review stage (`local-review.md` or `branch-rev
 
 ## Report Structure
 
-Generate a markdown review document at `.temp/review/<branch-or-scope>-review.md`:
+Generate a markdown review document at `.temp/adk-review-pr/<branch-or-scope>-review.md`:
 
 ```md
 # Code Review Report
 
-**Date:** <date>
-**Scope:** <staged | unstaged | branch: <name> vs <base>>
-**Files reviewed:** N
-**Total findings:** N
+- **Date:** <date>
+- **Scope:** <staged | unstaged | branch: <name> vs <base>>
+- **Files reviewed:** N
+- **Total findings:** N
 
 ---
 
@@ -32,19 +32,19 @@ Generate a markdown review document at `.temp/review/<branch-or-scope>-review.md
 
 ## Findings
 
-### Critical
+### Must Fix
 
 [findings using canonical comment template format from references/review-comment-template.md]
 
-### High
+### Suggestion
 
 [findings]
 
-### Medium
+### Note
 
 [findings]
 
-### Low
+### Praise
 
 [findings]
 
@@ -52,26 +52,23 @@ Generate a markdown review document at `.temp/review/<branch-or-scope>-review.md
 
 ## Auto-Validation Summary
 
-Findings from child agents: N
-Validated and kept: M
-Discarded (not present in code): K
-Line references corrected: L
-Suggestions revised: J
+- **Findings from child agents:** N
+- **Validated and kept:** M
+- **Discarded (not present in code):** K
+- **Line references corrected:** L
+- **Suggestions revised:** J
 
 ---
 
 ## Metrics
 
-| Metric | Value |
-|--------|-------|
-| Files changed | N |
-| Lines added | N |
-| Lines removed | N |
-| Test files changed | N |
-| Critical findings | N |
-| High findings | N |
-| Medium findings | N |
-| Low findings | N |
+- **Files changed:** N
+- **Lines added:** N
+- **Lines removed:** N
+- **Test files changed:** N
+- **Must Fix findings:** N
+- **Suggestion findings:** N
+- **Note findings:** N
 
 ---
 
@@ -83,19 +80,18 @@ Suggestions revised: J
 
 ## Action Items
 
-- [ ] **Critical:** <description> (<file:line>)
-- [ ] **High:** <description> (<file:line>)
-- [ ] **Medium:** <description> (<file:line>)
-- [ ] **Low:** <description> (<file:line>)
+- [ ] **Must Fix:** <description> (<file:line>)
+- [ ] **Suggestion:** <description> (<file:line>)
+- [ ] **Note:** <description> (<file:line>)
 
 ---
 
 ## Review Methodology
 
-- Child agents: code-reviewer, repo-auditor, doc-reviewer, domain specialist
-- Review approaches: diff review + full file context review
-- Auto-validation: all findings verified against actual code
-- Guidelines: <loaded guidelines>
+- **Dimensions:** syntax, correctness, security, performance, design, reliability, testing, documentation [+ ui-ux, spec-compliance when applicable]
+- **Review approaches:** diff review + full file context review
+- **Auto-validation:** all findings verified against actual code
+- **Guidelines:** <loaded guidelines>
 ```
 
 ---
@@ -107,7 +103,7 @@ Adapt the report based on `--verbosity`:
 ### Short
 
 - Executive summary only
-- Critical and high findings only
+- Must Fix findings only
 - Action items checklist
 - No metrics or methodology sections
 
@@ -122,7 +118,7 @@ Adapt the report based on `--verbosity`:
   - Commit-by-commit review notes
   - Architecture diagram of affected areas
   - Dependency impact analysis
-  - Full child agent raw outputs
+  - Full child agent raw outputs per dimension
 
 ---
 
@@ -133,8 +129,8 @@ After generating the report, display:
 ```text
 ## Review Report Generated
 
-Scope: <scope>
-Findings: N (critical: N, high: N, medium: N, low: N)
-Report: .temp/review/<name>-review.md
-Verbosity: <short|standard|detailed>
+- **Scope:** <scope>
+- **Findings:** N (must fix: N, suggestion: N, note: N)
+- **Report:** .temp/adk-review-pr/<name>-review.md
+- **Verbosity:** <short|standard|detailed>
 ```

@@ -1,6 +1,6 @@
 # Feature Specification
 
-Specs define the "what" and "why" -- never the "how." No technology choices, no implementation details, no framework references. Those belong in `/plan`.
+Specs define the "what" and "why" -- never the "how." No technology choices, no implementation details, no framework references. Those belong in `/adk-plan`.
 
 ## Phase Applicability
 
@@ -21,7 +21,7 @@ Before starting specification work, run:
 
 ## Spec Storage
 
-Save all specs to `.temp/specs/<feature-slug>/spec.md` in the current working directory. If `.temp/` does not exist, create it and ensure it is listed in `.gitignore`.
+Save all specs to `.temp/specs/<feature-slug>/adk-spec.md` in the current working directory. If `.temp/` does not exist, create it and ensure it is listed in `.gitignore`.
 
 ## Required Child Agents
 
@@ -114,7 +114,7 @@ If any criterion is not met, loop back to the relevant section for revision befo
 
 ## Output
 
-Spec saved to `.temp/specs/<feature-slug>/spec.md`. Display summary:
+Spec saved to `.temp/specs/<feature-slug>/adk-spec.md`. Display summary:
 
 ```text
 ## Specification Complete

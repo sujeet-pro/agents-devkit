@@ -1,5 +1,5 @@
 {
-  "name": "devkit-marketplace",
+  "name": "adk-marketplace",
   "description": "Marketplace manifest for the DevKit multi-agent skills pack",
   "owner": {
     "name": "Sujeet Jaiswal",
@@ -7,9 +7,9 @@
   },
   "plugins": [
     {
-      "name": "devkit",
+      "name": "adk",
       "description": "Full DevKit install: software-development skills, agents, guidelines, scripts, and platform-ready packaging metadata.",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "source": "./",
       "author": {
         "name": "Sujeet Jaiswal",

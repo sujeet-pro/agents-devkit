@@ -1,5 +1,5 @@
 ---
-name: design
+name: adk-design
 description: "[full] [design] Use when designing frontend UI/UX, auditing visual design, or creating design direction"
 user-invocable: true
 argument-hint: "<task> [--focus ui|ux|visual|accessibility] [--verbosity short|standard|detailed] [--help]"
@@ -11,7 +11,7 @@ workflow-tier: full
 
 # Design
 
-Unified design skill: creates distinctive, production-grade frontend interfaces with high design quality, generates bold design variations as visual HTML previews, and iterates until the design is finalized. Also handles auditing existing UI via `--action audit` (delegates to `/review --focus ui`).
+Unified design skill: creates distinctive, production-grade frontend interfaces with high design quality, generates bold design variations as visual HTML previews, and iterates until the design is finalized. Also handles auditing existing UI via `--action audit` (delegates to `/adk-review-pr --focus ui`).
 
 > **Important**: The `framework` and `style` arguments define the *final deliverable* format. All preview rounds use **pure HTML/CSS/vanilla JS** so the user can visually compare without any build step.
 
@@ -34,16 +34,16 @@ Load references: `references/workflow-6phase.md`, `references/communication-styl
 ### Behavior Variations
 
 - **`--action design`** (default): Full 6-phase workflow. Generates 5 bold design variations as an HTML preview, iterates on feedback, then converts to the target framework.
-- **`--action audit`**: Routes to `/review --focus ui` for reviewing existing frontend code for visual/UX issues (6-pillar review covering layout, typography, color, responsiveness, accessibility, interaction states).
+- **`--action audit`**: Routes to `/adk-review-pr --focus ui` for reviewing existing frontend code for visual/UX issues (6-pillar review covering layout, typography, color, responsiveness, accessibility, interaction states).
 
 ### Examples
 
 ```
-/design a landing page for a developer tools SaaS product
-/design --framework react --style tailwind a settings dashboard
-/design --theme "dark luxe" a pricing page with toggle
-/design --focus accessibility audit the signup flow
-/design --action audit review the main navigation component
+/adk-design a landing page for a developer tools SaaS product
+/adk-design --framework react --style tailwind a settings dashboard
+/adk-design --theme "dark luxe" a pricing page with toggle
+/adk-design --focus accessibility audit the signup flow
+/adk-design --action audit review the main navigation component
 ```
 
 ## Preflight
@@ -52,7 +52,7 @@ Load references: `references/workflow-6phase.md`, `references/communication-styl
 
 ## Routing
 
-If `--action audit` is specified, or the task involves reviewing/auditing existing UI code for visual issues, accessibility, or responsiveness, route to `/review --focus ui` and forward all flags.
+If `--action audit` is specified, or the task involves reviewing/auditing existing UI code for visual issues, accessibility, or responsiveness, route to `/adk-review-pr --focus ui` and forward all flags.
 
 Otherwise, proceed with the design workflow below.
 
@@ -207,7 +207,7 @@ The `.design-preview/` directory can be kept for reference or deleted -- ask the
 
 ## Reference Loading
 
-- Invoke `/coding` to detect the repo stack and load appropriate coding guidelines (design-system, frontend, general code quality)
+- Invoke `/adk-coding` to detect the repo stack and load appropriate coding guidelines (design-system, frontend, general code quality)
 
 ## Output Format
 
@@ -222,6 +222,6 @@ Phase 5: production-ready code in the target framework with integration notes.
 
 ## Adjacent Skills
 
-- `/review --focus ui` -- audit existing frontend code for visual/UX issues (6-pillar review)
-- `/develop` -- implement the finalized design
-- `/write` -- document design decisions and component usage
+- `/adk-review-pr --focus ui` -- audit existing frontend code for visual/UX issues (6-pillar review)
+- `/adk-develop` -- implement the finalized design
+- `/adk-write` -- document design decisions and component usage

@@ -1,5 +1,5 @@
 ---
-name: setup
+name: adk-setup
 description: "[abbreviated] [setup] Use when setting up, validating, or updating CLI tools and MCP server configurations for DevKit skills"
 user-invocable: true
 argument-hint: "[--type tools|mcps|all] [--check-only] [--skip-update] [--server <name>] [--tool <name>] [--verbosity short|standard|detailed] [--help]"
@@ -66,17 +66,17 @@ When `--help` is passed, display this reference and stop.
 ### Examples
 
 ```
-/setup                                  # Full setup: tools + MCPs
-/setup --type tools                     # Only set up CLI tools
-/setup --type mcps                      # Only set up MCP servers
-/setup --check-only                     # Report status without changes
-/setup --tool git                       # Only process git
-/setup --tool node --verbosity detailed # Only process node with full details
-/setup --server github                  # Only process GitHub MCP
-/setup --server confluence              # Only process Confluence MCP
-/setup --skip-update                    # Install missing but don't update
-/setup --type tools --check-only        # Check tool status only
-/setup --type mcps --check-only --verbosity short  # Quick MCP status check
+/adk-setup                                  # Full setup: tools + MCPs
+/adk-setup --type tools                     # Only set up CLI tools
+/adk-setup --type mcps                      # Only set up MCP servers
+/adk-setup --check-only                     # Report status without changes
+/adk-setup --tool git                       # Only process git
+/adk-setup --tool node --verbosity detailed # Only process node with full details
+/adk-setup --server github                  # Only process GitHub MCP
+/adk-setup --server confluence              # Only process Confluence MCP
+/adk-setup --skip-update                    # Install missing but don't update
+/adk-setup --type tools --check-only        # Check tool status only
+/adk-setup --type mcps --check-only --verbosity short  # Quick MCP status check
 ```
 
 ---
@@ -104,13 +104,13 @@ All output is markdown by default. Structure varies by deliverable type -- see t
 ## Usage
 
 ```
-/setup                                  # Full setup: install + configure + update all
-/setup --type tools                     # Tools only: install + update CLI tools
-/setup --type mcps                      # MCPs only: configure + update + sync all servers
-/setup --check-only                     # Report status without making changes
-/setup --tool git                       # Only process git
-/setup --server github                  # Only process GitHub MCP
-/setup --skip-update                    # Install/configure missing but don't update existing
+/adk-setup                                  # Full setup: install + configure + update all
+/adk-setup --type tools                     # Tools only: install + update CLI tools
+/adk-setup --type mcps                      # MCPs only: configure + update + sync all servers
+/adk-setup --check-only                     # Report status without making changes
+/adk-setup --tool git                       # Only process git
+/adk-setup --server github                  # Only process GitHub MCP
+/adk-setup --skip-update                    # Install/configure missing but don't update existing
 ```
 
 ## Execution

@@ -15,7 +15,7 @@ Preserve work state when sessions must end -- whether the context window is fill
 
 ## Handoff Storage
 
-Save handoffs to `.temp/handoff/<session-id>.md` in the current working directory. If `.temp/` does not exist, create it and ensure it is listed in `.gitignore`.
+Save handoffs to `.temp/adk-handoff/<session-id>.md` in the current working directory. If `.temp/` does not exist, create it and ensure it is listed in `.gitignore`.
 
 Use this handoff file format:
 
@@ -77,12 +77,12 @@ Action: [A]pprove & save | [E]dit | [A]dd more context
 
 In `auto-approve` mode, save immediately without waiting for confirmation.
 
-5. **Save**: write the handoff file to `.temp/handoff/<session-id>.md`.
+5. **Save**: write the handoff file to `.temp/adk-handoff/<session-id>.md`.
 6. **Remind**: suggest committing uncommitted changes before ending the session.
 
 ## Resume Flow
 
-1. **Find handoff**: if `session` is provided, load that specific handoff. Otherwise, find the most recent `paused` handoff in `.temp/handoff/`.
+1. **Find handoff**: if `session` is provided, load that specific handoff. Otherwise, find the most recent `paused` handoff in `.temp/adk-handoff/`.
 2. **Present context**: display the handoff summary:
 
 ```text

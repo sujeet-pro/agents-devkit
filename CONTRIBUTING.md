@@ -81,10 +81,10 @@ This propagates changes to all skill directories. Use `--dry-run` to preview cha
 
 | Skill | Purpose |
 |---|---|
-| `/coding` | Detects repo stack (languages, frameworks), loads matching coding guidelines from `coding/references/coding-guidelines/` |
-| `/doc-writing` | Detects document type, loads matching writing guidelines from `doc-writing/references/doc-guidelines/` |
+| `/adk-coding` | Detects repo stack (languages, frameworks), loads matching coding guidelines from `coding/references/coding-guidelines/` |
+| `/adk-doc-writing` | Detects document type, loads matching writing guidelines from `doc-writing/references/doc-guidelines/` |
 
-These are invoked automatically by other skills. `/use` should be the default route for general prompts and includes them when needed.
+These are invoked automatically by other skills. `/adk-use` should be the default route for general prompts and includes them when needed.
 
 ### Core Skills
 
@@ -92,27 +92,27 @@ Multi-mode skills contain conditional `stages/*.md` files loaded based on contex
 
 | Skill | Area | Description |
 |---|---|---|
-| `/review` | Review | Code review: PR, local, branch + fix/comment/interactive |
-| `/develop` | Dev | Implement features, fix bugs, enhance code, TDD |
-| `/write` | Docs | Create/update any document (ADR, RFC, blog, changelog, etc.) |
-| `/plan` | Plan | Brainstorm, write, execute, and track implementation plans |
-| `/spec` | Spec | Write specs, analyze consistency, generate checklists |
-| `/research` | Research | Multi-agent research with citations |
-| `/diagram` | Diagram | Create diagrams (Mermaid, Excalidraw, draw.io, Graphviz) |
-| `/design` | Design | UI/UX design direction + visual audit |
-| `/audit` | Quality | Audit: codebase, security, performance, dependencies |
-| `/review-doc` | Review | Review documents (local, Confluence, Google Docs) |
-| `/test` | QA | User acceptance testing with interactive verification |
-| `/project` | Project | Initialize projects, manage milestones and ideas |
-| `/handoff` | Session | Pause/resume work sessions, context threads |
-| `/setup` | Setup | Configure CLI tools and MCP servers |
+| `/adk-review-pr` | Review | Code review: PR, local, branch + fix/comment/interactive |
+| `/adk-develop` | Dev | Implement features, fix bugs, enhance code, TDD |
+| `/adk-write` | Docs | Create/update any document (ADR, RFC, blog, changelog, etc.) |
+| `/adk-plan` | Plan | Brainstorm, write, execute, and track implementation plans |
+| `/adk-spec` | Spec | Write specs, analyze consistency, generate checklists |
+| `/adk-research` | Research | Multi-agent research with citations |
+| `/adk-diagram` | Diagram | Create diagrams (Mermaid, Excalidraw, draw.io, Graphviz) |
+| `/adk-design` | Design | UI/UX design direction + visual audit |
+| `/adk-audit` | Quality | Audit: codebase, security, performance, dependencies |
+| `/adk-review-doc` | Review | Review documents (local, Confluence, Google Docs) |
+| `/adk-test` | QA | User acceptance testing with interactive verification |
+| `/adk-project` | Project | Initialize projects, manage milestones and ideas |
+| `/adk-handoff` | Session | Pause/resume work sessions, context threads |
+| `/adk-setup` | Setup | Configure CLI tools and MCP servers |
 
 ### Meta Skills
 
 | Skill | Description |
 |---|---|
-| `/team` | Multi-model review, agent team dispatch |
-| `/use` | Orchestrator: auto-select and execute skill pipeline |
+| `/adk-team` | Multi-model review, agent team dispatch |
+| `/adk-use` | Orchestrator: auto-select and execute skill pipeline |
 
 ## Adding a Skill
 
@@ -121,7 +121,7 @@ Multi-mode skills contain conditional `stages/*.md` files loaded based on contex
 2. **Create `SKILL.md`** with frontmatter (see `templates/skill/SKILL-TEMPLATE.md` for the full template):
    ```yaml
    ---
-   name: skill-name
+   name: adk-skill-name
    description: "Use when..."
    user-invocable: true
    argument-hint: "<required-arg> [--optional-arg]"

@@ -71,7 +71,7 @@ Every LLD must include the following sections in order.
   - Indexes with included columns and the queries they optimize.
   - Partitioning strategy if applicable (partition key, retention policy).
 - Include the migration script or migration steps for schema changes.
-- Document the read/write patterns the schema is optimized for.
+- Document the read/adk-write patterns the schema is optimized for.
 - Address data volume estimates and growth rate to justify index and partition choices.
 
 ### Sequence Diagrams for Key Flows

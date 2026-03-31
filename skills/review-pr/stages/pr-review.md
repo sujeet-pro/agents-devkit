@@ -6,6 +6,70 @@ This stage is review-only. Do not update the PR branch in place. Leave source co
 
 ---
 
+## Context Gathering
+
+Before reviewing any code, gather all available context about what the PR is trying to accomplish. This prevents review comments that miss the intent or suggest a completely different approach when the chosen approach is sound.
+
+### Step 1: Read PR Intent
+
+- Read the PR title and description
+- Read commit messages on the PR branch
+- Identify the stated goal, approach, and any design decisions mentioned
+- Note any linked issues, specs, or ADRs referenced in the description
+
+### Step 2: Read Linked Documents
+
+When the PR description or `--context` parameter references external documents, read them before starting the code review:
+
+**Supported sources:**
+- **Jira / issue tracker**: Extract ticket numbers from PR title/description (patterns: `PROJ-123`, `#123`, Jira URLs). Read the ticket description, acceptance criteria, and comments for requirements context
+- **Google Docs**: Use `mcp__google-drive__readGoogleDoc` or `mcp__google-drive__getGoogleDocContent` to read linked Google Docs
+- **Confluence**: Use `mcp__atlassian-confluence__confluence_get_page` to read linked Confluence pages
+- **Markdown files**: Read any linked `.md` files from the repo or URLs via `WebFetch`
+- **Design docs / RFCs**: Read linked design documents for architectural context
+- **URLs passed via `--context`**: Fetch each URL and extract relevant content
+
+**How to detect linked documents:**
+1. Scan PR description for URLs (http/https links)
+2. Scan for ticket patterns (`PROJ-123`, `fixes #123`, `closes #456`)
+3. Scan for file path references (e.g., "see docs/design.md")
+4. Use `--context` parameter values directly
+
+**What to extract from context documents:**
+- Requirements and acceptance criteria
+- Expected behavior and edge cases
+- Design decisions and constraints
+- Non-functional requirements (performance targets, security requirements)
+- Out-of-scope items (to avoid reviewing code that's intentionally deferred)
+
+### Step 3: Diff-Level Approach Detection
+
+From the diff, identify the actual approach taken:
+
+- What patterns were introduced or modified?
+- What files were added, modified, or deleted?
+- What is the architectural shape of the change (new module, refactor, migration, hotfix)?
+- What dependencies or imports changed?
+
+### Step 4: Align Intent with Implementation
+
+Compare stated intent (from description, commits, and context docs) with actual implementation (from diff):
+
+- **Flag misalignment**: If the description says "add caching" but the diff shows a database schema change, that's a mismatch that needs clarification before detailed code review
+- **Identify undocumented decisions**: Architectural choices visible in the code but not mentioned in the description
+- **Detect scope creep**: Changes in the diff that don't relate to the stated goal
+- **Spec compliance**: When context docs provide requirements, verify each requirement is addressed in the code. Flag missing implementations as `spec-compliance` dimension findings
+
+### Step 5: Set Review Lens
+
+Use the aligned understanding to frame all review comments:
+
+- Comments should reference the stated approach: "Given the approach of X, this Y is problematic because..."
+- Suggestions should be consistent with the PR's architectural direction
+- If the approach itself seems wrong, raise it as a single top-level comment before proceeding with line-level review
+
+---
+
 ## Source Handling
 
 When MCP or API is available:
@@ -78,41 +142,21 @@ Deduplicate findings from both approaches. If a finding appears in both, keep th
 
 ---
 
-## Implementation Approach Alignment
+## Smart Parameter Detection
 
-Before reviewing individual code changes, understand what the PR is trying to accomplish at a high level. This prevents review comments that suggest a completely different approach when the chosen approach is sound.
+When invoked via `/adk-use` or with a natural-language prompt, infer parameters from context:
 
-### Step 1: Read PR Intent
-
-- Read the PR title and description.
-- Read commit messages on the PR branch.
-- Identify the stated goal, approach, and any design decisions mentioned.
-- Note any linked issues, specs, or ADRs referenced in the description.
-
-### Step 2: Diff-Level Approach Detection
-
-From the diff, identify the actual approach taken:
-
-- What patterns were introduced or modified?
-- What files were added, modified, or deleted?
-- What is the architectural shape of the change (new module, refactor, migration, hotfix)?
-- What dependencies or imports changed?
-
-### Step 3: Align Intent with Implementation
-
-Compare stated intent (from description and commits) with actual implementation (from diff):
-
-- **Flag misalignment**: If the description says "add caching" but the diff shows a database schema change, that's a mismatch that needs clarification before detailed code review.
-- **Identify undocumented decisions**: Architectural choices visible in the code but not mentioned in the description (e.g., chose a specific data structure, added a new abstraction layer, changed an API contract).
-- **Detect scope creep**: Changes in the diff that don't relate to the stated goal.
-
-### Step 4: Set Review Lens
-
-Use the aligned understanding to frame all review comments:
-
-- Comments should reference the stated approach: "Given the approach of X, this Y is problematic because..."
-- Suggestions should be consistent with the PR's architectural direction — don't propose a completely different approach unless the approach itself is the concern (in which case, frame it as a high-level architectural comment, not a line-level nit).
-- If the approach itself seems wrong, raise it as a single top-level comment before proceeding with line-level review.
+| Signal | Inferred Parameter | Why |
+|--------|--------------------|-----|
+| PR URL in prompt | `<target>` = that URL | Direct target |
+| PR already has review comments from current user | `--mode followup` | Re-review: must validate prior comments and their resolution status |
+| PR has unresolved comment threads | Activate comment reconciliation + resolution validation | Prior feedback needs follow-up |
+| Prompt mentions "fix", "address comments", "resolve" | `--action fix` | Author-side review comment resolution |
+| Prompt mentions "describe", "description" | `--action describe` | PR description generation |
+| Prompt mentions "finalize", "merge-ready" | `--action finalize` | PR finalization workflow |
+| Prompt mentions "security" or "vulnerability" | `--focus security` | Security-weighted review |
+| Prompt mentions "perf" or "performance" | `--focus performance` | Performance-weighted review |
+| Prompt mentions "ui", "frontend", "visual" | `--focus ui` | UI-weighted review |
 
 ---
 
@@ -123,6 +167,10 @@ When `mode=auto` (the default):
 1. After reading the PR metadata and existing review comments, check whether the current user has previously submitted a review on this PR.
 2. If the current user has **no prior review comments** on this PR -> treat as a **fresh review** and use the **interactive** flow.
 3. If the current user has **prior review comments** on this PR -> treat as a **follow-up review** and use the **followup** flow.
+4. **Re-review enrichment**: When auto-detected as follow-up, also check:
+   - Whether any prior comments are still marked unresolved — these **must** be re-validated against the current code state
+   - Whether the author has replied to any comments — these replies **must** be evaluated
+   - Whether any comments were marked resolved but the underlying code issue persists — these **must** be flagged
 
 When `mode=standard`, `mode=interactive`, or `mode=followup`, skip auto-detection and use the specified flow directly.
 
@@ -167,15 +215,73 @@ For each prior comment:
 
 ---
 
-## Required Child Agents
+## Required Review Dimensions (Child Agents)
 
-Run at least these child agents in parallel:
+Run these review dimensions in parallel. Each dimension maps to a specialized child agent:
 
-- `code-reviewer` for correctness, security, performance, tests, and code patterns
-- `repo-auditor` for architecture, dependency direction, and change isolation
-- `doc-reviewer` for docs, migration notes, naming, and reviewer ergonomics
-- one domain specialist pass for frontend, backend, or design-system concerns
-- `source-publisher` after consolidation if `publish` includes source posting
+### Always run (all PRs):
+
+1. **`syntax`** — linting gaps, formatting, naming conventions, import organization, dead code, copy-paste errors, leftover debug code
+2. **`correctness`** — logic bugs, edge cases, null handling, boundary conditions, race conditions, data integrity, type safety
+3. **`security`** — OWASP Top 10 assessment, auth/authz flows, input validation, secret exposure, injection vectors, data handling, encryption
+4. **`performance`** — N+1 queries, memory leaks, unnecessary allocations, bundle size impact, caching strategy, algorithmic complexity
+5. **`design`** — coupling, dependency direction, data flow, API surface quality, change isolation, abstraction quality, module boundaries
+6. **`reliability`** — error handling, retries, timeouts, observability, logging quality, graceful degradation, failure modes
+7. **`testing`** — test coverage gaps, missing edge case tests, test quality, flaky test patterns, test-implementation coupling
+8. **`documentation`** — doc drift, missing migration notes, API doc accuracy, changelog updates, inline comment quality
+
+### Conditional (when applicable):
+
+9. **`ui-ux`** — activated when PR touches `.tsx`, `.jsx`, `.vue`, `.svelte`, `.css`, `.scss`, `.html` files. Checks semantic HTML, ARIA compliance, keyboard navigation, responsive design, visual consistency, interaction states (empty, loading, error, disabled). Invokes design skill capabilities for frontend code
+10. **`spec-compliance`** — activated when context documents are available (PR description links to specs, Jira tickets, or `--context` URLs are provided). Verifies each requirement is addressed in the code, flags missing implementations, and checks edge cases from acceptance criteria
+
+### Agent Roles
+
+| Dimension | Agent Role | Key Checks |
+|-----------|-----------|------------|
+| `syntax` | `code-reviewer` (role: syntax-checker) | Linting, formatting, naming, imports, dead code |
+| `correctness` | `code-reviewer` (role: correctness-analyzer) | Logic bugs, edge cases, null paths, race conditions |
+| `security` | `security-reviewer` | OWASP Top 10, auth, input validation, secrets, injection |
+| `performance` | `code-reviewer` (role: performance-analyzer) | N+1, memory, bundle size, caching, complexity |
+| `design` | `repo-auditor` (role: design-reviewer) | Coupling, dependency direction, data flow, API surface |
+| `reliability` | `code-reviewer` (role: reliability-analyzer) | Error handling, retries, timeouts, observability |
+| `testing` | `code-reviewer` (role: test-reviewer) | Coverage gaps, test quality, flaky patterns |
+| `documentation` | `doc-reviewer` | Doc drift, migration notes, API docs, changelog |
+| `ui-ux` | `ui-reviewer` | Semantic HTML, ARIA, keyboard nav, responsive, visual |
+| `spec-compliance` | `spec-reviewer` | Requirements coverage, acceptance criteria, edge cases |
+
+Each finding is attributed to the dimension(s) that identified it. When multiple dimensions flag the same issue, list all in the `Dimension` field of the comment metadata.
+
+After consolidation, if `publish` includes source posting, use `source-publisher` to post comments.
+
+---
+
+## Praise and Positive Feedback
+
+Good code review is not just about finding issues — it also recognizes well-crafted work. This builds trust, reinforces good patterns, and makes the review feel balanced.
+
+### When to Praise
+
+Add praise comments when you genuinely observe:
+
+- **Elegant solutions**: A particularly clean or clever approach to a tricky problem
+- **Good test coverage**: Thorough tests that cover edge cases and failure modes
+- **Thoughtful error handling**: Well-structured error paths with clear messages
+- **Strong documentation**: Clear, useful comments or doc updates that add real value
+- **Smart refactoring**: Simplification that reduces complexity without losing capability
+- **Security consciousness**: Proactive security measures beyond the minimum
+- **Performance awareness**: Efficient patterns chosen where they matter
+
+### Praise Guidelines
+
+- **Don't overdo it**: 1-3 praise comments per review is ideal. More dilutes the signal
+- **Be specific**: "Nice work on the retry logic — the exponential backoff with jitter is exactly right for this use case" is useful. "Good job!" is not
+- **Praise the code, not the person**: Focus on the technical choice, not the developer
+- **Skip if nothing stands out**: Forced praise is worse than no praise. Only add it when genuinely warranted
+
+### Praise in the Review Summary
+
+Include praise in the findings list, sorted after all issues (after Note, before the summary). They don't need user triage — they're auto-accepted and posted directly.
 
 ---
 
@@ -183,36 +289,42 @@ Run at least these child agents in parallel:
 
 When `ui=true` or when the PR is auto-detected as frontend (touches `.tsx`, `.jsx`, `.vue`, `.svelte`, `.css`, `.scss` files):
 
-Add a UI review child agent that checks:
+The `ui-ux` dimension agent checks:
 - Visual consistency with existing patterns
 - Accessibility (ARIA, keyboard nav, focus management)
 - Responsive design (breakpoint coverage)
 - Interaction states (empty, loading, error, disabled)
 - Component API ergonomics
+- Semantic HTML structure
+- Color contrast (WCAG 2.1 AA minimum)
 
 UI findings follow the same interactive loop and comment template as code review findings.
 
-For full visual audit, suggest using `/review --focus ui` for a dedicated 6-pillar UI/UX review.
+For full visual audit, suggest using `/adk-review-pr --focus ui` for a dedicated 6-pillar UI/UX review.
 
 ---
 
 ## Review Requirements
 
-Every review must cover:
+Every review must cover all 8 always-run dimensions:
 
+- syntax and style
 - correctness and regressions
-- security and performance
-- architecture and boundary fit
-- tests, docs, and migration impact
-- code patterns and maintainability
-- reconciliation of prior comments and thread state
+- security vulnerabilities
+- performance concerns
+- design and architecture
+- reliability and operational readiness
+- test coverage and quality
+- documentation accuracy
+
+Plus conditional dimensions when applicable (ui-ux, spec-compliance).
 
 When `focus` is specified, weight child agent priorities accordingly:
-- `security` -> security reviewer gets extra depth, others surface-scan
+- `security` -> security dimension gets extra depth, others surface-scan
 - `performance` -> performance analysis prioritized
-- `ui` -> UI review pass activated, visual patterns prioritized
+- `ui` -> ui-ux dimension activated with full depth, visual patterns prioritized
 - `correctness` -> correctness and regression analysis prioritized
-- `architecture` -> boundary, coupling, and migration impact prioritized
+- `architecture` -> design dimension prioritized for boundary, coupling, and migration impact
 
 ---
 
@@ -254,7 +366,7 @@ For each candidate finding:
    - Verify the fix parses correctly in the surrounding context (correct syntax, matching types, valid imports).
    - Check that the fix does not break adjacent code (variable references, return types, function signatures).
    - If the fix is non-trivial or touches shared interfaces, mark it as "suggested fix needs manual verification" rather than presenting it as a drop-in replacement.
-   - Verify the fix is consistent with the project's coding patterns detected by the `/coding` skill.
+   - Verify the fix is consistent with the project's coding patterns detected by the `/adk-coding` skill.
 
 ### Validation Outcomes
 
@@ -273,11 +385,11 @@ After validation, log a brief summary before the interactive loop:
 ```text
 ## Auto-Validation Summary
 
-Findings from child agents: N
-Validated and kept: M
-Discarded (not present in code): K
-Line references corrected: L
-Suggestions revised: J
+- **Findings from child agents:** N
+- **Validated and kept:** M
+- **Discarded (not present in code):** K
+- **Line references corrected:** L
+- **Suggestions revised:** J
 ```
 
 Only validated findings proceed to the interactive loop or standard posting.
@@ -288,20 +400,23 @@ Only validated findings proceed to the interactive loop or standard posting.
 
 Used when `mode=interactive` or when auto-detection selects a fresh review (the default for first-time reviews).
 
-### Phase 1: Review
+### Phase 1: Context & Review
 
-1. Run the full review pipeline: preflight, source handling, comment reconciliation, guideline loading, child agents.
-2. Run the Dual Diff Review (both PR diff and worktree full-file approaches).
-3. Consolidate findings: deduplicate, assign severity and confidence scores.
-4. Filter findings below the confidence threshold.
+1. Run the Context Gathering steps (read PR description, linked docs, context URLs).
+2. Run the full review pipeline: preflight, source handling, comment reconciliation, guideline loading, child agents (all 10 dimensions).
+3. Run the Dual Diff Review (both PR diff and worktree full-file approaches).
+4. Consolidate findings: deduplicate, assign severity and confidence scores, attribute to dimensions.
+5. Filter findings below the confidence threshold.
 
 ### Phase 2: Auto-Validation
 
 Run the Auto-Validation Phase on all consolidated findings. Only validated findings proceed.
 
-### Phase 3: Interactive Review TUI
+### Phase 3: Interactive Review
 
-Launch the interactive review TUI so the user can accept, reject, or request edits on all findings at once.
+Present all validated findings to the user for interactive triage. Check the `-i` / `-tui` flag to determine interaction mode (default: `-i` inline). See `references/inline-interaction.md`.
+
+Filter out findings below the `--confidence` threshold (default: 80%) before presenting.
 
 #### Step 1: Prepare Session
 
@@ -320,13 +435,15 @@ Write `.temp/interactive/pr-<number>/items.json`:
   "items": [
     {
       "id": "finding-<N>",
-      "title": "[<Priority>][<Principle>] <short title>",
+      "title": "<icon> [<Severity>] <short title>",
       "body": "<full comment formatted per review-comment-template.md>",
       "metadata": {
         "file": "<file-path>",
         "line": "<line-number>",
-        "priority": "<Blocker|Critical|Should Have|May Have|Nitpick|Question>",
-        "principle": "<Correctness|Security|Performance|...>",
+        "severity": "<Must Fix|Suggestion|Note|Question|Praise>",
+        "concern": "<Correctness|Design|Reliability|Performance|DevEx>",
+        "depth": "<Surface|Logic|Integration|Architecture|Hardening>",
+        "dimension": "<syntax|correctness|security|performance|design|reliability|testing|documentation|ui-ux|spec-compliance>",
         "confidence": "<score>",
         "guideline": "<which standard or best practice is violated>",
         "source": "<diff-only|full-context|both>"
@@ -336,40 +453,93 @@ Write `.temp/interactive/pr-<number>/items.json`:
 }
 ```
 
-Sort items by severity (Blocker first, Nitpick last).
+Sort items by severity (Must Fix first, Note last, then Praise).
 
-#### Step 2: Launch TUI
+#### Step 2: Present Findings
 
-```bash
-python3 ${CLAUDE_SKILL_DIR}/scripts/tui/review.py .temp/interactive/pr-<number>/
+##### If `-tui` flag is set:
+
+```
+Session ready. Run in a separate terminal:
+
+    python3 ${CLAUDE_SKILL_DIR}/scripts/tui/adk-review-pr.py .temp/interactive/pr-<number>/
+
+Tell me when you're done and I'll process the results.
 ```
 
-The TUI auto-installs its dependency (`textual`) on first run. The user navigates the comment list, reads each finding in the detail pane, and marks each as:
+Skip to Step 3 when user returns.
 
-- **Accept** (a): queue for posting as-is
-- **Reject** (r): discard entirely
-- **Edit** (e): mark for regeneration with a user-provided prompt
+##### If `-i` flag (default):
 
-The user presses **Done** (d) when all items are marked.
+Use the **Review Findings** protocol from `references/inline-interaction.md`. Render a summary header then each finding as a structured card:
+
+```
+## Review Findings
+
+**<N> findings** | :rotating_light: <must-fix-count> | :large_orange_diamond: <suggestion-count> | :speech_balloon: <note-count> | :star2: <praise-count>
+
+---
+
+**1.** :rotating_light: **[Must Fix]** <Short, specific title>
+*Confidence: <score>/100 | Concern: <concern> | Depth: <depth> | Dimension: <dimension> | Guideline: <guideline>*
+> <1-2 sentence issue explanation>
+> **Fix:** <1 sentence suggested fix>
+
+---
+
+**2.** :large_orange_diamond: **[Suggestion]** <Short, specific title>
+*Confidence: <score>/100 | Concern: <concern> | Depth: <depth> | Dimension: <dimension> | Guideline: <guideline>*
+> <1-2 sentence issue explanation>
+> **Fix:** <1 sentence suggested fix>
+
+---
+
+**3.** :star2: **[Praise]** <Short, specific title>
+*Concern: <concern> | Depth: <depth> | Dimension: <dimension>*
+> <1-2 sentence explanation of what's well done>
+
+---
+
+> **Actions:** **a** accept | **r** reject | **e** edit | **s** skip — by number
+> Example: `a-1,4,5 r-2 e-3 s-6`
+> Also: `a-all` | `details <N>` | `tui` (switch to TUI) | `done`
+> Note: Praise comments (#3+) are auto-accepted — no action needed
+```
+
+If the user types **`tui`** mid-flow, switch to TUI mode: write pending items to a new `items.json`, print the terminal command, and wait for the user to return.
 
 #### Step 3: Process Results
 
-Read `.temp/interactive/pr-<number>/results.json` and process:
+After the user responds (inline or via TUI), process each finding:
 
-- **`accepted`** → Post to source platform immediately (see Posting below)
-- **`rejected`** → Discard. Do not post.
-- **`skipped`** → Deferred by the user. Save to `.temp/pr-review/pr-<number>-deferred.md` for future review sessions. Do not post.
-- **`edit`** → Regenerate the comment using the `prompt` field from results. Apply the same auto-validation to the regenerated comment.
+- **`accepted`** -> Post to source platform immediately (see Posting below)
+- **`rejected`** -> Discard. Do not post.
+- **`skipped`** -> Deferred by the user. Save to `.temp/pr-review/pr-<number>-deferred.md` for future review sessions. Do not post.
+- **`edit`** -> Handle in edit loop (Step 4). Apply the same auto-validation to regenerated comments.
+
+Write `results.json` to the session directory for traceability.
 
 #### Step 4: Edit Loop
 
-If any results have `action: "edit"`:
+If any findings were marked for edit, handle them one at a time:
 
-1. Regenerate those comments based on each item's edit `prompt`
-2. Re-run auto-validation on the regenerated comments
-3. Write a **new** `items.json` containing only the regenerated items
-4. Launch the TUI again (go back to Step 2)
-5. Repeat until all items are either `accepted` or `rejected` — no `edit` items remain
+```
+## Edit Finding <N>
+
+**Current:**
+> <full finding body>
+
+**Edit instructions?** (type your changes, or `skip` to defer)
+```
+
+After the user provides instructions:
+1. Regenerate the comment based on the user's instructions
+2. Re-run auto-validation on the regenerated comment
+3. Show the regenerated finding in the same card format
+4. Ask: **accept** or **edit again**
+5. Once resolved, move to the next edit item
+
+After all edits are resolved, if any items are still pending, re-render the remaining list and prompt again. Repeat until all items are `accepted` or `rejected`.
 
 #### Posting
 
@@ -381,7 +551,7 @@ If any results have `action: "edit"`:
 **If git-only fallback:**
 - Write all accepted comments to `.temp/pr-review/pr-<number>-review.md` using the canonical comment template format
 - Each comment includes the file path, line number, severity, and full comment body
-- Inform the user: "Review saved to .temp/pr-review/pr-<number>-review.md — post these comments manually or re-run with the token configured."
+- Inform the user: "Review saved to .temp/pr-review/pr-<number>-review.md -- post these comments manually or re-run with the token configured."
 
 #### Summary
 
@@ -390,15 +560,18 @@ After all rounds complete, display:
 ```text
 ## Review Summary
 
-TUI rounds: N
-Accepted: N
-Rejected: N
-Skipped (deferred): N
-Resolved old threads: N
-Reopened critical threads: N
-Auto-validation discarded: N
-Output: [PR comments posted | Markdown saved to <path>]
-Deferred: [N items saved to <path> | none]
+- **Rounds:** N
+- **Accepted:** N
+- **Rejected:** N
+- **Edited:** N
+- **Skipped (deferred):** N
+- **Praise (auto-accepted):** N
+- **Merged (same-line):** N findings -> M comments
+- **Resolved old threads:** N
+- **Reopened critical threads:** N
+- **Auto-validation discarded:** N
+- **Output:** [PR comments posted | Markdown saved to <path>]
+- **Deferred:** [N items saved to <path> | none]
 ```
 
 ---
@@ -446,12 +619,11 @@ When the PR author has replied to a review comment:
 ```text
 ## Reply on Comment [N/total]
 
-Original concern: <summary>
-Author reply: <reply text>
-Code state: [changed | unchanged]
-
-Assessment: [Valid explanation | Insufficient | Needs discussion]
-Reasoning: <why>
+- **Original concern:** <summary>
+- **Author reply:** <reply text>
+- **Code state:** [changed | unchanged]
+- **Assessment:** [Valid explanation | Insufficient | Needs discussion]
+- **Reasoning:** <why>
 
 Action: [A]ccept resolution | [R]eply (draft provided) | [E]dit reply | [D]efer
 ```
@@ -480,11 +652,7 @@ Run the standard review pipeline on the new commits and changed files:
 
 1. Load coding guidelines via the `coding` skill.
 2. Run Dual Diff Review on the new changes.
-3. Launch child agents in parallel:
-   - `code-reviewer` for correctness, security, performance
-   - `repo-auditor` for architecture and boundaries
-   - `doc-reviewer` for docs, naming, reviewer ergonomics
-   - domain specialist for frontend, backend, or design-system concerns
+3. Launch all review dimension agents in parallel (all 10 dimensions as applicable).
 4. Consolidate findings: deduplicate against previous comments, assign severity and confidence scores.
 5. Filter out issues that duplicate already-open threads.
 6. **Run Auto-Validation Phase** on all new findings.
@@ -497,14 +665,12 @@ Present the full follow-up summary to the user before posting anything:
 ## Follow-Up Review Summary
 
 ### Previous Comments
-| Status              | Count |
-|---------------------|-------|
-| Addressed           |     N |
-| Partially addressed |     N |
-| Not addressed       |     N |
-| Resolved but unfixed|     N |
-| Obsolete            |     N |
-| Replies evaluated   |     N |
+- **Addressed:** N
+- **Partially addressed:** N
+- **Not addressed:** N
+- **Resolved but unfixed:** N
+- **Obsolete:** N
+- **Replies evaluated:** N
 
 ### New Issues Found: N (after auto-validation)
 
@@ -536,14 +702,15 @@ For git-only fallback, write all actions to the markdown report file instead.
 
 Used when `mode=standard`.
 
-1. Run the review pipeline: preflight, source handling, comment reconciliation, guideline loading, child agents.
-2. Run Dual Diff Review.
-3. Consolidate findings: deduplicate, assign severity and confidence scores.
-4. Filter findings below the confidence threshold.
-5. **Run Auto-Validation Phase.**
-6. Post validated findings directly through the matching MCP or API (if `publish` includes source posting). For git-only fallback, write to markdown.
-7. Produce the markdown review output.
-8. Set PR status based on severity.
+1. Run Context Gathering (read PR description, linked docs, context URLs).
+2. Run the review pipeline: preflight, source handling, comment reconciliation, guideline loading, all review dimension agents.
+3. Run Dual Diff Review.
+4. Consolidate findings: deduplicate, assign severity and confidence scores.
+5. Filter findings below the confidence threshold.
+6. **Run Auto-Validation Phase.**
+7. Post validated findings directly through the matching MCP or API (if `publish` includes source posting). For git-only fallback, write to markdown.
+8. Produce the markdown review output.
+9. Set PR status based on severity.
 
 ---
 
@@ -562,13 +729,11 @@ Check the current review status on the PR:
 
 ### Step 2: Decide New Status
 
-Apply this decision matrix based on the review outcome:
-
 | Condition | Status | Action |
 |-----------|--------|--------|
-| Any accepted critical or high-severity findings remain unresolved | **Request Changes** | Set or keep |
-| All previous comments addressed, no new critical/high findings | **Approve** | Set (remove existing Request Changes if set by this reviewer) |
-| Only medium/low findings, nothing blocking | **Comment Only** | Optionally remove Request Changes if previously set by this reviewer |
+| Any accepted Must Fix findings remain unresolved | **Request Changes** | Set or keep |
+| All previous comments addressed, no new Must Fix findings | **Approve** | Set (remove existing Request Changes if set by this reviewer) |
+| Only Suggestion/Note findings, nothing blocking | **Comment Only** | Optionally remove Request Changes if previously set by this reviewer |
 | No findings at all, code looks good | **Approve** | Set |
 | PR is in draft, findings are irrelevant until out of draft | **Comment Only** | Note draft status in summary |
 
@@ -579,10 +744,10 @@ Before setting the status, show the user:
 ```text
 ## PR Status
 
-Current status: <current status set by this reviewer, or "none">
-Other reviewers: <summary of other reviewers' statuses>
-Recommended: <recommended status>
-Reason: <brief explanation>
+- **Current status:** <current status set by this reviewer, or "none">
+- **Other reviewers:** <summary of other reviewers' statuses>
+- **Recommended:** <recommended status>
+- **Reason:** <brief explanation>
 
 Set status? [Y]es | [C]hange to <alternative> | [S]kip (no status change)
 ```
@@ -602,10 +767,13 @@ Use the source-native MCP or API fallback to submit the review status:
 
 Always produce a markdown review with:
 
-- severity-ordered findings
+- severity-ordered findings (Must Fix -> Suggestion -> Note -> Praise)
 - confidence scores
+- concern and depth tags per finding
+- dimension attribution per finding
 - source tag (`[diff-only]`, `[full-context]`, `[both]`) per finding
 - auto-validation summary
+- context documents read (list of URLs/tickets/docs consumed)
 - open questions and assumptions
 - summary of what was posted back to the PR (or saved to markdown)
 - comment reconciliation summary covering carried-forward, resolved, reopened, and skipped threads
@@ -615,18 +783,21 @@ Display a final summary:
 ```text
 ## Review Complete
 
-PR Status: [Approved | Request Changes | Comment Only | Skipped | N/A (git-only)]
-Mode: [standard | interactive | followup (auto-detected)]
-Access: [MCP | API fallback | git-only]
-
-Auto-validation: N kept / M discarded
-Resolved threads: N
-Reopened threads: N
-New comments posted: N
-Threads left open: N
-Replies evaluated: N
-Output: [PR comments | Markdown at <path>]
-Worktree: [cleaned up | retained for follow-up]
+- **PR Status:** [Approved | Request Changes | Comment Only | Skipped | N/A (git-only)]
+- **Mode:** [standard | interactive | followup (auto-detected)]
+- **Access:** [MCP | API fallback | git-only]
+- **Context docs read:** N
+- **Review dimensions:** N active
+- **Auto-validation:** N kept / M discarded
+- **Merged (same-line):** N findings -> M comments
+- **New comments posted:** N
+- **Praise comments posted:** N
+- **Resolved threads:** N
+- **Reopened threads:** N
+- **Threads left open:** N
+- **Replies evaluated:** N
+- **Output:** [PR comments | Markdown at <path>]
+- **Worktree:** [cleaned up | retained for follow-up]
 ```
 
 After displaying the summary, clean up the worktree:

@@ -1,5 +1,5 @@
 ---
-name: spec
+name: adk-spec
 description: "[full] [spec] Use when analyzing specs, writing specifications, generating checklists, or writing constitutions"
 user-invocable: true
 argument-hint: "<topic> [--mode analyze|write|checklist|constitution] [--verbosity short|standard|detailed] [--help]"
@@ -34,20 +34,20 @@ Load references: `references/workflow-6phase.md`, `references/communication-styl
 ### Behavior Variations
 
 - **`--mode analyze`**: Read-only cross-artifact consistency analysis. Detects issues across specs, plans, tasks, and implementation. Runs child agents in parallel for completeness, consistency, constitution compliance, and gap detection.
-- **`--mode write`**: Interactive feature specification creation. Captures requirements through clarification questions, launches domain/research/review child agents, produces spec with user stories, acceptance criteria, and edge cases.
+- **`--mode write`**: Interactive feature specification creation. Captures requirements through clarification questions, launches domain/adk-research/adk-review-pr child agents, produces spec with user stories, acceptance criteria, and edge cases.
 - **`--mode checklist`**: Requirements quality validation. Generates "unit tests for English" that check completeness, clarity, and consistency. Produces traceable checklist with severity ratings and quality score.
-- **`--mode constitution`**: Project governance document creation/update/audit. Creates versioned non-negotiable principles and quality gates that all downstream work must comply with.
+- **`--mode constitution`**: Project governance document creation/update/adk-audit. Creates versioned non-negotiable principles and quality gates that all downstream work must comply with.
 
 ### Examples
 
 ```
-/spec write a feature spec for user notifications
-/spec --mode analyze .temp/specs/notifications/
-/spec --mode checklist .temp/specs/notifications/spec.md
-/spec --mode constitution
-/spec --mode constitution --action update
-/spec --mode constitution --action audit
-/spec --spec .temp/specs/auth/spec.md
+/adk-spec write a feature spec for user notifications
+/adk-spec --mode analyze .temp/specs/notifications/
+/adk-spec --mode checklist .temp/specs/notifications/adk-spec.md
+/adk-spec --mode constitution
+/adk-spec --mode constitution --action update
+/adk-spec --mode constitution --action audit
+/adk-spec --spec .temp/specs/auth/adk-spec.md
 ```
 
 ## Preflight
@@ -61,13 +61,13 @@ If `--mode` is explicitly provided, load the matching stage file directly. Other
 | Signal | Mode | Stage File |
 |---|---|---|
 | "analyze", "validate", "check consistency", "verify", references existing spec via `--spec` | analyze | `stages/analyze.md` |
-| "write spec", "define requirements", "draft specification", "feature spec", default for new topics | write | `stages/write.md` |
+| "write spec", "define requirements", "draft specification", "feature spec", default for new topics | write | `stages/adk-write.md` |
 | "checklist", "quality check", "validate requirements", "unit tests for English" | checklist | `stages/checklist.md` |
 | "constitution", "governance", "principles", "quality gates", "non-negotiable" | constitution | `stages/constitution.md` |
 
 ### Ambiguous Input
 
-When invoked as `/spec` with no qualifying action:
+When invoked as `/adk-spec` with no qualifying action:
 
 1. If the user references an **existing** spec or document -> analyze mode
 2. Otherwise -> write mode
@@ -106,12 +106,12 @@ Follow the stage file's validation criteria. End with a concise summary of what 
 
 Use the output format defined in the loaded stage file. Adapt verbosity based on `--verbosity`:
 
-- **short**: Summary line only (e.g., "Spec written to .temp/specs/notifications/spec.md")
+- **short**: Summary line only (e.g., "Spec written to .temp/specs/notifications/adk-spec.md")
 - **standard**: Full structured output from the stage file's Output Format section
 - **detailed**: Standard output plus all child agent findings, decision rationale, and traceability matrices
 
 ## Adjacent Skills
 
-- `/plan` -- create implementation plans from specifications
-- `/develop` -- implement code from plans
-- `/review` -- code review against specifications
+- `/adk-plan` -- create implementation plans from specifications
+- `/adk-develop` -- implement code from plans
+- `/adk-review-pr` -- code review against specifications

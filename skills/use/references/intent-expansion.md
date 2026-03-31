@@ -1,6 +1,6 @@
 # Intent Expansion
 
-Use this reference during Phase 0 of `/use`.
+Use this reference during Phase 0 of `/adk-use`.
 
 The goal is to turn a raw prompt into a compact, reviewable execution brief before any real work starts.
 
@@ -53,10 +53,10 @@ Pick the minimum useful pipeline.
 
 Common examples:
 
-- PR review -> `/coding`, `/review`
-- feature implementation -> `/coding`, `/research`, `/plan`, `/develop`, `/review`
-- docs -> `/research`, `/doc-writing`, `/write`, `/review-doc`
-- audit -> `/coding`, `/audit`, `/write`
+- PR review -> `/adk-coding`, `/adk-review-pr`
+- feature implementation -> `/adk-coding`, `/adk-research`, `/adk-plan`, `/adk-develop`, `/adk-review-pr`
+- docs -> `/adk-research`, `/adk-doc-writing`, `/adk-write`, `/adk-review-doc`
+- audit -> `/adk-coding`, `/adk-audit`, `/adk-write`
 
 ### Tools and MCPs
 
@@ -102,10 +102,15 @@ PE check:
 This is my read of the task. I’ll use <skills>, start with <first action>, and treat it as <complexity>. Proceed, simplify, or adjust?
 ```
 
-### TUI
+### Full Confirmation (Medium / Large)
 
-Write `intent.json`, then launch:
+Write `intent.json` to the session directory, then confirm with the user using the Intent Confirmation protocol from `references/inline-interaction.md`. Render the goal, reasoning, skills, tools, and complexity inline. Wait for approve/edit/simplify/cancel.
 
-```bash
+If the user prefers to use the TUI in a separate terminal, tell them:
+
+```
+Run in a separate terminal:
 python3 ${CLAUDE_SKILL_DIR}/scripts/tui/intent_confirm.py <session_dir>
+
+Tell me when you're done and I'll process the result.
 ```

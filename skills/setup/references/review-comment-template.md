@@ -3,72 +3,88 @@
 Every non-trivial review comment **must** follow this canonical format. The goal is that the PR author can immediately answer all of these just by reading the comment:
 
 - What is wrong?
-- Where exactly is the problem?
 - When does it fail?
-- What happens today?
-- What should happen instead?
-- Why is it worth fixing now?
+- What could go wrong if not fixed?
 - What standard or best practice does it violate?
 - What is the likely fix?
 
 ---
 
-## Canonical Format
+## Platform Compatibility
 
-````md
-[<PRIORITY>][<PRINCIPLE>] <Short, specific title>
+The comment format uses only markdown that renders cleanly on **both GitHub and Bitbucket**:
 
-**Summary**
-- Location: `<file-path>:<line-range>`
-- Confidence: <score>/100
-- Guideline: <which coding guideline, best practice, or standard is violated — or "project convention" / "language idiom">
-
-**Issue**
-<What is wrong, in which code path, and under what condition.>
-
-**Where it fails**
-- **Case 1:** <scenario>
-  - Current behavior: <actual>
-  - Expected behavior: <expected>
-- **Case 2:** <scenario>
-  - Current behavior: <actual>
-  - Expected behavior: <expected>
-
-**Why it matters**
-<Impact in practical terms.>
-
-**Suggested fix**
-<Concrete recommendation.>
-
-```<lang>
-<code snippet>
-```
-
-**Suggested tests**
-- <test>
-- <test>
-````
+- Metadata subtext uses `*italic*` (not `<sub>` — Bitbucket strips HTML)
+- No `<details>`, `<summary>`, or other HTML tags
+- No emoji shortcodes — use unicode or omit
+- Tables only when >2 columns
+- All other formatting (bold, code blocks, lists, h4 headings) is safe on both platforms
 
 ---
 
-## Priority Labels
+## Severity Labels
 
-Use exactly one of these labels:
+Use exactly one severity label per comment:
 
-| Priority | When to use |
-|---|---|
-| `Blocker` | Must be fixed before merge — correctness, security, or data loss risk |
-| `Critical` | Should be fixed before merge — significant reliability or performance concern |
-| `Should Have` | Improves quality materially — maintainability, consistency, or moderate risk |
-| `May Have` | Nice to have — minor improvement, style, or future-proofing |
-| `Nitpick` | Cosmetic or stylistic preference — safe to ignore |
-| `Question` | Confidence is lower — asking for author context without overstating the issue |
+**Issue severities (3 tiers):**
 
-## Principle Labels
+- `Must Fix` — must be fixed before merge: correctness, security, data loss, or reliability risk
+- `Suggestion` — improves quality materially: maintainability, performance, consistency, or moderate risk
+- `Note` — minor improvement, style, or future-proofing: safe to defer
 
-Use one or more:
+**Non-issue types (not severity):**
 
-`Correctness` · `Reliability` · `Security` · `Performance` · `Maintainability` · `Consistency` · `Testability` · `Observability` · `Accessibility` · `Documentation`
+- `Praise` — recognizes well-crafted code: reinforces good patterns
+- `Question` — confidence is lower: asking for author context without overstating the issue
+
+### Severity Icons
+
+- `Must Fix` — :rotating_light:
+- `Suggestion` — :large_orange_diamond:
+- `Note` — :speech_balloon:
+- `Praise` — :star2:
+- `Question` — :grey_question:
+
+---
+
+## Dual Tags: Concern + Depth
+
+Every comment carries **two classification tags** that describe what dimension was reviewed and how deep the analysis went.
+
+### Concern Domain (what area)
+
+- `Correctness` — logic bugs, edge cases, null handling, race conditions, data integrity
+- `Design` — abstraction quality, coupling, dependency direction, API surface, data flow
+- `Reliability` — error handling, retries, timeouts, observability, logging, graceful degradation
+- `Performance` — algorithmic complexity, memory, N+1 queries, bundle size, caching
+- `DevEx` — naming, readability, test quality, doc accuracy, migration notes, reviewer ergonomics
+
+### Review Depth (how deep)
+
+- `Surface` — syntax, linting gaps, obvious bugs, copy-paste errors, leftover debug code
+- `Logic` — control flow, edge cases, error handling, boundary conditions, null paths
+- `Integration` — API contracts, cross-module impact, dependency changes, migration safety
+- `Architecture` — design decisions, abstraction quality, coupling, scalability implications
+- `Hardening` — security, performance under load, observability, failure recovery, test gaps
+
+---
+
+## Review Dimensions (Sub-Agent Attribution)
+
+Each comment is attributed to the review dimension (sub-agent) that identified it. When multiple dimensions flag the same issue, list all that apply.
+
+| Dimension | Covers |
+|-----------|--------|
+| `syntax` | Linting, formatting, naming, import organization, dead code |
+| `correctness` | Bugs, edge cases, null handling, boundary conditions, race conditions |
+| `security` | OWASP Top 10, auth/authz, input validation, secret exposure, injection |
+| `performance` | N+1 queries, memory leaks, bundle size, unnecessary computation, caching |
+| `design` | Coupling, dependency direction, data flow, API surface, change isolation |
+| `reliability` | Error handling, retries, timeouts, observability, logging, degradation |
+| `testing` | Coverage gaps, test quality, missing edge case tests, flaky patterns |
+| `documentation` | Doc drift, missing migration notes, API doc accuracy, changelog |
+| `ui-ux` | Semantic HTML, ARIA, keyboard nav, responsive, visual consistency (frontend only) |
+| `spec-compliance` | Does code implement what was asked? (when context docs are provided) |
 
 ---
 
@@ -78,250 +94,270 @@ The **Guideline** field connects the finding to the specific standard being viol
 
 Use one of:
 
-| Source | Example |
-|---|---|
-| DevKit coding guideline | `coding-guidelines/security: input validation` |
-| DevKit doc guideline | `doc-guidelines/api-reference: parameter descriptions` |
-| Language/framework idiom | `TypeScript: strict null checks` |
-| Industry standard | `OWASP A03: Injection` |
-| Project convention | `project convention: error handling pattern in src/errors/` |
-| Official documentation | `React docs: Rules of Hooks` |
+- **DevKit coding guideline**: `coding-guidelines/security: input validation`
+- **DevKit doc guideline**: `doc-guidelines/api-reference: parameter descriptions`
+- **Language/framework idiom**: `TypeScript: strict null checks`
+- **Industry standard**: `OWASP A03: Injection`
+- **Project convention**: `project convention: error handling pattern in src/errors/`
+- **Official documentation**: `React docs: Rules of Hooks`
 
 When no specific guideline applies, use a concise description of the violated principle: `defensive programming`, `fail-fast validation`, `single source of truth`.
 
----
-
-## Writing Rules for "Where it fails"
-
-- Include **2–3 representative cases**, not every possible case.
-- Prefer **real inputs / states / flows** over generic wording.
-- Show **current vs expected** behavior explicitly for each case.
-- Include an **edge case** when the bug is conditional or non-obvious.
-- Avoid vague phrasing like "this may break in some cases".
-
-A good case looks like this:
-
-```md
-- **Case 1:** New users without a profile
-  - Current behavior: `user.profile.id` throws at runtime
-  - Expected behavior: return a validation error or handle missing profile safely
-```
-
-Not this:
-
-```md
-- This might fail for some users
-```
+When multiple guidelines from different dimensions are violated, list each as a bullet point. When only one guideline applies, include it inline in the metadata subtext.
 
 ---
 
-## Title Rules
+## Canonical Format
 
-Make the title describe the actual problem, not just the area.
+### Line 1: Title (comment header)
 
-**Prefer:**
+```
+<icon> **[<SEVERITY>]** <Short, specific title that describes the actual problem>
+```
+
+This is the scannable header. It must be specific enough to understand the issue without reading further.
+
+**Good titles:**
 - `Potential null dereference when accessing user.profile.id`
 - `N+1 query pattern in order list endpoint`
 - `Missing authorization check for admin-only action`
 
-**Avoid:**
+**Bad titles:**
 - `Bug in profile code`
 - `Performance issue`
 - `Needs refactor`
 
----
+### Line 2: Metadata subtext
 
-## Section Guidance
+A single italic line with pipe separators. No bold labels, no bullet points — just clean, scannable metadata that stays visually subordinate to the title.
 
-### Summary
-- **Location** is required. Use `file:line` or `file:start-end` format. For inline PR comments where the platform attaches to the line, this field confirms the reference.
-- **Confidence** is 0–100. Be honest: 60–70 means "I think this is an issue but could be wrong"; 90+ means "this is clearly wrong".
-- **Guideline** names the specific standard violated. This is what makes the comment *educational* — the developer learns the principle, not just the fix.
+**Format (works on both GitHub and Bitbucket):**
+```
+*Confidence: <score>/100 | Concern: <concern(s)> | Depth: <depth> | Dimension: <dimension(s)> | Guideline: <guideline>*
+```
 
-### Issue
-- 1–3 sentences describing the exact problem in the current code path.
-- Call out the condition or trigger that makes the issue happen.
-- Reference the specific file and line range.
+**Field rules:**
+- **Confidence**: 0-100 with `/100` suffix. Be honest: 60-70 means "I think this is an issue but could be wrong"; 90+ means "this is clearly wrong"
+- **Concern**: one or more from the Concern Domain list, comma-separated
+- **Depth**: one from the Review Depth list
+- **Dimension**: which review sub-agent(s) identified it, comma-separated
+- **Guideline**: the specific standard violated
 
-### Where it fails
-- 2–3 concrete scenarios with current vs expected behavior.
-- Use real-world language: name the user type, the API call, the data state.
-- An edge case is required when the bug is conditional or timing-dependent.
-
-### Why it matters
-- 1–2 sentences on impact: user-facing bug, silent data corruption, retry storm, security gap, maintainability risk, etc.
-- Avoid generic "this could be a problem" — state the actual consequence.
-
-### Suggested fix
-- 1–2 sentences describing the recommended approach and why it addresses the root cause.
-- Include a minimal code snippet in the appropriate language.
-- Do not over-prescribe — the author owns the implementation.
-
-### Suggested tests
-- 2–3 test cases that cover the scenarios described in "Where it fails".
-- Phrase as behavior: "returns error when profile is missing", not "add test for null check".
-
----
-
-## Adapting the Template by Priority
-
-### Blocker / Critical
-Use the full template with all sections. These comments justify the detail.
-
-### Should Have / May Have
-The full template is recommended. You may abbreviate "Where it fails" to 1–2 cases if the issue is straightforward.
-
-### Nitpick
-Use a shortened form — title, a 1–2 sentence issue description, and a suggested fix. Skip "Where it fails", "Why it matters", and "Suggested tests" unless they add real clarity.
+**When multiple guidelines are violated** (from different dimensions), use a second italic line for the additional guidelines:
 
 ```md
-[Nitpick][Maintainability] Unused import `lodash/merge`
+:rotating_light: **[Must Fix]** Race condition in session refresh during token expiry
 
-**Issue**
-`lodash/merge` is imported at `src/utils/cart.ts:3` but not used after the refactor in this PR.
-
-**Suggested fix**
-Remove the import.
+*Confidence: 92/100 | Concern: Correctness, Reliability | Depth: Logic | Dimension: correctness, reliability*
+*Guideline: coding-guidelines/backend-general: concurrent-state-mutation | coding-guidelines/security: session-management*
 ```
 
-### Question
-Use the title and a 1–3 sentence description of what you're asking about. Include location. Do not include a suggested fix unless you have a concrete recommendation.
+### Section headings (h4)
 
-```md
-[Question][Correctness] Is the retry count intentionally unbounded here?
-
-**Summary**
-- Location: `src/client.ts:42`
-- Confidence: 55/100
-- Guideline: defensive programming — unbounded loops
-
-**Issue**
-The retry loop has no max-attempts guard. If this is intentional (e.g., the upstream guarantees eventual success), a comment would help future readers. Otherwise, consider adding a cap.
-```
+After the title and metadata, use `####` headings for each section. Leave a blank line between the metadata and the first heading.
 
 ---
 
-## Examples
-
-### Example 1 — Correctness Issue (Blocker)
+## Full Template (Must Fix)
 
 ````md
-[Blocker][Correctness] Potential null dereference when accessing `user.profile.id`
+:rotating_light: **[Must Fix]** <Short, specific title>
 
-**Summary**
-- Location: `src/handlers/user.ts:47-49`
-- Confidence: 97/100
-- Guideline: `coding-guidelines/backend-general: null safety` — guard nullable references before access
+*Confidence: <score>/100 | Concern: <concern(s)> | Depth: <depth> | Dimension: <dimension(s)> | Guideline: <guideline>*
 
-**Issue**
-The code reads `user.profile.id` before verifying that `user.profile` exists. This path is reachable for users created through the lightweight signup flow.
+#### Issue
+<What is wrong, in which code path, and under what condition. 1-3 sentences.>
 
-**Where it fails**
-- **Case 1:** Newly created user without a profile row
-  - Current behavior: request throws when evaluating `user.profile.id`
-  - Expected behavior: return a validation error or short-circuit safely
-- **Case 2:** Backfilled legacy user with partial data
-  - Current behavior: runtime exception in the request path
-  - Expected behavior: handle missing profile explicitly and avoid a 500
-- **Case 3:** Test fixtures that omit profile setup
-  - Current behavior: tests may pass accidentally if this branch is not exercised
-  - Expected behavior: missing profile should be handled consistently in all environments
+#### Risk
+<What could go wrong if this is not fixed. Concrete consequences, not vague warnings. Include specific failure scenarios.>
 
-**Why it matters**
-User-facing correctness issue that produces a 500 for valid request flows. Behavior depends on data shape rather than explicit validation.
+#### Suggested fix
+<Concrete recommendation. 1-2 sentences describing the approach.>
 
-**Suggested fix**
-Guard `user.profile` before dereferencing it, and fail with a controlled error if the profile is required.
-
-```ts
-if (!user.profile) {
-  throw new BadRequestError("profile is required");
-}
-const profileId = user.profile.id;
+```<lang>
+<code snippet>
 ```
 
-**Suggested tests**
-- returns a controlled error when `profile` is missing
-- succeeds when `profile.id` is present
+#### Also affects
+- `<other-file>:<line>` — <brief description of how it's affected>
+- `<other-file>:<line>` — <brief description>
 ````
 
-### Example 2 — Performance Issue (Should Have)
+**Section rules:**
+- **Issue**: 1-3 sentences. Call out the condition or trigger. Reference the specific code path
+- **Risk** (for Must Fix): What happens if not fixed. Real consequences: data corruption, security breach, user-facing error, silent failure. Not "this could be a problem" — state the actual consequence
+- **Impact** (for Suggestion/Note): Same section, but titled "Impact" instead of "Risk". Lighter consequences: maintainability burden, inconsistency, tech debt
+- **Suggested fix**: 1-2 sentences + minimal code snippet. Don't over-prescribe — the author owns the implementation
+- **Also affects**: Only when the issue ripples to other locations. Since these are inline comments, the primary location is the comment itself. Omit this section entirely when the issue is localized
+
+---
+
+## Adaptation by Severity
+
+### Must Fix — full template
+
+Use all sections. These comments justify the detail.
 
 ````md
-[Should Have][Performance] N+1 query pattern in order list endpoint
+:rotating_light: **[Must Fix]** Race condition in session refresh during token expiry
 
-**Summary**
-- Location: `src/routes/orders.ts:23-35`
-- Confidence: 91/100
-- Guideline: `coding-guidelines/backend-general: query patterns` — batch related queries instead of looping
+*Confidence: 92/100 | Concern: Correctness, Reliability | Depth: Logic | Dimension: correctness, reliability | Guideline: concurrent-state-mutation*
 
-**Issue**
-The endpoint fetches orders first and then loads customer data inside a loop, resulting in one additional query per order.
+#### Issue
+The `refreshSession()` call on line 45 reads and writes `this.token` without a lock. When two requests trigger refresh simultaneously, the second overwrites the first's token mid-flight, leaving one request with a stale session.
 
-**Where it fails**
-- **Case 1:** Small result set (5 orders)
-  - Current behavior: 6 queries executed
-  - Expected behavior: related data fetched in a single batched query
-- **Case 2:** Larger result set (100 orders)
-  - Current behavior: 101 queries, increasing latency and DB load
-  - Expected behavior: query count remains stable as order count grows
-- **Case 3:** High-traffic tenants
-  - Current behavior: amplifies database pressure under concurrent load
-  - Expected behavior: endpoint scales without per-row lookups
+#### Risk
+- Silent auth failures under concurrent load — hard to reproduce locally
+- Users get logged out intermittently in production
+- If the stale token hits a write endpoint, partial data corruption
 
-**Why it matters**
-Turns a reasonable endpoint into a latency hotspot as data volume grows. Not obvious in local testing, costly in production.
-
-**Suggested fix**
-Fetch the related customer data eagerly or batch it rather than querying inside the loop.
+#### Suggested fix
+Wrap the refresh in a mutex or deduplicate concurrent calls:
 
 ```ts
-const orders = await db.order.findMany({
-  where: { tenantId },
-  include: { customer: true },
-});
-```
+private refreshPromise: Promise<Token> | null = null;
 
-**Suggested tests**
-- verifies query count does not grow linearly with result size
-- validates response shape remains unchanged after batching
-````
-
-### Example 3 — Maintainability Issue (Should Have)
-
-````md
-[Should Have][Maintainability] Pricing rules duplicated across checkout paths
-
-**Summary**
-- Location: `checkout/cart.ts:45-67` and `checkout/retry.ts:30-52`
-- Confidence: 88/100
-- Guideline: single source of truth — business rules should be defined once and reused
-
-**Issue**
-Tax and discount calculation logic is implemented in both `checkout/cart.ts` and `checkout/retry.ts` with slightly different conditions, creating two sources of truth for the same business rule.
-
-**Where it fails**
-- **Case 1:** Future change to discount policy
-  - Current behavior: one path may be updated while the other is missed
-  - Expected behavior: pricing rules defined once and reused
-- **Case 2:** Retry flow vs first-time checkout
-  - Current behavior: same cart can produce different totals depending on code path
-  - Expected behavior: totals consistent across entry points
-
-**Why it matters**
-Creates a realistic risk of pricing inconsistencies in production. Business rules are safer when centralized.
-
-**Suggested fix**
-Extract pricing into a shared function and have both paths call it.
-
-```ts
-function calculateFinalPrice(input: PricingInput): Money {
-  const discounted = applyDiscounts(input.basePrice, input.discounts);
-  return applyTax(discounted, input.taxRegion);
+async refreshSession() {
+  if (!this.refreshPromise) {
+    this.refreshPromise = this._doRefresh().finally(() => {
+      this.refreshPromise = null;
+    });
+  }
+  return this.refreshPromise;
 }
 ```
 
-**Suggested tests**
-- same cart produces the same total in checkout and retry paths
-- tax/discount rule changes covered through shared logic tests
+#### Also affects
+- `api/client.ts:112` — same pattern, same race
+- `ws/reconnect.ts:67` — calls `refreshSession` without awaiting
 ````
+
+### Suggestion — drop "Risk", use "Impact", keep rest
+
+````md
+:large_orange_diamond: **[Suggestion]** Extract retry config to a shared constant
+
+*Confidence: 78/100 | Concern: DevEx | Depth: Surface | Dimension: design | Guideline: single-source-of-truth*
+
+#### Issue
+Retry count (3) and backoff (1000ms) are hardcoded in four places. Changing one without the others causes inconsistent behavior.
+
+#### Impact
+Config drift across retry sites. A future change to retry policy requires finding and updating all four locations.
+
+#### Suggested fix
+```ts
+// config/retry.ts
+export const RETRY_CONFIG = { maxRetries: 3, backoffMs: 1000 };
+```
+````
+
+### Note — title + subtext + 1-2 sentence inline, no h4 headings
+
+```md
+:speech_balloon: **[Note]** Consider `structuredClone` instead of `JSON.parse(JSON.stringify(...))`
+
+*Confidence: 70/100 | Concern: Performance | Depth: Surface | Dimension: performance | Guideline: modern-apis*
+
+`structuredClone` handles circular refs and is ~2x faster for large objects. Not blocking.
+```
+
+### Praise — title + subtext (no confidence) + brief explanation
+
+```md
+:star2: **[Praise]** Clean separation of transport from protocol logic
+
+*Concern: Design | Depth: Architecture | Dimension: design*
+
+The new `Transport` interface makes it trivial to swap WebSocket for SSE later without touching message handling. Well done.
+```
+
+### Question — title + subtext + the question
+
+```md
+:grey_question: **[Question]** Is the 30s timeout intentional for health checks?
+
+*Confidence: 55/100 | Concern: Reliability | Depth: Integration | Dimension: reliability*
+
+Most health check endpoints return in <100ms. A 30s timeout means a hung dependency won't trigger alerts for 30 seconds. Was this chosen to match a specific SLA, or is it a default that should be lower?
+```
+
+---
+
+## Comment Consolidation (Same-Line Merging)
+
+When multiple findings target the same file and line (or overlapping line ranges), **merge them into a single comment**. This avoids cluttering the PR with redundant threads.
+
+### Merge Rules
+
+1. **Exact same line**: two or more findings on the same `file:line` -> combine into one comment
+2. **Overlapping ranges**: ranges that overlap (e.g., lines 42-45 and 43-48) -> merge covering full range
+3. **Same function/block**: different lines within the same function, thematically related -> consider merging with numbered sub-findings
+
+### Merged Comment Format
+
+````md
+:rotating_light: **[Must Fix]** <Merged title summarizing the area>
+
+*Findings: <N> issues | Concern: <all concerns> | Depth: <deepest depth>*
+
+---
+
+**1. <First finding title>**
+
+*Confidence: <score>/100 | Dimension: <dimension> | Guideline: <guideline>*
+
+<Issue description>
+
+**Suggested fix:**
+```<lang>
+<code>
+```
+
+---
+
+**2. <Second finding title>**
+
+*Confidence: <score>/100 | Dimension: <dimension> | Guideline: <guideline>*
+
+<Issue description>
+
+**Suggested fix:**
+```<lang>
+<code>
+```
+````
+
+The merged comment takes the **highest severity** among the sub-findings.
+
+### Reply Merging
+
+When posting multiple replies to the same thread in one session:
+1. Combine all replies into a single response
+2. Use `---` between distinct points
+3. Lead with acknowledgment, then any follow-up concern
+
+---
+
+## Writing Quality Rules
+
+### Issue Section
+- 1-3 sentences describing the exact problem in the current code path
+- Call out the condition or trigger that makes the issue happen
+- Be specific: name the function, variable, or data state
+
+### Risk / Impact Section
+- State actual consequences, not vague warnings
+- "Users see a 500 error" not "this might break"
+- Include the scenario that triggers the consequence
+- For Must Fix: use "Risk" heading. For Suggestion/Note: use "Impact" heading
+
+### Suggested Fix
+- 1-2 sentences describing the approach and why it addresses the root cause
+- Include a minimal code snippet in the appropriate language
+- Don't over-prescribe — the author owns the implementation
+
+### Also Affects
+- Only include when the issue genuinely ripples to other files
+- Each entry: `file:line` + brief description of how it's affected
+- Omit entirely for localized issues (most comments)

@@ -4,7 +4,7 @@ Guidelines for writing and reviewing API reference documentation. An API referen
 
 **Audience**: Backend and frontend engineers, third-party integrators, and developer relations teams who need to understand every endpoint, parameter, error, and constraint of the API.
 
-**Reference**: Aligned with [OpenAPI Specification 3.1](https://spec.openapis.org/oas/v3.1.0) and [JSON:API Specification 1.1](https://jsonapi.org/format/).
+**Reference**: Aligned with [OpenAPI Specification 3.1](https://adk-spec.openapis.org/oas/v3.1.0) and [JSON:API Specification 1.1](https://jsonapi.org/format/).
 
 ---
 
@@ -306,7 +306,7 @@ Creates a new charge for a payment method.
 
 ## 3. OpenAPI Alignment
 
-- Structure your API reference to align with [OpenAPI 3.1](https://spec.openapis.org/oas/v3.1.0) even if you do not generate it from an OpenAPI spec.
+- Structure your API reference to align with [OpenAPI 3.1](https://adk-spec.openapis.org/oas/v3.1.0) even if you do not generate it from an OpenAPI spec.
 - This means: consistent operation IDs, parameter locations (`path`, `query`, `header`, `cookie`), request/response media types, and schema definitions.
 - If you maintain an OpenAPI spec file, ensure the human-readable reference and the spec file are in sync. Discrepancies between the two erode trust.
 - Consider generating the reference from the OpenAPI spec to ensure consistency. Tools: [Redoc](https://github.com/Redocly/redoc), [Swagger UI](https://swagger.io/tools/swagger-ui/), [Stoplight](https://stoplight.io/).
@@ -314,7 +314,7 @@ Creates a new charge for a payment method.
 - Include `examples` in the OpenAPI spec. The spec supports inline examples that can be used to generate documentation and power API explorers.
 - Validate the OpenAPI spec in CI. Use `spectral` or `openapi-generator validate` to catch schema errors, missing descriptions, and style violations.
 
-> **Reference**: [OpenAPI Specification 3.1](https://spec.openapis.org/oas/v3.1.0),
+> **Reference**: [OpenAPI Specification 3.1](https://adk-spec.openapis.org/oas/v3.1.0),
 > [JSON:API Specification](https://jsonapi.org/),
 > [RFC 9457: Problem Details for HTTP APIs](https://www.rfc-editor.org/rfc/rfc9457),
 > [Spectral API Linter](https://stoplight.io/open-source/spectral)

@@ -96,7 +96,7 @@ Apply fixes in reverse document order (bottom to top) to prevent offset drift.
 After fixes are applied:
 1. For each fixed comment, post a reply explaining the fix:
    - Confluence: `mcp__atlassian-confluence__confluence_reply_to_comment`
-   - Google Docs: `mcp__google-drive__replyToComment`
+   - Google Docs: do **not** post replies via MCP (unreliable). Instead, produce a markdown file at `.temp/adk-write/<doc-title>-fix-replies.md` listing each reply with its target comment and content. Present the file path and ask the user to add replies manually.
 2. Reply text: "Fixed. [brief description of the change]"
 3. If the platform supports it, mark the comment thread as resolved.
 
@@ -126,5 +126,5 @@ Document: <title>
 
 ## Adjacent Skills
 
-- `/review` for comment-only review of documents
+- `/adk-review-pr` for comment-only review of documents
 - `general` stage for drafting new documents

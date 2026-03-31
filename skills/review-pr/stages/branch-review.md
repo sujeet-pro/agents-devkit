@@ -109,26 +109,40 @@ Focus options:
 
 ---
 
-## Required Child Agents
+## Required Review Dimensions (Child Agents)
 
-Run at least these child agents in parallel:
+Run these review dimensions in parallel:
 
-- `code-reviewer` for correctness, security, performance, tests, and code patterns
-- `repo-auditor` for architecture, dependency direction, and change isolation
-- `doc-reviewer` for docs, migration notes, naming, and reviewer ergonomics
-- one domain specialist pass for frontend, backend, or design-system concerns
+**Always run:**
+1. **`syntax`** — linting gaps, formatting, naming, import organization, dead code
+2. **`correctness`** — logic bugs, edge cases, null handling, boundary conditions, race conditions
+3. **`security`** — OWASP Top 10, auth/authz, input validation, secret exposure, injection
+4. **`performance`** — N+1 queries, memory leaks, bundle size, caching, complexity
+5. **`design`** — coupling, dependency direction, data flow, API surface, change isolation
+6. **`reliability`** — error handling, retries, timeouts, observability, logging
+7. **`testing`** — coverage gaps, test quality, missing edge case tests, flaky patterns
+8. **`documentation`** — doc drift, migration notes, API docs, changelog
+
+**Conditional:**
+9. **`ui-ux`** — when changes touch frontend files (`.tsx`, `.jsx`, `.vue`, `.svelte`, `.css`, `.scss`)
+10. **`spec-compliance`** — when context documents are available
 
 ---
 
 ## Review Requirements
 
-Every review must cover:
+Every review must cover all 8 always-run dimensions:
 
+- syntax and style
 - correctness and regressions
-- security and performance
-- architecture and boundary fit
-- tests, docs, and migration impact
-- code patterns and maintainability
+- security vulnerabilities
+- performance concerns
+- design and architecture
+- reliability and operational readiness
+- test coverage and quality
+- documentation accuracy
+
+Plus conditional dimensions when applicable (ui-ux, spec-compliance).
 
 When `focus` is specified, weight child agent priorities accordingly.
 
@@ -168,9 +182,10 @@ Display a final summary:
 ```text
 ## Branch Review Complete
 
-Branch: <source-branch> vs <target-branch>
-Files reviewed: N
-Findings: N (critical: N, high: N, medium: N, low: N)
-Auto-validation: N kept / M discarded
-Output: Markdown at <path>
+- **Branch:** <source-branch> vs <target-branch>
+- **Files reviewed:** N
+- **Findings:** N (must fix: N, suggestion: N, note: N)
+- **Dimensions:** N active
+- **Auto-validation:** N kept / M discarded
+- **Output:** Markdown at <path>
 ```

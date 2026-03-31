@@ -1,5 +1,5 @@
 ---
-name: test
+name: adk-test
 description: "[abbreviated] [utility] Use when you need interactive user acceptance testing that extracts testable deliverables and walks the user through manual verification with automatic failure diagnosis"
 user-invocable: true
 argument-hint: "<source> [--scope] [--mode] [--verbosity short|standard|detailed] [--help]"
@@ -42,11 +42,11 @@ When `--help` is passed, display this reference and stop.
 ### Examples
 
 ```
-/test docs/spec.md
-/test docs/requirements.md --scope "authentication"
-/test .temp/plans/feature-plan.md --mode auto-approve
-/test docs/prd.md --verbosity detailed
-/test docs/spec.md --scope "API" --verbosity short
+/adk-test docs/adk-spec.md
+/adk-test docs/requirements.md --scope "authentication"
+/adk-test .temp/plans/feature-plan.md --mode auto-approve
+/adk-test docs/prd.md --verbosity detailed
+/adk-test docs/adk-spec.md --scope "API" --verbosity short
 ```
 
 ---
@@ -88,9 +88,9 @@ Save results to `.temp/uat/<source-slug>-uat.md`. Create the `.temp/uat/` direct
 
 When the platform supports child agents, run at least these:
 
-- **Test case extractor**: reads the source spec/plan and extracts concrete, testable behaviors with expected outcomes. Categorizes each as functional, edge-case, or non-functional.
-- **Diagnosis agent**: when a test fails, investigates root cause using `/develop --mode debug` patterns. Reports affected files, confidence level, and suggested fix.
-- **Fix planner**: for failed items, generates fix plans ready for `/plan --mode execute`.
+- **Test case extractor**: reads the source spec/adk-plan and extracts concrete, testable behaviors with expected outcomes. Categorizes each as functional, edge-case, or non-functional.
+- **Diagnosis agent**: when a test fails, investigates root cause using `/adk-develop --mode debug` patterns. Reports affected files, confidence level, and suggested fix.
+- **Fix planner**: for failed items, generates fix plans ready for `/adk-plan --mode execute`.
 
 ## Phase 1: Extract Test Cases
 
@@ -198,7 +198,7 @@ When the user cannot test (missing environment, external dependency, etc.):
 For all failed items where the user chose "Generate fix plan":
 
 - Group related failures into coherent fix tasks.
-- Generate a plan compatible with `/plan --mode execute`.
+- Generate a plan compatible with `/adk-plan --mode execute`.
 - Save to `.temp/plans/<source-slug>-fixes.md`.
 
 If no fix plans were requested, skip this phase.
@@ -232,12 +232,12 @@ Accept current state? [Y]es (ship with known issues) | [N]o (fix first) | [R]e-t
 ```
 
 - Yes: close the UAT session and record the accepted state.
-- No: direct the user to run `/plan --mode execute` with the generated fix plans.
+- No: direct the user to run `/adk-plan --mode execute` with the generated fix plans.
 - Re-test: return to Phase 2 for only the failed and skipped items.
 
 ## Adjacent Skills
 
-- `/develop --mode verify` for automated verification (tests, lint, types, build)
-- `/develop --mode debug` for investigating specific failures
-- `/plan --mode execute` for executing fix plans
-- `/spec --mode write` for writing the specifications that feed UAT
+- `/adk-develop --mode verify` for automated verification (tests, lint, types, build)
+- `/adk-develop --mode debug` for investigating specific failures
+- `/adk-plan --mode execute` for executing fix plans
+- `/adk-spec --mode write` for writing the specifications that feed UAT

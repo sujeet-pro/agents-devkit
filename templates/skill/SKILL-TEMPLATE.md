@@ -1,5 +1,5 @@
 ---
-name: <skill-name>
+name: adk-<skill-name>
 description: "Use when <trigger description>"
 user-invocable: true
 argument-hint: "<primary-arg> [--flag1] [--flag2]"

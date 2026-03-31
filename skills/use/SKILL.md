@@ -1,8 +1,8 @@
 ---
-name: use
+name: adk-use
 description: "[orchestrator] [pipeline] Use when starting any task to expand intent, identify the right DevKit skills, confirm the plan early with the user, and then execute the approved workflow"
 user-invocable: true
-argument-hint: "<task description> [--verbosity short|standard|detailed] [--help]"
+argument-hint: "<task description> [-i|-tui] [--verbosity short|standard|detailed] [--help]"
 allowed-tools: [Glob, Grep, Read, Edit, Write, Bash, WebSearch, WebFetch, Agent]
 dependencies:
   commands: [git]
@@ -15,7 +15,7 @@ If you were launched as a child agent for a focused task, skip this skill.
 
 # DevKit Orchestrator
 
-`/use` is the default entry point for DevKit. Start here unless the user explicitly names a specific skill and clearly wants to bypass routing.
+`/adk-use` is the default entry point for DevKit. Start here unless the user explicitly names a specific skill and clearly wants to bypass routing.
 
 This skill must make the workflow human-in-the-loop as early as possible:
 
@@ -45,16 +45,16 @@ When `--help` is passed, display this reference and stop.
 - **Medium tasks**: full intent review, research/options, interactive approach selection, approved implementation plan, tracked execution
 - **Large tasks**: same as medium plus Principal Engineer check, stronger questioning, phased execution, and progress dashboard
 - **Explicit skill invocation by the user**: keep that skill in the pipeline, but still run Phase 0 and plan-before-execute
-- **Direct `/review`, `/develop`, `/write`, etc.**: those skills may still be called directly, but this orchestrator should be the preferred route for general prompts
+- **Direct `/adk-review-pr`, `/adk-develop`, `/adk-write`, etc.**: those skills may still be called directly, but this orchestrator should be the preferred route for general prompts
 
 ### Examples
 
 ```text
-/use review this PR: https://github.com/org/repo/pull/42
-/use implement user authentication with OAuth2
-/use write an ADR for our caching strategy
-/use debug the failing CI pipeline
-/use audit this codebase for security and performance
+/adk-use review this PR: https://github.com/org/repo/pull/42
+/adk-use implement user authentication with OAuth2
+/adk-use write an ADR for our caching strategy
+/adk-use debug the failing CI pipeline
+/adk-use audit this codebase for security and performance
 ```
 
 ## Core Rules
@@ -102,7 +102,7 @@ Intent:
 ### Confirmation
 
 - **Trivial / Small**: inline confirmation is enough
-- **Medium / Large**: write `intent.json`, launch `python3 ${CLAUDE_SKILL_DIR}/scripts/tui/intent_confirm.py <session_dir>`, and wait for approval or edits
+- **Medium / Large**: write `intent.json`, then confirm with the user using the Intent Confirmation protocol from `references/inline-interaction.md` (render inline, wait for approve/edit/simplify/cancel)
 
 If the user simplifies or edits the intent, re-run the expansion and only then continue.
 
@@ -132,7 +132,7 @@ For Medium and Large work, do not lock the pipeline silently.
 3. explain pros, cons, effort, and risk
 4. let the user pick, mix, or simplify
 
-Use `python3 ${CLAUDE_SKILL_DIR}/scripts/tui/approach_select.py <session_dir>` when a TUI is appropriate.
+Present approaches using the Approach Selection protocol from `references/inline-interaction.md`.
 
 ## Planning Gate
 
@@ -154,7 +154,7 @@ For Medium and Large work:
 3. let the user approve it
 4. only then execute it
 
-Use `python3 ${CLAUDE_SKILL_DIR}/scripts/tui/plan_approve.py <session_dir>` for Medium and Large tasks.
+Present the plan using the Plan Approval protocol from `references/inline-interaction.md` for Medium and Large tasks.
 
 ## Execution
 
@@ -163,11 +163,11 @@ Once the user approves the plan:
 1. invoke the selected downstream skills in order
 2. keep progress visible at natural checkpoints
 3. avoid asking for more information unless the approved assumptions are broken by reality
-4. for Medium and Large execution, write progress updates, use `progress-tracker` to summarize status, and optionally launch `python3 ${CLAUDE_SKILL_DIR}/scripts/tui/progress_dashboard.py <session_dir>`
+4. for Medium and Large execution, write progress updates and show inline progress per `references/inline-interaction.md`
 
 ## Validation and Learning
 
-End every `/use` run with:
+End every `/adk-use` run with:
 
 - what was done
 - what was verified
@@ -184,5 +184,5 @@ Adapt output to `--verbosity`, but keep it concise.
 
 ## Adjacent Skills
 
-- `/plan` — use directly when the user explicitly asks to brainstorm, write, execute, or track a plan
-- `/team` — use when the user explicitly wants multi-model or multi-agent orchestration as the primary task
+- `/adk-plan` — use directly when the user explicitly asks to brainstorm, write, execute, or track a plan
+- `/adk-team` — use when the user explicitly wants multi-model or multi-agent orchestration as the primary task

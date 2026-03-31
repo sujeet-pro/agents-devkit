@@ -1,5 +1,5 @@
 ---
-name: coding
+name: adk-coding
 description: "[helper] [guidelines] Helper skill that detects repo tools, frameworks, and languages, then loads matching coding guidelines from the shared guideline library — invoked by review, PR, and development skills, not directly by users"
 user-invocable: false
 argument-hint: "[--scope scoped|full] [--help]"
@@ -37,9 +37,9 @@ When `--help` is passed, display this reference and stop.
 ### Examples
 
 ```
-(invoked automatically by /review, /develop, /pr)
-/coding --scope full
-/coding --scope scoped
+(invoked automatically by /adk-review-pr, /adk-develop, /pr)
+/adk-coding --scope full
+/adk-coding --scope scoped
 ```
 
 ---

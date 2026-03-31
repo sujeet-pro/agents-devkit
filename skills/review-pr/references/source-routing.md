@@ -26,7 +26,7 @@ Run `python3 ${CLAUDE_SKILL_DIR}/scripts/preflight.py ${CLAUDE_SKILL_DIR}` befor
 - **GitHub PR comments**: post via GitHub MCP review or comment tools.
 - **Bitbucket PR comments**: post via Bitbucket MCP PR comment tools.
 - **Confluence**: add comments, update pages, and upload rendered diagrams and source attachments.
-- **Google Docs**: add comments or write the generated document through Google Drive MCP.
+- **Google Docs**: read documents through Google Drive MCP. **Do not post comments via MCP** — Google Docs comment posting is unreliable. Instead, produce a markdown file listing each comment with its target location and content, and ask the user to add comments manually.
 - **PDF**: export locally with a free tool already on the machine such as browser print-to-PDF, `pandoc`, or `wkhtmltopdf` when available.
 
 ## Existing Interaction Rule

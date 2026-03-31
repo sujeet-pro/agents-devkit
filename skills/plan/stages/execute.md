@@ -268,7 +268,7 @@ Done!
 ## Integration
 
 **Related DevKit skills:**
-- `/develop --mode worktree` — set up isolated workspace before starting
-- `/plan --mode write` — creates the plan this stage executes
-- `/review` — code review after all tasks complete
-- `/develop --mode tdd` — subagents follow TDD for each task
+- `/adk-develop --mode worktree` — set up isolated workspace before starting
+- `/adk-plan --mode write` — creates the plan this stage executes
+- `/adk-review-pr` — code review after all tasks complete
+- `/adk-develop --mode tdd` — subagents follow TDD for each task

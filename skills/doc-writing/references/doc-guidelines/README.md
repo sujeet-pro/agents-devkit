@@ -21,10 +21,10 @@ Guidelines for writing and reviewing different types of documents. Load the rele
 - [hld.md](./hld.md) -- High Level Design documents. System architecture for stakeholders and cross-team engineers.
 - [lld.md](./lld.md) -- Low Level Design documents. Implementation-level detail for a single component or feature.
 - [prd.md](./prd.md) -- Product Requirements Documents. What a product should do, with success criteria.
-- [project.md](./project.md) -- Project documentation. Architecture diagrams, tested quick starts, configuration and deployment guides.
+- [project.md](./adk-project.md) -- Project documentation. Architecture diagrams, tested quick starts, configuration and deployment guides.
 - [tdd.md](./tdd.md) -- Technical Design Documents. Engineering approach with trade-off analysis.
 - [tool-evaluation.md](./tool-evaluation.md) -- Tool evaluation documents. Structured comparison and recommendation for tool selection.
 
 ### Coding Guidelines
 
-For code-related guidelines (language-specific standards, architecture, security, testing), invoke `/coding` which detects the repo stack and loads the appropriate coding guidelines automatically.
+For code-related guidelines (language-specific standards, architecture, security, testing), invoke `/adk-coding` which detects the repo stack and loads the appropriate coding guidelines automatically.

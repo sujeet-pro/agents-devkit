@@ -14,34 +14,56 @@ This stage runs after `stages/pr-review.md` has completed and produced a set of 
 
 ### Step 1: Collect Accepted Findings
 
-Gather all findings that were accepted (or edited and accepted) during the interactive loop or standard flow.
+Gather all findings that were accepted (or edited and accepted) during the interactive loop or standard flow. Also collect praise comments (auto-accepted).
+
+### Step 1.5: Merge Same-Line Comments
+
+Before formatting, apply the comment consolidation rules from `stages/pr-review.md`:
+
+1. **Group findings by file + line**: Identify findings targeting the same file:line or overlapping line ranges.
+2. **Merge groups**: For each group with 2+ findings, combine into a single merged comment using the merged format from `stages/pr-review.md`.
+3. **Merge replies in the same thread**: If multiple reply drafts target the same existing comment thread, combine them into a single reply with `---` section breaks between distinct points.
+
+This prevents comment clutter and makes reviews easier for authors to follow.
 
 ### Step 2: Format Comments
 
-Format each finding using the canonical comment template from `references/review-comment-template.md`:
+Format each finding (or merged finding group) using the canonical comment template from `references/review-comment-template.md`. Use the icon-prefixed format with summary tables for visual scannability:
 
 ```md
-[<PRIORITY>][<PRINCIPLE>] <Short, specific title>
+<icon> **[<PRIORITY>][<PRINCIPLE>]** <Short, specific title>
 
-**Summary**
-- Location: `<file-path>:<line-range>`
-- Confidence: <score>/100
-- Guideline: <which standard or best practice is violated>
+| | |
+|---|---|
+| **Location** | `<file-path>:<line-range>` |
+| **Confidence** | <score>/100 |
+| **Guideline** | <which standard or best practice is violated> |
 
-**Issue**
+#### Issue
 <description>
 
-**Where it fails**
+#### Where it fails
 <cases>
 
-**Why it matters**
+#### Why it matters
 <impact>
 
-**Suggested fix**
+#### Suggested fix
 <recommendation with code>
 
-**Suggested tests**
+<details>
+<summary>Suggested tests</summary>
+
 <test cases>
+</details>
+```
+
+Format praise using the lightweight praise template:
+
+```md
+:star2: **[Praise][<PRINCIPLE>]** <Short, specific title>
+
+> <1-3 sentences explaining what's well done and why it matters.>
 ```
 
 ### Step 3: Post via MCP or API
@@ -131,6 +153,8 @@ After posting, display:
 ## Comments Posted
 
 New comments: N
+Praise comments: N
+Merged (same-line): N findings → M comments
 Resolved threads: N
 Reopened threads: N
 Failed to post: N (if any)

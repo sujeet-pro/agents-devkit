@@ -61,14 +61,23 @@ Invoke the `coding` skill to detect repo frameworks and load matching coding gui
 
 ## Review Execution
 
-### Step 1: Dispatch Child Agents
+### Step 1: Dispatch Review Dimension Agents
 
-Run at least these child agents in parallel:
+Run these review dimensions in parallel:
 
-- `code-reviewer` for correctness, security, performance, tests, and code patterns
-- `repo-auditor` for architecture, dependency direction, and change isolation
-- `doc-reviewer` for docs, migration notes, naming, and reviewer ergonomics
-- one domain specialist pass for frontend, backend, or design-system concerns
+**Always run:**
+1. **`syntax`** — linting gaps, formatting, naming, import organization, dead code
+2. **`correctness`** — logic bugs, edge cases, null handling, boundary conditions, race conditions
+3. **`security`** — OWASP Top 10, auth/authz, input validation, secret exposure, injection
+4. **`performance`** — N+1 queries, memory leaks, bundle size, caching, complexity
+5. **`design`** — coupling, dependency direction, data flow, API surface, change isolation
+6. **`reliability`** — error handling, retries, timeouts, observability, logging
+7. **`testing`** — coverage gaps, test quality, missing edge case tests, flaky patterns
+8. **`documentation`** — doc drift, migration notes, API docs, changelog
+
+**Conditional:**
+9. **`ui-ux`** — when changes touch frontend files (`.tsx`, `.jsx`, `.vue`, `.svelte`, `.css`, `.scss`)
+10. **`spec-compliance`** — when context documents are available
 
 **Placeholders for code-reviewer:**
 - `{WHAT_WAS_IMPLEMENTED}` - What was built
@@ -90,7 +99,9 @@ For each changed file, read the full file to catch issues in surrounding code, m
 ### Step 3: Consolidate
 
 - Deduplicate overlapping findings
-- Assign severity and confidence scores
+- Assign severity (Must Fix, Suggestion, Note) and confidence scores
+- Attribute each finding to its review dimension(s)
+- Tag with Concern domain and Review Depth
 - Separate must-fix issues from suggestions
 
 ---
@@ -111,9 +122,9 @@ Discard findings where the issue does not actually exist in the current code.
 
 ## Acting on Feedback
 
-- Fix Critical issues immediately
-- Fix Important issues before proceeding
-- Note Minor issues for later
+- Fix Must Fix issues immediately
+- Fix Suggestion issues before proceeding
+- Note issues for later
 - Push back if reviewer is wrong (with reasoning)
 
 ---
@@ -139,8 +150,8 @@ Discard findings where the issue does not actually exist in the current code.
 
 **Never:**
 - Skip review because "it's simple"
-- Ignore Critical issues
-- Proceed with unfixed Important issues
+- Ignore Must Fix issues
+- Proceed with unfixed Suggestion issues
 - Argue with valid technical feedback
 
 **If reviewer wrong:**
@@ -170,9 +181,9 @@ Produce a markdown review document:
 [items needing clarification]
 
 ### Action Items
-- [ ] Critical: ...
-- [ ] Important: ...
-- [ ] Minor: ...
+- [ ] Must Fix: ...
+- [ ] Suggestion: ...
+- [ ] Note: ...
 ```
 
 Display a final summary:
@@ -180,9 +191,10 @@ Display a final summary:
 ```text
 ## Local Review Complete
 
-Scope: [staged | unstaged | branch changes]
-Files reviewed: N
-Findings: N (critical: N, high: N, medium: N, low: N)
-Auto-validation: N kept / M discarded
-Output: Markdown review presented
+- **Scope:** [staged | unstaged | branch changes]
+- **Files reviewed:** N
+- **Findings:** N (must fix: N, suggestion: N, note: N)
+- **Dimensions:** N active
+- **Auto-validation:** N kept / M discarded
+- **Output:** Markdown review presented
 ```

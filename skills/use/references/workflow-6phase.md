@@ -6,7 +6,7 @@ Every non-trivial DevKit skill follows a structured 6-phase workflow that front-
 
 Not all references are needed for every task. Load references based on complexity:
 
-- **Always**: `references/workflow-6phase.md`, `references/communication-style.md`, `references/preflight.md`
+- **Always**: `references/workflow-6phase.md`, `references/communication-style.md`, `references/preflight.md`, `references/inline-interaction.md`
 - **Medium and Large only**: `references/principal-engineer.md`, `references/agentic-teams.md`
 - **When producing output**: `references/output-formats.md`
 
@@ -22,8 +22,7 @@ Confirm understanding before doing any work. This phase ALWAYS runs.
 - List tools/MCPs needed with availability status (available / unavailable / degraded)
 - Estimate complexity (Trivial / Small / Medium / Large) with justification
 - For Medium/Large: load and apply `references/principal-engineer.md`
-- Launch TUI for confirmation: `python3 ${CLAUDE_SKILL_DIR}/scripts/tui/intent_confirm.py <session_dir>`
-- For Trivial: 1-line confirm inline, no TUI
+- Confirm with user per `references/inline-interaction.md` — use the Intent Confirmation protocol (inline rendering with approve/edit/simplify/cancel). For Trivial: 1-line confirm inline.
 - Save to `.temp/<task-slug>/00-intent.md`
 
 ### Phase 1: Research & Options Discovery
@@ -39,7 +38,7 @@ Research scoped by confirmed intent, not by the AI's initial interpretation.
   - Pros and cons
   - Effort estimate (hours or complexity)
   - Risk level (Low / Medium / High)
-- Launch TUI for approach selection: `python3 ${CLAUDE_SKILL_DIR}/scripts/tui/approach_select.py <session_dir>`
+- Present approaches per `references/inline-interaction.md` — use the Approach Selection protocol (numbered list with select/mix/discuss).
 - Save to `.temp/<task-slug>/01-approaches.md`
 
 ### Phase 2: Approach Selection (Interactive)
@@ -65,7 +64,7 @@ Generate an executable plan from the chosen approach.
 - Identify sequential dependencies between waves
 - For Medium/Large: assign team shapes from `references/agentic-teams.md` to each wave
 - Plan must be resumable — track done vs remaining
-- Launch TUI for plan approval: `python3 ${CLAUDE_SKILL_DIR}/scripts/tui/plan_approve.py <session_dir>`
+- Present plan per `references/inline-interaction.md` — use the Plan Approval protocol (wave/task list with approve/add/remove/cancel).
 - Save to `.temp/<task-slug>/03-plan.md`
 
 ### Phase 4: Execute (Autonomous)
@@ -76,7 +75,7 @@ Implement the plan without requiring human interaction.
 - Each child agent receives full context for its task
 - After each wave, verify completion before starting the next
 - Update progress in `.temp/<task-slug>/04-progress.md` at wave boundaries
-- Launch progress dashboard for Medium/Large tasks: `python3 ${CLAUDE_SKILL_DIR}/scripts/tui/progress_dashboard.py <session_dir>`
+- Show progress inline per `references/inline-interaction.md` — use the Progress Dashboard protocol (wave status updates at boundaries).
 - On failure: surface error, offer [Retry | Skip | Abort | Fix Manually]
 
 ### Phase 5: Validate & Learn
@@ -108,14 +107,16 @@ Automatically verify, review, refine, and summarize.
 |------------|-------|---------|---------|---------|---------|---------|---------|
 | Trivial    | 1     | inline  | skip    | skip    | skip    | direct  | quick   |
 | Small      | 2-3   | inline  | lite    | inline  | brief   | execute | verify  |
-| Medium     | 4-8   | TUI     | full    | TUI     | full    | execute | full    |
-| Large      | >8    | TUI+PE  | full    | TUI+PE  | full    | phased  | full (10 iter) |
+| Medium     | 4-8   | confirm | full    | select  | full    | execute | full    |
+| Large      | >8    | confirm+PE | full | select+PE | full  | phased  | full (10 iter) |
 
 **Phase descriptions by complexity:**
 - **skip**: Phase is not executed
-- **inline**: Abbreviated version — confirm or select in the conversation, no TUI launch
-- **TUI**: Full phase with TUI interaction
-- **TUI+PE**: Full phase with TUI interaction and Principal Engineer check
+- **inline**: Abbreviated version — brief confirm or select in the conversation
+- **confirm**: Full intent confirmation using the inline interaction protocol
+- **confirm+PE**: Full intent confirmation with Principal Engineer check
+- **select**: Full approach selection / plan approval using the inline interaction protocol
+- **select+PE**: Full selection with Principal Engineer check
 - **lite**: Abbreviated version — quick scan, no deep research
 - **brief**: High-level plan without wave decomposition
 - **direct**: Execute the change directly without wave orchestration

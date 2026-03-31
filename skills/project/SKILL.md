@@ -1,5 +1,5 @@
 ---
-name: project
+name: adk-project
 description: "[full] [project] Use when initializing projects, managing milestones, or capturing ideas"
 user-invocable: true
 argument-hint: "<action> [--mode init|milestone|idea] [--verbosity short|standard|detailed] [--help]"
@@ -38,14 +38,14 @@ Load references: `references/workflow-6phase.md`, `references/communication-styl
 ### Examples
 
 ```
-/project bootstrap a new CLI tool for managing dotfiles
-/project --mode init a SaaS dashboard for analytics
-/project --mode milestone --action create v1.0 release
-/project --mode milestone --action track
-/project --mode milestone --action audit v1.0
-/project --mode idea add dark mode support
-/project --mode idea --action review
-/project --mode idea --action promote
+/adk-project bootstrap a new CLI tool for managing dotfiles
+/adk-project --mode init a SaaS dashboard for analytics
+/adk-project --mode milestone --action create v1.0 release
+/adk-project --mode milestone --action track
+/adk-project --mode milestone --action audit v1.0
+/adk-project --mode idea add dark mode support
+/adk-project --mode idea --action review
+/adk-project --mode idea --action promote
 ```
 
 ## Preflight
@@ -119,7 +119,7 @@ Use the output format defined in the loaded stage file. Adapt verbosity based on
 
 ## Adjacent Skills
 
-- `/spec --mode write` -- detailed feature specifications from roadmap phases
-- `/plan --mode write` -- execution planning per roadmap phase
-- `/review` -- code review after development
-- `/develop` -- feature implementation from project plans
+- `/adk-spec --mode write` -- detailed feature specifications from roadmap phases
+- `/adk-plan --mode write` -- execution planning per roadmap phase
+- `/adk-review-pr` -- code review after development
+- `/adk-develop` -- feature implementation from project plans

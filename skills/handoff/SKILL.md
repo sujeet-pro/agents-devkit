@@ -1,5 +1,5 @@
 ---
-name: handoff
+name: adk-handoff
 description: "[full] [handoff] Use when handing off sessions or managing persistent context threads"
 user-invocable: true
 argument-hint: "<action> [--mode handoff|context-thread] [--verbosity short|standard|detailed] [--help]"
@@ -37,14 +37,14 @@ Load references: `references/workflow-6phase.md`, `references/communication-styl
 ### Examples
 
 ```
-/handoff save my work for later
-/handoff --mode handoff pause
-/handoff --mode handoff resume
-/handoff --mode context-thread --action create --name auth-refactor
-/handoff --mode context-thread --action update --name auth-refactor --note "completed token validation"
-/handoff --mode context-thread --action load --name auth-refactor
-/handoff --mode context-thread --action list
-/handoff --mode context-thread --action archive --name auth-refactor
+/adk-handoff save my work for later
+/adk-handoff --mode handoff pause
+/adk-handoff --mode handoff resume
+/adk-handoff --mode context-thread --action create --name auth-refactor
+/adk-handoff --mode context-thread --action update --name auth-refactor --note "completed token validation"
+/adk-handoff --mode context-thread --action load --name auth-refactor
+/adk-handoff --mode context-thread --action list
+/adk-handoff --mode context-thread --action archive --name auth-refactor
 ```
 
 ## Preflight
@@ -57,7 +57,7 @@ If `--mode` is explicitly provided, load the matching stage file directly. Other
 
 | Signal | Mode | Stage File |
 |---|---|---|
-| Pause work, hand off, context window filling up, save for later, resume | handoff | `stages/handoff.md` |
+| Pause work, hand off, context window filling up, save for later, resume | handoff | `stages/adk-handoff.md` |
 | Named context threads, ongoing work streams, create/update/list/archive threads | context-thread | `stages/context-thread.md` |
 
 ### Resume Detection
@@ -111,12 +111,12 @@ Follow the stage file's validation criteria. End with a concise summary of what 
 
 Use the output format defined in the loaded stage file. Adapt verbosity based on `--verbosity`:
 
-- **short**: Status line only (e.g., "Session saved to .temp/handoff/abc123.md")
+- **short**: Status line only (e.g., "Session saved to .temp/adk-handoff/abc123.md")
 - **standard**: Full structured output from the stage file's Output Format section
 - **detailed**: Standard output plus full context file listings and decision rationale
 
 ## Adjacent Skills
 
-- `/develop` -- feature implementation (can trigger handoff on pause)
-- `/plan --mode write` -- execution planning within a thread
-- `/review` -- code review within a session context
+- `/adk-develop` -- feature implementation (can trigger handoff on pause)
+- `/adk-plan --mode write` -- execution planning within a thread
+- `/adk-review-pr` -- code review within a session context

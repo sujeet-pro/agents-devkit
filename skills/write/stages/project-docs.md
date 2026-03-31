@@ -61,7 +61,7 @@ Use this stage when the agent should create or directly refresh project document
 - `research-agent` for external dependencies and official references
 - `code-snippet-agent` for setup, API, and workflow examples
 - `doc-reviewer` for structure and onboarding quality
-- `/diagram` for architecture, flow, or ownership diagrams
+- `/adk-diagram` for architecture, flow, or ownership diagrams
 
 ## Writing Rules
 

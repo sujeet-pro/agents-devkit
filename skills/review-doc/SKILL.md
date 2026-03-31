@@ -1,8 +1,8 @@
 ---
-name: review-doc
+name: adk-review-doc
 description: "[full] [review-doc] Use when reviewing documents — local files, Confluence, or Google Docs. Supports standard and interactive modes"
 user-invocable: true
-argument-hint: "<document> [--mode standard|interactive|followup] [--publish] [--verbosity short|standard|detailed] [--help]"
+argument-hint: "<document> [--mode standard|interactive|followup] [-i|-tui] [--publish] [--verbosity short|standard|detailed] [--help]"
 allowed-tools: [Glob, Grep, Read, Bash, WebSearch, WebFetch, Agent]
 dependencies:
   commands: [git]
@@ -24,6 +24,9 @@ This skill is review-only. Do not revise the source document in place. Produce a
 |-----------|---------|-------------|
 | `<document>` | required | Path to local file, Confluence URL, or Google Docs URL |
 | `--mode` | `auto` | Review mode: `standard` (default for local files), `interactive` (accept/edit/reject each finding), `followup` (reconcile prior comments, check resolutions, reply to threads), `auto` (detect from existing comments) |
+| `-i` | on | Inline interactivity — render review findings in the conversation (default) |
+| `-tui` | off | TUI interactivity — user runs TUI in a separate terminal |
+| `--confidence` | `80` | Minimum confidence threshold — only findings at or above this score are shown |
 | `--publish` | off | Post comments back to the source platform (Confluence or Google Docs) |
 | `--verbosity` | `standard` | Output detail level: `short` (summary only), `standard` (findings + summary), `detailed` (full artifact with all findings) |
 | `--help` | — | Show this help section and exit |
@@ -31,18 +34,19 @@ This skill is review-only. Do not revise the source document in place. Produce a
 ### Behavior Variations
 
 - **Standard mode** (default for local files): Non-mutating review that produces a markdown artifact. Use `--publish` to also post comments to the platform.
-- **Interactive mode** (`--mode interactive`): Presents each finding for user approval before posting. Only works with Confluence or Google Docs URLs.
+- **Interactive mode** (`--mode interactive`): Presents each finding for user approval before posting. Only works with Confluence or Google Docs URLs. Uses inline rendering by default (`-i`); pass `-tui` to use the TUI in a separate terminal instead. You can also type `tui` mid-flow to switch.
 - **Follow-up mode** (`--mode followup`): Re-reviews a document that was previously reviewed. Reconciles prior comments, checks if issues were addressed, evaluates author replies, and posts only new or unresolved findings.
 - **Auto mode** (default for platform URLs): Detects prior review comments by the current user. If found, uses follow-up mode; otherwise, uses interactive mode.
 
 ### Examples
 
 ```
-/review-doc ./docs/architecture.md
-/review-doc https://company.atlassian.net/wiki/spaces/ENG/pages/12345 --publish
-/review-doc https://docs.google.com/document/d/abc123 --mode interactive
-/review-doc https://docs.google.com/document/d/abc123 --mode followup
-/review-doc ./spec.md --verbosity detailed
+/adk-review-doc ./docs/architecture.md
+/adk-review-doc https://company.atlassian.net/wiki/spaces/ENG/pages/12345 --publish
+/adk-review-doc https://docs.google.com/document/d/abc123 --mode interactive
+/adk-review-doc https://docs.google.com/document/d/abc123 --mode interactive -tui
+/adk-review-doc https://docs.google.com/document/d/abc123 --mode followup
+/adk-review-doc ./adk-spec.md --verbosity detailed
 ```
 
 ## Preflight

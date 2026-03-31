@@ -6,52 +6,52 @@ Pick the smallest useful pipeline that covers the confirmed intent.
 
 ### Review a PR or branch
 
-1. `/coding`
-2. `/review`
+1. `/adk-coding`
+2. `/adk-review-pr`
 
 ### Build or change product behavior
 
-1. `/coding`
-2. `/research` when patterns or external docs matter
-3. `/plan --mode brainstorm` when the ask is still fuzzy
-4. `/spec --mode write` when requirements must be formalized
-5. `/plan --mode write`
-6. `/develop --mode implement`
-7. `/review`
+1. `/adk-coding`
+2. `/adk-research` when patterns or external docs matter
+3. `/adk-plan --mode brainstorm` when the ask is still fuzzy
+4. `/adk-spec --mode write` when requirements must be formalized
+5. `/adk-plan --mode write`
+6. `/adk-develop --mode implement`
+7. `/adk-review-pr`
 
 ### Fix a bug
 
-1. `/coding`
-2. `/plan --mode write` for Small+ bugs or unclear fixes
-3. `/develop --mode debug`
-4. `/develop --mode implement`
-5. `/review`
+1. `/adk-coding`
+2. `/adk-plan --mode write` for Small+ bugs or unclear fixes
+3. `/adk-develop --mode debug`
+4. `/adk-develop --mode implement`
+5. `/adk-review-pr`
 
 ### Write or revise documents
 
-1. `/research` when facts or comparisons are needed
-2. `/doc-writing`
-3. `/plan --mode write` for Medium+ writing tasks with multiple deliverables
-4. `/write`
-5. `/review-doc`
+1. `/adk-research` when facts or comparisons are needed
+2. `/adk-doc-writing`
+3. `/adk-plan --mode write` for Medium+ writing tasks with multiple deliverables
+4. `/adk-write`
+5. `/adk-review-doc`
 
 ### Audit or research
 
-1. `/coding` when the codebase matters
-2. `/research` or `/audit`
-3. `/plan --mode write` if there are multiple workstreams or follow-up actions
-4. `/write` when the output needs synthesis
+1. `/adk-coding` when the codebase matters
+2. `/adk-research` or `/adk-audit`
+3. `/adk-plan --mode write` if there are multiple workstreams or follow-up actions
+4. `/adk-write` when the output needs synthesis
 
 ### Design or UI work
 
-1. `/coding` when touching existing frontend code
-2. `/design` for new UI/UX design direction
-3. `/review --focus ui` for auditing existing frontend
+1. `/adk-coding` when touching existing frontend code
+2. `/adk-design` for new UI/UX design direction
+3. `/adk-review-pr --focus ui` for auditing existing frontend
 
 ### Project setup or tooling
 
-1. `/setup` for CLI tools and MCP servers
-2. `/project --mode init` for new project scaffolding
+1. `/adk-setup` for CLI tools and MCP servers
+2. `/adk-project --mode init` for new project scaffolding
 
 ## Parameter Resolution
 

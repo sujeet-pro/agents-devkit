@@ -1,5 +1,5 @@
 ---
-name: team
+name: adk-team
 description: "[full] [team] Use when dispatching multi-model tasks or coordinating agent teams"
 user-invocable: true
 argument-hint: "<task> [--mode multi|team] [--models ...] [--roles ...] [--verbosity short|standard|detailed] [--help]"
@@ -37,11 +37,11 @@ Load references: `references/workflow-6phase.md`, `references/communication-styl
 ### Examples
 
 ```
-/team compare how opus and sonnet handle this refactoring task
-/team --mode multi --models opus,sonnet,haiku review this authentication flow
-/team --mode multi --strategy vote which approach is better for caching
-/team --mode team fix all 6 failing tests across 3 files
-/team --mode team --roles "api-designer,db-modeler,test-writer" design the user service
+/adk-team compare how opus and sonnet handle this refactoring task
+/adk-team --mode multi --models opus,sonnet,haiku review this authentication flow
+/adk-team --mode multi --strategy vote which approach is better for caching
+/adk-team --mode team fix all 6 failing tests across 3 files
+/adk-team --mode team --roles "api-designer,db-modeler,test-writer" design the user service
 ```
 
 ## Preflight
@@ -55,7 +55,7 @@ If `--mode` is explicitly provided, load the matching stage file directly. Other
 | Signal | Mode | Stage File |
 |---|---|---|
 | Compare models, consensus, multi-model, `--models` flag | multi | `stages/multi.md` |
-| Team, roles, parallel agents, delegation, `--roles` flag, independent tasks | team | `stages/team.md` |
+| Team, roles, parallel agents, delegation, `--roles` flag, independent tasks | team | `stages/adk-team.md` |
 
 ### Disambiguation
 
@@ -108,6 +108,6 @@ Use the output format defined in the loaded stage file. Adapt verbosity based on
 
 ## Adjacent Skills
 
-- `/develop` -- feature implementation that may use agent teams internally
-- `/review` -- code review that may use multi-model comparison
-- `/project` -- project initialization uses parallel research agents
+- `/adk-develop` -- feature implementation that may use agent teams internally
+- `/adk-review-pr` -- code review that may use multi-model comparison
+- `/adk-project` -- project initialization uses parallel research agents

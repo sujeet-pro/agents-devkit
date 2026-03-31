@@ -1,5 +1,5 @@
 ---
-name: research
+name: adk-research
 description: "[full] [research] Use when you need to research a software engineering topic — searches official sources, implementations, and community patterns, then produces structured markdown with citations"
 user-invocable: true
 argument-hint: "<topic> [--deep] [--save path] [--verbosity short|standard|detailed] [--help]"
@@ -41,11 +41,11 @@ When `--help` is passed, display this reference and stop.
 ### Examples
 
 ```
-/research "Next.js App Router migration patterns"
-/research "gRPC vs REST for microservices" --deep
-/research "React Server Components" --save ./docs/rsc-research.md
-/research "Kubernetes autoscaling strategies" --deep --verbosity detailed
-/research "SQLite WAL mode" --verbosity short
+/adk-research "Next.js App Router migration patterns"
+/adk-research "gRPC vs REST for microservices" --deep
+/adk-research "React Server Components" --save ./docs/rsc-research.md
+/adk-research "Kubernetes autoscaling strategies" --deep --verbosity detailed
+/adk-research "SQLite WAL mode" --verbosity short
 ```
 
 ---
@@ -133,7 +133,7 @@ Structured markdown — designed to be consumed by other skills or read directly
 
 If `--save <path>` is provided, write output to that path. Otherwise return inline.
 
-This output is designed to be consumed by other skills (`/write`, `/spec --mode write`, etc.) as a structured text corpus.
+This output is designed to be consumed by other skills (`/adk-write`, `/adk-spec --mode write`, etc.) as a structured text corpus.
 
 ## Adjacent Skills
 
