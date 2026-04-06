@@ -1,6 +1,6 @@
 {
-  "version": 1,
-  "description": "Tracks upstream sources that DevKit copies or references.",
+  "version": 2,
+  "description": "Tracks upstream sources that ADK copies or references.",
   "sources": {
     "diagramkit": {
       "type": "copy",
@@ -8,11 +8,42 @@
       "branch": "main",
       "source_path": "agent_skills/",
       "mapping": {
-        "refs/mermaid/": "skills/diagram/references/mermaid/",
-        "refs/excalidraw/": "skills/diagram/references/excalidraw/",
-        "refs/drawio/": "skills/diagram/references/drawio/"
+        "refs/mermaid/": "skills/diagram-mermaid/references/",
+        "refs/excalidraw/": "skills/diagram-excalidraw/references/",
+        "refs/drawio/": "skills/diagram-drawio/references/",
+        "refs/graphviz/": "skills/diagram-graphviz/references/"
       },
-      "notes": "Diagram reference material is copied into the unified /diagram skill.",
+      "ref_skills": [
+        "diagram",
+        "diagram-mermaid",
+        "diagram-excalidraw",
+        "diagram-graphviz",
+        "diagram-drawio"
+      ],
+      "docs": {
+        "mermaid": {
+          "llms_txt": "https://mermaid.js.org/llms.txt",
+          "llms_full_txt": "https://mermaid.js.org/llms-full.txt",
+          "docs_url": "https://mermaid.js.org/",
+          "last_checked": null
+        },
+        "excalidraw": {
+          "docs_url": "https://docs.excalidraw.com/",
+          "llms_txt": null,
+          "last_checked": null
+        },
+        "drawio": {
+          "docs_url": "https://www.drawio.com/doc/",
+          "llms_txt": null,
+          "last_checked": null
+        },
+        "graphviz": {
+          "docs_url": "https://graphviz.org/documentation/",
+          "llms_txt": null,
+          "last_checked": null
+        }
+      },
+      "notes": "Diagram reference material is copied into individual engine skills. diagramkit CLI is used for rendering.",
       "last_sync": "2026-03-27T05:02:50Z",
       "last_commit": "046363036820611527e0c3904998d7a12b19052c"
     },
@@ -21,7 +52,19 @@
       "repo": "https://github.com/obra/superpowers",
       "branch": "main",
       "source_path": "skills/",
-      "notes": "Skills are authored in DevKit but informed by superpowers patterns. Consolidated into unified /develop, /plan, /review skills.",
+      "ref_skills": [
+        "dev-build",
+        "plan",
+        "code-review-pr"
+      ],
+      "docs": {
+        "superpowers": {
+          "docs_url": "https://github.com/obra/superpowers",
+          "llms_txt": null,
+          "last_checked": null
+        }
+      },
+      "notes": "Skills are authored in ADK but informed by superpowers patterns. Consolidated into unified skills.",
       "last_sync": "2026-03-27T05:02:53Z",
       "last_commit": "eafe962b18f6c5dc70fb7c8cc7e83e61f4cdde06"
     },
@@ -31,11 +74,33 @@
       "branch": "main",
       "source_path": "packages/core/",
       "ref_skills": [
-        "write"
+        "docs-write",
+        "docs-md",
+        "docs-repo",
+        "docs-review",
+        "docs-crud"
       ],
-      "notes": "Referenced for markdown feature capabilities (GFM, code highlighting, collapsible sections, math, code tabs). Skills are authored in DevKit but informed by pagesmith capabilities.",
+      "docs": {
+        "pagesmith": {
+          "docs_url": "https://github.com/sujeet-pro/pagesmith",
+          "llms_txt": null,
+          "last_checked": null
+        }
+      },
+      "notes": "Referenced for markdown pipeline features (GFM, code highlighting, alerts, math). @pagesmith/docs used for documentation site generation.",
       "last_sync": "2026-03-27T05:02:51Z",
       "last_commit": "8c59bd5a9dc924b1966db9aa9aed43b120accf23"
     }
+  },
+  "open_source_refs": {
+    "dev-build": ["obra/superpowers", "cj-ways/arcana (deep-fix, refactor-plan)"],
+    "dev-refactor": ["cj-ways/arcana (refactor-plan)"],
+    "code-review-pr": ["obra/superpowers", "cj-ways/arcana (quick-review, deep-review)"],
+    "code-review-repo": ["cj-ways/arcana (agent-audit)"],
+    "diagram-excalidraw": ["coleam00/excalidraw-diagram-skill", "whq25/agent-canvas", "kakacoding1/mcp_excalidraw"],
+    "diagram-mermaid": ["mermaid-js/mermaid"],
+    "audit": ["cj-ways/arcana (agent-audit)"],
+    "docs-write": ["obra/superpowers"],
+    "plan": ["obra/superpowers"]
   }
 }

@@ -1,0 +1,190 @@
+---
+name: adk-dev-migrate
+description: "adk - [full] [dev] Migrate frameworks, libraries, or language versions — analyze breaking changes, map to codebase, execute migration plan"
+user-invocable: true
+argument-hint: "<source> to <target> [--scope <path>] [--dry-run] [--auto] [--help]"
+allowed-tools: [Glob, Grep, Read, Edit, Write, Bash, WebSearch, WebFetch, Agent]
+dependencies:
+  commands: [git]
+workflow-tier: full
+---
+
+# Migration
+
+Analyze and execute framework, library, or language version migrations. Reads official migration guides, maps breaking changes to your codebase, generates a step-by-step plan, and applies changes with validation.
+
+## Shared Skills
+
+This skill uses shared helper skills. Load each skill's reference file ONLY when the condition in "Load When" is met. If a shared skill is not installed, use the inline summary as a fallback.
+
+| Skill | Load When | Inline Fallback |
+|-------|-----------|-----------------|
+| `/adk:workflow` | always | 6-phase workflow: intent → research → approach → plan → execute → validate. Complexity-adaptive skipping. |
+| `/adk:communication` | always | Lead with conclusion. Bullet points. No preamble. Concrete specifics over abstractions. |
+| `/adk:preflight-check` | before work | Run preflight.py for tool dependencies and MCP validation. |
+| `/adk:output-format` | when producing output | short/standard/detailed verbosity. Markdown default. |
+| `/adk:principal-engineer` | always for migrations | Five questions: need? simplest? alternatives? maintenance costs? clarity in 6 months? |
+| `/adk:agentic-teams` | complexity >= medium AND parallel work needed | Migration team: usage analyzer, changelog researcher, migration planner, risk assessor. |
+| `/adk:interaction` | NOT --auto | Inline protocols for intent confirmation, approach selection, plan approval. |
+
+---
+
+## Reference Loading
+
+Load reference files conditionally to minimize token usage:
+
+| Reference | Load When |
+|-----------|-----------|
+| `workflow-6phase.md` | always (read only the section for the current phase) |
+| `communication-style.md` | always |
+| `preflight.md` | before preflight check |
+| `output-formats.md` | when producing final output |
+| `output-format-modes.md` | when producing final output |
+| `principal-engineer.md` | Phase 0, complexity >= medium |
+| `agentic-teams.md` | Phase 4, when launching child agents |
+| `inline-interaction.md` | interactive phases, NOT --auto |
+| `help-format.md` | when --help is passed |
+| `project-guidelines.md` | Phase 1, when scanning project |
+| `review-pipeline.md` | review skills only |
+| `review-comment-template.md` | when posting review comments |
+| `source-routing.md` | when target is external (PR, Confluence, Google Docs) |
+
+## Help
+
+When `--help` is passed, display this reference and stop.
+
+### Parameters
+
+| Parameter | Values | Default | Description |
+|-----------|--------|---------|-------------|
+| `<source>` | framework/library name + version | required | Current framework, library, or version |
+| `to <target>` | framework/library name + version | required | Target framework, library, or version |
+| `--scope` | `<path>` | entire repo | Limit analysis to specific files/directories |
+| `--dry-run` | flag | off | Analyze and plan only, do not apply changes |
+| `--auto` | flag | off | Skip confirmations, execute full migration |
+| `--verbosity` | `short`, `standard`, `detailed` | `standard` | Output detail level |
+
+### Behavior Variations
+
+- **Same library, version bump**: reads changelogs and migration guides, identifies breaking changes, applies fixes
+- **Different library**: maps API surface differences, generates adapter patterns or direct replacements
+- **Language version**: updates syntax, deprecated API usage, config files, and CI configuration
+- **`--dry-run`**: produces analysis and plan only — no code changes
+- **`--auto`**: executes the full migration without confirmation gates
+
+### Examples
+
+```text
+/adk:dev-migrate react@17 to react@19
+/adk:dev-migrate webpack to vite --scope packages/frontend
+/adk:dev-migrate python 3.9 to python 3.12
+/adk:dev-migrate express to fastify --dry-run
+/adk:dev-migrate jest to vitest --auto
+```
+
+---
+
+## Phase Applicability
+
+| Phase | Applies | Notes |
+|-------|---------|-------|
+| 0. Intent Expansion | yes | Confirm source, target, scope, and constraints |
+| 1. Research & Options | yes | Read official migration guides, changelogs, breaking changes, community patterns |
+| 2. Approach Selection | yes | Present migration strategies: incremental, big-bang, strangler pattern |
+| 3. Planning | yes | Map breaking changes to specific files, create ordered migration waves |
+| 4. Execute | yes | Apply changes wave by wave, run tests after each wave |
+| 5. Validate & Learn | yes | Full test suite, manual verification of critical paths |
+
+---
+
+## Migration Process
+
+### 1. Usage Analysis
+
+- Scan the codebase for all imports, usages, and configuration of the source library
+- Count affected files and categorize by usage pattern
+- Identify the most critical usage sites (high-traffic paths, complex integrations)
+- Check for plugins, extensions, or wrappers that depend on the source
+
+### 2. Changelog Research
+
+- Read the official migration guide for source → target
+- Identify all breaking changes and their recommended fixes
+- Check for available codemods or automated migration tools
+- Search for community migration experiences and gotchas
+
+### 3. Impact Mapping
+
+Map each breaking change to specific files in the codebase:
+
+```
+## Migration Impact
+
+| Breaking Change | Files Affected | Effort | Risk | Codemod Available |
+|-----------------|----------------|--------|------|-------------------|
+| API renamed     | 12 files       | Low    | Low  | Yes (jscodeshift)  |
+| Config format   | 3 files        | Medium | Low  | No                 |
+| Plugin API      | 5 files        | High   | Med  | No                 |
+```
+
+### 4. Migration Plan
+
+Generate ordered waves of changes:
+
+- **Wave 1**: Configuration and build setup changes
+- **Wave 2**: Direct API renames (codemod-assisted when available)
+- **Wave 3**: Behavioral changes requiring manual review
+- **Wave 4**: Plugin/extension updates
+- **Wave 5**: Test updates and cleanup
+
+### 5. Execution
+
+- Apply each wave sequentially
+- Run available tests after each wave
+- Flag regressions immediately and offer rollback or fix
+- Track progress with file-level granularity
+
+### 6. Validation
+
+- Run full test suite
+- Check for remaining references to old API
+- Verify build succeeds with new configuration
+- Produce a migration summary with statistics
+
+---
+
+## Output Format
+
+```markdown
+# Migration Report: <source> → <target>
+
+## Summary
+- **Files analyzed**: N
+- **Files changed**: N
+- **Breaking changes resolved**: N/M
+- **Tests passing**: N/M
+
+## Changes by Wave
+
+### Wave 1: Configuration
+- [file list with changes]
+
+### Wave 2: API Updates
+- [file list with changes]
+
+## Remaining Manual Steps
+- [ ] item 1
+- [ ] item 2
+
+## Known Risks
+- Risk 1: description and mitigation
+```
+
+---
+
+## Adjacent Skills
+
+- `/adk:research` for deep-diving into migration guides and community patterns
+- `/adk:dev-build` for implementing complex changes during migration
+- `/adk:audit` for post-migration quality check
+- `/adk:code-review-pr` for reviewing the migration PR

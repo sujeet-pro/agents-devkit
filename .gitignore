@@ -9,6 +9,9 @@ __pycache__/
 # Node.js dependencies
 node_modules/
 
+# Pagesmith / GitHub Pages build output
+gh-pages/
+
 # OS files
 .DS_Store
 Thumbs.db

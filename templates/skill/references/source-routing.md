@@ -1,10 +1,22 @@
 # DevKit Source Routing
 
-Use the source-native MCP first when it exists.
+Use the integration priority contract below when a task touches external systems.
 
 Run `python3 ${CLAUDE_SKILL_DIR}/scripts/preflight.py ${CLAUDE_SKILL_DIR}` before source-side work so the correct MCP is validated from the real input, not from a hard-coded global list.
 
-## Preferred MCPs
+## Integration Priority (Strict)
+
+Prefer integrations in this order:
+
+1. standard ADK connectors (`/adk:github`, `/adk:bitbucket`, `/adk:confluence`, `/adk:jira`)
+2. first-party CLI
+3. first-party MCP
+4. first-party API
+5. third-party MCP/CLI/API fallback
+
+If a higher-priority option is unavailable, document why and use the next option.
+
+## Preferred First-Party MCPs (when MCP is selected)
 
 - **GitHub**: `mcp__github__*`
 - **Bitbucket**: `mcp__bitbucket__*`

@@ -1,27 +1,33 @@
-# Shared Agents
+# ADK Agents
 
-Markdown files in this directory define reusable agent roles for DevKit skills.
+Shared agent definitions for child agents spawned by ADK skills during execution.
 
-Each agent file has YAML frontmatter with `name`, `description`, `model`, and `allowed-tools`, followed by a system prompt that defines the agent's behavior.
+## Structure
 
-Skills reference agents by name — Claude Code's native agent system loads these definitions automatically when a skill uses `context: fork` with `agent: <name>`.
+Each agent is a `.md` file with YAML frontmatter (`name`, `description`, `model`, `allowed-tools`) and a system prompt body. Skills reference agents by name via the host's native agent system.
 
-## Available Agents
+## Agent Index
 
-| Agent | Purpose |
-| --- | --- |
-| `code-reviewer` | Multi-perspective code review |
-| `doc-reviewer` | Technical document review |
-| `research-agent` | Primary-source research |
-| `security-reviewer` | Security-focused code review |
-| `repo-auditor` | Whole-codebase architecture audit |
-| `source-publisher` | Publish to GitHub/Bitbucket/Confluence/Google Docs |
-| `consensus-agent` | Merge and reconcile multi-agent outputs |
-| `frontend-designer` | Frontend and design-system direction |
-| `migration-analyst` | Framework/library migration analysis |
-| `pr-fixer` | Apply fixes from PR review comments |
-| `guideline-auditor` | Audit guidelines against sources |
-| `code-snippet-agent` | Code snippet extraction and formatting |
-| `intent-analyst` | Expand user intent, assumptions, complexity, and routing choices |
-| `plan-reviewer` | Review implementation plans for completeness and sequencing |
-| `progress-tracker` | Monitor execution progress, stalls, and recovery options |
+
+| Agent                | Model  | Purpose                                                  |
+| -------------------- | ------ | -------------------------------------------------------- |
+| `code-reviewer`      | opus   | Multi-perspective code review across 10 dimensions       |
+| `repo-auditor`       | opus   | Whole-codebase architecture and maintainability review   |
+| `doc-reviewer`       | opus   | Technical document review for accuracy and completeness  |
+| `research-agent`     | opus   | Primary-source and implementation research               |
+| `source-publisher`   | sonnet | Publish to GitHub, Bitbucket, Confluence, or Google Docs |
+| `consensus-agent`    | sonnet | Merge and reconcile multi-agent outputs                  |
+| `frontend-designer`  | opus   | Frontend and design system direction                     |
+| `pr-fixer`           | opus   | Read PR comments and apply targeted code fixes           |
+| `security-reviewer`  | opus   | Security-focused code review (OWASP, auth, data)         |
+| `migration-analyst`  | opus   | Framework/library migration path analysis                |
+| `guideline-auditor`  | sonnet | Audit guidelines against authoritative sources           |
+| `code-snippet-agent` | sonnet | Code snippet extraction and formatting                   |
+| `intent-analyst`     | sonnet | Expand user intent, assumptions, complexity, and routing |
+| `plan-reviewer`      | sonnet | Validate plan completeness, ordering, and estimates      |
+| `progress-tracker`   | sonnet | Monitor execution progress, detect stalls and failures   |
+
+
+## Standard Team Shapes
+
+Skills compose agents into teams. See `templates/skill/references/agentic-teams.md` for the full contract.

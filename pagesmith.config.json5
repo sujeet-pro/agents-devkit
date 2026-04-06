@@ -1,0 +1,31 @@
+{
+  // ADK Documentation Site
+  name: "ADK",
+  title: "Agent Development Kit",
+  description: "Principal-engineer-grade skills for software development agents",
+
+  // Paths
+  contentDir: "./docs",
+  outDir: "gh-pages",
+
+  // Site — basePath must match the URL path (e.g. /repo-name for https://user.github.io/repo-name/)
+  origin: "https://projects.sujeet.pro/agents-devkit",
+  basePath: "/agents-devkit",
+
+  // Sidebar
+  sidebar: {
+    collapsible: true,
+  },
+
+  // Search
+  search: {
+    enabled: true,
+  },
+
+  // Edit link
+  editLink: {
+    repo: "https://github.com/sujeet-pro/agents-devkit",
+    branch: "main",
+    label: "Edit on GitHub",
+  },
+}

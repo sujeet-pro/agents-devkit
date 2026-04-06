@@ -1,6 +1,6 @@
 ---
 name: adk-team
-description: "[full] [team] Use when dispatching multi-model tasks or coordinating agent teams"
+description: "adk - [full] [team] Use when dispatching multi-model tasks or coordinating agent teams"
 user-invocable: true
 argument-hint: "<task> [--mode multi|team] [--models ...] [--roles ...] [--verbosity short|standard|detailed] [--help]"
 allowed-tools: [Glob, Grep, Read, Edit, Write, Bash, WebSearch, WebFetch, Agent]
@@ -13,7 +13,39 @@ workflow-tier: full
 
 Run tasks through multiple models for comparison/consensus, or dispatch a team of specialized agents working in parallel. Auto-detects the right mode from context, or accepts an explicit `--mode`.
 
-Load references: `references/workflow-6phase.md`, `references/communication-style.md`, `references/preflight.md`, `references/output-formats.md`. For Medium/Large: also load `references/agentic-teams.md`, `references/principal-engineer.md`.
+## Shared Skills
+
+This skill uses shared helper skills. Load each skill's reference file ONLY when the condition in "Load When" is met. If a shared skill is not installed, use the inline summary as a fallback.
+
+| Skill | Load When | Inline Fallback |
+|-------|-----------|-----------------|
+| `/adk:workflow` | always | 6-phase workflow: intent → research → approach → plan → execute → validate. Complexity-adaptive skipping for trivial/small tasks. `--auto` skips confirmations. |
+| `/adk:communication` | always | Lead with conclusion. Bullet points. No preamble. Concrete specifics over abstractions. Verbosity follows context. |
+| `/adk:preflight-check` | before work | Run preflight.py for tool dependencies and MCP validation. Detect source type and route to correct MCP. |
+| `/adk:output-format` | when producing output | short/standard/detailed verbosity. Priority labels: Blocker, Critical, Should Have, May Have, Nitpick, Question. |
+| `/adk:principal-engineer` | complexity >= medium | Five questions: need? simplest? alternatives? maintenance costs? clarity in 6 months? |
+| `/adk:agentic-teams` | complexity >= medium AND parallel work needed | Launch 2+ child agents with distinct roles. Standard team shapes: review, research, docs, diagram, security, migration, planning. |
+| `/adk:interaction` | NOT --auto | Inline protocols for intent confirmation, approach selection, plan approval, review findings, progress dashboard. |
+
+## Reference Loading
+
+Load reference files conditionally to minimize token usage:
+
+| Reference | Load When |
+|-----------|-----------|
+| `workflow-6phase.md` | always (read only the section for the current phase) |
+| `communication-style.md` | always |
+| `preflight.md` | before preflight check |
+| `output-formats.md` | when producing final output |
+| `output-format-modes.md` | when producing final output |
+| `principal-engineer.md` | Phase 0, complexity >= medium |
+| `agentic-teams.md` | Phase 4, when launching child agents |
+| `inline-interaction.md` | interactive phases, NOT --auto |
+| `help-format.md` | when --help is passed |
+| `project-guidelines.md` | Phase 1, when scanning project |
+| `review-pipeline.md` | review skills only |
+| `review-comment-template.md` | when posting review comments |
+| `source-routing.md` | when target is external (PR, Confluence, Google Docs) |
 
 ## Help
 
@@ -37,11 +69,11 @@ Load references: `references/workflow-6phase.md`, `references/communication-styl
 ### Examples
 
 ```
-/adk-team compare how opus and sonnet handle this refactoring task
-/adk-team --mode multi --models opus,sonnet,haiku review this authentication flow
-/adk-team --mode multi --strategy vote which approach is better for caching
-/adk-team --mode team fix all 6 failing tests across 3 files
-/adk-team --mode team --roles "api-designer,db-modeler,test-writer" design the user service
+/adk:team compare how opus and sonnet handle this refactoring task
+/adk:team --mode multi --models opus,sonnet,haiku review this authentication flow
+/adk:team --mode multi --strategy vote which approach is better for caching
+/adk:team --mode team fix all 6 failing tests across 3 files
+/adk:team --mode team --roles "api-designer,db-modeler,test-writer" design the user service
 ```
 
 ## Preflight
@@ -72,7 +104,7 @@ After selecting the mode, load the corresponding stage file and follow its instr
 
 ## Common Phases
 
-All modes share the 6-phase workflow from `references/workflow-6phase.md`. Each stage file defines which phases apply and what to do in each.
+All modes share the 6-phase workflow from `/adk:workflow`. Each stage file defines which phases apply and what to do in each.
 
 ### Phase 0: Intent Expansion
 
@@ -108,6 +140,6 @@ Use the output format defined in the loaded stage file. Adapt verbosity based on
 
 ## Adjacent Skills
 
-- `/adk-develop` -- feature implementation that may use agent teams internally
-- `/adk-review-pr` -- code review that may use multi-model comparison
-- `/adk-project` -- project initialization uses parallel research agents
+- `/adk:dev-build` -- feature implementation that may use agent teams internally
+- `/adk:code-review-pr` -- code review that may use multi-model comparison
+- `/adk:project` -- project initialization uses parallel research agents

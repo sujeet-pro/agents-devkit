@@ -1,0 +1,36 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "prompt",
+            "prompt": "Check if the edited file is a SKILL.md. If so, verify the frontmatter has: name (no 'adk-' prefix), description (starts with 'adk -'). Return {\"ok\": true} if valid or not a SKILL.md, {\"ok\": false, \"reason\": \"...\"} if invalid."
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "prompt",
+            "prompt": "Check if the user's original request has been fully addressed. If the agent was following an adk skill workflow, verify the final validation phase was completed. Return {\"ok\": true} if done, {\"ok\": false, \"reason\": \"what remains\"} if not."
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo 'ADK Plugin active. Route general prompts through /adk:use. All skills follow the 6-phase workflow with human-in-the-loop checkpoints.'"
+          }
+        ]
+      }
+    ]
+  }
+}

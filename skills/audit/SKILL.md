@@ -1,6 +1,6 @@
 ---
 name: adk-audit
-description: "[full] [audit] Use when performing a codebase, security, performance, or dependency audit -- auto-detects focus or use --focus to specify"
+description: "adk - [full] [audit] Use when performing a codebase, security, performance, or dependency audit -- auto-detects focus or use --focus to specify"
 user-invocable: true
 argument-hint: "[--focus codebase|security|performance|dependency|all] [--scope] [--format] [--verbosity short|standard|detailed] [--help]"
 allowed-tools: [Glob, Grep, Read, Bash, WebSearch, WebFetch, Agent]
@@ -11,13 +11,44 @@ workflow-tier: full
 
 # Audit
 
-Use the shared DevKit child-agent contract in `references/agentic-teams.md`, the review flow in `references/review-pipeline.md`, the source routing rules in `references/source-routing.md`, the output rules in `references/output-formats.md`, and the comment format in `references/review-comment-template.md`.
-
-**All review findings must follow the canonical format in `references/review-comment-template.md`.**
-
 This skill is review-only. Do not update repository files in place. Produce a review artifact or publish that artifact to a document destination.
 
+## Shared Skills
+
+This skill uses shared helper skills. Load each skill's reference file ONLY when the condition in "Load When" is met. If a shared skill is not installed, use the inline summary as a fallback.
+
+| Skill | Load When | Inline Fallback |
+|-------|-----------|-----------------|
+| `/adk:workflow` | always | 6-phase workflow: intent → research → approach → plan → execute → validate. Complexity-adaptive skipping for trivial/small tasks. `--auto` skips confirmations. |
+| `/adk:communication` | always | Lead with conclusion. Bullet points. No preamble. Concrete specifics over abstractions. Verbosity follows context. |
+| `/adk:preflight-check` | before work | Run preflight.py for tool dependencies and MCP validation. Detect source type and route to correct MCP. |
+| `/adk:output-format` | when producing output | short/standard/detailed verbosity. Priority labels: Blocker, Critical, Should Have, May Have, Nitpick, Question. Cross-platform markdown safe for GitHub + Bitbucket. |
+| `/adk:review-standards` | always (review skills) | Pipeline: intake → ingestion → parallel review → consolidation → output → postback. Canonical comment template with severity, confidence, concern, depth, dimension, guideline. |
+| `/adk:principal-engineer` | complexity >= medium | Five questions: need? simplest? alternatives? maintenance costs? clarity in 6 months? |
+| `/adk:agentic-teams` | complexity >= medium AND parallel work needed | Launch 2+ child agents with distinct roles. Standard team shapes: review, research, docs, diagram, security, migration, planning. |
+| `/adk:interaction` | NOT --auto | Inline protocols for intent confirmation, approach selection, plan approval, review findings, progress dashboard. |
+
 ---
+
+## Reference Loading
+
+Load reference files conditionally to minimize token usage:
+
+| Reference | Load When |
+|-----------|-----------|
+| `workflow-6phase.md` | always (read only the section for the current phase) |
+| `communication-style.md` | always |
+| `preflight.md` | before preflight check |
+| `output-formats.md` | when producing final output |
+| `output-format-modes.md` | when producing final output |
+| `principal-engineer.md` | Phase 0, complexity >= medium |
+| `agentic-teams.md` | Phase 4, when launching child agents |
+| `inline-interaction.md` | interactive phases, NOT --auto |
+| `help-format.md` | when --help is passed |
+| `project-guidelines.md` | Phase 1, when scanning project |
+| `review-pipeline.md` | review skills only |
+| `review-comment-template.md` | when posting review comments |
+| `source-routing.md` | when target is external (PR, Confluence, Google Docs) |
 
 ## Help
 
@@ -55,14 +86,14 @@ When `--help` is passed, display this reference and stop.
 ### Examples
 
 ```
-/adk-audit
-/adk-audit --focus security
-/adk-audit --focus codebase --scope src/
-/adk-audit --focus performance --scope src/api/ --verbosity detailed
-/adk-audit --focus dependency --scope production --format pr
-/adk-audit --focus security,performance
-/adk-audit --publish --verbosity detailed
-/adk-audit --focus codebase --publish
+/adk:audit
+/adk:audit --focus security
+/adk:audit --focus codebase --scope src/
+/adk:audit --focus performance --scope src/api/ --verbosity detailed
+/adk:audit --focus dependency --scope production --format pr
+/adk:audit --focus security,performance
+/adk:audit --publish --verbosity detailed
+/adk:audit --focus codebase --publish
 ```
 
 ---
@@ -72,8 +103,6 @@ When `--help` is passed, display this reference and stop.
 Before scanning the codebase or launching child agents, run:
 
 `python3 ${CLAUDE_SKILL_DIR}/scripts/preflight.py ${CLAUDE_SKILL_DIR}`
-
-Load references: `references/workflow-6phase.md`, `references/communication-style.md`, `references/preflight.md`, `references/output-formats.md`. For Medium/Large: also load `references/agentic-teams.md`, `references/principal-engineer.md`.
 
 ## Phase Applicability
 
@@ -108,7 +137,7 @@ Once the focus is resolved, load the corresponding stage file(s):
 
 ## Guideline Loading
 
-Invoke the `/adk-coding` helper skill to detect the repo stack and load the appropriate coding guidelines. For codebase focus, use full detection (not scoped to changed files).
+Invoke the `/adk:coding` helper skill to detect the repo stack and load the appropriate coding guidelines. For codebase focus, use full detection (not scoped to changed files).
 
 ## Required Team
 
@@ -203,4 +232,7 @@ If `--publish` is set, publish the final markdown artifact to the requested docu
 
 ## Adjacent Skills
 
-- See the parent router skill for related skills
+- `/adk:code-review-pr` — focused diff review after you address audit findings
+- `/adk:code-review-repo` — holistic repo review when audit scope is whole-codebase
+- `/adk:dev-build` — implement remediation from audit recommendations
+- `/adk:plan` — sequence remediation work into an executable plan

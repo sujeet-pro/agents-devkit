@@ -1,34 +1,20 @@
 # Inline Interaction Protocol
 
-Claude Code's Bash tool does not provide an interactive TTY, so Textual-based TUI scripts cannot run inside Claude Code. This reference defines interaction modes that replace TUI launches.
+Use inline interaction in the agent conversation as the default and primary interaction method.
 
 ## Interaction Flags
 
-Skills that support interactive workflows accept these flags:
+Skills that support interactive workflows should prefer:
 
 | Flag | Description |
-|------|-------------|
-| `-i` | **Inline interactivity** (default) — render interactions directly in the conversation |
-| `-tui` | **TUI interactivity** — user runs the TUI in a separate terminal, agent processes results |
+| ------ | ----------------------------------------------------------------------------------------- |
+| `--auto` | Skip human confirmations and proceed with the recommended defaults |
 
-When neither flag is provided, default to `-i` (inline). The `-tui` flag writes `items.json` and prints the terminal command for the user to run externally.
-
-These flags replace the old `--mode interactive` parameter for controlling *how* the interaction happens (inline vs TUI). The `--mode` parameter still controls *what kind* of review runs (standard, interactive, followup, auto).
-
-## Mid-Flow TUI Switch
-
-At any point during inline review, the user can type **`tui`** to switch to TUI mode for the remaining items. When this happens:
-
-1. Write the current pending items to a new `items.json` in the session directory
-2. Print the TUI command for the user to run in a separate terminal
-3. Wait for the user to return and say they're done
-4. Read `results.json` and continue processing
-
-This is useful when there are many items and the user wants richer navigation.
+When `--auto` is not set, interactions are rendered inline in conversation.
 
 ---
 
-## Inline Mode (`-i`)
+## Inline Mode
 
 Render the interaction directly in the conversation. The user responds with compact syntax.
 
@@ -125,7 +111,7 @@ Render a **summary header** first, then each finding as a structured card:
 
 > **Actions:** **a** accept | **r** reject | **e** edit | **s** skip — by number
 > Example: `a-1,4,5 r-2 e-3 s-6`
-> Also: `a-all` | `details <N>` | `tui` (switch to TUI) | `done`
+> Also: `a-all` | `details <N>` | `done`
 ```
 
 #### Rendering Rules
@@ -159,7 +145,6 @@ Adapt the format for document findings:
 - `s-7` — skip/defer finding 7
 - `a-all` — accept all remaining pending items
 - `details N` — show the full body of finding N (all sections from the review-comment-template), then re-prompt
-- `tui` — switch to TUI mode for remaining items (see Mid-Flow TUI Switch)
 - `done` — finalize (only if no pending items remain)
 
 #### Edit Loop
@@ -176,6 +161,7 @@ When the user marks items for edit (`e-N`), handle them one at a time:
 ```
 
 After the user provides instructions:
+
 1. Regenerate the finding based on the edit prompt
 2. Show the regenerated finding in the same card format
 3. Ask: **accept** or **edit again**
@@ -212,33 +198,9 @@ Wave 3: [pending]
 
 No user interaction needed — this is display-only. Update by re-rendering after each wave completes.
 
----
-
-## TUI Mode (`-tui`)
-
-When the user passes `-tui`, or types `tui` during inline review:
-
-1. Write the `items.json` file to the session directory
-2. Tell the user:
-
-```
-Session ready. Run in a separate terminal:
-
-    python3 <skill_dir>/scripts/tui/adk-review-pr.py <session_dir>
-
-Tell me when you're done and I'll process the results.
-```
-
-3. When the user returns, read `results.json` from the session directory
-4. Process results normally (accepted -> post, rejected -> discard, edit -> regenerate)
-5. If edits exist, write a new `items.json` with regenerated items and tell the user to re-launch
-6. Repeat until all items are resolved
-
----
-
 ## Writing results.json (Inline Mode)
 
-When using inline mode, after processing user actions, write the same `results.json` format that the TUI would produce. This keeps the downstream processing identical:
+When using inline mode, after processing user actions, write `results.json` so downstream processing remains deterministic:
 
 ```json
 {
@@ -257,3 +219,4 @@ When using inline mode, after processing user actions, write the same `results.j
   }
 }
 ```
+

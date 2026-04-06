@@ -131,7 +131,7 @@ Convert an idea into a spec task or execution plan.
 Promote "<title>" to:
 [S]pec -- create a detailed specification via /adk-spec --mode write
 [P]lan -- create an execution plan via /adk-plan --mode write
-[T]ask -- create a quick-task via /adk-develop --mode quick
+[T]ask -- create a quick-task via /adk-dev-build --mode quick
 ```
 
 3. **Hand off.** Pass the idea description, trigger condition, and notes as context to the chosen skill.

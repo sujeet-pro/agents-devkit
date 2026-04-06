@@ -1,0 +1,17 @@
+{
+  "name": "agents-devkit",
+  "private": true,
+  "description": "Root package.json is for docs tooling only; the Claude plugin is not published to npm.",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "docs:dev": "pagesmith dev",
+    "docs:build": "pagesmith build",
+    "docs:preview": "pagesmith preview"
+  },
+  "devDependencies": {
+    "@pagesmith/docs": "^0.4.2"
+  }
+}

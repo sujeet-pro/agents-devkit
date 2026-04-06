@@ -1,51 +1,89 @@
 ---
-name: adk-project
-description: "[full] [project] Use when initializing projects, managing milestones, or capturing ideas"
+
+## name: adk-project
+description: "adk - [full] [project] Use when initializing projects, managing milestones, or capturing ideas"
 user-invocable: true
-argument-hint: "<action> [--mode init|milestone|idea] [--verbosity short|standard|detailed] [--help]"
+argument-hint: " [--mode init|milestone|idea] [--verbosity short|standard|detailed] [--help]"
 allowed-tools: [Glob, Grep, Read, Edit, Write, Bash, WebSearch, WebFetch, Agent]
 dependencies:
   commands: [git]
 workflow-tier: full
----
 
 # Project
 
 Unified project skill: bootstraps new projects through structured discovery and research, manages milestone tracking and auditing, and captures ideas for the backlog. Auto-detects the right mode from context, or accepts an explicit `--mode`.
 
-Load references: `references/workflow-6phase.md`, `references/communication-style.md`, `references/preflight.md`, `references/output-formats.md`. For Medium/Large: also load `references/agentic-teams.md`, `references/principal-engineer.md`.
+## Shared Skills
+
+This skill uses shared helper skills. Load each skill's reference file ONLY when the condition in "Load When" is met. If a shared skill is not installed, use the inline summary as a fallback.
+
+
+| Skill                     | Load When                                     | Inline Fallback                                                                                                                                                 |
+| ------------------------- | --------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/adk:workflow`           | always                                        | 6-phase workflow: intent → research → approach → plan → execute → validate. Complexity-adaptive skipping for trivial/small tasks. `--auto` skips confirmations. |
+| `/adk:communication`      | always                                        | Lead with conclusion. Bullet points. No preamble. Concrete specifics over abstractions. Verbosity follows context.                                              |
+| `/adk:preflight-check`    | before work                                   | Run preflight.py for tool dependencies and MCP validation. Detect source type and route to correct MCP.                                                         |
+| `/adk:output-format`      | when producing output                         | short/standard/detailed verbosity. Priority labels: Blocker, Critical, Should Have, May Have, Nitpick, Question.                                                |
+| `/adk:principal-engineer` | complexity >= medium                          | Five questions: need? simplest? alternatives? maintenance costs? clarity in 6 months?                                                                           |
+| `/adk:agentic-teams`      | complexity >= medium AND parallel work needed | Launch 2+ child agents with distinct roles. Standard team shapes: review, research, docs, diagram, security, migration, planning.                               |
+| `/adk:interaction`        | NOT --auto                                    | Inline protocols for intent confirmation, approach selection, plan approval, review findings, progress dashboard.                                               |
+
+
+## Reference Loading
+
+Load reference files conditionally to minimize token usage:
+
+
+| Reference                    | Load When                                             |
+| ---------------------------- | ----------------------------------------------------- |
+| `workflow-6phase.md`         | always (read only the section for the current phase)  |
+| `communication-style.md`     | always                                                |
+| `preflight.md`               | before preflight check                                |
+| `output-formats.md`          | when producing final output                           |
+| `output-format-modes.md`     | when producing final output                           |
+| `principal-engineer.md`      | Phase 0, complexity >= medium                         |
+| `agentic-teams.md`           | Phase 4, when launching child agents                  |
+| `inline-interaction.md`      | interactive phases, NOT --auto                        |
+| `help-format.md`             | when --help is passed                                 |
+| `project-guidelines.md`      | Phase 1, when scanning project                        |
+| `review-pipeline.md`         | review skills only                                    |
+| `review-comment-template.md` | when posting review comments                          |
+| `source-routing.md`          | when target is external (PR, Confluence, Google Docs) |
+
 
 ## Help
 
 ### Parameters
 
-| Parameter | Values | Default | Description |
-|-----------|--------|---------|-------------|
-| `--mode` | `init`, `milestone`, `idea` | auto-detect | Force a specific project mode |
-| `--action` | varies by mode | none | Sub-action within a mode (e.g., `create`, `track`, `audit`, `complete`, `gaps` for milestone; `capture`, `review`, `promote`, `list` for idea) |
-| `--type` | `<project-type>` | none | In init mode, narrow research to a specific project type |
-| `--milestone` | `<milestone-id>` | none | In milestone mode, target a specific milestone |
-| `--idea` | `<description>` | none | In idea mode, the idea text to capture |
-| `--verbosity` | `short`, `standard`, `detailed` | `standard` | Output detail level |
-| `--help` | flag | off | Show this help section |
+
+| Parameter     | Values                          | Default     | Description                                                                                                                                    |
+| ------------- | ------------------------------- | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--mode`      | `init`, `milestone`, `idea`     | auto-detect | Force a specific project mode                                                                                                                  |
+| `--action`    | varies by mode                  | none        | Sub-action within a mode (e.g., `create`, `track`, `audit`, `complete`, `gaps` for milestone; `capture`, `review`, `promote`, `list` for idea) |
+| `--type`      | `<project-type>`                | none        | In init mode, narrow research to a specific project type                                                                                       |
+| `--milestone` | `<milestone-id>`                | none        | In milestone mode, target a specific milestone                                                                                                 |
+| `--idea`      | `<description>`                 | none        | In idea mode, the idea text to capture                                                                                                         |
+| `--verbosity` | `short`, `standard`, `detailed` | `standard`  | Output detail level                                                                                                                            |
+| `--help`      | flag                            | off         | Show this help section                                                                                                                         |
+
 
 ### Behavior Variations
 
-- **`--mode init`**: Full 6-phase workflow for bootstrapping a new project. Interactive discovery, parallel research, requirements extraction, constitution, and roadmap generation.
-- **`--mode milestone`**: Full 6-phase workflow for creating, tracking, auditing, and archiving development milestones. Supports `--action create|track|audit|complete|gaps`.
-- **`--mode idea`**: Abbreviated workflow for capturing ideas to a backlog parking lot, reviewing/triaging accumulated ideas, or promoting ideas to specs/plans.
+- `**--mode init**`: Full 6-phase workflow for bootstrapping a new project. Interactive discovery, parallel research, requirements extraction, constitution, and roadmap generation.
+- `**--mode milestone**`: Full 6-phase workflow for creating, tracking, auditing, and archiving development milestones. Supports `--action create|track|audit|complete|gaps`.
+- `**--mode idea**`: Abbreviated workflow for capturing ideas to a backlog parking lot, reviewing/triaging accumulated ideas, or promoting ideas to specs/plans.
 
 ### Examples
 
 ```
-/adk-project bootstrap a new CLI tool for managing dotfiles
-/adk-project --mode init a SaaS dashboard for analytics
-/adk-project --mode milestone --action create v1.0 release
-/adk-project --mode milestone --action track
-/adk-project --mode milestone --action audit v1.0
-/adk-project --mode idea add dark mode support
-/adk-project --mode idea --action review
-/adk-project --mode idea --action promote
+/adk:project bootstrap a new CLI tool for managing dotfiles
+/adk:project --mode init a SaaS dashboard for analytics
+/adk:project --mode milestone --action create v1.0 release
+/adk:project --mode milestone --action track
+/adk:project --mode milestone --action audit v1.0
+/adk:project --mode idea add dark mode support
+/adk:project --mode idea --action review
+/adk:project --mode idea --action promote
 ```
 
 ## Preflight
@@ -56,11 +94,13 @@ Load references: `references/workflow-6phase.md`, `references/communication-styl
 
 If `--mode` is explicitly provided, load the matching stage file directly. Otherwise, auto-detect the mode from the task description:
 
-| Signal | Mode | Stage File |
-|---|---|---|
-| New project, bootstrap, scaffold, setup, initialize, kickoff | init | `stages/init.md` |
+
+| Signal                                                                      | Mode      | Stage File            |
+| --------------------------------------------------------------------------- | --------- | --------------------- |
+| New project, bootstrap, scaffold, setup, initialize, kickoff                | init      | `stages/init.md`      |
 | Milestones, roadmap, progress, tracking, audit, archive, definition of done | milestone | `stages/milestone.md` |
-| Ideas, backlog, parking lot, capture, promote, defer, triage | idea | `stages/idea.md` |
+| Ideas, backlog, parking lot, capture, promote, defer, triage                | idea      | `stages/idea.md`      |
+
 
 ### Disambiguation
 
@@ -83,7 +123,7 @@ After selecting the mode, load the corresponding stage file and follow its instr
 
 ## Common Phases
 
-All modes share the 6-phase workflow from `references/workflow-6phase.md`. Each stage file defines which phases apply and what to do in each.
+All modes share the 6-phase workflow from `/adk:workflow`. Each stage file defines which phases apply and what to do in each.
 
 ### Phase 0: Intent Expansion
 
@@ -119,7 +159,8 @@ Use the output format defined in the loaded stage file. Adapt verbosity based on
 
 ## Adjacent Skills
 
-- `/adk-spec --mode write` -- detailed feature specifications from roadmap phases
-- `/adk-plan --mode write` -- execution planning per roadmap phase
-- `/adk-review-pr` -- code review after development
-- `/adk-develop` -- feature implementation from project plans
+- `/adk:spec --mode write` -- detailed feature specifications from roadmap phases
+- `/adk:plan --mode write` -- execution planning per roadmap phase
+- `/adk:code-review-pr` -- code review after development
+- `/adk:dev-build` -- feature implementation from project plans
+

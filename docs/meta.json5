@@ -1,0 +1,7 @@
+{
+  displayName: "ADK Docs",
+  items: [
+    { displayName: "Guide", slug: "guide" },
+    { displayName: "Reference", slug: "reference" },
+  ],
+}

@@ -1,0 +1,8 @@
+{
+  displayName: "Guide",
+  items: [
+    { displayName: "Getting Started", slug: "getting-started" },
+    { displayName: "Skills Overview", slug: "skills" },
+    { displayName: "Workflow", slug: "workflow" },
+  ],
+}

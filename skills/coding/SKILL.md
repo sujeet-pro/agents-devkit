@@ -1,6 +1,6 @@
 ---
 name: adk-coding
-description: "[helper] [guidelines] Helper skill that detects repo tools, frameworks, and languages, then loads matching coding guidelines from the shared guideline library — invoked by review, PR, and development skills, not directly by users"
+description: "adk - [helper] [guidelines] Helper skill that detects repo tools, frameworks, and languages, then loads matching coding guidelines from the shared guideline library — invoked by review, PR, and development skills, not directly by users"
 user-invocable: false
 argument-hint: "[--scope scoped|full] [--help]"
 allowed-tools: [Glob, Grep, Read, Bash]
@@ -37,16 +37,16 @@ When `--help` is passed, display this reference and stop.
 ### Examples
 
 ```
-(invoked automatically by /adk-review-pr, /adk-develop, /pr)
-/adk-coding --scope full
-/adk-coding --scope scoped
+(invoked automatically by /adk:code-review-pr, /adk:dev-build, and PR workflows)
+/adk:coding --scope full
+/adk:coding --scope scoped
 ```
 
 ---
 
 
 
-Load references: `references/communication-style.md` (for tone consistency with the invoking skill).
+Invoke `/adk:communication` for tone consistency with the invoking skill.
 
 
 ## Workflow

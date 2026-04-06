@@ -53,10 +53,10 @@ Pick the minimum useful pipeline.
 
 Common examples:
 
-- PR review -> `/adk-coding`, `/adk-review-pr`
-- feature implementation -> `/adk-coding`, `/adk-research`, `/adk-plan`, `/adk-develop`, `/adk-review-pr`
-- docs -> `/adk-research`, `/adk-doc-writing`, `/adk-write`, `/adk-review-doc`
-- audit -> `/adk-coding`, `/adk-audit`, `/adk-write`
+- PR review -> `/adk-coding`, `/adk-code-review-pr`
+- feature implementation -> `/adk-coding`, `/adk-research`, `/adk-plan`, `/adk-dev-build`, `/adk-code-review-pr`
+- docs -> `/adk-research`, `/adk-docs-guidelines`, `/adk-docs-write`, `/adk-docs-review`
+- audit -> `/adk-coding`, `/adk-audit`, `/adk-docs-write`
 
 ### Tools and MCPs
 
@@ -106,11 +106,4 @@ This is my read of the task. I’ll use <skills>, start with <first action>, and
 
 Write `intent.json` to the session directory, then confirm with the user using the Intent Confirmation protocol from `references/inline-interaction.md`. Render the goal, reasoning, skills, tools, and complexity inline. Wait for approve/edit/simplify/cancel.
 
-If the user prefers to use the TUI in a separate terminal, tell them:
-
-```
-Run in a separate terminal:
-python3 ${CLAUDE_SKILL_DIR}/scripts/tui/intent_confirm.py <session_dir>
-
-Tell me when you're done and I'll process the result.
-```
+Use inline confirmation in the agent conversation for all intent approvals.

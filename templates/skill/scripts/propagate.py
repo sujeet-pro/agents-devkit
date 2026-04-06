@@ -1,16 +1,18 @@
 #!/usr/bin/env python3
 """
-Propagate canonical reference files from templates/skill/ to all skill directories.
+Propagate common files and preflight scripts to all skill directories.
 
 Usage:
-    python3 templates/skill/scripts/propagate.py [--dry-run]
+    python3 templates/skill/scripts/propagate.py [--dry-run] [--clean-refs]
 
-This script copies the canonical references, common files, and shared scripts
-from templates/skill/ into each skill's local directories. Skill-specific files
-(not present in the canonical set) are preserved.
+Shared reference content (workflow, communication style, principal-engineer,
+agentic-teams, output-format, interaction, preflight, review standards) is
+now provided by dedicated helper skills instead of copied reference files.
+This script only propagates:
+  - templates/skill/common/ → skills/<skill>/references/  (help-format, project-guidelines)
+  - templates/skill/scripts/preflight.py → skills/<skill>/scripts/preflight.py
 
-Supports subdirectories within references/ — canonical subdirectories are
-propagated recursively while preserving skill-specific subdirectories.
+Use --clean-refs to remove the deprecated reference files that are now skills.
 """
 
 import argparse
@@ -18,6 +20,21 @@ import filecmp
 import shutil
 import sys
 from pathlib import Path
+
+DEPRECATED_REFS = {
+    "workflow-6phase.md",
+    "workflow-7phase.md",
+    "communication-style.md",
+    "principal-engineer.md",
+    "agentic-teams.md",
+    "output-formats.md",
+    "output-format-modes.md",
+    "inline-interaction.md",
+    "preflight.md",
+    "source-routing.md",
+    "review-pipeline.md",
+    "review-comment-template.md",
+}
 
 
 def find_project_root() -> Path:
@@ -58,24 +75,15 @@ def sync_file(src: Path, dst: Path, dry_run: bool, label: str, stats: dict) -> b
     return True
 
 
-def propagate(dry_run: bool = False) -> None:
+def propagate(dry_run: bool = False, clean_refs: bool = False) -> None:
     root = find_project_root()
     templates_dir = root / "templates" / "skill"
     skills_dir = root / "skills"
 
-    canonical_refs = templates_dir / "references"
     canonical_scripts = templates_dir / "scripts"
     canonical_common = templates_dir / "common"
-    canonical_tui = canonical_scripts / "tui"
 
-    if not canonical_refs.exists():
-        print(f"Error: {canonical_refs} does not exist")
-        sys.exit(1)
-
-    # Collect canonical files (supports subdirectories)
-    canonical_ref_files = collect_canonical_files(canonical_refs)
     canonical_common_files = collect_canonical_files(canonical_common)
-    canonical_tui_files = collect_canonical_files(canonical_tui)
     preflight_src = canonical_scripts / "preflight.py"
 
     stats = {
@@ -85,7 +93,6 @@ def propagate(dry_run: bool = False) -> None:
         "files_removed": 0,
     }
 
-    # Iterate over each skill directory
     for skill_dir in sorted(skills_dir.iterdir()):
         if not skill_dir.is_dir():
             continue
@@ -98,14 +105,7 @@ def propagate(dry_run: bool = False) -> None:
         skill_scripts = skill_dir / "scripts"
         skill_updated = False
 
-        # Update reference files (including subdirectories)
-        for rel_path, src in canonical_ref_files.items():
-            dst = skill_refs / rel_path
-            label = f"{skill_dir.name}/references/{rel_path}"
-            if sync_file(src, dst, dry_run, label, stats):
-                skill_updated = True
-
-        # Copy common files into references/ as well
+        # Copy common files into references/
         for rel_path, src in canonical_common_files.items():
             dst = skill_refs / rel_path
             label = f"{skill_dir.name}/references/{rel_path}"
@@ -119,16 +119,20 @@ def propagate(dry_run: bool = False) -> None:
             if sync_file(preflight_src, dst, dry_run, label, stats):
                 skill_updated = True
 
-        # Update shared TUI package
-        for rel_path, src in canonical_tui_files.items():
-            dst = skill_scripts / "tui" / rel_path
-            label = f"{skill_dir.name}/scripts/tui/{rel_path}"
-            if sync_file(src, dst, dry_run, label, stats):
-                skill_updated = True
+        # Remove deprecated reference files (now provided by helper skills)
+        if clean_refs:
+            for ref_name in DEPRECATED_REFS:
+                deprecated = skill_refs / ref_name
+                if deprecated.exists():
+                    if dry_run:
+                        print(f"  [REMOVE] {skill_dir.name}/references/{ref_name}")
+                    else:
+                        deprecated.unlink()
+                    stats["files_removed"] += 1
+                    skill_updated = True
 
-        # Remove deprecated workflow and review UI files.
+        # Remove other deprecated files
         deprecated_paths = [
-            skill_refs / "workflow-7phase.md",
             skill_scripts / "interactive_review.py",
         ]
         for deprecated in deprecated_paths:
@@ -153,7 +157,6 @@ def propagate(dry_run: bool = False) -> None:
         if skill_updated:
             stats["skills_updated"] += 1
 
-    # Summary
     mode = "[DRY RUN] " if dry_run else ""
     print(f"\n{mode}Propagation complete:")
     print(f"  Skills updated: {stats['skills_updated']}")
@@ -163,10 +166,11 @@ def propagate(dry_run: bool = False) -> None:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Propagate canonical templates to all skills")
+    parser = argparse.ArgumentParser(description="Propagate common files to all skills")
     parser.add_argument("--dry-run", action="store_true", help="Show what would change without modifying files")
+    parser.add_argument("--clean-refs", action="store_true", help="Remove deprecated reference files that are now skills")
     args = parser.parse_args()
-    propagate(dry_run=args.dry_run)
+    propagate(dry_run=args.dry_run, clean_refs=args.clean_refs)
 
 
 if __name__ == "__main__":

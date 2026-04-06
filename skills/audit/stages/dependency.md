@@ -36,9 +36,9 @@ Run at least these child agents in parallel:
 4. **Check for outdated versions.** Compare current versions against latest stable releases. Categorize: up-to-date, patch available, minor available, major available.
 5. **Analyze licenses.** Identify the license for each dependency. Flag copyleft licenses (GPL, AGPL) in production dependencies, unknown licenses, and license conflicts with the project's own license.
 6. **Build remediation plan.** The remediation planner produces a prioritized list of actions:
-   - **Immediate** (Critical/High CVEs): exact commands or version bumps to apply
-   - **Short-term** (Medium CVEs, major outdated): migration steps with effort estimates
-   - **Backlog** (Low CVEs, license cleanup, optional updates): tracked but not urgent
+  - **Immediate** (Critical/High CVEs): exact commands or version bumps to apply
+  - **Short-term** (Medium CVEs, major outdated): migration steps with effort estimates
+  - **Backlog** (Low CVEs, license cleanup, optional updates): tracked but not urgent
 7. **Generate report.** Merge all findings into the output document.
 
 Save intermediary artifacts to `.temp/dependency-audit/`.

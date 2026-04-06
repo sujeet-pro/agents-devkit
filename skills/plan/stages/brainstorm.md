@@ -116,7 +116,7 @@ digraph brainstorming {
 
 - Write the validated design (spec) to `.temp/specs/YYYY-MM-DD-<topic>-design.md`
   - (User preferences for spec location override this default)
-- Invoke `/adk-doc-writing` for clear, concise technical writing
+- Invoke `/adk-docs-guidelines` for clear, concise technical writing
 - Commit the design document to git
 
 **Spec Self-Review:**

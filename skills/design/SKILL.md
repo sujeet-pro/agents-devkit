@@ -1,6 +1,6 @@
 ---
 name: adk-design
-description: "[full] [design] Use when designing frontend UI/UX, auditing visual design, or creating design direction"
+description: "adk - [full] [design] Use when designing frontend UI/UX, auditing visual design, or creating design direction"
 user-invocable: true
 argument-hint: "<task> [--focus ui|ux|visual|accessibility] [--verbosity short|standard|detailed] [--help]"
 allowed-tools: [Glob, Grep, Read, Edit, Write, Bash, WebSearch, WebFetch, Agent]
@@ -11,11 +11,43 @@ workflow-tier: full
 
 # Design
 
-Unified design skill: creates distinctive, production-grade frontend interfaces with high design quality, generates bold design variations as visual HTML previews, and iterates until the design is finalized. Also handles auditing existing UI via `--action audit` (delegates to `/adk-review-pr --focus ui`).
+Unified design skill: creates distinctive, production-grade frontend interfaces with high design quality, generates bold design variations as visual HTML previews, and iterates until the design is finalized. Also handles auditing existing UI via `--action audit` (delegates to `/adk:code-review-pr --focus ui`).
 
 > **Important**: The `framework` and `style` arguments define the *final deliverable* format. All preview rounds use **pure HTML/CSS/vanilla JS** so the user can visually compare without any build step.
 
-Load references: `references/workflow-6phase.md`, `references/communication-style.md`, `references/preflight.md`, `references/output-formats.md`. For Medium/Large: also load `references/agentic-teams.md`, `references/principal-engineer.md`.
+## Shared Skills
+
+This skill uses shared helper skills. Load each skill's reference file ONLY when the condition in "Load When" is met. If a shared skill is not installed, use the inline summary as a fallback.
+
+| Skill | Load When | Inline Fallback |
+|-------|-----------|-----------------|
+| `/adk:workflow` | always | 6-phase workflow: intent → research → approach → plan → execute → validate. Complexity-adaptive skipping for trivial/small tasks. `--auto` skips confirmations. |
+| `/adk:communication` | always | Lead with conclusion. Bullet points. No preamble. Concrete specifics over abstractions. Verbosity follows context. |
+| `/adk:preflight-check` | before work | Run preflight.py for tool dependencies and MCP validation. Detect source type and route to correct MCP. |
+| `/adk:output-format` | when producing output | short/standard/detailed verbosity. Priority labels: Blocker, Critical, Should Have, May Have, Nitpick, Question. |
+| `/adk:principal-engineer` | complexity >= medium | Five questions: need? simplest? alternatives? maintenance costs? clarity in 6 months? |
+| `/adk:agentic-teams` | complexity >= medium AND parallel work needed | Launch 2+ child agents with distinct roles. Standard team shapes: review, research, docs, diagram, security, migration, planning. |
+| `/adk:interaction` | NOT --auto | Inline protocols for intent confirmation, approach selection, plan approval, review findings, progress dashboard. |
+
+## Reference Loading
+
+Load reference files conditionally to minimize token usage:
+
+| Reference | Load When |
+|-----------|-----------|
+| `workflow-6phase.md` | always (read only the section for the current phase) |
+| `communication-style.md` | always |
+| `preflight.md` | before preflight check |
+| `output-formats.md` | when producing final output |
+| `output-format-modes.md` | when producing final output |
+| `principal-engineer.md` | Phase 0, complexity >= medium |
+| `agentic-teams.md` | Phase 4, when launching child agents |
+| `inline-interaction.md` | interactive phases, NOT --auto |
+| `help-format.md` | when --help is passed |
+| `project-guidelines.md` | Phase 1, when scanning project |
+| `review-pipeline.md` | review skills only |
+| `review-comment-template.md` | when posting review comments |
+| `source-routing.md` | when target is external (PR, Confluence, Google Docs) |
 
 ## Help
 
@@ -34,16 +66,16 @@ Load references: `references/workflow-6phase.md`, `references/communication-styl
 ### Behavior Variations
 
 - **`--action design`** (default): Full 6-phase workflow. Generates 5 bold design variations as an HTML preview, iterates on feedback, then converts to the target framework.
-- **`--action audit`**: Routes to `/adk-review-pr --focus ui` for reviewing existing frontend code for visual/UX issues (6-pillar review covering layout, typography, color, responsiveness, accessibility, interaction states).
+- **`--action audit`**: Routes to `/adk:code-review-pr --focus ui` for reviewing existing frontend code for visual/UX issues (6-pillar review covering layout, typography, color, responsiveness, accessibility, interaction states).
 
 ### Examples
 
 ```
-/adk-design a landing page for a developer tools SaaS product
-/adk-design --framework react --style tailwind a settings dashboard
-/adk-design --theme "dark luxe" a pricing page with toggle
-/adk-design --focus accessibility audit the signup flow
-/adk-design --action audit review the main navigation component
+/adk:design a landing page for a developer tools SaaS product
+/adk:design --framework react --style tailwind a settings dashboard
+/adk:design --theme "dark luxe" a pricing page with toggle
+/adk:design --focus accessibility audit the signup flow
+/adk:design --action audit review the main navigation component
 ```
 
 ## Preflight
@@ -52,7 +84,7 @@ Load references: `references/workflow-6phase.md`, `references/communication-styl
 
 ## Routing
 
-If `--action audit` is specified, or the task involves reviewing/auditing existing UI code for visual issues, accessibility, or responsiveness, route to `/adk-review-pr --focus ui` and forward all flags.
+If `--action audit` is specified, or the task involves reviewing/auditing existing UI code for visual issues, accessibility, or responsiveness, route to `/adk:code-review-pr --focus ui` and forward all flags.
 
 Otherwise, proceed with the design workflow below.
 
@@ -205,9 +237,9 @@ Once the user locks a design direction:
 
 The `.design-preview/` directory can be kept for reference or deleted -- ask the user.
 
-## Reference Loading
+## Guideline Loading
 
-- Invoke `/adk-coding` to detect the repo stack and load appropriate coding guidelines (design-system, frontend, general code quality)
+- Invoke `/adk:coding` to detect the repo stack and load appropriate coding guidelines (design-system, frontend, general code quality)
 
 ## Output Format
 
@@ -222,6 +254,6 @@ Phase 5: production-ready code in the target framework with integration notes.
 
 ## Adjacent Skills
 
-- `/adk-review-pr --focus ui` -- audit existing frontend code for visual/UX issues (6-pillar review)
-- `/adk-develop` -- implement the finalized design
-- `/adk-write` -- document design decisions and component usage
+- `/adk:code-review-pr --focus ui` -- audit existing frontend code for visual/UX issues (6-pillar review)
+- `/adk:dev-build` -- implement the finalized design
+- `/adk:docs-write` -- document design decisions and component usage

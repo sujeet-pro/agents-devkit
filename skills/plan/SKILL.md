@@ -1,6 +1,6 @@
 ---
 name: adk-plan
-description: "[full] [plan] Use when brainstorming, approving, executing, or tracking implementation plans with explicit human checkpoints before execution"
+description: "adk - [full] [plan] Use when brainstorming, approving, executing, or tracking implementation plans with explicit human checkpoints before execution"
 user-invocable: true
 argument-hint: "<task> [--mode brainstorm|write|execute|track] [--verbosity short|standard|detailed] [--help]"
 allowed-tools: [Glob, Grep, Read, Edit, Write, Bash, WebSearch, WebFetch, Agent]
@@ -18,7 +18,39 @@ Unified planning skill for:
 - executing only approved plans
 - tracking progress against a plan
 
-Load references: `references/workflow-6phase.md`, `references/communication-style.md`, `references/preflight.md`, `references/output-formats.md`. For Medium/Large: also load `references/agentic-teams.md`, `references/principal-engineer.md`.
+## Shared Skills
+
+This skill uses shared helper skills. Load each skill's reference file ONLY when the condition in "Load When" is met. If a shared skill is not installed, use the inline summary as a fallback.
+
+| Skill | Load When | Inline Fallback |
+|-------|-----------|-----------------|
+| `/adk:workflow` | always | 6-phase workflow: intent → research → approach → plan → execute → validate. Complexity-adaptive skipping for trivial/small tasks. `--auto` skips confirmations. |
+| `/adk:communication` | always | Lead with conclusion. Bullet points. No preamble. Concrete specifics over abstractions. Verbosity follows context. |
+| `/adk:preflight-check` | before work | Run preflight.py for tool dependencies and MCP validation. Detect source type and route to correct MCP. |
+| `/adk:output-format` | when producing output | short/standard/detailed verbosity. Priority labels: Blocker, Critical, Should Have, May Have, Nitpick, Question. |
+| `/adk:principal-engineer` | complexity >= medium | Five questions: need? simplest? alternatives? maintenance costs? clarity in 6 months? |
+| `/adk:agentic-teams` | complexity >= medium AND parallel work needed | Launch 2+ child agents with distinct roles. Standard team shapes: review, research, docs, diagram, security, migration, planning. |
+| `/adk:interaction` | NOT --auto | Inline protocols for intent confirmation, approach selection, plan approval, review findings, progress dashboard. |
+
+## Reference Loading
+
+Load reference files conditionally to minimize token usage:
+
+| Reference | Load When |
+|-----------|-----------|
+| `workflow-6phase.md` | always (read only the section for the current phase) |
+| `communication-style.md` | always |
+| `preflight.md` | before preflight check |
+| `output-formats.md` | when producing final output |
+| `output-format-modes.md` | when producing final output |
+| `principal-engineer.md` | Phase 0, complexity >= medium |
+| `agentic-teams.md` | Phase 4, when launching child agents |
+| `inline-interaction.md` | interactive phases, NOT --auto |
+| `help-format.md` | when --help is passed |
+| `project-guidelines.md` | Phase 1, when scanning project |
+| `review-pipeline.md` | review skills only |
+| `review-comment-template.md` | when posting review comments |
+| `source-routing.md` | when target is external (PR, Confluence, Google Docs) |
 
 ## Help
 
@@ -43,11 +75,11 @@ Load references: `references/workflow-6phase.md`, `references/communication-styl
 ### Examples
 
 ```text
-/adk-plan brainstorm a notification system for the app
-/adk-plan --mode write implement user authentication based on the spec
-/adk-plan --mode execute .temp/plans/auth-plan.md
-/adk-plan --mode track
-/adk-plan --plan .temp/plans/auth-plan.md --mode track
+/adk:plan brainstorm a notification system for the app
+/adk:plan --mode write implement user authentication based on the spec
+/adk:plan --mode execute .temp/plans/auth-plan.md
+/adk:plan --mode track
+/adk:plan --plan .temp/plans/auth-plan.md --mode track
 ```
 
 ## Hard Gates
@@ -68,7 +100,7 @@ If `--mode` is explicitly provided, load the matching stage file directly. Other
 | Signal | Mode | Stage File |
 |---|---|---|
 | rough idea, “brainstorm”, “explore”, “what if”, vague request | brainstorm | `stages/brainstorm.md` |
-| spec exists, requirements are known, “write a plan”, “plan for” | write | `stages/adk-write.md` |
+| spec exists, requirements are known, “write a plan”, “plan for” | write | `stages/write.md` |
 | plan file exists, “execute”, “implement the plan”, “carry this out” | execute | `stages/execute.md` |
 | “track”, “status”, “progress”, “dashboard”, “what’s left” | track | `stages/track.md` |
 
@@ -83,7 +115,7 @@ The lifecycle is: `brainstorm -> write -> execute -> track`.
 
 ## Common Phases
 
-Use the shared 6-phase workflow from `references/workflow-6phase.md`.
+Use the shared 6-phase workflow from `/adk:workflow`.
 
 ### Phase 0: Intent Expansion
 
@@ -135,12 +167,12 @@ All modes end with:
 ## Output Format
 
 - **short**: one-line status
-- **standard**: summary, decision/adk-plan/status, next step
+- **standard**: summary, decisions, plan status, next step
 - **detailed**: standard output plus rationale, options considered, and artifact paths
 
 ## Adjacent Skills
 
-- `/adk-spec` — formal requirements before planning
-- `/adk-develop` — implementation after planning
-- `/adk-review-pr` — review after development
-- `/adk-handoff` — pause or resume long planning sessions
+- `/adk:spec` — formal requirements before planning
+- `/adk:dev-build` — implementation after planning
+- `/adk:code-review-pr` — review after development
+- `/adk:handoff` — pause or resume long planning sessions
