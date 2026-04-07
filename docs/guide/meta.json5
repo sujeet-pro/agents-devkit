@@ -2,6 +2,7 @@
   displayName: "Guide",
   items: [
     { displayName: "Getting Started", slug: "getting-started" },
+    { displayName: "Philosophy & Design", slug: "philosophy" },
     { displayName: "Skills Overview", slug: "skills" },
     { displayName: "Workflow", slug: "workflow" },
   ],

@@ -6,7 +6,7 @@ order: 1
 
 # Getting Started
 
-ADK (Agent Development Kit) is a Claude plugin that provides principal-engineer-grade skills for software development agents. It covers code review, documentation, research, diagrams, audits, planning, and more.
+ADK (Agent Development Kit) is a Claude plugin that provides principal-engineer-grade skills for software development agents. 49 skills covering code review, documentation, research, diagrams, audits, planning, migrations, refactoring, and more.
 
 ## Installation
 
@@ -17,20 +17,22 @@ ADK (Agent Development Kit) is a Claude plugin that provides principal-engineer-
 /plugin install adk@adk-marketplace
 ```
 
-All skills become available as `/adk:<skill-name>` immediately. Run `/reload-plugins` if you've just installed.
+Skills become available as `/adk:<skill-name>` immediately.
 
-### skills.sh
+### skills.sh (Claude / Codex)
 
 ```bash
 npx skills add sujeet-pro/agents-devkit
 ```
 
-This installs all 27 skills. To install specific skills:
+To install specific skills:
 
 ```bash
 npx skills add sujeet-pro/agents-devkit/skills/code-review-pr
 npx skills add sujeet-pro/agents-devkit/skills/dev-build
 ```
+
+When installed via skills.sh, skills are prefixed with `adk-` (e.g., `/adk-code-review-pr`, `/adk-dev-build`). Works with Claude Code, Codex, and other skills.sh-compatible agents. Visit [skills.sh](https://skills.sh) for more details.
 
 ### Local Development
 
@@ -41,13 +43,13 @@ claude --plugin-dir ~/.devkit
 
 ## Your First Skill
 
-The easiest way to start is through the orchestrator:
+The easiest way to start is through the `/adk:use` orchestrator:
 
 ```text
 /adk:use review this codebase for architecture and code quality
 ```
 
-The `/adk:use` orchestrator will:
+This will:
 
 1. **Expand your intent** — clarify what "review" means, identify the scope
 2. **Identify the right skills** — routes to `/adk:code-review-repo` for full-codebase review
@@ -57,7 +59,7 @@ The `/adk:use` orchestrator will:
 
 ## Direct Skill Invocation
 
-You can also invoke skills directly when you know which one you need:
+When you know which skill you need, invoke it directly:
 
 ```text
 /adk:code-review-pr https://github.com/org/repo/pull/42
@@ -81,6 +83,32 @@ By default, skills pause for your approval at key decision points. Pass `--auto`
 /adk:use --auto fix the failing tests and update the docs
 ```
 
+## Recommended System Prompt
+
+After installing, add this to your project's `CLAUDE.md` (or `~/.claude/CLAUDE.md` for global use) to enable skill-first routing on every prompt:
+
+```markdown
+## ADK Skill Routing
+
+On every user prompt, follow this workflow before doing any work:
+
+1. **Expand intent** — restate the goal in one line, surface assumptions, estimate complexity
+2. **Identify skills** — check installed ADK skills (`/adk:use` or `/adk-use`) and select the minimum pipeline
+3. **Show phase summary** — display a concise phase plan:
+   - Goal (one line)
+   - Skills to use (with brief rationale)
+   - Phases that will run (based on complexity)
+   - Complexity level (Trivial/Small/Medium/Large)
+4. **Confirm with user** — wait for approval before executing (unless `--auto`)
+5. **Execute with concise output** — lead with conclusions, offer to elaborate
+6. **Validate** — verify the result, self-review, simplify if possible
+
+Output is concise by default. After completing a task, show the short summary and ask:
+"Need a detailed breakdown?" — only elaborate when the user says yes.
+```
+
+Run `/adk:setup --type config` to apply this automatically.
+
 ## Setup (Optional)
 
 Run the setup skill to install optional tools and configure MCP servers:
@@ -91,8 +119,40 @@ Run the setup skill to install optional tools and configure MCP servers:
 
 This checks for and installs: git, node, npm, diagramkit (for diagram rendering), and configures GitHub MCP for PR operations.
 
+## Update
+
+### Claude Code
+
+```bash
+/plugin update adk
+```
+
+### skills.sh
+
+```bash
+npx skills update sujeet-pro/agents-devkit
+```
+
+## Uninstall
+
+### Claude Code
+
+```bash
+/plugin uninstall adk
+
+# Remove the marketplace (optional)
+/plugin marketplace remove adk-marketplace
+```
+
+### skills.sh
+
+```bash
+npx skills remove sujeet-pro/agents-devkit
+```
+
 ## What's Next?
 
-- **[Skills Overview](/guide/skills/)** — browse all 27 skills by category
+- **[Philosophy & Design](/guide/philosophy/)** — core principles, output style, lazy loading
+- **[Skills Overview](/guide/skills/)** — browse all 49 skills by category
 - **[Workflow](/guide/workflow/)** — understand the 6-phase workflow
 - **[Skill Reference](/reference/skills/)** — detailed documentation for each skill

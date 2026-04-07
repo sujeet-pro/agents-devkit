@@ -1,6 +1,6 @@
 ---
 title: Skill Reference
-description: Complete reference for all ADK skills
+description: Complete reference for all 49 ADK skills
 order: 1
 ---
 
@@ -14,9 +14,17 @@ Each skill's `SKILL.md` is the definitive reference. Use `--help` on any skill t
 - [Skill Inspiration Map](./INSPIRATION-MAP.md)
 - [Category Routing Map](./CATEGORY-ROUTING.md)
 
-## Skill Index
+## Common Parameters
 
-### Review Skills (Task)
+All user-invocable skills support:
+
+| Parameter | Values | Description |
+|-----------|--------|-------------|
+| `--help` | flag | Show skill parameters and examples |
+| `--verbosity` | `short`, `standard`, `detailed` | Output detail level |
+| `--auto` | flag | Skip human confirmations, execute full workflow |
+
+## Review Skills (Task)
 
 | Skill | Tier | Description |
 |-------|------|-------------|
@@ -25,7 +33,7 @@ Each skill's `SKILL.md` is the definitive reference. Use `--help` on any skill t
 | `code-review-fix` | full | Reads PR review comments, applies code fixes, replies to reviewers, marks threads resolved. |
 | `docs-review` | full | Reviews documents from local files, Confluence, or Google Docs. |
 
-### Development Skills (Task)
+## Development Skills (Task)
 
 | Skill | Tier | Description |
 |-------|------|-------------|
@@ -37,7 +45,7 @@ Each skill's `SKILL.md` is the definitive reference. Use `--help` on any skill t
 | `spec` | full | Write specifications, analyze consistency, generate checklists, write constitutions. |
 | `design` | full | UI/UX design direction with 5 HTML preview variations, or visual audit. |
 
-### Documentation Skills (Task)
+## Documentation Skills (Task)
 
 | Skill | Tier | Description |
 |-------|------|-------------|
@@ -45,18 +53,19 @@ Each skill's `SKILL.md` is the definitive reference. Use `--help` on any skill t
 | `docs-repo` | full | Generate comprehensive repo documentation using pagesmith conventions. |
 | `docs-review` | full | Review documentation for accuracy, completeness, clarity, and style. |
 | `docs-crud` | full | Manage doc lifecycle: create, update, improve, respond to comments. |
+| `docs-confluence` | full | Confluence-specific read/write with format mapping. |
 
-### Diagram Skills (Task)
+## Diagram Skills (Task)
 
 | Skill | Tier | Description |
 |-------|------|-------------|
 | `diagram` | full | Diagram routing — auto-detects the best engine from context and routes to the engine-specific skill. |
-| `diagram-mermaid` | full | Mermaid diagrams: full syntax reference for all 20+ diagram types. Light/dark mode via diagramkit. |
+| `diagram-mermaid` | full | Mermaid diagrams: full syntax reference for all 21 diagram types. Light/dark mode via diagramkit. |
 | `diagram-excalidraw` | full | Excalidraw diagrams: hand-drawn style with complete JSON format reference. |
 | `diagram-graphviz` | full | Graphviz DOT diagrams: WASM-based rendering, no browser needed. |
 | `diagram-drawio` | full | Draw.io diagrams: precise layout with rich icon library (AWS, Azure, GCP shapes). |
 
-### Quality & Research Skills (Task)
+## Quality & Research Skills (Task)
 
 | Skill | Tier | Description |
 |-------|------|-------------|
@@ -64,7 +73,7 @@ Each skill's `SKILL.md` is the definitive reference. Use `--help` on any skill t
 | `research` | full | Multi-agent research with citations. Standard (2 agents) or deep (4 agents). |
 | `test` | abbreviated | User acceptance testing with interactive verification and failure diagnosis. |
 
-### Project & Session Skills (Task)
+## Project & Session Skills (Task)
 
 | Skill | Tier | Description |
 |-------|------|-------------|
@@ -74,14 +83,18 @@ Each skill's `SKILL.md` is the definitive reference. Use `--help` on any skill t
 | `deps-tracker` | full | Track upstream dependencies (diagramkit, pagesmith, superpowers) and sync updates. |
 | `interactivity` | full | Structured user interaction orchestration: options, data collection, edit/review loops, inline-first with optional external TUI sessions. |
 
-### Routing Skills
+## Routing Skills
 
 | Skill | Tier | Description |
 |-------|------|-------------|
 | `use` | orchestrator | Default entry point. Expands intent, identifies skills, confirms plan, executes. |
 | `team` | full | Multi-model review or agent team dispatch. |
+| `code-review` | orchestrator | Code review router: detects type, routes to code-review-pr/repo/fix. |
+| `docs` | orchestrator | Documentation router: routes to docs-write/crud/repo/review/confluence. |
+| `dev` | orchestrator | Development router: routes to dev-build/refactor/migrate/commit. |
+| `diagram` | orchestrator | Diagram router: detects engine, routes to mermaid/excalidraw/drawio/graphviz. |
 
-### Guideline Skills (auto-invoked)
+## Guideline Skills (auto-invoked)
 
 | Skill | Tier | Description |
 |-------|------|-------------|
@@ -91,6 +104,7 @@ Each skill's `SKILL.md` is the definitive reference. Use `--help` on any skill t
 | `agentic-teams` | helper | Child-agent contract and standard team shapes for review, research, docs, security, migration. |
 | `output-format` | helper | Verbosity modes (short/standard/detailed), PR comment templates, priority labels. |
 | `interaction` | helper | Inline interaction protocols: intent confirm, approach select, plan approve, review findings. |
+| `interactivity` | helper | Structured interaction orchestration (inline-first, optional TUI for large forms). |
 | `preflight-check` | helper | Preflight validation for dependencies, MCP servers, and tool readiness. |
 | `review-standards` | helper | Review pipeline, canonical comment template, source routing, postback rules. |
 | `coding` | helper | Detects repo tech stack, loads matching coding guidelines (16 files). |
@@ -98,15 +112,14 @@ Each skill's `SKILL.md` is the definitive reference. Use `--help` on any skill t
 | `docs-md` | helper | Detects markdown rendering target and loads formatting guidelines. |
 | `architecture` | helper | Architecture patterns, principles, and anti-pattern detection. |
 
-## Common Parameters
+## Connector Skills (auto-invoked)
 
-All user-invocable skills support:
-
-| Parameter | Values | Description |
-|-----------|--------|-------------|
-| `--help` | flag | Show skill parameters and examples |
-| `--verbosity` | `short`, `standard`, `detailed` | Output detail level |
-| `--auto` | flag | Skip human confirmations, execute full workflow |
+| Skill | Tier | Description |
+|-------|------|-------------|
+| `github` | helper | GitHub PR, issue, review, and repo operations via `gh` CLI. |
+| `bitbucket` | helper | Bitbucket PR, comment, and repo operations via API. |
+| `confluence` | helper | Confluence page, comment, and space operations. |
+| `jira` | helper | Jira issue, board, project, and search operations. |
 
 ## Self-Sufficient Pattern
 

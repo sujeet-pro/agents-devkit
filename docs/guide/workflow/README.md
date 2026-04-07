@@ -1,7 +1,7 @@
 ---
 title: The 6-Phase Workflow
 description: How ADK skills plan, confirm, execute, and validate work
-order: 3
+order: 4
 ---
 
 # The 6-Phase Workflow
@@ -13,6 +13,15 @@ Every non-trivial ADK skill follows a structured 6-phase workflow. The key princ
 Traditional AI workflows often surprise users: the agent researches extensively, makes assumptions, and presents a finished result that might not match what the user wanted. ADK flips this — confirming intent and approach before investing in execution.
 
 ## The Phases
+
+| Phase | Name | What Happens |
+| ----- | ---- | ------------ |
+| 0 | **Intent Expansion** | Expand the prompt, show concise reasoning, identify skills/tools/MCPs, and confirm direction early |
+| 1 | **Research & Options** | Research the problem, scan the codebase, and surface 2-3 viable options |
+| 2 | **Approach Selection** | Let the user choose, mix, or simplify the direction |
+| 3 | **Planning** | Produce an executable plan with files, sequencing, and verification |
+| 4 | **Execute** | Run the approved plan |
+| 5 | **Validate & Learn** | Validate the result, simplify when needed, and explain the key takeaway |
 
 ### Phase 0: Intent Expansion
 
@@ -52,12 +61,12 @@ Iterative validation loop: run tests, self-review, check for over-engineering, s
 
 Not every task needs all 6 phases:
 
-| Complexity | Files | Phase 0 | Phase 1 | Phase 2 | Phase 3 | Phase 4 | Phase 5 |
-|------------|-------|---------|---------|---------|---------|---------|---------|
-| Trivial | 1 | inline | skip | skip | skip | direct | quick |
-| Small | 2-3 | inline | lite | inline | brief | execute | verify |
-| Medium | 4-8 | confirm | full | select | full | execute | full |
-| Large | >8 | confirm+PE | full | select+PE | full | phased | full |
+| Complexity | Files | Phases Used |
+| ---------- | ----- | ----------- |
+| Trivial | 1 | 0 inline, 4, 5 quick |
+| Small | 2-3 | 0 inline, 1 lite, 3 brief, 4, 5 |
+| Medium | 4-8 | All 6 phases |
+| Large | >8 | All 6 phases with PE check and phased execution |
 
 ## Auto Mode
 

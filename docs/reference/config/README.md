@@ -1,6 +1,6 @@
 ---
 title: Configuration Reference
-description: Plugin configuration, hooks, MCP servers, and settings
+description: Plugin configuration, hooks, MCP servers, naming, and plugin structure
 order: 3
 ---
 
@@ -39,37 +39,36 @@ This activates the `/adk:use` orchestrator as the default agent, so all prompts 
 
 ## MCP Servers
 
-`.mcp.json` configures MCP server connections:
+`.mcp.json` configures MCP server connections. Some skills use MCP servers for source-native operations. Most skills work without any MCP.
 
-```json
-{
-  "mcpServers": {
-    "github": {
-      "type": "http",
-      "url": "https://api.githubcopilot.com/mcp/"
-    }
-  }
-}
-```
+| MCP Server | Used By | Transport |
+| ---------- | ------- | --------- |
+| GitHub | code-review-pr, code-review-fix, publish | HTTP (`https://api.githubcopilot.com/mcp/`) |
+| Bitbucket | code-review-pr, code-review-fix | detect-from-input |
+| Confluence | docs-review, publish, docs-write | detect-from-input |
+| Google Drive | docs-review, docs-write | detect-from-input |
 
-Additional MCP servers can be configured via `/adk:setup`:
-
-| Server | Purpose | Transport |
-|--------|---------|-----------|
-| GitHub | PR operations, issue tracking | HTTP |
-| Bitbucket | PR operations | stdio |
-| Confluence | Document review and publishing | stdio |
-| Google Drive | Document review and publishing | stdio |
+Additional MCP servers can be configured via `/adk:setup`.
 
 ## Hooks
 
-`hooks/hooks.json` configures lifecycle hooks:
+`hooks/hooks.json` configures lifecycle hooks that run automatically:
 
 | Event | Matcher | Type | Purpose |
 |-------|---------|------|---------|
 | `PostToolUse` | `Edit\|Write` | prompt | Validates SKILL.md frontmatter conventions |
-| `Stop` | — | prompt | Checks task completion |
+| `Stop` | — | prompt | Checks task completion before ending |
 | `SessionStart` | `compact` | command | Re-injects ADK context after compaction |
+
+## Naming Convention
+
+| Install Method | Invocation Pattern | Example |
+| -------------- | ------------------ | ------- |
+| Claude Plugin | `/adk:<skill-name>` | `/adk:code-review-pr` |
+| skills.sh | `/adk-<skill-name>` | `/adk-code-review-pr` |
+| Local plugin-dir | `/adk:<skill-name>` | `/adk:code-review-pr` |
+
+The `name` field in each skill's frontmatter is set to `adk-<skill-name>`. When installed as a Claude plugin, the plugin namespace `adk:` is used and the folder name determines the command. When installed via skills.sh, the `name` field is used directly, giving `/adk-<skill-name>`.
 
 ## Skill Frontmatter
 
@@ -77,13 +76,54 @@ Each skill's `SKILL.md` uses YAML frontmatter:
 
 | Field | Required | Description |
 |-------|----------|-------------|
-| `name` | Yes | Skill name without `adk-` prefix |
+| `name` | Yes | `adk-<skill-name>` for dual-install support |
 | `description` | Yes | Starts with `adk -` followed by bracket tags |
 | `user-invocable` | No | `true` (default) or `false` for helper skills |
 | `argument-hint` | No | Parameter hint for autocomplete |
 | `allowed-tools` | No | Tools the skill can use without asking |
 | `workflow-tier` | Yes | `full`, `abbreviated`, `helper`, or `orchestrator` |
 | `dependencies` | No | Required commands, npm packages, MCP servers |
+
+## Plugin Structure
+
+```
+agents-devkit/                        49 skills · 15 agents · ~42K lines
+├── .claude-plugin/
+│   └── plugin.json                   Plugin manifest (name: adk)
+├── .mcp.json                         MCP server configurations
+├── hooks/hooks.json                  Hook configurations
+├── settings.json                     Default settings (routes to /adk:use)
+├── agents/                           15 shared agent definitions
+├── settings/                         MCP setup guides
+├── templates/skill/                  Canonical templates and propagation
+│   ├── common/                       Cross-skill files (help-format, project-guidelines)
+│   └── scripts/                      Preflight and propagation scripts
+├── skills/                           49 skills (only relevant ones load per task)
+│   ├── use/                          Routing — default orchestrator
+│   ├── team/                         Routing — multi-model agent dispatch
+│   ├── code-review/                  Routing — review type detection
+│   ├── docs/                         Routing — documentation task routing
+│   ├── dev/                          Routing — development task routing
+│   ├── diagram/                      Routing — diagram engine detection
+│   │
+│   ├── workflow/                     Guideline — 6-phase workflow (lazy-loaded)
+│   ├── communication/                Guideline — concise-by-default output rules
+│   ├── coding/                       Guideline — 16 coding guideline files (lazy-loaded by stack)
+│   ├── docs-guidelines/              Guideline — 24 doc guideline files (lazy-loaded by type)
+│   ├── (+ 12 more guideline skills)
+│   │
+│   ├── github/                       Connector — GitHub via gh CLI
+│   ├── bitbucket/                    Connector — Bitbucket via API
+│   ├── confluence/                   Connector — Confluence via API
+│   ├── jira/                         Connector — Jira via API
+│   │
+│   ├── code-review-pr/              Task — PR review (11 conditional stages)
+│   ├── dev-build/                    Task — implement/debug/TDD (7 conditional stages)
+│   ├── docs-write/                   Task — formal docs (16 conditional stages)
+│   ├── (+ 25 more task skills)
+├── manifest.json                     Upstream source tracking
+└── docs/                             Documentation site (@pagesmith/docs)
+```
 
 ## Upstream Dependencies
 

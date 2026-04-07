@@ -4,5 +4,6 @@
     { displayName: "Skills", slug: "skills" },
     { displayName: "Agents", slug: "agents" },
     { displayName: "Configuration", slug: "config" },
+    { displayName: "Guidelines", slug: "guidelines" },
   ],
 }
