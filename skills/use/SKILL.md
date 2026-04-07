@@ -157,6 +157,7 @@ When `--help` is passed, display this reference and stop.
 4. The user must approve the direction before execution starts (unless `--auto`).
 5. For non-trivial work, execution starts only after an approved plan exists.
 6. Every downstream skill invocation must be explainable from the confirmed intent.
+7. **Concise by default**: show the compact result first. After task completion, offer "Need a detailed breakdown?" — elaborate only when the user says yes.
 
 ## Phase 0: Intent Expansion
 
@@ -164,38 +165,54 @@ Start by expanding the prompt using `references/intent-expansion.md`.
 
 For Medium and Large work, invoke the **intent-analyst** agent (see `agents/intent-analyst.md`) to pressure-test the prompt expansion before presenting it to the user.
 
-### What to Produce
+### What to Produce — Phase Summary Card
 
-Create a compact intent summary with:
-
-- one-line goal
-- 2-4 reasoning bullets
-- assumptions and ambiguities
-- required skills in order
-- required tools, scripts, and MCPs with status
-- complexity and rationale
-- PE check for Medium or Large work
-
-### Visible Reasoning Format
-
-Use this style:
+On **every prompt**, produce a compact phase summary card that the user sees immediately. This is the first thing the user reads before any work happens:
 
 ```text
-Intent:
-- Goal: <one line>
-- Why this pipeline: <reasoning bullet>
-- Skills: <skill list with short why>
-- Tools/MCPs: <available / missing / optional>
-- Complexity: <level> because <brief rationale>
+## Phase Summary
+
+**Goal**: <one-line restatement>
+
+**Skills**: <skill-1> → <skill-2> → <skill-3>
+**Phases**: 0 intent → 1 research → 3 plan → 4 execute → 5 validate
+**Complexity**: <level> — <one-line rationale>
+
+| Phase | Action | Status |
+|-------|--------|--------|
+| 0. Intent | Expand and confirm | pending |
+| 1. Research | <what will be researched> | skip/pending |
+| 2. Approach | <selection method> | skip/pending |
+| 3. Plan | <planning scope> | skip/pending |
+| 4. Execute | <what gets executed> | pending |
+| 5. Validate | <validation method> | pending |
+
+> approve · edit · simplify · cancel
 ```
+
+The phase summary card must include:
+
+- one-line goal
+- skills pipeline (this skill pack + any other installed skills detected)
+- which phases will run vs skip (based on complexity)
+- complexity level with rationale
+- PE check for Medium or Large work
 
 ### Confirmation
 
-- **Trivial / Small**: inline confirmation is enough
-- **Medium / Large**: write `intent.json`, then confirm with the user using the Intent Confirmation protocol from `/adk:interaction` (render inline, wait for approve/edit/simplify/cancel)
+- **Trivial / Small**: inline phase summary card is enough
+- **Medium / Large**: write `intent.json` to `.temp/<task-slug>/`, then show the phase summary card and wait for approve/edit/simplify/cancel
 - **`--auto`**: skip confirmation, proceed directly
 
 If the user simplifies or edits the intent, re-run the expansion and only then continue.
+
+### Platform-Specific Tool Mapping
+
+Detect the agent platform and load the appropriate tool mapping:
+
+- **Codex**: load `references/codex-tools.md` — maps Claude tool names to Codex equivalents (`Task` → `spawn_agent`, etc.)
+- **Gemini CLI**: load `references/gemini-tools.md` — maps Claude tool names to Gemini equivalents
+- **Claude Code**: no mapping needed (native)
 
 ## Skill Routing
 
@@ -297,20 +314,30 @@ Once the user approves the plan (or `--auto` is set):
 
 ## Validation and Learning
 
-End every `/adk:use` run with:
+End every `/adk:use` run with a compact summary:
 
-- what was done
-- what was verified
-- what changed from the initial idea, if anything
-- a short "what to know" note so the user learns why the chosen path made sense
+```text
+## Done
+
+**Result**: <one-line outcome>
+**Verified**: <what was validated>
+**Changed**: <what diverged from the plan, if anything>
+**Key insight**: <one sentence the user should remember>
+
+Need a detailed breakdown?
+```
+
+Only expand into full details if the user asks for it.
 
 ## Output Format
 
-Adapt output to `--verbosity`, but keep it concise.
+**Concise by default.** Adapt output to `--verbosity`:
 
 - **short**: one-line summary + next action
-- **standard**: intent, approved pipeline, progress, outcome
-- **detailed**: standard output plus decision notes and artifact paths
+- **standard** (default): phase summary card, approved pipeline, compact progress, outcome with "need details?" offer
+- **detailed**: standard output plus decision notes, artifact paths, and full reasoning
+
+When `--verbosity` is not set, use **standard** — show the compact version and offer to elaborate.
 
 ## Adjacent Skills
 

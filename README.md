@@ -6,16 +6,40 @@ Route general prompts through `/adk:use` first. Invoke a specific skill directly
 
 Inspired by [superpowers](https://github.com/obra/superpowers). Diagram skills from [diagramkit](https://github.com/sujeet-pro/diagramkit). Markdown capabilities from [pagesmith](https://github.com/sujeet-pro/pagesmith).
 
+## At a Glance
+
+| What | Count | Details |
+|------|------:|---------|
+| **Skills** | 49 | 28 task, 16 guideline/helper, 5 routing/orchestrator |
+| **Agents** | 15 | Reusable child-agent definitions for parallel work |
+| **Reference files** | 251 | Including 16 coding guidelines and 24 doc-writing guidelines |
+| **Stage files** | 58 | Conditional stages loaded per mode/context |
+| **Scripts** | 67 | Preflight checks, setup, and platform connectors |
+| **Total instructions** | ~42,000 lines | But only ~200-500 lines load per task (see lazy loading below) |
+
+### Token-Efficient Lazy Loading
+
+ADK never loads all 42,000 lines at once. Each task loads only what it needs:
+
+1. **Primary skill** (~100-300 lines) — the SKILL.md for the task at hand
+2. **Conditional stages** (~50-150 lines) — only the stage matching the detected mode (e.g., `debug` vs `implement` vs `tdd`)
+3. **Conditional references** (~50-200 lines) — only the guidelines matching the detected stack (e.g., Python backend guidelines, not all 16 coding guideline files)
+4. **Guideline skills** (~50-100 lines each) — loaded on demand, skipped if not installed (inline fallback summaries are ~1 line each)
+
+A typical PR review loads ~400 lines. A Mermaid diagram loads ~250 lines (1 type reference out of 21). A full-stack feature implementation loads ~600 lines across multiple skills. The remaining ~41,000 lines stay on disk.
+
 ## Philosophy
 
 - **Human-in-the-loop** — decisions happen interactively, execution happens automatically
 - **Plan first, then implement** — every non-trivial task follows a 6-phase workflow with approval gates
+- **Concise by default** — output is compact and decision-oriented; show the short version first, then offer to elaborate if the user needs more detail
 - **Self-sufficient skills** — every skill works independently with inline fallbacks for shared knowledge; can invoke other skills when available
 - **Parallel agentic teams** — non-trivial work uses child agents with distinct roles
 - **Principal engineer lens** — do we need this? What's the simplest version? What are the alternatives?
+- **Lazy loading** — only the relevant skill, stage, and reference files load per task; ~200-500 lines per invocation out of ~42,000 total
 - **Markdown by default** — all outputs are markdown unless the user requests otherwise
 - **Auto mode** — pass `--auto` to skip confirmations and execute the full workflow automatically
-- **Dual-install support** — works as a Claude plugin (`/adk:skill`) or via skills.sh (`/adk-skill`)
+- **Dual-install support** — works as a Claude plugin (`/adk:skill`), via skills.sh (`/adk-skill`), or Codex (`/adk-skill`)
 
 ## The 6-Phase Workflow
 
@@ -55,7 +79,7 @@ Every non-trivial skill follows a standardized 6-phase workflow. Human interacti
 
 Skills become available as `/adk:<skill-name>` immediately.
 
-### Using skills.sh
+### Using skills.sh (Claude / Codex)
 
 ```bash
 # Install all skills
@@ -66,7 +90,7 @@ npx skills add sujeet-pro/agents-devkit/skills/code-review-pr
 npx skills add sujeet-pro/agents-devkit/skills/dev-build
 ```
 
-When installed via skills.sh, skills are prefixed with `adk-` (e.g., `/adk-code-review-pr`, `/adk-dev-build`). This prevents conflicts with other skill packs.
+When installed via skills.sh, skills are prefixed with `adk-` (e.g., `/adk-code-review-pr`, `/adk-dev-build`). This prevents conflicts with other skill packs. Works with Claude Code, Codex, and other skills.sh-compatible agents.
 
 Visit [skills.sh](https://skills.sh) for more details.
 
@@ -76,6 +100,32 @@ Visit [skills.sh](https://skills.sh) for more details.
 git clone https://github.com/sujeet-pro/agents-devkit.git ~/.devkit
 claude --plugin-dir ~/.devkit
 ```
+
+### Recommended System Prompt
+
+After installing, add this to your project's `CLAUDE.md` (or `~/.claude/CLAUDE.md` for global use) to enable skill-first routing on every prompt:
+
+```markdown
+## ADK Skill Routing
+
+On every user prompt, follow this workflow before doing any work:
+
+1. **Expand intent** — restate the goal in one line, surface assumptions, estimate complexity
+2. **Identify skills** — check installed ADK skills (`/adk:use` or `/adk-use`) and select the minimum pipeline
+3. **Show phase summary** — display a concise phase plan:
+   - Goal (one line)
+   - Skills to use (with brief rationale)
+   - Phases that will run (based on complexity)
+   - Complexity level (Trivial/Small/Medium/Large)
+4. **Confirm with user** — wait for approval before executing (unless `--auto`)
+5. **Execute with concise output** — lead with conclusions, offer to elaborate
+6. **Validate** — verify the result, self-review, simplify if possible
+
+Output is concise by default. After completing a task, show the short summary and ask:
+"Need a detailed breakdown?" — only elaborate when the user says yes.
+```
+
+Run `/adk:setup --type config` to apply this automatically.
 
 ## Update
 
@@ -112,74 +162,88 @@ npx skills remove sujeet-pro/agents-devkit
 
 ## Skill Categories
 
-ADK skills are organized into three categories:
+ADK's 49 skills are organized into four categories. Only the relevant skill files load per task (see [lazy loading](#token-efficient-lazy-loading)).
 
-### Guideline Skills (shared helpers)
+### Guideline Skills (16 shared helpers)
 
-Provide reusable knowledge and standards. Auto-invoked by task skills. Each task skill includes inline fallback summaries so it works even if the guideline skill is not installed.
+Provide reusable knowledge and standards. Auto-invoked by task skills when available. Each task skill includes one-line inline fallback summaries, so it works even if the guideline skill is not installed.
 
 
 | Skill                | Invocation                | What It Provides                                                                  |
 | -------------------- | ------------------------- | --------------------------------------------------------------------------------- |
 | `workflow`           | `/adk:workflow`           | 6-phase workflow framework with complexity-adaptive phase skipping                |
-| `communication`      | `/adk:communication`      | Communication style: lead with conclusion, no preamble, concrete specifics        |
+| `communication`      | `/adk:communication`      | Communication style: lead with conclusion, no preamble, concise by default        |
 | `principal-engineer` | `/adk:principal-engineer` | PE questioning: need? simplest? alternatives? maintenance? clarity?               |
 | `agentic-teams`      | `/adk:agentic-teams`      | Child-agent contract: team shapes for review, research, docs, security, migration |
 | `output-format`      | `/adk:output-format`      | Verbosity modes, PR comment templates, priority/principle labels                  |
 | `interaction`        | `/adk:interaction`        | Inline protocols: intent confirm, approach select, plan approve, review findings  |
+| `interactivity`      | `/adk:interactivity`      | Structured interaction orchestration (inline-first, optional TUI for large forms) |
 | `preflight-check`    | `/adk:preflight-check`    | Preflight validations for dependencies, MCP, and tool readiness                   |
 | `review-standards`   | `/adk:review-standards`   | Review pipeline, comment template, source routing, postback rules                 |
-| `coding`             | `/adk:coding`             | Detects repo stack, loads matching coding guidelines (16 guideline files)         |
-| `docs-guidelines`    | `/adk:docs-guidelines`    | Detects document type, loads matching writing guidelines (24 guideline files)     |
+| `coding`             | `/adk:coding`             | Detects repo stack, lazy-loads matching coding guidelines (16 guideline files)    |
+| `docs-guidelines`    | `/adk:docs-guidelines`    | Detects document type, lazy-loads matching writing guidelines (24 guideline files)|
 | `docs-md`            | `/adk:docs-md`            | Detects markdown target (pagesmith/GitHub/plain), loads formatting guidelines     |
 | `architecture`       | `/adk:architecture`       | Architecture patterns, principles, and anti-pattern detection                     |
 
+Connector skills (auto-invoked by task skills for platform APIs):
 
-### Task Skills (user-facing)
+| Skill          | Invocation          | What It Provides                                     |
+| -------------- | ------------------- | ---------------------------------------------------- |
+| `github`       | `/adk:github`       | GitHub PR, issue, review, and repo operations via `gh` CLI |
+| `bitbucket`    | `/adk:bitbucket`    | Bitbucket PR, comment, and repo operations via API   |
+| `confluence`   | `/adk:confluence`   | Confluence page, comment, and space operations       |
+| `jira`         | `/adk:jira`         | Jira issue, board, project, and search operations    |
+
+
+### Task Skills (28 user-facing)
 
 Perform specific engineering tasks. Each is self-sufficient with inline fallback summaries for all shared knowledge.
 
 
-| Skill                | Area     | Invocation                | Description                                                  |
-| -------------------- | -------- | ------------------------- | ------------------------------------------------------------ |
-| `code-review-pr`     | Review   | `/adk:code-review-pr`     | Code review: PR, local, branch + fix/comment/interactive     |
-| `code-review-repo`   | Review   | `/adk:code-review-repo`   | Whole-repo review with prioritized improvement plan          |
-| `code-review-fix`    | Review   | `/adk:code-review-fix`    | Fix PR comments, reply to reviewers, mark resolved           |
-| `docs-review`        | Review   | `/adk:docs-review`        | Review documents (local, Confluence, Google Docs)            |
-| `dev-build`          | Dev      | `/adk:dev-build`          | Implement features, fix bugs, enhance code, TDD              |
-| `dev-refactor`       | Dev      | `/adk:dev-refactor`       | Extract, rename, restructure, simplify, modernize code       |
-| `dev-migrate`        | Dev      | `/adk:dev-migrate`        | Framework/library migration with breaking change analysis    |
-| `dev-commit`         | Dev      | `/adk:dev-commit`         | Smart commit messages and PR descriptions                    |
-| `docs-write`         | Docs     | `/adk:docs-write`         | Create/update formal documents (ADR, RFC, blog, changelog)   |
-| `docs-repo`          | Docs     | `/adk:docs-repo`          | Generate comprehensive repo documentation (pagesmith)        |
-| `docs-review`        | Docs     | `/adk:docs-review`        | Review docs for accuracy, completeness, clarity              |
-| `docs-crud`          | Docs     | `/adk:docs-crud`          | Manage doc lifecycle: create, update, improve, comment-reply |
-| `plan`               | Plan     | `/adk:plan`               | Brainstorm, write, execute, and track implementation plans   |
-| `spec`               | Spec     | `/adk:spec`               | Write specs, analyze consistency, generate checklists        |
-| `research`           | Research | `/adk:research`           | Multi-agent research with citations                          |
-| `diagram`            | Diagram  | `/adk:diagram`            | Create diagrams (routes to engine-specific skill)            |
-| `diagram-mermaid`    | Diagram  | `/adk:diagram-mermaid`    | Mermaid diagrams with full syntax reference (20+ types)      |
-| `diagram-excalidraw` | Diagram  | `/adk:diagram-excalidraw` | Excalidraw hand-drawn style architecture diagrams            |
-| `diagram-graphviz`   | Diagram  | `/adk:diagram-graphviz`   | Graphviz DOT diagrams for dependency graphs                  |
-| `diagram-drawio`     | Diagram  | `/adk:diagram-drawio`     | Draw.io precise layout for network/enterprise architecture   |
-| `design`             | Design   | `/adk:design`             | UI/UX design direction + visual audit                        |
-| `audit`              | Quality  | `/adk:audit`              | Audit: codebase, security, performance, dependencies         |
-| `test`               | QA       | `/adk:test`               | User acceptance testing with interactive verification        |
-| `project`            | Project  | `/adk:project`            | Initialize projects, manage milestones and ideas             |
-| `handoff`            | Session  | `/adk:handoff`            | Pause/resume work sessions, context threads                  |
-| `setup`              | Setup    | `/adk:setup`              | Configure CLI tools, MCP servers, and hooks                  |
-| `deps-tracker`       | Project  | `/adk:deps-tracker`       | Track upstream dependencies and sync updates                 |
+| Skill                | Area        | Invocation                | Description                                                  |
+| -------------------- | ----------- | ------------------------- | ------------------------------------------------------------ |
+| `code-review-pr`     | Review      | `/adk:code-review-pr`     | Code review: PR, local, branch + fix/comment/interactive     |
+| `code-review-repo`   | Review      | `/adk:code-review-repo`   | Whole-repo review with prioritized improvement plan          |
+| `code-review-fix`    | Review      | `/adk:code-review-fix`    | Fix PR comments, reply to reviewers, mark resolved           |
+| `docs-review`        | Review      | `/adk:docs-review`        | Review documents (local, Confluence, Google Docs)            |
+| `dev-build`          | Dev         | `/adk:dev-build`          | Implement features, fix bugs, enhance code, TDD              |
+| `dev-refactor`       | Dev         | `/adk:dev-refactor`       | Extract, rename, restructure, simplify, modernize code       |
+| `dev-migrate`        | Dev         | `/adk:dev-migrate`        | Framework/library migration with breaking change analysis    |
+| `dev-commit`         | Dev         | `/adk:dev-commit`         | Smart commit messages and PR descriptions                    |
+| `docs-write`         | Docs        | `/adk:docs-write`         | Create/update formal documents (ADR, RFC, blog, changelog)   |
+| `docs-repo`          | Docs        | `/adk:docs-repo`          | Generate comprehensive repo documentation (pagesmith)        |
+| `docs-crud`          | Docs        | `/adk:docs-crud`          | Manage doc lifecycle: create, update, improve, comment-reply |
+| `docs-confluence`    | Docs        | `/adk:docs-confluence`    | Confluence-specific read/write with format mapping           |
+| `plan`               | Plan        | `/adk:plan`               | Brainstorm, write, execute, and track implementation plans   |
+| `spec`               | Spec        | `/adk:spec`               | Write specs, analyze consistency, generate checklists        |
+| `research`           | Research    | `/adk:research`           | Multi-agent research with citations                          |
+| `diagram-mermaid`    | Diagram     | `/adk:diagram-mermaid`    | Mermaid diagrams with full syntax reference (21 types)       |
+| `diagram-excalidraw` | Diagram     | `/adk:diagram-excalidraw` | Excalidraw hand-drawn style architecture diagrams            |
+| `diagram-graphviz`   | Diagram     | `/adk:diagram-graphviz`   | Graphviz DOT diagrams for dependency graphs                  |
+| `diagram-drawio`     | Diagram     | `/adk:diagram-drawio`     | Draw.io precise layout for network/enterprise architecture   |
+| `design`             | Design      | `/adk:design`             | UI/UX design direction + visual audit                        |
+| `audit`              | Quality     | `/adk:audit`              | Audit: codebase, security, performance, dependencies         |
+| `test`               | QA          | `/adk:test`               | User acceptance testing with interactive verification        |
+| `project`            | Project     | `/adk:project`            | Initialize projects, manage milestones and ideas             |
+| `handoff`            | Session     | `/adk:handoff`            | Pause/resume work sessions, context threads                  |
+| `setup`              | Setup       | `/adk:setup`              | Configure CLI tools, MCP servers, hooks, and system prompt   |
+| `deps-tracker`       | Project     | `/adk:deps-tracker`       | Track upstream dependencies and sync updates                 |
+| `interactivity`      | Interaction | `/adk:interactivity`      | Structured interaction: options, data capture, approvals     |
 
 
-### Routing Skills (orchestrators)
+### Routing Skills (5 orchestrators)
 
-Coordinate and route work across other skills.
+Coordinate and route work across other skills. Category routers auto-detect the right sub-skill.
 
 
-| Skill  | Invocation  | Description                                                               |
-| ------ | ----------- | ------------------------------------------------------------------------- |
-| `use`  | `/adk:use`  | Default orchestrator: expand intent, confirm route, approve plan, execute |
-| `team` | `/adk:team` | Multi-model review, agent team dispatch                                   |
+| Skill         | Invocation         | Description                                                               |
+| ------------- | ------------------ | ------------------------------------------------------------------------- |
+| `use`         | `/adk:use`         | Default orchestrator: expand intent, identify skills, confirm, execute    |
+| `team`        | `/adk:team`        | Multi-model review, agent team dispatch                                   |
+| `code-review` | `/adk:code-review` | Code review router: detects type, routes to code-review-pr/repo/fix      |
+| `docs`        | `/adk:docs`        | Documentation router: routes to docs-write/crud/repo/review/confluence   |
+| `dev`         | `/adk:dev`         | Development router: routes to dev-build/refactor/migrate/commit          |
+| `diagram`     | `/adk:diagram`     | Diagram router: detects engine, routes to mermaid/excalidraw/drawio/graphviz |
 
 
 ---
@@ -226,9 +290,9 @@ Coordinate and route work across other skills.
 
 ---
 
-## Agents (15)
+## Agents
 
-Shared agent definitions in `agents/` provide reusable prompts for child agents spawned by skills.
+15 shared agent definitions in `agents/` provide reusable prompts for child agents spawned by skills during parallel execution.
 
 
 | Agent                | Purpose                                                  |
@@ -287,69 +351,56 @@ ADK includes hooks that run automatically:
 
 The `name` field in each skill's frontmatter is set to `adk-<skill-name>`. When installed as a Claude plugin, the plugin namespace `adk:` is used and the folder name determines the command. When installed via skills.sh, the `name` field is used directly, giving `/adk-<skill-name>`.
 
+## Output Style
+
+All ADK output follows **concise by default**:
+
+- **Lead with the conclusion**, then supporting reasoning
+- **Short version first** — after completing a task, show the compact result
+- **Offer to elaborate** — end with "Need a detailed breakdown?" when the output could be expanded
+- **No preamble** — skip "Great question!", "I'd be happy to help", "Let me think about this..."
+- **No trailing summaries** — don't restate what was just done
+- **Verbosity flag** — pass `--verbosity detailed` to get full output without asking, or `--verbosity short` for one-liners
+
 ## Plugin Structure
 
 ```
-agents-devkit/
+agents-devkit/                        49 skills · 15 agents · ~42K lines
 ├── .claude-plugin/
-│   └── plugin.json          Plugin manifest (name: adk)
-├── .mcp.json                MCP server configurations
-├── hooks/
-│   └── hooks.json           Hook configurations
-├── settings.json            Default settings (routes to /adk:use)
-├── agents/                  15 shared agent definitions
-├── settings/                MCP setup guides
-├── templates/skill/         Canonical templates and shared references
-│   ├── SKILL-TEMPLATE.md    Boilerplate for new skills
-│   ├── references/          Master copies (deprecated — now helper skills)
-│   ├── common/              Cross-skill guidelines (help-format, project-guidelines)
-│   └── scripts/             Preflight and propagation scripts
-├── skills/
-│   ├── use/                 Routing — orchestrates all other skills
-│   ├── team/                Routing — multi-model agent team dispatch
+│   └── plugin.json                   Plugin manifest (name: adk)
+├── .mcp.json                         MCP server configurations
+├── hooks/hooks.json                  Hook configurations
+├── settings.json                     Default settings (routes to /adk:use)
+├── agents/                           15 shared agent definitions
+├── settings/                         MCP setup guides
+├── templates/skill/                  Canonical templates and propagation
+│   ├── common/                       Cross-skill files (help-format, project-guidelines)
+│   └── scripts/                      Preflight and propagation scripts
+├── skills/                           49 skills (only relevant ones load per task)
+│   ├── use/                          Routing — default orchestrator
+│   ├── team/                         Routing — multi-model agent dispatch
+│   ├── code-review/                  Routing — review type detection
+│   ├── docs/                         Routing — documentation task routing
+│   ├── dev/                          Routing — development task routing
+│   ├── diagram/                      Routing — diagram engine detection
 │   │
-│   ├── workflow/            Guideline — 6-phase workflow framework
-│   ├── communication/       Guideline — communication style rules
-│   ├── principal-engineer/  Guideline — PE questioning framework
-│   ├── agentic-teams/       Guideline — child-agent contract and team shapes
-│   ├── output-format/       Guideline — verbosity modes, templates, labels
-│   ├── interaction/         Guideline — inline interaction protocols
-│   ├── preflight-check/     Guideline — dependency and MCP validation
-│   ├── review-standards/    Guideline — review pipeline and comment template
-│   ├── coding/              Guideline — coding guidelines (16 files)
-│   ├── docs-guidelines/     Guideline — doc guidelines (24 files)
-│   ├── docs-md/             Guideline — markdown formatting guidelines
-│   ├── architecture/        Guideline — architecture patterns
+│   ├── workflow/                     Guideline — 6-phase workflow (lazy-loaded)
+│   ├── communication/                Guideline — concise-by-default output rules
+│   ├── coding/                       Guideline — 16 coding guideline files (lazy-loaded by stack)
+│   ├── docs-guidelines/              Guideline — 24 doc guideline files (lazy-loaded by type)
+│   ├── (+ 12 more guideline skills)
 │   │
-│   ├── code-review-pr/      Task — code review (PR, local, branch)
-│   ├── code-review-repo/    Task — whole-repo review
-│   ├── code-review-fix/     Task — fix PR comments
-│   ├── docs-review/         Task — document review
-│   ├── dev-build/           Task — feature implementation, debugging, TDD
-│   ├── dev-refactor/        Task — code refactoring
-│   ├── dev-migrate/         Task — framework/library migration
-│   ├── dev-commit/          Task — smart commits and PR descriptions
-│   ├── docs-write/          Task — formal documents (ADR, RFC, blog, etc.)
-│   ├── docs-repo/           Task — generate repo documentation
-│   ├── docs-review/         Task — review documentation
-│   ├── docs-crud/           Task — documentation lifecycle management
-│   ├── plan/                Task — implementation planning
-│   ├── spec/                Task — specifications and checklists
-│   ├── research/            Task — multi-agent research
-│   ├── diagram/             Task — diagram routing (to engine-specific skills)
-│   ├── diagram-mermaid/     Task — Mermaid diagrams (full reference)
-│   ├── diagram-excalidraw/  Task — Excalidraw diagrams (full reference)
-│   ├── diagram-graphviz/    Task — Graphviz DOT diagrams (full reference)
-│   ├── diagram-drawio/      Task — Draw.io diagrams (full reference)
-│   ├── design/              Task — UI/UX design
-│   ├── audit/               Task — codebase/security/performance audits
-│   ├── test/                Task — user acceptance testing
-│   ├── project/             Task — project management
-│   ├── handoff/             Task — session management
-│   ├── setup/               Task — CLI tools, MCP, hooks setup
-│   └── deps-tracker/        Task — upstream dependency tracking
-├── manifest.json            Upstream source tracking
-└── docs/                    Documentation site (@pagesmith/docs)
+│   ├── github/                       Connector — GitHub via gh CLI
+│   ├── bitbucket/                    Connector — Bitbucket via API
+│   ├── confluence/                   Connector — Confluence via API
+│   ├── jira/                         Connector — Jira via API
+│   │
+│   ├── code-review-pr/              Task — PR review (11 conditional stages)
+│   ├── dev-build/                    Task — implement/debug/TDD (7 conditional stages)
+│   ├── docs-write/                   Task — formal docs (16 conditional stages)
+│   ├── (+ 25 more task skills)
+├── manifest.json                     Upstream source tracking
+└── docs/                             Documentation site (@pagesmith/docs)
 ```
 
 ## Guidelines

@@ -13,17 +13,34 @@ Rules for all DevKit skill output. Apply these to every response, deliverable, a
 ## Rules
 
 1. **Lead with conclusion, then reasoning** — never bury the answer
-2. **Bullet points for multi-part answers**, not paragraphs
-3. **Decisions**: state decision, key factor, max 2 supporting points
-4. **Show reasoning concisely**: "X because Y, which means Z"
-5. **Never repeat what the user said** back to them verbatim
-6. **No preamble**: skip "Great question!", "I'd be happy to help!", "Let me think about this..."
-7. **No trailing summaries** restating what was just done
-8. **Concrete specifics over abstract descriptions**: "the auth middleware in `src/middleware/auth.ts`" not "the relevant code"
-9. **Explain for learning**: state the concept, show the concrete example, explain why it matters — in that order
-10. **Verbosity follows context**: short for confirmations, standard for work output, detailed only when explicitly requested
+2. **Concise by default, elaborate on request** — show the compact result first; after completing a task, offer "Need a detailed breakdown?" instead of dumping full output unsolicited
+3. **Bullet points for multi-part answers**, not paragraphs
+4. **Decisions**: state decision, key factor, max 2 supporting points
+5. **Show reasoning concisely**: "X because Y, which means Z"
+6. **Never repeat what the user said** back to them verbatim
+7. **No preamble**: skip "Great question!", "I'd be happy to help!", "Let me think about this..."
+8. **No trailing summaries** restating what was just done
+9. **Concrete specifics over abstract descriptions**: "the auth middleware in `src/middleware/auth.ts`" not "the relevant code"
+10. **Explain for learning**: state the concept, show the concrete example, explain why it matters — in that order
+11. **Verbosity follows context**: short for confirmations, standard for work output, detailed only when explicitly requested or `--verbosity detailed` is passed
 
 ## Before / After
+
+### Example 0: Task completion (concise → offer to elaborate)
+
+**Before (dumps everything):**
+
+> I've completed the PR review. Here are all 12 findings organized by severity. Finding 1: In `src/auth/jwt.ts` at line 47, the token validation doesn't check expiration... [500 more words of findings, then repeats what was done]
+
+**After (concise with offer):**
+
+> **PR review complete** — 12 findings (2 blocker, 3 critical, 7 should-have).
+>
+> Blockers:
+> - **JWT expiration unchecked** — `src/auth/jwt.ts:47`
+> - **SQL injection in search** — `src/api/search.ts:23`
+>
+> Need the full findings list or a detailed breakdown?
 
 ### Example 1: Status update
 

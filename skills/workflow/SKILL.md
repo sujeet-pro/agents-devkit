@@ -212,10 +212,13 @@ All phases still execute — auto mode only removes the human confirmation gates
 
 ## Output Rules
 
+- **Concise by default** — show the compact result first, then offer "Need a detailed breakdown?" at the end
 - All output is **markdown by default** unless the user requests otherwise
 - Follow `/adk:communication` for tone and structure
+- Lead with the conclusion or result, then supporting detail
 - Use consistent heading hierarchy: `##` for sections, `###` for subsections
 - Include a summary section at the top of every deliverable
 - Code examples use fenced code blocks with language tags
 - Tables use GFM pipe syntax
 - Findings include severity, confidence, and actionable next steps
+- After task completion, always offer to elaborate — do not dump detailed output unless the user asks for it or passes `--verbosity detailed`

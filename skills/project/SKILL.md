@@ -9,6 +9,8 @@ dependencies:
   commands: [git]
 workflow-tier: full
 
+---
+
 # Project
 
 Unified project skill: bootstraps new projects through structured discovery and research, manages milestone tracking and auditing, and captures ideas for the backlog. Auto-detects the right mode from context, or accepts an explicit `--mode`.
@@ -29,27 +31,11 @@ This skill uses shared helper skills. Load each skill's reference file ONLY when
 | `/adk:interaction`        | NOT --auto                                    | Inline protocols for intent confirmation, approach selection, plan approval, review findings, progress dashboard.                                               |
 
 
-## Reference Loading
+## Helper Skill Resolution
 
-Load reference files conditionally to minimize token usage:
+Resolve shared behavior through **helper skills**, not by loading reference markdown files. Invoke the needed skill using either form: `/adk:<skill>` (Claude plugin) or `/adk-<skill>` (skills.sh). The usual helpers are **workflow** (phase structure), **communication** (tone and structure), **preflight-check** (tool and MCP validation), **output-format** (verbosity and deliverable shape), **principal-engineer** (engineering bar), **agentic-teams** (child agents), and **interaction** (prompting and confirmations).
 
-
-| Reference                    | Load When                                             |
-| ---------------------------- | ----------------------------------------------------- |
-| `workflow-6phase.md`         | always (read only the section for the current phase)  |
-| `communication-style.md`     | always                                                |
-| `preflight.md`               | before preflight check                                |
-| `output-formats.md`          | when producing final output                           |
-| `output-format-modes.md`     | when producing final output                           |
-| `principal-engineer.md`      | Phase 0, complexity >= medium                         |
-| `agentic-teams.md`           | Phase 4, when launching child agents                  |
-| `inline-interaction.md`      | interactive phases, NOT --auto                        |
-| `help-format.md`             | when --help is passed                                 |
-| `project-guidelines.md`      | Phase 1, when scanning project                        |
-| `review-pipeline.md`         | review skills only                                    |
-| `review-comment-template.md` | when posting review comments                          |
-| `source-routing.md`          | when target is external (PR, Confluence, Google Docs) |
-
+If a required helper skill is unavailable, print a warning and continue using the inline fallback summary in the Shared Skills table.
 
 ## Help
 

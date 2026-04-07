@@ -15,37 +15,23 @@ dependencies:
 
 ## Shared Skills
 
-This skill uses shared helper skills. Load each skill's reference file ONLY when the condition in "Load When" is met. If a shared skill is not installed, use the inline summary as a fallback.
+This skill **invokes helper skills** for shared behavior (workflow, tone, preflight, output shape, interaction, etc.). Do **not** treat other skills as loose folders of markdown to copy from; delegate by invoking the helper skill, which stays self-contained.
 
-| Skill | Load When | Inline Fallback |
-|-------|-----------|-----------------|
-| `/adk:workflow` | always | 6-phase workflow: intent → research → approach → plan → execute → validate. Complexity-adaptive skipping for trivial/small tasks. `--auto` skips confirmations. |
-| `/adk:communication` | always | Lead with conclusion. Bullet points. No preamble. Concrete specifics over abstractions. Verbosity follows context. |
-| `/adk:preflight-check` | before work | Run preflight.py for tool dependencies and MCP validation. Detect source type and route to correct MCP. |
-| `/adk:output-format` | when producing output | short/standard/detailed verbosity. Priority labels: Blocker, Critical, Should Have, May Have, Nitpick, Question. |
-| `/adk:principal-engineer` | complexity >= medium | Five questions: need? simplest? alternatives? maintenance costs? clarity in 6 months? |
-| `/adk:agentic-teams` | complexity >= medium AND parallel work needed | Launch 2+ child agents with distinct roles. Standard team shapes: review, research, docs, diagram, security, migration, planning. |
-| `/adk:interaction` | NOT --auto | Inline protocols for intent confirmation, approach selection, plan approval, review findings, progress dashboard. |
+If a **required** helper is unavailable in the user’s environment, print a short warning that names the missing skill and both invocation forms, then **continue** using the **inline fallback** summary in the table below (do not block the task on missing helpers).
 
-## Reference Loading
+| Helper skill | Invoke (Claude plugin) | Invoke (Codex / skills.sh) | When | Inline fallback (1–2 lines) |
+|--------------|------------------------|------------------------------|------|----------------------------|
+| workflow | `/adk:workflow` | `/adk-workflow` | always | 6-phase workflow: intent → research → approach → plan → execute → validate. Complexity-adaptive skipping for trivial/small tasks. `--auto` skips confirmations. |
+| communication | `/adk:communication` | `/adk-communication` | always | Lead with conclusion. Bullet points. No preamble. Concrete specifics over abstractions. Verbosity follows context. |
+| preflight-check | `/adk:preflight-check` | `/adk-preflight-check` | before work | Run preflight.py for tool dependencies and MCP validation. Detect source type and route to correct MCP. |
+| output-format | `/adk:output-format` | `/adk-output-format` | when producing output | short/standard/detailed verbosity. Priority labels: Blocker, Critical, Should Have, May Have, Nitpick, Question. |
+| principal-engineer | `/adk:principal-engineer` | `/adk-principal-engineer` | complexity >= medium | Five questions: need? simplest? alternatives? maintenance costs? clarity in 6 months? |
+| agentic-teams | `/adk:agentic-teams` | `/adk-agentic-teams` | complexity >= medium AND parallel work needed | Launch 2+ child agents with distinct roles. Standard team shapes: review, research, docs, diagram, security, migration, planning. |
+| interaction | `/adk:interaction` | `/adk-interaction` | NOT --auto | Inline protocols for intent confirmation, approach selection, plan approval, review findings, progress dashboard. |
 
-Load reference files conditionally to minimize token usage:
+## Helper skills instead of copied reference packs
 
-| Reference | Load When |
-|-----------|-----------|
-| `workflow-6phase.md` | always (read only the section for the current phase) |
-| `communication-style.md` | always |
-| `preflight.md` | before preflight check |
-| `output-formats.md` | when producing final output |
-| `output-format-modes.md` | when producing final output |
-| `principal-engineer.md` | Phase 0, complexity >= medium |
-| `agentic-teams.md` | Phase 4, when launching child agents |
-| `inline-interaction.md` | interactive phases, NOT --auto |
-| `help-format.md` | when --help is passed |
-| `project-guidelines.md` | Phase 1, when scanning project |
-| `review-pipeline.md` | review skills only |
-| `review-comment-template.md` | when posting review comments |
-| `source-routing.md` | when target is external (PR, Confluence, Google Docs) |
+Use the **Shared Skills** table above: call the helper skill when installed; otherwise warn once and use the inline fallback. Skill-specific material for *this* task belongs under this skill’s own `references/` or `stages/` only.
 
 ## Preflight
 
@@ -112,5 +98,5 @@ python3 ${CLAUDE_SKILL_DIR}/scripts/preflight.py ${CLAUDE_SKILL_DIR}
 
 ## Adjacent Skills
 
-- `/related-skill` — when to use instead or in combination
+- `/adk:<related>` / `/adk-<related>` — when to use instead or in combination (ensure the named skill exists in `skills/<related>/` or treat as optional).
 

@@ -13,7 +13,6 @@ Usage:
 
 import ast
 import filecmp
-import json
 import re
 import subprocess
 import sys
@@ -37,20 +36,14 @@ SKILL_DIRS = sorted(
 SKILL_NAMES = [d.name for d in SKILL_DIRS]
 
 # ── Required frontmatter fields ─────────────────────────────────────
-REQUIRED_FM_FIELDS = {"name", "description", "user-invocable", "allowed-tools", "workflow-tier"}
+REQUIRED_FM_FIELDS = {"name", "description", "user-invocable", "workflow-tier"}
 VALID_TIERS = {"full", "abbreviated", "helper", "orchestrator"}
 
-# ── Canonical propagated files ──────────────────────────────────────
-CANONICAL_REFS = sorted(
-    f.relative_to(TEMPLATES_DIR / "references")
-    for f in (TEMPLATES_DIR / "references").rglob("*")
+# ── Canonical propagated files (templates/skill/common → skills/*/references/) ──
+CANONICAL_COMMON = sorted(
+    f.relative_to(TEMPLATES_DIR / "common")
+    for f in (TEMPLATES_DIR / "common").rglob("*")
     if f.is_file()
-)
-
-CANONICAL_TUI = sorted(
-    f.relative_to(TEMPLATES_DIR / "scripts" / "tui")
-    for f in (TEMPLATES_DIR / "scripts" / "tui").rglob("*")
-    if f.is_file() and f.name != "__pycache__" and "__pycache__" not in str(f)
 )
 
 
@@ -126,7 +119,7 @@ class TestSuite:
 # ═══════════════════════════════════════════════════════════════════
 
 def test_structure(r: TestResult):
-    """Every skill must have SKILL.md, references/, scripts/."""
+    """Every skill must have SKILL.md, references/, scripts/ with preflight.py."""
     for skill_dir in SKILL_DIRS:
         name = skill_dir.name
         for required in ["SKILL.md", "references", "scripts"]:
@@ -136,21 +129,19 @@ def test_structure(r: TestResult):
             else:
                 r.fail(f"{name}/{required} MISSING")
 
-        # scripts/ should have preflight.py and tui/
         if not (skill_dir / "scripts" / "preflight.py").exists():
             r.fail(f"{name}/scripts/preflight.py MISSING")
         else:
             r.ok(f"{name}/scripts/preflight.py exists")
 
-        if not (skill_dir / "scripts" / "tui").is_dir():
-            r.fail(f"{name}/scripts/tui/ MISSING")
-        else:
-            r.ok(f"{name}/scripts/tui/ exists")
-
 
 # ═══════════════════════════════════════════════════════════════════
 # Test: Frontmatter Validity
 # ═══════════════════════════════════════════════════════════════════
+
+def _expected_frontmatter_name(dirname: str) -> str:
+    return f"adk-{dirname}"
+
 
 def test_frontmatter(r: TestResult):
     """Every SKILL.md must have valid, parseable frontmatter with required fields."""
@@ -169,11 +160,13 @@ def test_frontmatter(r: TestResult):
             else:
                 r.fail(f"{name}: missing required field '{field}'")
 
-        # name should match directory name
-        if fm.get("name") != name:
-            r.fail(f"{name}: frontmatter name '{fm.get('name')}' != directory name '{name}'")
+        # name should match directory (adk-<dir> convention) or legacy bare dirname
+        raw_name = fm.get("name")
+        expected = _expected_frontmatter_name(name)
+        if raw_name in (name, expected):
+            r.ok(f"{name}: name matches directory / adk- convention")
         else:
-            r.ok(f"{name}: name matches directory")
+            r.fail(f"{name}: frontmatter name '{raw_name}' != '{name}' or '{expected}'")
 
         # workflow-tier should be valid
         tier = fm.get("workflow-tier", "")
@@ -182,12 +175,14 @@ def test_frontmatter(r: TestResult):
         else:
             r.fail(f"{name}: invalid workflow-tier '{tier}' (expected one of {VALID_TIERS})")
 
-        # allowed-tools should be a list
-        tools = fm.get("allowed-tools", [])
-        if isinstance(tools, list) and len(tools) > 0:
+        # allowed-tools optional (e.g. connector helpers); if present must be a non-empty list
+        tools = fm.get("allowed-tools")
+        if tools is None:
+            r.ok(f"{name}: allowed-tools omitted (optional for some helpers)")
+        elif isinstance(tools, list) and len(tools) > 0:
             r.ok(f"{name}: allowed-tools is a non-empty list")
         else:
-            r.fail(f"{name}: allowed-tools should be a non-empty list, got {type(tools).__name__}")
+            r.fail(f"{name}: allowed-tools should be omitted or a non-empty list, got {tools!r}")
 
         # dependencies should be a dict if present
         deps = fm.get("dependencies", {})
@@ -202,33 +197,20 @@ def test_frontmatter(r: TestResult):
 # ═══════════════════════════════════════════════════════════════════
 
 def test_propagation(r: TestResult):
-    """Shared reference files and TUI scripts must match the canonical templates."""
+    """Propagated common reference files and preflight.py must match canonical templates."""
     for skill_dir in SKILL_DIRS:
         name = skill_dir.name
 
-        # Check canonical reference files
-        for rel in CANONICAL_REFS:
-            src = TEMPLATES_DIR / "references" / rel
+        for rel in CANONICAL_COMMON:
+            src = TEMPLATES_DIR / "common" / rel
             dst = skill_dir / "references" / rel
             if not dst.exists():
                 r.fail(f"{name}/references/{rel} MISSING (not propagated)")
             elif filecmp.cmp(src, dst, shallow=False):
-                r.ok(f"{name}/references/{rel} matches template")
+                r.ok(f"{name}/references/{rel} matches template common/")
             else:
                 r.fail(f"{name}/references/{rel} DIFFERS from template (run propagate.py)")
 
-        # Check canonical TUI files
-        for rel in CANONICAL_TUI:
-            src = TEMPLATES_DIR / "scripts" / "tui" / rel
-            dst = skill_dir / "scripts" / "tui" / rel
-            if not dst.exists():
-                r.fail(f"{name}/scripts/tui/{rel} MISSING")
-            elif filecmp.cmp(src, dst, shallow=False):
-                r.ok(f"{name}/scripts/tui/{rel} matches template")
-            else:
-                r.fail(f"{name}/scripts/tui/{rel} DIFFERS from template (run propagate.py)")
-
-        # Check preflight.py matches
         src = TEMPLATES_DIR / "scripts" / "preflight.py"
         dst = skill_dir / "scripts" / "preflight.py"
         if dst.exists() and not filecmp.cmp(src, dst, shallow=False):
@@ -260,7 +242,7 @@ def test_python_syntax(r: TestResult):
 # ═══════════════════════════════════════════════════════════════════
 
 def test_cross_references(r: TestResult):
-    """References to files mentioned in SKILL.md 'Load references:' lines must exist."""
+    """Backticked paths under this skill (references/, stages/) cited in SKILL.md must exist."""
     ref_pattern = re.compile(r"`references/([^`]+)`")
 
     for skill_dir in SKILL_DIRS:
@@ -275,7 +257,6 @@ def test_cross_references(r: TestResult):
             else:
                 r.fail(f"{name}: references/{ref} referenced in SKILL.md but MISSING")
 
-    # Also check stage file references
     stage_pattern = re.compile(r"`stages/([^`]+)`")
     for skill_dir in SKILL_DIRS:
         name = skill_dir.name
@@ -338,79 +319,27 @@ def test_no_pycache(r: TestResult):
 # Test: No Cross-Skill File References
 # ═══════════════════════════════════════════════════════════════════
 
+def _skill_md_without_fenced_blocks(text: str) -> str:
+    """Remove fenced code blocks so example paths in samples do not trip cross-skill checks."""
+    return re.sub(r"```.*?```", "", text, flags=re.DOTALL)
+
+
 def test_no_cross_skill_refs(r: TestResult):
-    """SKILL.md should not reference files from other skill directories."""
+    """SKILL.md should not reference files from other skill directories (outside fenced examples)."""
     cross_pattern = re.compile(r"(?:skills|\.\.)/(\w[\w-]*)/(?:references|scripts|stages)/")
 
     for skill_dir in SKILL_DIRS:
         name = skill_dir.name
-        skill_md = (skill_dir / "SKILL.md").read_text(encoding="utf-8")
+        skill_md = _skill_md_without_fenced_blocks(
+            (skill_dir / "SKILL.md").read_text(encoding="utf-8")
+        )
 
         matches = cross_pattern.findall(skill_md)
-        # Filter out self-references and skill invocations
         violations = [m for m in matches if m != name]
         if violations:
             r.fail(f"{name}: cross-skill file references found: {set(violations)}")
         else:
             r.ok(f"{name}: no cross-skill file references")
-
-
-# ═══════════════════════════════════════════════════════════════════
-# Test: Review TUI items.json Schema
-# ═══════════════════════════════════════════════════════════════════
-
-def test_review_tui_with_fixtures(r: TestResult):
-    """Review TUI should handle valid items.json without crashing (headless import test)."""
-    # Test that review.py can be imported and ReviewApp can be instantiated
-    # (without actually running the TUI)
-    import tempfile
-
-    for mode in ["code", "doc", "audit", ""]:
-        fixture = {
-            "title": f"Test Review ({mode or 'default'})",
-            "mode": mode,
-            "items": [
-                {
-                    "id": "test-1",
-                    "title": "Test finding",
-                    "body": "This is a test body",
-                    "metadata": {"priority": "Should Have", "file": "test.py", "line": 42}
-                },
-                {
-                    "id": "test-2",
-                    "title": "Another finding",
-                    "body": "Another body",
-                    "metadata": {"severity": "Medium", "category": "clarity"}
-                },
-            ],
-        }
-
-        with tempfile.TemporaryDirectory() as tmpdir:
-            items_path = Path(tmpdir) / "items.json"
-            items_path.write_text(json.dumps(fixture, indent=2))
-
-            # Test: empty items should produce results.json directly
-            empty_fixture = {"title": "Empty", "mode": mode, "items": []}
-            empty_path = Path(tmpdir) / "empty"
-            empty_path.mkdir()
-            (empty_path / "items.json").write_text(json.dumps(empty_fixture))
-
-            result = subprocess.run(
-                [sys.executable, str(TEMPLATES_DIR / "scripts" / "tui" / "review.py"), str(empty_path)],
-                capture_output=True, text=True, timeout=10
-            )
-            if result.returncode == 0:
-                results_file = empty_path / "results.json"
-                if results_file.exists():
-                    data = json.loads(results_file.read_text())
-                    if data.get("summary", {}).get("total") == 0:
-                        r.ok(f"review TUI (mode={mode or 'default'}): empty items handled correctly")
-                    else:
-                        r.fail(f"review TUI (mode={mode or 'default'}): empty items summary wrong")
-                else:
-                    r.fail(f"review TUI (mode={mode or 'default'}): no results.json produced for empty items")
-            else:
-                r.fail(f"review TUI (mode={mode or 'default'}): crashed on empty items: {result.stderr[:200]}")
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -427,8 +356,7 @@ def test_propagate_dry_run(r: TestResult):
             cwd=str(ROOT)
         )
         if result.returncode == 0:
-            r.ok(f"propagate.py --dry-run succeeded")
-            # Parse output for any pending changes
+            r.ok("propagate.py --dry-run succeeded")
             if "Files changed:" in result.stdout:
                 for line in result.stdout.splitlines():
                     if "Files changed:" in line:
@@ -457,7 +385,6 @@ def test_script_paths_in_skillmd(r: TestResult):
 
         for match in script_pattern.finditer(skill_md):
             script_rel = match.group(1)
-            # Strip any trailing arguments
             script_file = script_rel.split()[0]
             script_path = skill_dir / "scripts" / script_file
             if script_path.exists():
@@ -484,7 +411,6 @@ def main():
     suite.run("Preflight Runs", test_preflight_runs)
     suite.run("No __pycache__", test_no_pycache)
     suite.run("No Cross-Skill File Refs", test_no_cross_skill_refs)
-    suite.run("Review TUI Fixtures", test_review_tui_with_fixtures)
     suite.run("Propagate Dry Run", test_propagate_dry_run)
 
     all_passed = suite.print_report()

@@ -2,12 +2,14 @@
 
 DevKit skills that interact with external sources use MCP (Model Context Protocol) servers:
 
-| MCP Server | Package or Image | Auth | Typical Use |
-|---|---|---|---|
-| GitHub | `github/github-mcp-server` | GitHub PAT | GitHub PR review and PR descriptions |
-| Bitbucket | `bitbucket-mcp` | App password | Bitbucket PR review and PR descriptions |
-| Atlassian Confluence | `mcp-atlassian` | API token | Confluence doc review and publishing |
-| Google Drive | `@piotr-agier/google-drive-mcp` | OAuth | Google Docs review and publishing |
+
+| MCP Server           | Package or Image                | Auth         | Typical Use                             |
+| -------------------- | ------------------------------- | ------------ | --------------------------------------- |
+| GitHub               | `github/github-mcp-server`      | GitHub PAT   | GitHub PR review and PR descriptions    |
+| Bitbucket            | `bitbucket-mcp`                 | App password | Bitbucket PR review and PR descriptions |
+| Atlassian Confluence | `mcp-atlassian`                 | API token    | Confluence doc review and publishing    |
+| Google Drive         | `@piotr-agier/google-drive-mcp` | OAuth        | Google Docs review and publishing       |
+
 
 ## GitHub MCP
 
@@ -24,14 +26,11 @@ If your host requires a local `stdio` server:
 
 1. Create a GitHub Personal Access Token with the scopes you need.
 2. Add it to `~/.zshenv`:
-
-   ```bash
+  ```bash
    export GITHUB_PERSONAL_ACCESS_TOKEN="your-token"
-   ```
-
+  ```
 3. Add a server entry to `~/.claude.json`:
-
-   ```json
+  ```json
    "github": {
      "command": "docker",
      "args": [
@@ -43,7 +42,7 @@ If your host requires a local `stdio` server:
        "GITHUB_PERSONAL_ACCESS_TOKEN": "$GITHUB_PERSONAL_ACCESS_TOKEN"
      }
    }
-   ```
+  ```
 
 If you do not use Docker, build the server from the official repository and run the binary with `stdio`.
 
@@ -51,14 +50,11 @@ If you do not use Docker, build the server from the official repository and run 
 
 1. Create a Bitbucket app password with repository and pull-request access.
 2. Add it to `~/.zshenv`:
-
-   ```bash
+  ```bash
    export BITBUCKET_TOKEN="your-app-password"
-   ```
-
+  ```
 3. Add a server entry to `~/.claude.json`:
-
-   ```json
+  ```json
    "bitbucket": {
      "command": "sh",
      "args": [
@@ -69,22 +65,19 @@ If you do not use Docker, build the server from the official repository and run 
        "BITBUCKET_TOKEN": "$BITBUCKET_TOKEN"
      }
    }
-   ```
+  ```
 
 ## Atlassian Confluence MCP
 
 1. Create an Atlassian API token.
 2. Add the variables to `~/.zshenv`:
-
-   ```bash
+  ```bash
    export CONFLUENCE_BASE_URL="https://yoursite.atlassian.net/wiki"
    export CONFLUENCE_EMAIL="your-email@example.com"
    export CONFLUENCE_API_TOKEN="your-token"
-   ```
-
+  ```
 3. Add a server entry to `~/.claude.json`:
-
-   ```json
+  ```json
    "atlassian-confluence": {
      "command": "uvx",
      "args": [
@@ -99,22 +92,20 @@ If you do not use Docker, build the server from the official repository and run 
        "CONFLUENCE_API_TOKEN": "$CONFLUENCE_API_TOKEN"
      }
    }
-   ```
+  ```
 
 ## Google Drive MCP
 
 1. Create Google OAuth desktop credentials.
 2. Save the credentials file to `~/.config/google-drive-mcp/gcp-oauth.keys.json`.
 3. Add a server entry to `~/.claude.json`:
-
-   ```json
+  ```json
    "google-drive": {
      "command": "npx",
      "args": ["-y", "@piotr-agier/google-drive-mcp"],
      "env": {}
    }
-   ```
-
+  ```
 4. Complete the browser OAuth flow on first run.
 
 ## Validation
@@ -122,7 +113,7 @@ If you do not use Docker, build the server from the official repository and run 
 After configuration, validate from within a skill by running:
 
 ```bash
-python3 skills/_shared/preflight.py skills/<skill-name> pr=https://github.com/org/repo/pull/42
+python3 skills/<skill-name>/scripts/preflight.py skills/<skill-name> pr=https://github.com/org/repo/pull/42
 ```
 
-Skills automatically check their MCP dependencies via the shared `preflight.py` script before starting work.
+Each skill ships `scripts/preflight.py` (kept in sync from `templates/skill/scripts/preflight.py`) and uses it to check MCP and CLI dependencies before starting work.

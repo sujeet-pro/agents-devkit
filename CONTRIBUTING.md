@@ -79,7 +79,7 @@ When a skill needs another skill's capability, it invokes that skill by name (e.
 
 ### Common Files Propagation
 
-Small common files (`help-format.md`, `project-guidelines.md`) and `preflight.py` are still propagated to all skills:
+Small common files from `templates/skill/common/` (for example `help-format.md`, `project-guidelines.md`, `inline-interaction.md`) and `preflight.py` are still propagated to all skills:
 
 ```bash
 python3 templates/skill/scripts/propagate.py

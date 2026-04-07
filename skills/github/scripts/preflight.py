@@ -21,6 +21,14 @@ import sys
 from pathlib import Path
 
 
+def _normalize_frontmatter_line(line: str) -> str:
+    """Strip markdown heading markers so '## name: foo' parses as YAML-like key."""
+    stripped = line.strip()
+    if stripped.startswith("#"):
+        stripped = re.sub(r"^#+\s*", "", stripped)
+    return stripped
+
+
 def parse_frontmatter(skill_dir: str) -> dict:
     """Read SKILL.md and parse YAML frontmatter into a dict."""
     skill_md = Path(skill_dir) / "SKILL.md"
@@ -39,7 +47,7 @@ def parse_frontmatter(skill_dir: str) -> dict:
     current_list: list | None = None
 
     for line in match.group(1).splitlines():
-        stripped = line.strip()
+        stripped = _normalize_frontmatter_line(line)
         if not stripped or stripped.startswith("#"):
             continue
 
@@ -100,6 +108,60 @@ def parse_frontmatter(skill_dir: str) -> dict:
             continue
 
     return frontmatter
+
+
+def find_repo_root_from_skill_dir(skill_dir: Path) -> Path | None:
+    """Return repo root containing skills/<this-skill>/SKILL.md, or None."""
+    skill_dir = skill_dir.resolve()
+    skill_name = skill_dir.name
+    for parent in skill_dir.parents:
+        marker = parent / "skills" / skill_name / "SKILL.md"
+        if marker.exists():
+            return parent
+    return None
+
+
+# Matches /adk:workflow and /adk-workflow (skill slug is [a-z0-9-]+)
+ADK_SKILL_INVOCATION = re.compile(
+    r"/adk:([a-z0-9-]+)(?![a-z0-9-])|/adk-([a-z0-9-]+)(?![a-z0-9-])"
+)
+
+
+def discover_invoked_helper_slugs(skill_md_text: str) -> list[str]:
+    """Collect unique helper skill directory names from invocation patterns in SKILL.md."""
+    seen: set[str] = set()
+    order: list[str] = []
+    for m in ADK_SKILL_INVOCATION.finditer(skill_md_text):
+        slug = m.group(1) or m.group(2)
+        if slug and slug not in seen:
+            seen.add(slug)
+            order.append(slug)
+    return order
+
+
+def warn_missing_helper_skills(skill_dir: Path, repo_root: Path | None) -> int:
+    """
+    For each /adk:<name> or /adk-<name> in SKILL.md, warn if skills/<name> is missing.
+    Non-fatal: does not affect exit code.
+    """
+    skill_md = skill_dir / "SKILL.md"
+    if not repo_root or not skill_md.exists():
+        return 0
+    skills_root = repo_root / "skills"
+    if not skills_root.is_dir():
+        return 0
+
+    text = skill_md.read_text(encoding="utf-8")
+    slugs = discover_invoked_helper_slugs(text)
+    warned = 0
+    for slug in slugs:
+        if not (skills_root / slug / "SKILL.md").exists():
+            print(
+                f"  ⚠ Required skill not found: {slug} "
+                f"(expected invocation /adk:{slug} or /adk-{slug})."
+            )
+            warned += 1
+    return warned
 
 
 def detect_provider(url: str) -> str | None:
@@ -180,6 +242,10 @@ def main():
 
     errors = 0
     warnings = 0
+
+    repo_root = find_repo_root_from_skill_dir(Path(skill_dir))
+    helper_warnings = warn_missing_helper_skills(Path(skill_dir), repo_root)
+    warnings += helper_warnings
 
     # Check required commands
     commands = deps.get("commands", []) if isinstance(deps, dict) else []

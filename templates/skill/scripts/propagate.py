@@ -9,7 +9,7 @@ Shared reference content (workflow, communication style, principal-engineer,
 agentic-teams, output-format, interaction, preflight, review standards) is
 now provided by dedicated helper skills instead of copied reference files.
 This script only propagates:
-  - templates/skill/common/ → skills/<skill>/references/  (help-format, project-guidelines)
+  - templates/skill/common/ → skills/<skill>/references/  (e.g. help-format, project-guidelines, inline-interaction)
   - templates/skill/scripts/preflight.py → skills/<skill>/scripts/preflight.py
 
 Use --clean-refs to remove the deprecated reference files that are now skills.
@@ -29,7 +29,7 @@ DEPRECATED_REFS = {
     "agentic-teams.md",
     "output-formats.md",
     "output-format-modes.md",
-    "inline-interaction.md",
+    # inline-interaction.md lives under templates/skill/common/ and is propagated; do not delete.
     "preflight.md",
     "source-routing.md",
     "review-pipeline.md",
