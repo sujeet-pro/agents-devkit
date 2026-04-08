@@ -4,16 +4,9 @@ Create isolated git worktrees for feature work that needs isolation from the cur
 
 **Core principle:** Systematic directory selection + safety verification = reliable isolation.
 
-## Phase Applicability
+## Workflow
 
-| Phase | Applies | Notes |
-|-------|---------|-------|
-| 0. Intent Expansion | yes | Confirm the goal, assumptions, required tools, and success criteria before acting |
-| 1. Research & Options | yes | Detect directory preference, verify git state; No proposal needed |
-| 2. Approach Selection | skip | Worktree creation follows a fixed process; No iteration needed |
-| 3. Planning | skip | Single setup operation |
-| 4. Execute | yes | Create worktree, install deps, verify baseline |
-| 5. Validate & Learn | yes | Verify clean baseline, report location |
+This stage uses the **Quick Action** workflow: confirm → execute → verify.
 
 ## Exploration Guidance
 

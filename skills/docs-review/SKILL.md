@@ -8,6 +8,8 @@ dependencies:
   commands: [git, python3, curl, jq]
   mcp-servers: [detect-from-input]
 workflow-tier: full
+maturity: stable
+workflow-family: standard-task
 ---
 
 # Documentation Review
@@ -20,7 +22,7 @@ This skill uses shared helper skills. Load each skill's reference file ONLY when
 
 | Skill | Load When | Inline Fallback |
 |-------|-----------|-----------------|
-| `/adk:workflow` | always | 6-phase workflow: intent → research → approach → plan → execute → validate. Complexity-adaptive skipping for trivial/small tasks. `--auto` skips confirmations. |
+| `/adk:workflow --family standard-task` | always | Standard Task workflow: confirm → research → execute → validate. For tasks with known approach that benefit from context scan. `--auto` skips confirmations. |
 | `/adk:communication` | always | Lead with conclusion. Bullet points. No preamble. Concrete specifics over abstractions. Verbosity follows context. |
 | `/adk:preflight-check` | before work | Run preflight.py for tool dependencies and MCP validation. Detect source type and route to correct MCP. |
 | `/adk:output-format` | when producing output | short/standard/detailed verbosity. Priority labels: Blocker, Critical, Should Have, May Have, Nitpick, Question. Cross-platform markdown safe for GitHub + Bitbucket. |
@@ -113,27 +115,16 @@ Load and follow the selected stage file after preflight completes.
 
 Invoke the `/adk:coding` helper skill to detect the repo stack and load coding guidelines when the documentation contains code examples that need accuracy verification.
 
-## Phase Applicability
-
-| Phase | Applies | Notes |
-|-------|---------|-------|
-| 0. Intent Expansion | yes | Confirm review target, focus dimensions, audience expectations |
-| 1. Research & Options | yes | Read all docs, scan corresponding code, identify review scope |
-| 2. Approach Selection | skip | Direct review execution after scope confirmation |
-| 3. Planning | skip | Review agents launch directly |
-| 4. Execute | yes | Parallel review agents produce findings |
-| 5. Validate & Learn | yes | Deduplicate findings, rank by severity, produce final report |
-
 ## Common Workflow
 
-### Phase 0: Intent Expansion
+### 1. Confirm
 
 - Confirm the review target and scope
 - Identify which dimensions to focus on (default: all)
 - Detect pagesmith format — if present, include pagesmith-specific checks
 - Confirm the audience: is this review for the doc author, a PR reviewer, or a team?
 
-### Phase 1: Research & Options
+### 2. Research
 
 Read the documentation and corresponding source code:
 
@@ -141,7 +132,7 @@ Read the documentation and corresponding source code:
 - **Code scanner**: identifies public APIs, CLI commands, config schemas, types — the "source of truth" the docs should match
 - **Cross-reference builder**: maps doc claims to code locations for the accuracy reviewer
 
-### Phase 4: Execute
+### 3. Execute
 
 Launch review agents in parallel based on the selected focus:
 
@@ -170,7 +161,7 @@ Launch review agents in parallel based on the selected focus:
 - Checks for "wall of text" — long paragraphs without structure or visual breaks
 - Evaluates whether a newcomer could follow the getting-started guide without prior knowledge
 
-### Phase 5: Validate & Learn
+### 4. Validate
 
 Post-process all findings:
 

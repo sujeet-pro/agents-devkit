@@ -8,11 +8,13 @@ dependencies:
   commands: [git, python3]
   mcp-servers: [detect-from-input]
 workflow-tier: full
+maturity: stable
+workflow-family: standard-task
 ---
 
 # Document Writing
 
-Use this skill when the agent should create or update any engineering document. It auto-detects the document type from the prompt or an explicit `--type` flag, loads the matching stage file for type-specific guidance, and runs the 6-phase workflow. This skill also handles publishing to Confluence or Google Docs when `--publish` is specified.
+Use this skill when the agent should create or update any engineering document. It auto-detects the document type from the prompt or an explicit `--type` flag, loads the matching stage file for type-specific guidance, and runs the Standard Task workflow. This skill also handles publishing to Confluence or Google Docs when `--publish` is specified.
 
 If you only want comment-only review without source edits, use `/adk:docs-review`.
 
@@ -22,7 +24,7 @@ This skill uses shared helper skills. Load each skill's reference file ONLY when
 
 | Skill | Load When | Inline Fallback |
 |-------|-----------|-----------------|
-| `/adk:workflow` | always | 6-phase workflow: intent → research → approach → plan → execute → validate. Complexity-adaptive skipping for trivial/small tasks. `--auto` skips confirmations. |
+| `/adk:workflow --family standard-task` | always | Standard Task workflow: confirm → research → execute → validate. For tasks with known approach that benefit from context scan. `--auto` skips confirmations. |
 | `/adk:communication` | always | Lead with conclusion. Bullet points. No preamble. Concrete specifics over abstractions. Verbosity follows context. |
 | `/adk:preflight-check` | before work | Run preflight.py for tool dependencies and MCP validation. Detect source type and route to correct MCP. |
 | `/adk:output-format` | when producing output | short/standard/detailed verbosity. Priority labels: Blocker, Critical, Should Have, May Have, Nitpick, Question. |
@@ -66,9 +68,9 @@ If a required helper skill is unavailable, print a warning and continue using th
 
 ### Behavior Variations
 
-- **New document**: Full 6-phase workflow. Creates the document from scratch.
+- **New document**: Standard Task workflow. Creates the document from scratch.
 - **Revise existing**: Reads existing content, proposes targeted edits.
-- **Fix comments** (`--type fix`): Abbreviated workflow. Reads review comments, proposes fixes, applies after approval.
+- **Fix comments** (`--type fix`): Uses Quick Action workflow (confirm → execute → verify) for this mode. Reads review comments, proposes fixes, applies after approval.
 - **Publish only** (`--publish source` with an existing file): Converts and publishes an existing markdown file to Confluence or Google Docs without rewriting.
 - **Write and publish** (`--publish both`): Full writing workflow followed by publishing to the target platform.
 - **Template-based** (`--template <path-or-url>`): Reads the template, extracts its structure (headings, sections, placeholders), and generates the document to match. The user can edit sections during Phase 4 via an interactive approval loop.
@@ -151,54 +153,29 @@ Template sources:
 - **Confluence URL**: read via `mcp__atlassian-confluence__confluence_get_page` or API fallback.
 - **Google Docs URL**: read via `mcp__google-drive__getDocument` or API fallback.
 
-## Phase Applicability
-
-| Phase | Applies | Notes |
-|-------|---------|-------|
-| 0. Intent Expansion | yes | Confirm the goal, assumptions, required tools, and success criteria before acting |
-| 1. Research & Options | yes | Research the topic, scan related docs and code; Focused research on chosen approach, proposal at .temp/proposal/ |
-| 2. Approach Selection | yes | Present 2-3 approaches, user picks or mixes; Iterate on proposal with user feedback |
-| 3. Planning | yes | Break into tasks/waves for parallel agentic teams |
-| 4. Execute | yes | Write the document using child agents for research, writing, fact-checking |
-| 5. Validate & Learn | yes | Self-review for accuracy, completeness, readability, guidelines compliance |
-
-The `doc-fix` stage uses an abbreviated workflow (phases 2-5 skipped). See the stage file for details.
-
 ## Common Workflow
 
-### Phase 0: Intent Expansion
+### 1. Confirm
 
 - restate the document goal, audience, and deliverable
 - surface assumptions, source requirements, and publishing constraints
 - identify which helpers or connectors are needed
 - get approval early before deep research or drafting
 
-### Phase 1: Research & Options
+### 2. Research
 
 - research the topic using official docs, existing repo content, and relevant source material
 - scan for existing documents, patterns, and conventions in the repo
 - identify constraints, dependencies, and integration points
 - end with 2-3 viable approaches when structure, scope, or publishing strategy is not obvious
 
-### Phase 2: Approach Selection
-
-- present the best options with concrete trade-offs
-- ask targeted clarifying questions one at a time
-- capture the chosen direction, scope, and destination format
-
-### Phase 3: Planning
-
-- define the document structure, evidence to gather, diagrams needed, and publishing steps
-- for larger writing tasks, break the work into explicit waves or checkpoints
-- save planning artifacts when the work is complex enough to need tracking
-
-### Phase 4: Execute
+### 3. Execute
 
 - write or revise the document using the child agent team from the loaded stage file
 - follow type-specific execution guidance from the stage file
 - update progress when the work spans multiple checkpoints or publishing steps
 
-### Phase 5: Validate & Learn
+### 4. Validate
 
 - run an internal review loop with the doc-review team
 - verify accuracy, completeness, readability, and guideline compliance

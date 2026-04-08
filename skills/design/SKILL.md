@@ -7,6 +7,8 @@ allowed-tools: [Glob, Grep, Read, Edit, Write, Bash, WebSearch, WebFetch, Agent]
 dependencies:
   commands: [git, python3]
 workflow-tier: full
+maturity: stable
+workflow-family: complex-build
 ---
 
 # Design
@@ -21,7 +23,7 @@ This skill uses shared helper skills. Load each skill's reference file ONLY when
 
 | Skill | Load When | Inline Fallback |
 |-------|-----------|-----------------|
-| `/adk:workflow` | always | 6-phase workflow: intent → research → approach → plan → execute → validate. Complexity-adaptive skipping for trivial/small tasks. `--auto` skips confirmations. |
+| `/adk:workflow --family complex-build` | always | Complex Build workflow: confirm → research → select approach → plan → execute → validate. Full human-in-the-loop for architectural decisions. `--auto` skips confirmations. |
 | `/adk:communication` | always | Lead with conclusion. Bullet points. No preamble. Concrete specifics over abstractions. Verbosity follows context. |
 | `/adk:preflight-check` | before work | Run preflight.py for tool dependencies and MCP validation. Detect source type and route to correct MCP. |
 | `/adk:output-format` | when producing output | short/standard/detailed verbosity. Priority labels: Blocker, Critical, Should Have, May Have, Nitpick, Question. |
@@ -51,7 +53,7 @@ If a required helper skill is unavailable, print a warning and continue using th
 
 ### Behavior Variations
 
-- **`--action design`** (default): Full 6-phase workflow. Generates 5 bold design variations as an HTML preview, iterates on feedback, then converts to the target framework.
+- **`--action design`** (default): Uses Complex Build workflow. Generates 5 bold design variations as an HTML preview, iterates on feedback, then converts to the target framework.
 - **`--action audit`**: Routes to `/adk:code-review-pr --focus ui` for reviewing existing frontend code for visual/UX issues (6-pillar review covering layout, typography, color, responsiveness, accessibility, interaction states).
 
 ### Examples
@@ -74,17 +76,6 @@ If `--action audit` is specified, or the task involves reviewing/auditing existi
 
 Otherwise, proceed with the design workflow below.
 
-## Phase Applicability
-
-| Phase | Applies | Skill-Specific Notes |
-|-------|---------|----------------------|
-| 0. Intent Expansion | yes | Confirm the goal, assumptions, required tools, and success criteria before acting |
-| 1. Research & Options | yes | Analyze design requirements, scan existing patterns; Focused research on chosen approach, proposal at .temp/proposal/ |
-| 2. Approach Selection | yes | Present 2-3 approaches, user picks or mixes; Iterate on proposal with user feedback |
-| 3. Planning | yes | Break into tasks/waves for parallel agentic teams |
-| 4. Execute | yes | Create design deliverables using child agents |
-| 5. Validate & Learn | yes | Review design against requirements and accessibility standards |
-
 ## Phase 1: Context & Design Thinking
 
 Before any code, understand the brief:
@@ -95,7 +86,7 @@ Before any code, understand the brief:
 
 ## Phase 2: Generate 5 Design Variations
 
-Run **5 parallel child agents**, one per variation. Each agent must commit to a **different, bold aesthetic direction** and produce a complete, working implementation **in pure HTML and CSS** (with optional vanilla JS for interactions).
+Run **5 parallel `adk-frontend-designer` child agents**, one per variation. Each agent must commit to a **different, bold aesthetic direction** and produce a complete, working implementation **in pure HTML and CSS** (with optional vanilla JS for interactions).
 
 ### Aesthetic Direction Rules
 

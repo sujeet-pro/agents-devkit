@@ -3,6 +3,7 @@ name: bitbucket
 description: "adk - [helper] [connector] Bitbucket REST API operations — PR reviews, comments, repository access, and pipeline status"
 user-invocable: false
 workflow-tier: helper
+maturity: stable
 dependencies:
   commands: [curl, jq]
 ---

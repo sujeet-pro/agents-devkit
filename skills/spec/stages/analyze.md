@@ -2,16 +2,9 @@
 
 This stage is **read-only**. It detects issues across specifications, plans, tasks, and implementation code but does NOT modify any artifacts. All changes are the user's responsibility after reviewing findings.
 
-## Phase Applicability
+## Workflow
 
-| Phase | Applies | Skill-Specific Notes |
-|-------|---------|----------------------|
-| 0. Intent Expansion | yes | Confirm the goal, assumptions, required tools, and success criteria before acting |
-| 1. Research & Options | yes | Understand requirements, scan existing plans and context |
-| 2. Approach Selection | skip | Direct execution after early confirmation |
-| 3. Planning | skip | Direct execution |
-| 4. Execute | yes | Execute the planning workflow |
-| 5. Validate & Learn | yes | Validate plan completeness and feasibility |
+This stage uses the **Standard Task** workflow: confirm → research → execute → validate.
 
 ## Preflight
 

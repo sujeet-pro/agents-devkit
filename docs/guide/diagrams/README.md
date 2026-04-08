@@ -70,19 +70,19 @@ Mermaid supports 21 diagram types. Use `--type` to specify, or let ADK auto-dete
 ### Class diagram
 
 ```text
-/adk:diagram-mermaid --type classDiagram class hierarchy for the payment module
+/adk:diagram-mermaid --type class class hierarchy for the payment module
 ```
 
 ### Entity relationship diagram
 
 ```text
-/adk:diagram-mermaid --type erDiagram database schema for the e-commerce system
+/adk:diagram-mermaid --type er database schema for the e-commerce system
 ```
 
 ### State diagram
 
 ```text
-/adk:diagram-mermaid --type stateDiagram order lifecycle states from created to delivered
+/adk:diagram-mermaid --type state order lifecycle states from created to delivered
 ```
 
 ### Gantt chart
@@ -93,7 +93,7 @@ Mermaid supports 21 diagram types. Use `--type` to specify, or let ADK auto-dete
 
 ### Other Mermaid types
 
-ADK supports all 21 Mermaid types: `flowchart`, `sequence`, `classDiagram`, `stateDiagram`, `erDiagram`, `gantt`, `pie`, `quadrantChart`, `requirementDiagram`, `gitgraph`, `mindmap`, `timeline`, `sankey`, `journey`, `xychart`, `block`, `packet`, `kanban`, `architecture`, `c4`, `zenuml`.
+ADK supports 21 Mermaid types: `flowchart`, `sequence`, `class`, `state`, `er`, `gantt`, `pie`, `quadrant`, `requirement`, `gitgraph`, `mindmap`, `timeline`, `sankey`, `journey`, `xy`, `block`, `packet`, `kanban`, `architecture`, `c4`, `radar`.
 
 ---
 
@@ -202,5 +202,5 @@ All engines support theme selection:
 
 ## Related Skills
 
-- **[`docs-write`](/reference/skills/docs-write/)** — embed diagrams in formal documents
-- **[`design`](/reference/skills/design/)** — UI/UX design with HTML previews
+- **[`docs-write`](/reference/skill-docs-write/)** — embed diagrams in formal documents
+- **[`design`](/reference/skill-design/)** — UI/UX design with HTML previews

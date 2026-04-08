@@ -10,7 +10,7 @@ See [CONTRIBUTING.md](./CONTRIBUTING.md) for how to add skills, guidelines, agen
 
 ## Skill Categories
 
-Skills are organized into three categories:
+Skills are organized into four categories:
 
 | Category | Purpose | Example |
 |----------|---------|---------|
@@ -27,7 +27,12 @@ Skills are organized into three categories:
 - **Consistent structure**: Every skill has `SKILL.md`, `references/`, and `scripts/`. Multi-mode skills also have `stages/` for conditional stage files.
 - **No interactive scripts**: All interactivity is via the agent itself.
 - **Human-in-the-loop**: All non-trivial skills confirm intent, present options, and get plan approval before executing.
-- **Plan first**: Execution only starts after an approved plan exists. Pass `--auto` to skip confirmations.
+- **Workflow families**: Each skill declares a `workflow-family` in frontmatter (`quick-action`, `standard-task`, `complex-build`, `investigative-loop`). Multi-mode skills declare overrides per mode.
+- **Maturity tracking**: Each skill declares `maturity` in frontmatter (`experimental`, `stable`, `battle-tested`). New skills start as `experimental`.
+- **Plan first**: Complex Build skills require an approved plan before executing. Pass `--auto` to skip confirmations.
+- **Workspace context**: Skills check for `.adk/context.yaml` in the workspace root for project-specific defaults (stack, conventions, preferences).
+- **Composable workflows**: Multi-skill pipelines defined as YAML in `workflows/`. Reusable across projects.
+- **Skills manifest**: `skills-manifest.json` provides a machine-readable index. Regenerate with `python3 scripts/generate-skills-manifest.py`.
 
 ## Skill Naming
 
@@ -48,7 +53,7 @@ When updating shared concepts, these skills need coordinated updates:
 
 | What Changed | Skills to Update |
 |---|---|
-| **Workflow framework** (`skills/workflow/`) | All full-tier task skills invoke `/adk:workflow` |
+| **Workflow families** (`skills/workflow/`) | All task skills invoke `/adk:workflow --family <family>`. Family definitions: `references/quick-action.md`, `standard-task.md`, `complex-build.md`, `investigative-loop.md` |
 | **Communication style** (`skills/communication/`) | All task skills invoke `/adk:communication` |
 | **Principal Engineer lens** (`skills/principal-engineer/`) | All full-tier task skills invoke `/adk:principal-engineer` |
 | **Agentic teams contract** (`skills/agentic-teams/`) | All skills that spawn child agents invoke `/adk:agentic-teams` |

@@ -4,6 +4,7 @@ description: "adk - [helper] [guideline] Communication style rules for all DevKi
 user-invocable: false
 allowed-tools: [Read]
 workflow-tier: helper
+maturity: stable
 ---
 
 # Communication Style

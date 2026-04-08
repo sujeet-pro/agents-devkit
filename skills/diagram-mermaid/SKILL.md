@@ -8,6 +8,8 @@ dependencies:
   commands: [git, node, python3]
   npm-packages: [diagramkit]
 workflow-tier: full
+maturity: stable
+workflow-family: quick-action
 ---
 
 # Mermaid Diagram
@@ -24,7 +26,7 @@ This skill uses shared helper skills. Load each skill's reference file ONLY when
 
 | Skill | Load When | Inline Fallback |
 |-------|-----------|-----------------|
-| `/adk:workflow` | always | 6-phase workflow: intent → research → approach → plan → execute → validate. Complexity-adaptive skipping for trivial/small tasks. |
+| `/adk:workflow --family quick-action` | always | Quick Action workflow: confirm → execute → verify. For narrow tasks with single execution path. `--auto` skips confirmations. |
 | `/adk:communication` | always | Lead with conclusion. Bullet points. No preamble. Concrete specifics over abstractions. |
 | `/adk:preflight-check` | before rendering | Run preflight.py for diagramkit and MCP validation. Ensure npm packages are installed. |
 | `/adk:output-format` | when producing output | short/standard/detailed verbosity. Keep both editable source file and rendered SVG. |
@@ -50,17 +52,6 @@ If a required helper skill is unavailable, print a warning and continue using th
 | `--theme` | `both`, `light`, `dark` | `both` | Theme variants to render |
 | `--help` | flag | off | Show help |
 
-## Phase Applicability
-
-| Phase | Applies | Notes |
-|-------|---------|-------|
-| 0. Intent Expansion | yes | Confirm the goal, diagram type, and scope |
-| 1. Research & Options | yes | Analyze requirements, determine structure |
-| 2. Approach Selection | skip | Direct execution after confirmation |
-| 3. Planning | skip | Direct execution |
-| 4. Execute | yes | Generate diagram source file |
-| 5. Validate & Learn | yes | Render to SVG/PNG (light+dark), verify renderability, naming, consistency |
-
 ## Human in the Loop
 
 - **Plan first (Phase 0)**: Always confirm intent — diagram type, scope, and audience — before generating.
@@ -68,15 +59,13 @@ If a required helper skill is unavailable, print a warning and continue using th
 
 ## Workflow
 
-### Phase 0: Intent Confirmation
+### 1. Confirm
 
 Confirm: diagram type, components to include, audience, output location. Invoke `/adk:workspace-conventions` to determine output location. For Trivial requests, 1-line inline confirm.
 
-### Phase 1: Determine Type & Structure
+### 2. Execute
 
 If `--type` is not specified, auto-detect from the description. Analyze requirements, identify components, relationships, and the best layout direction.
-
-### Phase 4: Generate Mermaid Source
 
 Write a `.mermaid` file to the determined output location following the type reference loaded below. Apply quality standards. Ensure `.temp/` is gitignored if using temp files.
 
@@ -87,7 +76,7 @@ File header:
 %% Type: <diagram-type>
 ```
 
-### Phase 5: Render, Validate & Report
+### 3. Verify
 
 Run the rendering pipeline (see Rendering Pipeline below). Validate syntax, check for reserved word conflicts, verify renderability.
 

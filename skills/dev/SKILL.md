@@ -5,6 +5,7 @@ user-invocable: true
 argument-hint: "<task> [--help]"
 allowed-tools: [Glob, Grep, Read]
 workflow-tier: orchestrator
+maturity: stable
 ---
 
 # Development Router

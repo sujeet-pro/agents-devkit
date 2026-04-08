@@ -7,6 +7,8 @@ allowed-tools: [Glob, Grep, Read, Edit, Write, Bash, WebSearch, WebFetch, Agent]
 dependencies:
   commands: [git, python3]
 workflow-tier: full
+maturity: stable
+workflow-family: complex-build
 ---
 
 # Planning
@@ -24,7 +26,7 @@ This skill uses shared helper skills. Load each skill's reference file ONLY when
 
 | Skill | Load When | Inline Fallback |
 |-------|-----------|-----------------|
-| `/adk:workflow` | always | 6-phase workflow: intent → research → approach → plan → execute → validate. Complexity-adaptive skipping for trivial/small tasks. `--auto` skips confirmations. |
+| `/adk:workflow --family complex-build` | always | Complex Build workflow: confirm → research → select approach → plan → execute → validate. Full human-in-the-loop for architectural decisions. `--auto` skips confirmations. |
 | `/adk:communication` | always | Lead with conclusion. Bullet points. No preamble. Concrete specifics over abstractions. Verbosity follows context. |
 | `/adk:preflight-check` | before work | Run preflight.py for tool dependencies and MCP validation. Detect source type and route to correct MCP. |
 | `/adk:output-format` | when producing output | short/standard/detailed verbosity. Priority labels: Blocker, Critical, Should Have, May Have, Nitpick, Question. |
@@ -101,9 +103,9 @@ The lifecycle is: `brainstorm -> write -> execute -> track`.
 
 ## Common Phases
 
-Use the shared 6-phase workflow from `/adk:workflow`.
+This skill uses the Complex Build workflow: confirm → research → select approach → plan → execute → validate.
 
-### Phase 0: Intent Expansion
+### 1. Confirm
 
 Always run this phase.
 
@@ -114,7 +116,7 @@ Always run this phase.
 - run a PE check for Medium and Large work
 - use `adk-intent-analyst` when the prompt is complex or underspecified
 
-### Phase 1: Research & Options
+### 2. Research
 
 Used by `brainstorm` and `write`.
 
@@ -122,7 +124,7 @@ Used by `brainstorm` and `write`.
 - gather external guidance when needed
 - produce 2-3 viable options
 
-### Phase 2: Approach Selection
+### 3. Select Approach
 
 Used by `brainstorm` and `write`.
 
@@ -130,18 +132,18 @@ Used by `brainstorm` and `write`.
 - prefer one question at a time
 - do not proceed until the direction is explicit
 
-### Phase 3: Planning
+### 4. Plan
 
 - `brainstorm`: produce an approved design direction and hand off to `write`
 - `write`: produce the executable plan, review it with `adk-plan-reviewer` when needed, and get approval
 - `execute`: validate that an approved plan exists and is still current
 - `track`: read the plan and current progress state
 
-### Phase 4: Execute
+### 5. Execute
 
 Only `execute` performs implementation work.
 
-### Phase 5: Validate & Learn
+### 6. Validate
 
 All modes end with:
 

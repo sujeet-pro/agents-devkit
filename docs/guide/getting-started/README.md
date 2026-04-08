@@ -6,7 +6,7 @@ order: 1
 
 # Getting Started
 
-ADK (Agent Development Kit) is a Claude Code plugin that provides principal-engineer-grade skills for software development agents. 51 skills covering code review, documentation, research, diagrams, audits, planning, migrations, refactoring, and more.
+ADK (Agent Development Kit) is a Claude Code plugin that provides principal-engineer-grade skills for software development agents. 52 skills covering code review, documentation, research, diagrams, audits, planning, migrations, refactoring, and more.
 
 > **Designed for Claude Code.** ADK is built and tested as a Claude Code plugin. Some features — custom sub-agents with persistent memory, hooks, and plugin-scoped MCP servers — rely on Claude Code capabilities. You can also install individual skills via `npx skills` for use with other agents, but these Claude-specific features will not be available.
 
@@ -175,6 +175,6 @@ npx skills remove sujeet-pro/agents-devkit
 - **[Code Reviews](/guide/code-reviews/)** — use-case guides for code reviews, development, docs, diagrams, and more
 - **[Prerequisites](/guide/prerequisites/)** — tools, API tokens, and MCP server setup
 - **[Philosophy & Design](/guide/philosophy/)** — core principles, output style, lazy loading
-- **[Skills Overview](/guide/skills/)** — browse all 51 skills by category
+- **[Skills Overview](/guide/skills/)** — browse all 52 skills by category
 - **[Workflow](/guide/workflow/)** — understand the 6-phase workflow
-- **[Skill Reference](/reference/skills/)** — detailed parameter and workflow reference for each skill
+- **[Skill Reference](/reference/)** — detailed parameter and workflow reference for each skill

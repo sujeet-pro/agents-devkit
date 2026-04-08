@@ -68,10 +68,19 @@ Reference: `skills/coding/references/coding-guidelines/expressive-code.md` for f
 
 ## Memory
 
-Update your agent memory as you work with code examples:
+### Persistent Knowledge (update MEMORY.md across sessions)
 - Project code patterns and API signatures for realistic examples
 - Expressive-code formatting conventions established in this project
 - Common code block issues found during reviews
-- User preferences for example style and verbosity
+- User preferences: example style, verbosity level, preferred languages, collapse conventions
 
-Read your memory at the start of each task to maintain consistency across documents.
+### Session Context (track within current task)
+- Code patterns discovered in the current codebase scan
+- Formatting decisions made for consistency within this document
+- API signatures referenced in the current set of examples
+
+### Read Protocol
+At the start of each task, read MEMORY.md and apply:
+- Established formatting conventions for cross-document consistency
+- Known API signatures to write realistic, accurate examples
+- User's preferred example style and detail level

@@ -8,6 +8,8 @@ dependencies:
   commands: [git, python3]
   npm-packages: [@pagesmith/docs]
 workflow-tier: full
+maturity: stable
+workflow-family: standard-task
 ---
 
 # Repository Documentation Generator
@@ -22,7 +24,7 @@ This skill uses shared helper skills. Load each skill's reference file ONLY when
 
 | Skill | Load When | Inline Fallback |
 |-------|-----------|-----------------|
-| `/adk:workflow` | always | 6-phase workflow: intent → research → approach → plan → execute → validate. Complexity-adaptive skipping. |
+| `/adk:workflow --family standard-task` | always | Standard Task workflow: confirm → research → execute → validate. For tasks with known approach that benefit from context scan. `--auto` skips confirmations. |
 | `/adk:communication` | always | Lead with conclusion. Bullet points. No preamble. Concrete specifics over abstractions. |
 | `/adk:preflight-check` | before work | Run preflight.py for MCP validation. |
 | `/adk:output-format` | when producing output | short/standard/detailed verbosity. Markdown default, Confluence/Google Docs when requested. |
@@ -163,27 +165,16 @@ docs/
 └── config-reference.md
 ```
 
-## Phase Applicability
-
-| Phase | Applies | Notes |
-|-------|---------|-------|
-| 0. Intent Expansion | yes | Confirm scope, format, target audience, and what sections to generate |
-| 1. Research & Options | yes | Analyze codebase: architecture, public APIs, CLI commands, config schema |
-| 2. Approach Selection | yes | Present 2-3 doc structure options based on repo complexity |
-| 3. Planning | yes | Define section plan, assign child agents, set generation order |
-| 4. Execute | yes | Generate all doc pages using parallel child agents |
-| 5. Validate & Learn | yes | Cross-reference docs with code, check internal links, verify examples |
-
 ## Common Workflow
 
-### Phase 0: Intent Expansion
+### 1. Confirm
 
 - Confirm the repository to document and target audience
 - Detect pagesmith config and determine format
 - Identify scope: full repo or specific package
 - Surface assumptions about what to document (public API only? internal architecture? both?)
 
-### Phase 1: Research & Options
+### 2. Research
 
 Launch research agents to analyze the codebase in parallel:
 
@@ -193,26 +184,7 @@ Launch research agents to analyze the codebase in parallel:
 
 End with a structured codebase summary that informs the doc plan.
 
-### Phase 2: Approach Selection
-
-Present 2-3 doc structure options:
-
-- **Minimal**: Getting started + API reference only
-- **Standard**: Guide (getting started, concepts, configuration) + Reference (API, CLI, config)
-- **Comprehensive**: Standard + tutorials, migration guides, architecture deep-dives, FAQ
-
-Include trade-offs: time to generate, maintenance burden, audience fit.
-
-### Phase 3: Planning
-
-Break the approved structure into a generation plan:
-
-- List every page to generate with its path, title, and content outline
-- Assign pages to child agents for parallel generation
-- Identify cross-references between pages (e.g., guide pages linking to reference pages)
-- Define generation order: reference pages first (they're factual), then guides (they reference the reference)
-
-### Phase 4: Execute
+### 3. Execute
 
 Launch child agents in parallel waves:
 
@@ -230,7 +202,7 @@ Launch child agents in parallel waves:
 - **Home page writer**: generates the landing page with project overview, feature highlights, navigation to sections.
 - **Metadata generator**: creates all meta.json5 files, verifies frontmatter consistency.
 
-### Phase 5: Validate & Learn
+### 4. Validate
 
 Run validation checks:
 

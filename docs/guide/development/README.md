@@ -250,7 +250,7 @@ Worktree mode creates a git worktree, implements there, and lets you merge or di
 
 ## Related Skills
 
-- **[`code-review-pr`](/reference/skills/code-review-pr/)** — self-review before creating a PR
-- **[`plan`](/reference/skills/plan/)** — create an implementation plan before building
-- **[`spec`](/reference/skills/spec/)** — write or analyze specifications
-- **[`test`](/reference/skills/test/)** — user acceptance testing after implementation
+- **[`code-review-pr`](/reference/skill-code-review-pr/)** — self-review before creating a PR
+- **[`plan`](/reference/skill-plan/)** — create an implementation plan before building
+- **[`spec`](/reference/skill-spec/)** — write or analyze specifications
+- **[`test`](/reference/skill-test/)** — user acceptance testing after implementation

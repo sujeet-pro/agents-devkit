@@ -7,6 +7,7 @@ allowed-tools: [Glob, Grep, Read, Bash]
 dependencies:
   commands: [git]
 workflow-tier: helper
+maturity: stable
 ---
 
 # Coding Guidelines Loader
@@ -51,7 +52,7 @@ Invoke `/adk:communication` for tone consistency with the invoking skill.
 
 ## Workflow
 
-This is a helper skill invoked by other skills, not directly by users. It does not own the 6-phase workflow — the invoking skill does.
+This is a helper skill invoked by other skills, not directly by users. It does not own the workflow — the invoking skill does.
 
 ## Framework Detection
 

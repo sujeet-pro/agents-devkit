@@ -3,6 +3,7 @@ name: github
 description: "adk - [helper] [connector] GitHub operations via gh CLI — PR reviews, comments, issues, and repository access"
 user-invocable: false
 workflow-tier: helper
+maturity: stable
 dependencies:
   commands: [gh]
 ---

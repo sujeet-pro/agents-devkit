@@ -75,11 +75,53 @@ Each agent is a `.md` file with YAML frontmatter and a system prompt body. Skill
 
 All agents use `memory: project` to accumulate project-specific knowledge across sessions. Memory is stored in `.claude/agent-memory/<agent-name>/` and is shareable via version control.
 
-Agents are instructed to:
-- **Read** their memory at the start of each task to apply accumulated knowledge
-- **Update** their memory with patterns, conventions, and decisions discovered during work
+### Memory Structure
 
-Over time, agents become more effective as they learn project-specific conventions, common issues, and user preferences.
+Each agent's `## Memory` section is organized into three layers:
+
+| Layer | Scope | Storage | Purpose |
+|-------|-------|---------|---------|
+| **Persistent Knowledge** | Cross-session | `MEMORY.md` in agent memory directory | Project patterns, conventions, historical learnings, user preferences |
+| **Session Context** | Current task | In-context (conversation) | Working hypotheses, intermediate findings, current task state |
+| **Read Protocol** | Task start | Applied from `MEMORY.md` | What to look for and apply when reading memory at task start |
+
+### Persistent Knowledge (long-term)
+
+Agents accumulate project-specific and user-specific knowledge in `MEMORY.md`:
+- **Project patterns**: coding conventions, architecture boundaries, test frameworks, doc standards
+- **Historical learnings**: previous findings, resolved issues, estimation accuracy
+- **User preferences**: review depth, feedback style, severity thresholds, output format preferences
+
+### Session Context (short-term)
+
+Agents track task-specific state within the current session:
+- **Working state**: hypotheses, intermediate findings, files analyzed
+- **Decision log**: choices made during the task and their rationale
+- **Cross-reference data**: relationships between items discovered during work
+
+### Read Protocol
+
+At the start of each task, agents read `MEMORY.md` and apply:
+- Known conventions and patterns to avoid re-discovery
+- User preferences to personalize output style and depth
+- Historical data to calibrate confidence and estimates
+- Previous findings to detect trends and avoid re-reporting
+
+### User Personalization
+
+Every agent explicitly tracks user preferences as part of persistent knowledge. Over time, agents adapt to the user's:
+- Preferred output verbosity and format
+- Sensitivity thresholds (e.g., review strictness, alert sensitivity)
+- Workflow patterns and common task types
+- Implicit preferences discovered through repeated interactions
+
+### Memory Scopes
+
+| Scope | Location | Use when |
+|-------|----------|----------|
+| `project` (default) | `.claude/agent-memory/<name>/` | Agent knowledge is project-specific and shareable via version control |
+| `user` | `~/.claude/agent-memory/<name>/` | Agent should remember learnings across all projects |
+| `local` | `.claude/agent-memory-local/<name>/` | Project-specific but should not be checked into version control |
 
 ## Skills Preloading
 
@@ -98,6 +140,8 @@ Agents can have ADK skills preloaded into their context via the `skills` field. 
 | `adk-frontend-designer` | `coding` | Frontend coding patterns |
 | `adk-test-agent` | `coding` | Test framework conventions |
 | `adk-debugger` | `coding` | Debugging-relevant code patterns |
+| `adk-guideline-auditor` | `review-standards` | Audit methodology and review pipeline |
+| `adk-source-publisher` | `docs-md` | Markdown formatting for publishing |
 
 ## Standard Team Shapes
 

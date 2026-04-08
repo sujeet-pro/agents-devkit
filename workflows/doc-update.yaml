@@ -1,0 +1,16 @@
+name: doc-update
+description: Documentation refresh — review existing docs, update, and publish
+
+steps:
+  - skill: docs-review
+    args: "${DOC_PATH} --mode standard"
+    description: Review existing documentation for quality and accuracy
+
+  - skill: docs-crud
+    args: "${DOC_PATH} --action update"
+    description: Apply improvements based on review findings
+
+  - skill: docs-repo
+    args: "--auto"
+    description: Regenerate repo-level documentation
+    condition: "complexity >= medium"

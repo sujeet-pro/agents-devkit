@@ -8,16 +8,9 @@ Start by understanding the current project context, then ask questions one at a 
 Do NOT invoke any implementation skill, write any code, scaffold any project, or take any implementation action until you have presented a design and the user has approved it. This applies to EVERY project regardless of perceived simplicity.
 </HARD-GATE>
 
-## Phase Applicability
+## Workflow
 
-| Phase | Applies | Skill-Specific Notes |
-|-------|---------|----------------------|
-| 0. Intent Expansion | yes | Confirm the goal, assumptions, required tools, and success criteria before acting |
-| 1. Research & Options | yes | Understand requirements, scan existing plans and context |
-| 2. Approach Selection | yes | Ask clarifying questions, present 2-3 approaches, and get approval on the design direction |
-| 3. Planning | yes | Capture the approved direction, design artifact, and handoff inputs for write mode |
-| 4. Execute | yes | Execute the brainstorming workflow and write the approved design artifact |
-| 5. Validate & Learn | yes | Validate plan completeness and feasibility |
+This stage uses the **Standard Task** workflow: confirm → research → execute → validate.
 
 ## Anti-Pattern: "This Is Too Simple To Need A Design"
 

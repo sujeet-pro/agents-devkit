@@ -233,6 +233,6 @@ A common workflow: research → spec → plan → build.
 
 ## Related Skills
 
-- **[`dev-build`](/reference/skills/dev-build/)** — implement after planning
-- **[`docs-write`](/reference/skills/docs-write/)** — publish research or specs as documents
-- **[`audit`](/reference/skills/audit/)** — audit code against specifications
+- **[`dev-build`](/reference/skill-dev-build/)** — implement after planning
+- **[`docs-write`](/reference/skill-docs-write/)** — publish research or specs as documents
+- **[`audit`](/reference/skill-audit/)** — audit code against specifications

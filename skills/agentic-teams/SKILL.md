@@ -4,6 +4,7 @@ description: "adk - [helper] [guideline] Child-agent contract for parallel agent
 user-invocable: false
 allowed-tools: [Read]
 workflow-tier: helper
+maturity: stable
 ---
 
 # DevKit Child-Agent Contract

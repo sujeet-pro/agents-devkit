@@ -8,6 +8,8 @@ dependencies:
   commands: [git, node, python3]
   npm-packages: [diagramkit]
 workflow-tier: full
+maturity: stable
+workflow-family: quick-action
 ---
 
 # Excalidraw Diagram
@@ -22,7 +24,7 @@ This skill uses shared helper skills. Load each skill's reference file ONLY when
 
 | Skill | Load When | Inline Fallback |
 |-------|-----------|-----------------|
-| `/adk:workflow` | always | 6-phase workflow: intent → research → approach → plan → execute → validate. Complexity-adaptive skipping for trivial/small tasks. |
+| `/adk:workflow --family quick-action` | always | Quick Action workflow: confirm → execute → verify. For narrow tasks with single execution path. `--auto` skips confirmations. |
 | `/adk:communication` | always | Lead with conclusion. Bullet points. No preamble. Concrete specifics over abstractions. |
 | `/adk:preflight-check` | before rendering | Run preflight.py for diagramkit and MCP validation. Ensure npm packages are installed. |
 | `/adk:output-format` | when producing output | short/standard/detailed verbosity. Keep both editable source file and rendered SVG. |
@@ -50,17 +52,6 @@ If a required helper skill is unavailable, print a warning and continue using th
 | `--theme` | `both`, `light`, `dark` | `both` | Theme variants to render |
 | `--palette` | `default`, `aws`, `azure`, `gcp`, `k8s` | `default` | Color palette |
 | `--help` | flag | off | Show help |
-
-## Phase Applicability
-
-| Phase | Applies | Notes |
-|-------|---------|-------|
-| 0. Intent Expansion | yes | Confirm the goal, assumptions, required tools, and success criteria |
-| 1. Research & Options | yes | Analyze requirements, determine diagram type and structure |
-| 2. Approach Selection | skip | Direct execution after early confirmation |
-| 3. Planning | skip | Direct execution |
-| 4. Execute | yes | Generate diagram source files |
-| 5. Validate & Learn | yes | Render to SVG/PNG (light+dark), verify renderability, naming, consistency |
 
 ## Human in the Loop
 
@@ -147,11 +138,11 @@ Confirm these files exist:
 
 ## Workflow
 
-### Phase 0: Intent Confirmation
+### 1. Confirm
 
 Confirm: components to show, relationships, layout pattern, color palette, output location. Invoke `/adk:workspace-conventions` to determine output location.
 
-### Phase 1: Analyze & Plan
+### 2. Execute
 
 #### If `description=analyze` (Codebase Analysis Mode)
 
@@ -221,11 +212,9 @@ Spoke positions at 45 degree increments:
   W: (300, 350), NW: (360, 210)
 ```
 
-### Phase 4: Generate Excalidraw JSON
-
 Generate a valid `.excalidraw` JSON file following the critical rules below.
 
-### Phase 5: Render, Validate & Report
+### 3. Verify
 
 Run the rendering pipeline (Step 1–4 above). Then report:
 

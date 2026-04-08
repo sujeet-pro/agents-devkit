@@ -7,6 +7,15 @@ allowed-tools: [Glob, Grep, Read, Edit, Write, Bash, WebSearch, WebFetch, Agent]
 dependencies:
   commands: [git, python3]
 workflow-tier: full
+maturity: stable
+workflow-family: investigative-loop
+workflow-family-overrides:
+  status: quick-action
+  check: quick-action
+  docs-check: quick-action
+  add: quick-action
+  remove: quick-action
+  sync: standard-task
 ---
 
 # Dependency Tracker
@@ -19,7 +28,7 @@ This skill uses shared helper skills. Load each skill's reference file ONLY when
 
 | Skill | Load When | Inline Fallback |
 |-------|-----------|-----------------|
-| `/adk:workflow` | always | 6-phase workflow: intent → research → approach → plan → execute → validate. |
+| `/adk:workflow` | always, family varies by action | Investigative Loop (default), Standard Task (`sync`), Quick Action (`status,check,docs-check,add,remove`). `--auto` skips confirmations. |
 | `/adk:communication` | always | Lead with conclusion. Bullet points. No preamble. Concrete specifics. |
 | `/adk:preflight-check` | before work | Run preflight.py for tool dependencies and MCP validation. |
 | `/adk:output-format` | when producing output | short/standard/detailed verbosity. |
@@ -48,7 +57,7 @@ If a required helper skill is unavailable, print a warning and continue using th
 ### Behavior Variations
 
 - **`status`**: Read-only. Show current tracking status for all sources — last sync timestamp, last commit, staleness estimate, and which skills depend on each source.
-- **`sync`**: Full 6-phase workflow. Check upstream repos for changes, present diffs, and apply updates with user confirmation (or `--auto`).
+- **`sync`**: Standard Task workflow (confirm → research → execute → validate). Check upstream repos for changes, present diffs, and apply updates with user confirmation (or `--auto`).
 - **`add`**: Guided workflow to add a new upstream source to manifest.json. Prompts for repo URL, type (copy/ref), source path, mapping, and which skills reference it.
 - **`remove`**: Remove a tracked source from manifest.json. Confirms before deletion.
 - **`check`**: Read-only. Check if any tracked sources have been updated since last sync. Reports what changed but does NOT apply changes. Use `sync` to apply.
@@ -95,6 +104,8 @@ This mapping is also encoded in `manifest.json` under each source's `mapping` (f
 
 ## Action: status
 
+> Quick Action workflow: confirm → execute → verify.
+
 Read `manifest.json` and for each source, display:
 
 ```
@@ -107,6 +118,8 @@ Source: diagramkit (copy)
 ```
 
 ## Action: check
+
+> Quick Action workflow: confirm → execute → verify.
 
 For each source (or `--source` to filter):
 
@@ -126,6 +139,8 @@ Output a summary table:
 ```
 
 ## Action: docs-check
+
+> Quick Action workflow: confirm → execute → verify.
 
 For each source with a `docs` field (or `--source` to filter):
 
@@ -148,13 +163,13 @@ Output a summary table:
 
 ## Action: sync
 
-Full 6-phase workflow:
+Standard Task workflow (confirm → research → execute → validate):
 
-### Phase 0: Intent Confirmation
+### 1. Confirm
 
 Confirm which sources to sync and whether `--auto` is active. Show the check summary first so the user knows what will happen.
 
-### Phase 1: Fetch Upstream Changes
+### 2. Research
 
 For each source with available updates:
 
@@ -162,7 +177,7 @@ For each source with available updates:
 - For `type=copy`: diff each mapped path (`source_path` → local path) to produce a concrete changeset
 - For `type=ref`: compare the latest source against the referenced patterns, summarize meaningful changes
 
-### Phase 2: Impact Assessment
+### 3. Execute
 
 Present what changed and which skills are affected:
 
@@ -174,23 +189,21 @@ diagramkit (copy) — 3 new commits since last sync:
   Affected skills: diagram, diagram-mermaid, diagram-excalidraw
 ```
 
-### Phase 3: Plan the Update
-
 List the concrete file operations to perform. For `type=copy`, this is a list of files to copy/overwrite. For `type=ref`, this is a list of skills to flag for manual review.
-
-### Phase 4: Apply Changes
 
 - `type=copy`: Copy files from the cloned repo to local paths per the mapping. Update `last_sync` and `last_commit` in manifest.json.
 - `type=ref`: Update `last_sync` and `last_commit` in manifest.json. Output a list of skills that should be manually reviewed against the new upstream.
 - If `--auto` is NOT set, confirm before applying each source's changes.
 
-### Phase 5: Validate
+### 4. Validate
 
 - Verify copied files exist and match the upstream versions
 - Confirm manifest.json was updated correctly
 - Summarize what changed
 
 ## Action: add
+
+> Quick Action workflow: confirm → execute → verify.
 
 Interactive guided flow:
 
@@ -205,6 +218,8 @@ Interactive guided flow:
 9. Optionally run `check` on the new source immediately
 
 ## Action: remove
+
+> Quick Action workflow: confirm → execute → verify.
 
 1. Confirm the source exists in manifest.json
 2. Show what will be removed (source entry and its metadata)

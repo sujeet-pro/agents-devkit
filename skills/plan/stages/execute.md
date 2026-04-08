@@ -8,16 +8,9 @@ This stage requires an already approved plan. If the plan is still draft or the 
 
 **Core principle:** Fresh subagent per task + two-stage review (spec then quality) = high quality, fast iteration
 
-## Phase Applicability
+## Workflow
 
-| Phase | Applies | Skill-Specific Notes |
-|-------|---------|----------------------|
-| 0. Intent Expansion | yes | Confirm the goal, assumptions, required tools, and success criteria before acting |
-| 1. Research & Options | yes | Understand requirements, scan existing plans and context |
-| 2. Approach Selection | skip | Direct execution after early confirmation |
-| 3. Planning | skip | Direct execution |
-| 4. Execute | yes | Execute the planning workflow |
-| 5. Validate & Learn | yes | Validate plan completeness and feasibility |
+This stage uses the **Complex Build** workflow: confirm → research → select approach → plan → execute → validate.
 
 ## When to Use
 
@@ -125,7 +118,7 @@ Implementer subagents report one of four statuses. Handle each appropriately:
 
 ## Child Agent Roles
 
-Dispatch child agents using the shared agent definitions from `agents/`:
+Dispatch child agents using the shared agent definitions:
 
 - **Implementer**: use `adk-code-reviewer` with implementation-focused prompt context (the task description, affected files, verification commands)
 - **Spec compliance reviewer**: use `adk-doc-reviewer` to verify the implementation matches the spec

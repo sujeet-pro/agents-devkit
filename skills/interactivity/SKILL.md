@@ -1,28 +1,29 @@
 ---
 name: interactivity
-description: "adk - [full] [interaction] Agent-first interaction orchestration for option selection, data capture, edits, and human approval with optional external TUI"
+description: "adk - [full] [interaction] Agent-first interaction orchestration for option selection, data capture, edits, and human approval"
 user-invocable: true
-argument-hint: "<goal> [--mode auto|options|collect|edit|review] [--tui true|false] [--form <path>] [--verbosity short|standard|detailed] [--help]"
+argument-hint: "<goal> [--mode auto|options|collect|edit|review] [--form <path>] [--verbosity short|standard|detailed] [--auto] [--help]"
 allowed-tools: [Read, Write, Edit, Bash, Agent]
 workflow-tier: full
+maturity: stable
+workflow-family: quick-action
 ---
 
 # Interactivity
 
 Use this skill when a task needs structured user interaction (choosing approaches, collecting constrained inputs, editing generated data, approving findings) before execution.
 
-Default behavior is agent-native inline interaction. Optional external TUI is supported only when the user explicitly sets `--tui true`.
+All interaction happens inline in the agent conversation. When no arguments are provided, the skill enters interactive mode and asks the user for each required parameter — presenting options with a recommended first choice based on prompt analysis.
 
 ## Why This Skill Exists
 
 - centralize all human-in-the-loop interaction patterns
-- keep interaction agent-first and discussion-heavy by default
-- support a structured fallback flow for larger forms using JSON/YAML sessions
+- keep interaction agent-first and discussion-heavy
 - ensure user-provided answers are revalidated before execution
 
-## Research Summary (2024-2026)
+## Interaction Primitives
 
-Common interaction primitives used by engineering agents and CLI tools:
+Common interaction patterns used by this skill:
 
 1. **single choice** (pick one option)
 2. **multi choice** (pick many options)
@@ -31,11 +32,6 @@ Common interaction primitives used by engineering agents and CLI tools:
 5. **long text input** (multi-line rationale, constraints)
 6. **editable generated draft** (approve, edit, reject cycle)
 7. **ranked/prioritized selection** (order by importance)
-
-Supporting references:
-- Textual widget capabilities ([Input](https://textual.textualize.io/widgets/input/), [Select](https://textual.textualize.io/widgets/select), [Checkbox](https://textual.textualize.io/widgets/checkbox), [RadioButton](https://textual.textualize.io/widgets/radiobutton))
-- Questionary prompt taxonomy ([repo](https://github.com/tmbo/questionary), [docs](https://questionary.readthedocs.io/en/stable/pages/quickstart.html))
-- YAML wizard patterns ([pydantic-wizard](https://pypi.org/project/pydantic-wizard/))
 
 ## Modes
 
@@ -47,16 +43,30 @@ Supporting references:
 | `edit` | user revises generated content or config | edited artifact + delta |
 | `review` | triage findings/items (accept/reject/edit/skip) | decision ledger |
 
-## Interaction Backend Selection
+## Interactive Parameter Collection
 
-Use this order:
+When no arguments or insufficient arguments are provided, the agent asks the user for each missing parameter. For every question:
 
-1. **Inline Agentic** (default): render structured prompts in conversation.
-2. **External TUI** (`--tui true`): generate a session file and ask user to run the TUI command.
+1. Analyze the prompt context and determine the most likely answer
+2. Present numbered options with the recommended choice first (marked `[recommended]`)
+3. Wait for user selection
+4. Confirm interpreted answer before proceeding
 
-`--tui` defaults to `false`.
+Example flow when invoked without arguments:
 
-## Inline Agentic Protocol (Default)
+```text
+## Mode Selection
+
+1. **auto** — infer best interaction flow [recommended]
+2. **options** — present alternatives and capture choice
+3. **collect** — gather missing required inputs
+4. **edit** — user revises generated content
+5. **review** — triage findings
+
+> Pick a number, or describe what you need:
+```
+
+## Inline Interaction Protocol
 
 For each interaction round:
 
@@ -78,79 +88,16 @@ approve
 cancel
 ```
 
-## Optional TUI Flow (`--tui true`)
+## Validation
 
-Use this only when the user explicitly opts in.
-
-### Step 1: Write session file
-
-Write a JSON or YAML session artifact, for example:
-
-```yaml
-session:
-  id: interact-<timestamp>
-  title: "Interaction Session"
-  mode: options
-  schema_version: 1
-items:
-  - id: approach
-    type: single_choice
-    prompt: "Choose implementation approach"
-    options:
-      - id: a
-        label: "Fast path"
-      - id: b
-        label: "Balanced path"
-      - id: c
-        label: "Safe path"
-  - id: constraints
-    type: multi_choice
-    prompt: "Select constraints"
-    options:
-      - id: backward_compat
-        label: "Backward compatibility"
-      - id: low_risk
-        label: "Low risk"
-      - id: shortest_time
-        label: "Shortest timeline"
-  - id: notes
-    type: long_text
-    prompt: "Anything else we must consider?"
-results: []
-status: pending
-```
-
-### Step 2: Ask user to run TUI command
-
-```bash
-python3 ${CLAUDE_SKILL_DIR}/scripts/tui/interactivity.py <session-file>
-```
-
-### Step 3: Read updated results
-
-Read the updated session file and normalize `results`.
-
-### Step 4: Revalidate
-
-Before execution, revalidate:
+Before execution, validate all collected answers:
 
 - required questions answered
 - values satisfy allowed options/types
 - no contradictory selections
 - constraints are reflected in the resulting plan
 
-If validation fails, report specific issues and ask for corrections (inline or TUI re-run).
-
-## When TUI Is Worth Using
-
-Prefer TUI only for high-volume or form-heavy scenarios, such as:
-
-- 15+ review findings requiring triage
-- multi-section forms with many required fields
-- stakeholder workshops with long option sets
-- repeated batch approvals in one session
-
-For normal engineering flows, inline interaction should remain the default.
+If validation fails, report specific issues and ask for corrections inline.
 
 ## Output Contract
 

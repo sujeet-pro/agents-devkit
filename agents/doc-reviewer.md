@@ -75,11 +75,21 @@ Every finding must include:
 
 ## Memory
 
-Update your agent memory as you review documents:
+### Persistent Knowledge (update MEMORY.md across sessions)
 - Project documentation standards and conventions
 - Common accuracy issues found in this project's docs
-- User preferences for review depth and feedback style
 - Document type patterns and their expected sections
 - Technical terminology specific to this project
+- User preferences: review depth, feedback style, severity calibration, focus dimensions
 
-Read your memory at the start of each review to apply project-specific standards consistently.
+### Session Context (track within current task)
+- Sections reviewed and their quality assessment in this document
+- Terminology consistency observations across the current document
+- Cross-reference accuracy checks performed during this review
+
+### Read Protocol
+At the start of each review, read MEMORY.md and apply:
+- Project documentation standards to evaluate consistency
+- Known terminology to flag inconsistent usage
+- User's preferred review depth and feedback tone
+- Previously identified doc patterns to catch recurring issues

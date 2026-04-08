@@ -5,6 +5,7 @@ user-invocable: true
 argument-hint: "<target> [--help]"
 allowed-tools: [Glob, Grep, Read]
 workflow-tier: orchestrator
+maturity: stable
 ---
 
 # Code Review Router

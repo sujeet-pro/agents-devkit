@@ -43,7 +43,7 @@ Research scoped by confirmed intent, not by the AI's initial interpretation.
 
 ### Phase 2: Approach Selection (Interactive)
 
-User picks approach via TUI or inline for Small tasks.
+User picks approach inline in the conversation.
 
 - Present approaches with concrete trade-offs
 - For Large tasks: resurface PE questions from Phase 0 with research context

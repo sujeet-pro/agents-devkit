@@ -7,6 +7,8 @@ allowed-tools: [Glob, Grep, Read, Edit, Write, Bash, WebSearch, WebFetch, Agent]
 dependencies:
   commands: [git, python3]
 workflow-tier: full
+maturity: stable
+workflow-family: standard-task
 ---
 
 # Refactor
@@ -19,7 +21,7 @@ This skill uses shared helper skills. Load each skill's reference file ONLY when
 
 | Skill | Load When | Inline Fallback |
 |-------|-----------|-----------------|
-| `/adk:workflow` | always | 6-phase workflow: intent → research → approach → plan → execute → validate. Complexity-adaptive skipping. |
+| `/adk:workflow --family standard-task` | always | Standard Task workflow: confirm → research → execute → validate. For tasks with known approach that benefit from context scan. `--auto` skips confirmations. |
 | `/adk:communication` | always | Lead with conclusion. Bullet points. No preamble. Concrete specifics over abstractions. |
 | `/adk:preflight-check` | before work | Run preflight.py for tool dependencies. |
 | `/adk:output-format` | when producing output | short/standard/detailed verbosity. |

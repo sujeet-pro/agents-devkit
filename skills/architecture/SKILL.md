@@ -5,6 +5,7 @@ user-invocable: false
 argument-hint: "[--focus frontend|backend|fullstack|infra]"
 allowed-tools: [Glob, Grep, Read]
 workflow-tier: helper
+maturity: stable
 ---
 
 # Architecture Guidelines Loader
@@ -43,7 +44,7 @@ When `--help` is passed, display this reference and stop.
 
 ## Workflow
 
-This is a helper skill invoked by other skills, not directly by users. It does not own the 6-phase workflow — the invoking skill does.
+This is a helper skill invoked by other skills, not directly by users. It does not own the workflow — the invoking skill does.
 
 ## Architecture Detection
 

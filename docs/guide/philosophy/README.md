@@ -17,7 +17,7 @@ order: 2
 - **Lazy loading** — only the relevant skill, stage, and reference files load per task; ~200-500 lines per invocation out of ~42,000 total
 - **Markdown by default** — all outputs are markdown unless the user requests otherwise
 - **Auto mode** — pass `--auto` to skip confirmations and execute the full workflow automatically
-- **Dual-install support** — works as a Claude plugin (`/adk:skill`), via skills.sh (`/skill`), or Codex (`/skill`)
+- **Dual-install support** — works as a Claude plugin (`/adk:<skill-name>`), via skills.sh (`/<skill-name>`), or Codex (`/<skill-name>`)
 
 ## Output Style
 
@@ -52,8 +52,8 @@ ADK never loads all 42,000 lines at once. Each task loads only what it needs:
 
 | What | Count | Details |
 |------|------:|---------|
-| **Skills** | 49 | 28 task, 16 guideline/helper, 5 routing/orchestrator |
-| **Agents** | 15 | Reusable child-agent definitions for parallel work |
+| **Skills** | 52 | 30 task, 17 guideline/helper, 5 routing/orchestrator |
+| **Agents** | 18 | Reusable child-agent definitions for parallel work |
 | **Reference files** | 251 | Including 16 coding guidelines and 24 doc-writing guidelines |
 | **Stage files** | 58 | Conditional stages loaded per mode/context |
 | **Scripts** | 67 | Preflight checks, setup, and platform connectors |

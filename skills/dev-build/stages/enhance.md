@@ -2,16 +2,9 @@
 
 Enhance an existing feature with impact analysis, incremental changes, and full verification. Unlike implement mode (new features from scratch), this mode respects existing patterns and minimizes disruption.
 
-## Phase Applicability
+## Workflow
 
-| Phase | Applies | Notes |
-|-------|---------|-------|
-| 0. Intent Expansion | yes | Confirm the goal, assumptions, required tools, and success criteria before acting |
-| 1. Research & Options | yes | Analyze current behavior, scan affected code, identify constraints; Impact analysis + focused research on chosen approach |
-| 2. Approach Selection | yes | Present 2-3 enhancement approaches with impact trade-offs; Iterate on scope and approach with user |
-| 3. Planning | yes | Order changes to minimize intermediate breakage |
-| 4. Execute | yes | Incremental changes following existing patterns |
-| 5. Validate & Learn | yes | Full verification including regression checks |
+This stage uses the **Standard Task** workflow: confirm → research → execute → validate.
 
 ## Exploration Guidance
 

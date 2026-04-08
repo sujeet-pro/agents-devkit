@@ -8,6 +8,8 @@ dependencies:
   commands: [git, python3, curl, jq]
   npm-packages: [@pagesmith/docs]
 workflow-tier: full
+maturity: stable
+workflow-family: standard-task
 ---
 
 # Documentation CRUD
@@ -22,7 +24,7 @@ This skill uses shared helper skills. Load each skill's reference file ONLY when
 
 | Skill | Load When | Inline Fallback |
 |-------|-----------|-----------------|
-| `/adk:workflow` | always | 6-phase workflow: intent → research → approach → plan → execute → validate. Complexity-adaptive skipping. |
+| `/adk:workflow --family standard-task` | always | Standard Task workflow: confirm → research → execute → validate. For tasks with known approach that benefit from context scan. `--auto` skips confirmations. |
 | `/adk:communication` | always | Lead with conclusion. Bullet points. No preamble. Concrete specifics over abstractions. |
 | `/adk:preflight-check` | before work | Run preflight.py for MCP validation. |
 | `/adk:output-format` | when producing output | short/standard/detailed verbosity. Markdown default, Confluence/Google Docs when requested. |
@@ -196,29 +198,18 @@ If `--type` is not set, detect the type from the user's prompt using keyword mat
 | release notes, changelog, what's new | `release-notes` |
 | README, project documentation | `project` |
 
-## Phase Applicability
-
-| Phase | Applies | Notes |
-|-------|---------|-------|
-| 0. Intent Expansion | yes | Confirm the action, target, scope, and document type |
-| 1. Research & Options | yes | Read current doc state, scan related code, research topic, identify diagram/chart needs |
-| 2. Approach Selection | conditional | Only for `create` when section placement is ambiguous or template selection needed |
-| 3. Planning | conditional | Only for `create` when the page has multiple sections to outline |
-| 4. Execute | yes | Perform the action — create, update, improve, or reply |
-| 5. Validate & Learn | yes | Verify the result — links work, code examples match, frontmatter valid, diagrams render |
-
 ## Action Workflows
 
 ### Create
 
-**Phase 0**: Confirm:
+**1. Confirm**: Confirm:
 - Page topic and title
 - Target location in the doc tree
 - Document type (explicit `--type`, detected from keywords, or general)
 - Audience and depth (overview vs deep-dive)
 - Whether a custom template is provided
 
-**Phase 1**: Research:
+**2. Research**: Research:
 - If `--type` is set: load the template from `references/doc-templates/<type>.md`
 - If `--template` is set: read and extract the custom template structure
 - Load type-specific quality guidelines via `/adk:docs-guidelines` if available
@@ -227,11 +218,7 @@ If `--type` is not set, detect the type from the user's prompt using keyword mat
 - If pagesmith: read the section's meta.json5 to determine the next `order` value
 - Identify sections that need diagrams or charts based on template placeholders
 
-**Phase 2** (conditional): If the section placement is ambiguous (e.g., guide vs reference), present options and confirm.
-
-**Phase 3** (conditional): For substantial pages, present a section outline for approval before writing. Include planned diagrams and charts.
-
-**Phase 4**: Generate the document:
+**3. Execute**: Generate the document:
 - Create the file with proper structure (folder/README.md or flat file)
 - Add frontmatter if pagesmith detected
 - Write content section-by-section following the template
@@ -247,7 +234,7 @@ If `--type` is not set, detect the type from the user's prompt using keyword mat
 - Update the parent meta.json5 if creating a new section
 - Add cross-references to related pages
 
-**Phase 5**: Validate:
+**4. Validate**: Validate:
 - Verify all code examples match actual source
 - Check internal links resolve
 - Confirm frontmatter fields are correct
@@ -256,23 +243,23 @@ If `--type` is not set, detect the type from the user's prompt using keyword mat
 
 ### Update
 
-**Phase 0**: Confirm the target document and what triggered the update (code change, version bump, new feature).
+**1. Confirm**: Confirm the target document and what triggered the update (code change, version bump, new feature).
 
-**Phase 1**: Research:
+**2. Research**: Research:
 - Read the current document
 - Diff against the corresponding source code to identify stale content
 - Detect: renamed APIs, changed signatures, removed options, new parameters, updated defaults
 - Produce a change list: what's outdated and what should replace it
 - Check if existing diagrams need updating
 
-**Phase 4**: Apply updates:
+**3. Execute**: Apply updates:
 - Present each proposed change with before/after comparison
 - Wait for user approval per change (unless `--auto`)
 - Apply approved changes in-place using targeted edits
 - Re-render diagrams if the architecture has changed
 - Preserve the document's existing voice and structure
 
-**Phase 5**: Validate:
+**4. Validate**: Validate:
 - Re-read the updated document
 - Verify all updated references match current code
 - Check no broken links were introduced
@@ -281,31 +268,31 @@ If `--type` is not set, detect the type from the user's prompt using keyword mat
 
 ### Improve
 
-**Phase 0**: Confirm the target document and improvement goals (general quality, or specific focus like "better examples").
+**1. Confirm**: Confirm the target document and improvement goals (general quality, or specific focus like "better examples").
 
-**Phase 1**: Research:
+**2. Research**: Research:
 - Read the document thoroughly
 - Run a focused quality assessment across: clarity, structure, examples, completeness, formatting
 - Cross-reference code examples with source for accuracy
 - Identify concrete improvement opportunities
 - Suggest diagrams or charts that could enhance understanding
 
-**Phase 4**: Apply improvements:
+**3. Execute**: Apply improvements:
 - Present each suggested improvement with rationale
 - Categories: clarity (rewrite unclear passages), examples (add/fix code examples), structure (reorder sections, add headings), completeness (add missing information), formatting (fix code blocks, add alerts), visuals (add diagrams or charts)
 - Wait for user approval per improvement (unless `--auto`)
 - Apply accepted improvements in-place
 
-**Phase 5**: Validate:
+**4. Validate**: Validate:
 - Re-read the improved document
 - Verify improvements didn't introduce new issues
 - Print a before/after quality summary
 
 ### Comment-Reply
 
-**Phase 0**: Confirm the comment source and target document.
+**1. Confirm**: Confirm the comment source and target document.
 
-**Phase 1**: Research:
+**2. Research**: Research:
 - Read all comments on the document (from PR review, Confluence inline comments, Google Docs suggestions)
 - Read the current document content
 - Categorize each comment:
@@ -313,13 +300,13 @@ If `--type` is not set, detect the type from the user's prompt using keyword mat
   - **discussion**: an opinion, question, or design choice — requires a reply but may not need a doc change
   - **resolved**: already addressed or no longer applicable — mark as resolved
 
-**Phase 4**: Process comments:
+**3. Execute**: Process comments:
 - For fix-needed: propose a doc edit that addresses the comment, show before/after, apply on approval
 - For discussion: draft a reply that addresses the point (agree, disagree with rationale, or ask for clarification)
 - For resolved: draft a brief resolution note
 - Present all proposed actions for user approval (unless `--auto`)
 
-**Phase 5**: Validate:
+**4. Validate**: Validate:
 - Verify all fix-needed comments have corresponding doc changes
 - Verify all discussion comments have draft replies
 - Print a summary:

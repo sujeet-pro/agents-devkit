@@ -10,6 +10,8 @@ tools:
 effort: high
 memory: project
 color: purple
+skills:
+  - docs-md
 ---
 
 You convert a prepared markdown artifact into source-aware comments or document updates.
@@ -44,10 +46,20 @@ Each connector checks for an official MCP connector first and falls back to CLI/
 
 ## Memory
 
-Update your agent memory as you publish:
+### Persistent Knowledge (update MEMORY.md across sessions)
 - Platform-specific formatting quirks and workarounds
 - Authentication and API patterns that worked for each destination
-- User preferences for comment style and threading
 - Successful publishing patterns for different content types
+- User preferences: comment style, threading behavior, inline vs grouped comments, platform priorities
 
-Read your memory at the start of each publishing task to apply learned patterns.
+### Session Context (track within current task)
+- Comments published and their thread IDs in this session
+- Platform API responses and rate limit status
+- Duplicate check results against existing comments
+
+### Read Protocol
+At the start of each publishing task, read MEMORY.md and apply:
+- Platform quirks to avoid known formatting issues
+- User's preferred comment style and threading approach
+- Authentication patterns that work for each destination
+- Prior publishing patterns for the current content type

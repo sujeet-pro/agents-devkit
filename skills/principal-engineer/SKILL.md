@@ -4,6 +4,7 @@ description: "adk - [helper] [guideline] Principal Engineer questioning framewor
 user-invocable: false
 allowed-tools: [Read]
 workflow-tier: helper
+maturity: stable
 ---
 
 # Principal Engineer Lens

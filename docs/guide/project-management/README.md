@@ -178,6 +178,6 @@ Dispatch a team of agents with distinct roles:
 
 ## Related Skills
 
-- **[`plan`](/reference/skills/plan/)** — create implementation plans for milestone work
-- **[`dev-build`](/reference/skills/dev-build/)** — execute development tasks
-- **[`use`](/reference/skills/use/)** — route any task through the orchestrator
+- **[`plan`](/reference/skill-plan/)** — create implementation plans for milestone work
+- **[`dev-build`](/reference/skill-dev-build/)** — execute development tasks
+- **[`use`](/reference/skill-use/)** — route any task through the orchestrator

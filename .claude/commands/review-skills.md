@@ -59,7 +59,7 @@ Required SKILL.md sections by tier:
 - Reference Loading section
 - Help section (Parameters table, Behavior Variations, Examples)
 - Preflight section
-- Phase Applicability table
+- Workflow section
 - Output Format section
 - Adjacent Skills section
 

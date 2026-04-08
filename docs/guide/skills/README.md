@@ -1,12 +1,12 @@
 ---
 title: Skills Overview
-description: Browse all 51 ADK skills organized by category
+description: Browse all 52 ADK skills organized by category
 order: 3
 ---
 
 # Skills Overview
 
-ADK provides 51 skills organized into four categories: **guideline skills** (shared knowledge, auto-invoked), **connector skills** (platform API wrappers), **task skills** (user-facing engineering tasks), and **routing skills** (orchestrators). Only the relevant skill files load per task (see [lazy loading](/guide/philosophy/#token-efficient-lazy-loading)).
+ADK provides 52 skills organized into four categories: **guideline skills** (shared knowledge, auto-invoked), **connector skills** (platform API wrappers), **task skills** (user-facing engineering tasks), and **routing skills** (orchestrators). Only the relevant skill files load per task (see [lazy loading](/guide/philosophy/#token-efficient-lazy-loading)).
 
 ## How Skills Work
 
@@ -64,7 +64,7 @@ The `name` field in each skill's frontmatter is set to `<skill-name>`. When inst
 | Multi-model review | `team` | any review skill |
 | Any task (auto-route) | `use` | routes to the right skill(s) |
 
-## Guideline Skills (16 shared helpers)
+## Guideline Skills (17 shared helpers)
 
 Provide reusable knowledge and standards. Auto-invoked by task skills when available. Each task skill includes one-line inline fallback summaries, so it works even if the guideline skill is not installed.
 
@@ -76,13 +76,13 @@ Provide reusable knowledge and standards. Auto-invoked by task skills when avail
 | `agentic-teams` | `/adk:agentic-teams` | Child-agent contract: team shapes for review, research, docs, security, migration |
 | `output-format` | `/adk:output-format` | Verbosity modes, PR comment templates, priority/principle labels |
 | `interaction` | `/adk:interaction` | Inline protocols: intent confirm, approach select, plan approve, review findings |
-| `interactivity` | `/adk:interactivity` | Structured interaction orchestration (inline-first, optional TUI for large forms) |
 | `preflight-check` | `/adk:preflight-check` | Preflight validations for dependencies, MCP, and tool readiness |
 | `review-standards` | `/adk:review-standards` | Review pipeline, comment template, source routing, postback rules |
 | `coding` | `/adk:coding` | Detects repo stack, lazy-loads matching coding guidelines (16 guideline files) |
 | `docs-guidelines` | `/adk:docs-guidelines` | Detects document type, lazy-loads matching writing guidelines (24 guideline files) |
 | `docs-md` | `/adk:docs-md` | Detects markdown target (pagesmith/GitHub/plain), loads formatting guidelines |
 | `architecture` | `/adk:architecture` | Architecture patterns, principles, and anti-pattern detection |
+| `workspace-conventions` | `/adk:workspace-conventions` | Workspace file conventions: temp files, diagram output, artifact locations |
 
 Connector skills (auto-invoked by task skills for platform APIs):
 
@@ -93,7 +93,7 @@ Connector skills (auto-invoked by task skills for platform APIs):
 | `confluence` | `/adk:confluence` | Confluence page, comment, and space operations |
 | `jira` | `/adk:jira` | Jira issue, board, project, and search operations |
 
-## Task Skills (28 user-facing)
+## Task Skills (30 user-facing)
 
 ### Code Review
 
@@ -161,6 +161,8 @@ Connector skills (auto-invoked by task skills for platform APIs):
 | `setup` | `/adk:setup` | Configure CLI tools, MCP servers, hooks, and system prompt |
 | `deps-tracker` | `/adk:deps-tracker` | Track upstream dependencies and sync updates |
 | `interactivity` | `/adk:interactivity` | Structured interaction: options, data capture, approvals |
+| `team` | `/adk:team` | Multi-model review, agent team dispatch |
+| `create-skill` | `/adk:create-skill` | Scaffold a new ADK skill with proper structure and frontmatter |
 
 ## Routing Skills (5 orchestrators)
 
@@ -169,7 +171,6 @@ Coordinate and route work across other skills. Category routers auto-detect the 
 | Skill | Invocation | Description |
 | ----- | ---------- | ----------- |
 | `use` | `/adk:use` | Default orchestrator: expand intent, identify skills, confirm, execute |
-| `team` | `/adk:team` | Multi-model review, agent team dispatch |
 | `code-review` | `/adk:code-review` | Code review router: detects type, routes to code-review-pr/repo/fix |
 | `docs` | `/adk:docs` | Documentation router: routes to docs-write/crud/repo/review/confluence |
 | `dev` | `/adk:dev` | Development router: routes to dev-build/refactor/migrate/commit |

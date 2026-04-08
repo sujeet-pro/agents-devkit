@@ -4,16 +4,9 @@ Verification before claiming work is complete, fixed, or passing. Requires runni
 
 **Core principle:** Evidence before claims, always. Claiming work is complete without verification is dishonesty, not efficiency.
 
-## Phase Applicability
+## Workflow
 
-| Phase | Applies | Notes |
-|-------|---------|-------|
-| 0. Intent Expansion | yes | Confirm the goal, assumptions, required tools, and success criteria before acting |
-| 1. Research & Options | yes | Identify what needs verification and what commands prove each claim; No proposal needed |
-| 2. Approach Selection | skip | Verification follows a fixed methodology; No iteration needed |
-| 3. Planning | skip | Single verification pass |
-| 4. Execute | yes | Run the Gate Function for every claim |
-| 5. Validate & Learn | yes | Verify all claims are backed by evidence |
+This stage uses the **Quick Action** workflow: confirm → execute → verify.
 
 ## Exploration Guidance
 

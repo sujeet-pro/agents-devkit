@@ -7,6 +7,7 @@ allowed-tools: [Glob, Grep, Read, Edit, Write, Bash, WebSearch, WebFetch, Agent]
 dependencies:
   commands: [git, python3]
 workflow-tier: orchestrator
+maturity: stable
 ---
 
 <CHILD-AGENT-STOP>
@@ -41,7 +42,7 @@ The orchestrator invokes these shared skills and passes their guidance to downst
 
 | Skill | Invoked | Inline Fallback |
 |-------|---------|-----------------|
-| `/adk:workflow` | always | 6-phase workflow: intent → research → approach → plan → execute → validate. Complexity-adaptive skipping. `--auto` bypasses confirmations. |
+| `/adk:workflow` | always, routes to target skill's family | Workflow families: Quick Action (confirm → execute → verify), Standard Task (confirm → research → execute → validate), Complex Build (full 6-step with approach selection and planning), Investigative Loop (iterative discovery). Each skill declares its family. `--auto` bypasses confirmations. |
 | `/adk:communication` | always | Lead with conclusion. Bullet points. No preamble. Concrete specifics over abstractions. Verbosity follows context. |
 | `/adk:preflight-check` | before work | Run preflight.py for tool dependencies and MCP validation. |
 | `/adk:output-format` | when producing output | short/standard/detailed verbosity. Markdown default. |
@@ -116,14 +117,14 @@ When `--help` is passed, display this reference and stop.
 | handoff | Session | `/adk:handoff` | Pause/resume work sessions |
 | setup | Setup | `/adk:setup` | Configure CLI tools and MCP servers |
 | deps-tracker | Project | `/adk:deps-tracker` | Track upstream dependencies and sync |
-| interactivity | Interaction | `/adk:interactivity` | Structured user interaction orchestration (inline-first, optional external TUI) |
+| interactivity | Interaction | `/adk:interactivity` | Structured user interaction orchestration (inline, agent-first) |
 | chart | Data Viz | `/adk:chart` | Create data charts (bar, line, pie, scatter, area, 30+ types) from CSV/JSON |
+| team | Team | `/adk:team` | Multi-model review, agent team dispatch |
 
 ### Routing Skills
 
 | Skill | Invocation | Description |
 |-------|------------|-------------|
-| team | `/adk:team` | Multi-model review, agent team dispatch |
 | use | `/adk:use` | Orchestrator: expand intent, confirm route, execute |
 | code-review | `/adk:code-review` | Code review router: detects type, routes to code-review-pr/repo/fix |
 | docs | `/adk:docs` | Documentation router: detects task, routes to docs-write/crud/repo/review/confluence |
@@ -134,7 +135,7 @@ When `--help` is passed, display this reference and stop.
 
 | Skill | Invocation | Description |
 |-------|------------|-------------|
-| workflow | `/adk:workflow` | 6-phase workflow framework with complexity-adaptive skipping |
+| workflow | `/adk:workflow` | Workflow families (quick-action, standard-task, complex-build, investigative-loop) with complexity scaling |
 | communication | `/adk:communication` | Communication style: lead with conclusion, no preamble, concrete specifics |
 | principal-engineer | `/adk:principal-engineer` | PE questioning: need? simplest? alternatives? maintenance? clarity? |
 | agentic-teams | `/adk:agentic-teams` | Child-agent contract and standard team shapes |
@@ -164,7 +165,7 @@ When `--help` is passed, display this reference and stop.
 
 Start by expanding the prompt using `references/intent-expansion.md`.
 
-For Medium and Large work, invoke the **adk-intent-analyst** agent (see `agents/intent-analyst.md`) to pressure-test the prompt expansion before presenting it to the user.
+For Medium and Large work, invoke the **adk-intent-analyst** agent to pressure-test the prompt expansion before presenting it to the user.
 
 ### What to Produce — Phase Summary Card
 
@@ -254,7 +255,7 @@ Pick the smallest useful pipeline that covers the confirmed intent. Resolve para
 | "handoff" / "save session" / "resume" | `/adk:handoff` |
 | "setup" / "configure" / "install tools" | `/adk:setup` |
 | "check upstream" / "sync dependencies" | `/adk:deps-tracker` |
-| "run interactive workflow" / "collect missing inputs" / "structured user Q&A" | `/adk:interactivity` |
+| "run interactive workflow" / "collect missing inputs" / "structured user Q&A" / "ask me for parameters" | `/adk:interactivity` |
 | "multi-model" / "team review" / "agent team" | `/adk:team` |
 | "review" / "code review" (no specific target) | `/adk:code-review` |
 | "docs" / "documentation" (no specific target) | `/adk:docs` |
@@ -299,7 +300,7 @@ The approved plan must include:
 For Medium and Large work:
 
 1. draft the plan
-2. review it with the **adk-plan-reviewer** agent (see `agents/plan-reviewer.md`)
+2. review it with the **adk-plan-reviewer** agent
 3. let the user approve it
 4. only then execute it
 

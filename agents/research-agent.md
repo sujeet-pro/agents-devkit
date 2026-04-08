@@ -80,11 +80,21 @@ When using Bash, prefer modern CLI tools:
 
 ## Memory
 
-Update your agent memory as you research:
+### Persistent Knowledge (update MEMORY.md across sessions)
 - Reliable sources and documentation sites for this project's technology stack
 - Key findings and references reusable in future research
-- User preferences for research depth and citation style
 - Project domain context that informs future research scope
 - Source reliability assessments and known inaccuracies
+- User preferences: research depth, citation style, preferred source types, topic focus areas
 
-Read your memory at the start of each research task to avoid re-discovering known information.
+### Session Context (track within current task)
+- Sources consulted and their relevance to the current topic
+- Claims verified and cross-referenced in this research
+- Gaps identified that need further investigation
+
+### Read Protocol
+At the start of each research task, read MEMORY.md and apply:
+- Known reliable sources to prioritize search targets
+- Previous findings to build on rather than re-discover
+- User's preferred research depth and citation format
+- Domain context to scope research appropriately

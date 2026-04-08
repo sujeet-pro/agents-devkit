@@ -7,6 +7,8 @@ allowed-tools: [Glob, Grep, Read, Edit, Write, Bash, Agent]
 dependencies:
   commands: [git, python3]
 workflow-tier: abbreviated
+maturity: stable
+workflow-family: quick-action
 ---
 
 # User Acceptance Testing
@@ -21,7 +23,7 @@ This skill uses shared helper skills. Load each skill's reference file ONLY when
 
 | Skill | Load When | Inline Fallback |
 |-------|-----------|-----------------|
-| `/adk:workflow` | always | 6-phase workflow: intent → research → approach → plan → execute → validate. Complexity-adaptive skipping for trivial/small tasks. `--auto` skips confirmations. |
+| `/adk:workflow --family quick-action` | always | Quick Action workflow: confirm → execute → verify. For narrow tasks with single execution path. `--auto` skips confirmations. |
 | `/adk:communication` | always | Lead with conclusion. Bullet points. No preamble. Concrete specifics over abstractions. Verbosity follows context. |
 | `/adk:preflight-check` | before work | Run preflight.py for tool dependencies and MCP validation. Detect source type and route to correct MCP. |
 | `/adk:output-format` | when producing output | short/standard/detailed verbosity. Priority labels: Blocker, Critical, Should Have, May Have, Nitpick, Question. |
@@ -79,17 +81,6 @@ Before extracting test cases or launching child agents, run:
 
 Read the source document to confirm it exists and contains testable content before proceeding.
 
-## Phase Applicability
-
-| Phase | Applies | Skill-Specific Notes |
-|-------|---------|----------------------|
-| 0. Intent Expansion | yes | Confirm the goal, assumptions, required tools, and success criteria before acting |
-| 1. Research & Options | yes | Analyze requirements and context |
-| 2. Approach Selection | skip | Direct execution after early confirmation |
-| 3. Planning | skip | Direct execution |
-| 4. Execute | yes | Execute the main workflow |
-| 5. Validate & Learn | yes | Validate output quality and completeness |
-
 ## Output Format
 
 All output is markdown by default. Structure varies by deliverable type — see the skill-specific execution sections above for the exact format.
@@ -103,11 +94,11 @@ Save results to `.temp/uat/<source-slug>-uat.md`. Create the `.temp/uat/` direct
 
 When the platform supports child agents, run at least these:
 
-- **Test case extractor**: reads the source spec or plan and extracts concrete, testable behaviors with expected outcomes. Categorizes each as functional, edge-case, or non-functional.
+- **`adk-test-agent` (test case extractor)**: reads the source spec or plan and extracts concrete, testable behaviors with expected outcomes. Categorizes each as functional, edge-case, or non-functional.
 - **Diagnosis agent**: when a test fails, investigates root cause using `/adk:dev-build --mode debug` patterns. Reports affected files, confidence level, and suggested fix.
 - **Fix planner**: for failed items, generates fix plans ready for `/adk:plan --mode execute`.
 
-## Phase 1: Extract Test Cases
+## Extract Test Cases
 
 Parse the source document for testable deliverables:
 
@@ -141,7 +132,7 @@ Action: [P]roceed | [A]dd test case | [R]emove test case | [E]dit
 - Remove: let the user pick a test case to remove by number. Re-display the plan.
 - Edit: let the user revise a test case by number. Stay in the edit loop until the user accepts.
 
-## Phase 2: Interactive Testing
+## Interactive Testing
 
 Present each test case one at a time, in priority order (P1 first):
 
@@ -208,7 +199,7 @@ When the user cannot test (missing environment, external dependency, etc.):
 3. If the user says "skip all remaining", record all unprocessed test cases as skipped.
 4. When `mode` is `auto-approve`, run all test cases without interactive prompts and report results at the end.
 
-## Phase 3: Fix Routing
+## Fix Routing
 
 For all failed items where the user chose "Generate fix plan":
 
@@ -218,7 +209,7 @@ For all failed items where the user chose "Generate fix plan":
 
 If no fix plans were requested, skip this phase.
 
-## Phase 4: Summary
+## 3. Verify
 
 ```text
 ## UAT Summary

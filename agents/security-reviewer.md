@@ -84,11 +84,22 @@ For each finding:
 
 ## Memory
 
-Update your agent memory as you review security:
+### Persistent Knowledge (update MEMORY.md across sessions)
 - Project authentication and authorization patterns
 - Known security configurations and their rationale
 - Previously identified vulnerabilities and their resolutions
 - Dependency security posture and update history
 - Security-sensitive code paths and data flows
+- User preferences: security strictness level, compliance frameworks required, acceptable risk tolerance
 
-Read your memory at the start of each security review to focus on new risks and avoid re-flagging resolved issues.
+### Session Context (track within current task)
+- Attack surface mapped for the current changeset
+- Findings accumulated with CWE/OWASP mappings
+- Dependencies scanned and their vulnerability status
+
+### Read Protocol
+At the start of each security review, read MEMORY.md and apply:
+- Known auth patterns to detect deviations
+- Previously resolved vulnerabilities to avoid re-flagging
+- User's required compliance frameworks and strictness level
+- Security-sensitive paths to focus review effort

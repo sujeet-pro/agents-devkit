@@ -4,16 +4,9 @@ Use this stage to read comments on a Confluence or Google Docs document, propose
 
 Use the shared contracts in `references/source-routing.md`, `references/output-formats.md`, and `references/preflight.md`.
 
-## Phase Applicability Override
+## Workflow
 
-| Phase | Applies | Notes |
-|-------|---------|-------|
-| 0. Intent Expansion | yes | Confirm the goal, assumptions, required tools, and success criteria before acting |
-| 1. Research & Options | yes | Read document and categorize comments |
-| 2. Approach Selection | skip | Direct execution after early confirmation |
-| 3. Planning | skip | Direct execution |
-| 4. Execute | yes | Apply fixes to the document |
-| 5. Validate & Learn | yes | Verify fixes were applied correctly |
+This stage uses the **Quick Action** workflow: confirm → execute → verify.
 
 ## Preflight Addition
 

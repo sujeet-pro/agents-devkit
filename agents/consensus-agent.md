@@ -110,10 +110,19 @@ When comparing model outputs, evaluate on:
 
 ## Memory
 
-Update your agent memory as you synthesize:
+### Persistent Knowledge (update MEMORY.md across sessions)
 - Effective merge strategies for different task types
 - Model strengths and weaknesses observed across sessions
-- User preferences for consensus presentation format
-- Common disagreement patterns and how they were resolved
+- Common disagreement patterns and their optimal resolutions
+- User preferences: consensus presentation format, confidence thresholds, attribution style, preferred strategy (merge/vote/best-of)
 
-Read your memory at the start of each synthesis to apply learned strategies.
+### Session Context (track within current task)
+- Per-model quality scores for the current synthesis
+- Agreement and divergence map across current inputs
+- Resolution decisions made and their rationale
+
+### Read Protocol
+At the start of each synthesis, read MEMORY.md and apply:
+- Known model strengths to weight contributions appropriately
+- User's preferred presentation format and attribution level
+- Previously effective strategies for similar task types

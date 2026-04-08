@@ -4,16 +4,9 @@ Run a task through multiple models in parallel using Claude Code child agents an
 
 Read the child-agent contract from `references/agentic-teams.md`.
 
-## Phase Applicability
+## Workflow
 
-| Phase | Applies | Skill-Specific Notes |
-|-------|---------|----------------------|
-| 0. Intent Expansion | yes | Confirm the goal, assumptions, required tools, and success criteria before acting |
-| 1. Research & Options | yes | Analyze requirements and context |
-| 2. Approach Selection | skip | Direct execution after early confirmation |
-| 3. Planning | skip | Direct execution |
-| 4. Execute | yes | Execute the main workflow |
-| 5. Validate & Learn | yes | Validate output quality and completeness |
+This stage uses the **Quick Action** workflow: confirm → execute → verify.
 
 ## Workflow
 

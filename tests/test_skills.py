@@ -36,8 +36,9 @@ SKILL_DIRS = sorted(
 SKILL_NAMES = [d.name for d in SKILL_DIRS]
 
 # ── Required frontmatter fields ─────────────────────────────────────
-REQUIRED_FM_FIELDS = {"name", "description", "user-invocable", "workflow-tier"}
+REQUIRED_FM_FIELDS = {"name", "description", "user-invocable", "workflow-tier", "maturity"}
 VALID_TIERS = {"full", "abbreviated", "helper", "orchestrator"}
+VALID_MATURITY = {"experimental", "stable", "battle-tested"}
 
 # ── Canonical propagated files (templates/skill/common → skills/*/references/) ──
 CANONICAL_COMMON = sorted(
@@ -175,6 +176,13 @@ def test_frontmatter(r: TestResult):
         else:
             r.fail(f"{name}: invalid workflow-tier '{tier}' (expected one of {VALID_TIERS})")
 
+        # maturity should be valid
+        maturity = fm.get("maturity", "")
+        if maturity in VALID_MATURITY:
+            r.ok(f"{name}: valid maturity '{maturity}'")
+        else:
+            r.fail(f"{name}: invalid maturity '{maturity}' (expected one of {VALID_MATURITY})")
+
         # allowed-tools optional (e.g. connector helpers); if present must be a non-empty list
         tools = fm.get("allowed-tools")
         if tools is None:
@@ -251,6 +259,8 @@ def test_cross_references(r: TestResult):
 
         refs_found = ref_pattern.findall(skill_md)
         for ref in refs_found:
+            if "<" in ref and ">" in ref:
+                continue
             ref_path = skill_dir / "references" / ref
             if ref_path.exists():
                 r.ok(f"{name}: references/{ref} exists")
@@ -264,6 +274,8 @@ def test_cross_references(r: TestResult):
 
         stages_found = stage_pattern.findall(skill_md)
         for stage in stages_found:
+            if "<" in stage and ">" in stage:
+                continue
             stage_path = skill_dir / "stages" / stage
             if stage_path.exists():
                 r.ok(f"{name}: stages/{stage} exists")

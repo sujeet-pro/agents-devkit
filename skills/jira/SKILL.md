@@ -3,6 +3,7 @@ name: jira
 description: "adk - [helper] [connector] Jira REST API operations — issue management, comments, search, projects, boards, and sprints"
 user-invocable: false
 workflow-tier: helper
+maturity: stable
 dependencies:
   commands: [curl, jq]
 ---

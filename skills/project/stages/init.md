@@ -2,16 +2,9 @@
 
 This stage takes a project idea from initial concept through structured discovery, parallel research, requirements extraction, and roadmap generation. The output is a complete project specification ready for execution by downstream DevKit skills.
 
-## Phase Applicability
+## Workflow
 
-| Phase | Applies | Skill-Specific Notes |
-|-------|---------|----------------------|
-| 0. Intent Expansion | yes | Confirm the goal, assumptions, required tools, and success criteria before acting |
-| 1. Research & Options | yes | Analyze project requirements and existing structure; Focused research on chosen approach, proposal at .temp/proposal/ |
-| 2. Approach Selection | yes | Present 2-3 approaches, user picks or mixes; Iterate on proposal with user feedback |
-| 3. Planning | yes | Break into tasks/waves for parallel agentic teams |
-| 4. Execute | yes | Execute project setup or management tasks |
-| 5. Validate & Learn | yes | Verify project structure and configuration |
+This stage uses the **Standard Task** workflow: confirm → research → execute → validate.
 
 ## Artifact Storage
 

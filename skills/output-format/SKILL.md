@@ -4,6 +4,7 @@ description: "adk - [helper] [guideline] Output format standards: verbosity mode
 user-invocable: false
 allowed-tools: [Read]
 workflow-tier: helper
+maturity: stable
 ---
 
 # Output Format Standards

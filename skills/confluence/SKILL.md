@@ -3,6 +3,7 @@ name: confluence
 description: "adk - [helper] [connector] Confluence REST API operations — page CRUD, comments, attachments, and space management"
 user-invocable: false
 workflow-tier: helper
+maturity: stable
 dependencies:
   commands: [curl, jq]
 ---

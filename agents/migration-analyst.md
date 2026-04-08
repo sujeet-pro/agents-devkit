@@ -58,11 +58,22 @@ For each breaking change:
 
 ## Memory
 
-Update your agent memory as you analyze migrations:
+### Persistent Knowledge (update MEMORY.md across sessions)
 - Framework and library versions currently in use
 - Migration patterns and codemods that worked well
 - Codebase-specific API usage patterns
 - Previous migration decisions and their outcomes
 - Known compatibility issues between dependencies
+- User preferences: migration aggressiveness, acceptable risk level, preferred migration order, testing requirements
 
-Read your memory at the start of each migration analysis to avoid re-discovering known patterns.
+### Session Context (track within current task)
+- Breaking changes mapped to codebase files in this analysis
+- Effort estimates per change for the current migration
+- Codemod candidates evaluated for this migration path
+
+### Read Protocol
+At the start of each migration analysis, read MEMORY.md and apply:
+- Known framework versions to establish the upgrade baseline
+- Previous migration outcomes to inform effort estimates
+- User's preferred migration approach and risk tolerance
+- Known compatibility issues to flag early

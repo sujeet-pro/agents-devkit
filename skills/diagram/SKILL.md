@@ -5,6 +5,7 @@ user-invocable: true
 argument-hint: "<description> [--engine mermaid|excalidraw|drawio|graphviz] [--type flowchart|sequence|class|...] [--render] [--format svg|png] [--theme both|light|dark] [--help]"
 allowed-tools: [Glob, Grep, Read]
 workflow-tier: orchestrator
+maturity: stable
 dependencies:
   commands: [node]
   npm-packages: [diagramkit]

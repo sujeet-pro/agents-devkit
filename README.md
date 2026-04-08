@@ -12,8 +12,8 @@ Inspired by [superpowers](https://github.com/obra/superpowers). Diagram skills f
 
 | What | Count | Details |
 |------|------:|---------|
-| **Skills** | 49 | 28 task, 16 guideline/helper, 5 routing/orchestrator |
-| **Agents** | 15 | Reusable child-agent definitions for parallel work |
+| **Skills** | 52 | 30 task, 17 guideline/helper, 5 routing/orchestrator |
+| **Agents** | 18 | Reusable child-agent definitions for parallel work |
 | **Reference files** | 251 | Including 16 coding guidelines and 24 doc-writing guidelines |
 | **Stage files** | 58 | Conditional stages loaded per mode/context |
 | **Scripts** | 67 | Preflight checks, setup, and platform connectors |
@@ -41,7 +41,7 @@ A typical PR review loads ~400 lines. A Mermaid diagram loads ~250 lines (1 type
 - **Lazy loading** — only the relevant skill, stage, and reference files load per task; ~200-500 lines per invocation out of ~42,000 total
 - **Markdown by default** — all outputs are markdown unless the user requests otherwise
 - **Auto mode** — pass `--auto` to skip confirmations and execute the full workflow automatically
-- **Claude-first** — designed for Claude Code as a plugin (`/adk:skill`). Also installable via `npx skills` for other agents, though some features (custom sub-agents, memory) require Claude
+- **Claude-first** — designed for Claude Code as a plugin (`/adk:<skill-name>`). Also installable via `npx skills` for other agents, though some features (custom sub-agents, memory) require Claude
 
 ## The 6-Phase Workflow
 
@@ -95,6 +95,37 @@ npx skills add sujeet-pro/agents-devkit/skills/dev-build
 When installed via skills.sh, skills use the `name` field from frontmatter (e.g., `/code-review-pr`, `/dev-build`). Works with Claude Code, Codex, and other skills.sh-compatible agents. Some features — custom sub-agents with memory, hooks — require Claude Code.
 
 Visit [skills.sh](https://skills.sh) for more details.
+
+### Cross-Agent Installation
+
+ADK skills use the universal SKILL.md format. Individual skills work in any agent that supports it — copy the skill directory to the agent's skill path:
+
+| Agent | Skill Path | Invocation |
+|-------|-----------|------------|
+| Claude Code | `.claude/skills/` or via plugin | `/adk:<skill-name>` |
+| Cursor | `.cursor/skills/` | Auto-detected from SKILL.md |
+| Codex CLI | `.codex/skills/` | `/<skill-name>` |
+| Gemini CLI | `.gemini/skills/` | `/<skill-name>` |
+| OpenCode | `.opencode/skills/` | `/<skill-name>` |
+| Universal | `.agent/skills/` | Agent-dependent |
+
+```bash
+# Example: install a single skill into Cursor
+cp -r skills/code-review-pr ~/.cursor/skills/code-review-pr
+```
+
+**Feature availability by platform:**
+
+| Feature | Claude Code | Other Agents |
+|---------|:-----------:|:------------:|
+| SKILL.md instructions | Full | Full |
+| Stages & references | Full | Full |
+| Preflight scripts | Full | Full |
+| Custom sub-agents (18 agents) | Full | Not available |
+| Agent memory (`memory: project`) | Full | Not available |
+| Plugin hooks | Full | Not available |
+| Plugin namespace (`adk:`) | Full | Not available |
+| Inline fallbacks for missing helpers | Full | Full |
 
 ### Local Development
 
@@ -164,9 +195,9 @@ npx skills remove sujeet-pro/agents-devkit
 
 ## Skill Categories
 
-ADK's 51 skills are organized into four categories. Only the relevant skill files load per task (see [lazy loading](#token-efficient-lazy-loading)).
+ADK's 52 skills are organized into four categories. Only the relevant skill files load per task (see [lazy loading](#token-efficient-lazy-loading)).
 
-### Guideline Skills (16 shared helpers)
+### Guideline Skills (17 helpers)
 
 Provide reusable knowledge and standards. Auto-invoked by task skills when available. Each task skill includes one-line inline fallback summaries, so it works even if the guideline skill is not installed.
 
@@ -179,13 +210,13 @@ Provide reusable knowledge and standards. Auto-invoked by task skills when avail
 | `agentic-teams`      | `/adk:agentic-teams`      | Child-agent contract: team shapes for review, research, docs, security, migration |
 | `output-format`      | `/adk:output-format`      | Verbosity modes, PR comment templates, priority/principle labels                  |
 | `interaction`        | `/adk:interaction`        | Inline protocols: intent confirm, approach select, plan approve, review findings  |
-| `interactivity`      | `/adk:interactivity`      | Structured interaction orchestration (inline-first, optional TUI for large forms) |
 | `preflight-check`    | `/adk:preflight-check`    | Preflight validations for dependencies, MCP, and tool readiness                   |
 | `review-standards`   | `/adk:review-standards`   | Review pipeline, comment template, source routing, postback rules                 |
 | `coding`             | `/adk:coding`             | Detects repo stack, lazy-loads matching coding guidelines (16 guideline files)    |
 | `docs-guidelines`    | `/adk:docs-guidelines`    | Detects document type, lazy-loads matching writing guidelines (24 guideline files)|
 | `docs-md`            | `/adk:docs-md`            | Detects markdown target (pagesmith/GitHub/plain), loads formatting guidelines     |
 | `architecture`       | `/adk:architecture`       | Architecture patterns, principles, and anti-pattern detection                     |
+| `workspace-conventions` | `/adk:workspace-conventions` | Workspace file conventions: temp files, diagram output, artifact locations     |
 
 Connector skills (auto-invoked by task skills for platform APIs):
 
@@ -197,7 +228,7 @@ Connector skills (auto-invoked by task skills for platform APIs):
 | `jira`         | `/adk:jira`         | Jira issue, board, project, and search operations    |
 
 
-### Task Skills (28 user-facing)
+### Task Skills (30 user-facing)
 
 Perform specific engineering tasks. Each is self-sufficient with inline fallback summaries for all shared knowledge.
 
@@ -231,6 +262,9 @@ Perform specific engineering tasks. Each is self-sufficient with inline fallback
 | `setup`              | Setup       | `/adk:setup`              | Configure CLI tools, MCP servers, hooks, and system prompt   |
 | `deps-tracker`       | Project     | `/adk:deps-tracker`       | Track upstream dependencies and sync updates                 |
 | `interactivity`      | Interaction | `/adk:interactivity`      | Structured interaction: options, data capture, approvals     |
+| `chart`              | Data        | `/adk:chart`              | Data charts (bar, line, pie, scatter, 30+ types) from CSV/JSON |
+| `team`               | Team        | `/adk:team`               | Multi-model review, agent team dispatch                        |
+| `create-skill`       | Meta        | `/adk:create-skill`       | Scaffold a new ADK skill with proper structure and frontmatter |
 
 
 ### Routing Skills (5 orchestrators)
@@ -241,7 +275,6 @@ Coordinate and route work across other skills. Category routers auto-detect the 
 | Skill         | Invocation         | Description                                                               |
 | ------------- | ------------------ | ------------------------------------------------------------------------- |
 | `use`         | `/adk:use`         | Default orchestrator: expand intent, identify skills, confirm, execute    |
-| `team`        | `/adk:team`        | Multi-model review, agent team dispatch                                   |
 | `code-review` | `/adk:code-review` | Code review router: detects type, routes to code-review-pr/repo/fix      |
 | `docs`        | `/adk:docs`        | Documentation router: routes to docs-write/crud/repo/review/confluence   |
 | `dev`         | `/adk:dev`         | Development router: routes to dev-build/refactor/migrate/commit          |
@@ -286,6 +319,7 @@ Coordinate and route work across other skills. Category routers auto-detect the 
 | **Set up new project**        | `project`                         | `setup`                                      |
 | **Hand off session**          | `handoff`                         | —                                            |
 | **Configure tools/MCP**       | `setup`                           | —                                            |
+| **Create a data chart**       | `chart`                           | —                                            |
 | **Multi-model review**        | `team`                            | any review skill                             |
 | **Any task (auto-route)**     | `use`                             | routes to the right skill(s)                 |
 
@@ -332,6 +366,54 @@ Some skills use MCP servers for source-native operations. Most skills work witho
 | Google Drive | docs-review, docs-write                  | detect-from-input                           |
 
 
+## Workspace Context
+
+ADK skills can pick up project-specific defaults from a `.adk/context.yaml` file in your workspace root. This avoids repeated questions about your stack, conventions, and preferences.
+
+```yaml
+# .adk/context.yaml — optional, placed in your project root
+project:
+  name: my-app
+  description: E-commerce platform
+
+stack:
+  language: typescript
+  framework: next.js
+  runtime: node
+  test_runner: vitest
+  package_manager: pnpm
+
+conventions:
+  commit_format: conventional
+  branch_pattern: "feat|fix|chore|docs/<ticket>-<description>"
+  review_checklist: .github/review-checklist.md
+
+preferences:
+  verbosity: standard
+  diagram_engine: mermaid
+  doc_format: markdown
+```
+
+When a context file is present, skills use it to:
+- Skip "what framework are you using?" questions
+- Auto-detect coding guidelines to load
+- Apply the right commit format and branch naming
+- Use preferred diagram engine and doc format
+
+## Composable Workflows
+
+Define reusable multi-skill pipelines in `workflows/`. See [`workflows/README.md`](./workflows/README.md) for the format.
+
+Included pipelines:
+
+| Workflow | Description |
+|----------|-------------|
+| `full-feature.yaml` | Spec → Plan → Implement → Commit → Review → Changelog |
+| `quick-review.yaml` | Review → Fix → PR Description |
+| `doc-update.yaml` | Review docs → Update → Regenerate repo docs |
+
+Run a workflow: `Run the workflow in workflows/full-feature.yaml for <your task>`
+
 ## Hooks
 
 ADK includes hooks that run automatically:
@@ -339,6 +421,7 @@ ADK includes hooks that run automatically:
 
 | Event                      | Purpose                                    |
 | -------------------------- | ------------------------------------------ |
+| `PreToolUse` (Bash)        | Blocks dangerous git operations (force push, hard reset on main) |
 | `PostToolUse` (Edit/Write) | Validates SKILL.md frontmatter conventions |
 | `Stop`                     | Checks task completion before ending       |
 | `SessionStart` (compact)   | Re-injects ADK context after compaction    |
@@ -370,7 +453,7 @@ All ADK output follows **concise by default**:
 ## Plugin Structure
 
 ```
-agents-devkit/                        51 skills · 18 agents · ~42K lines
+agents-devkit/                        52 skills · 18 agents · ~42K lines
 ├── .claude-plugin/
 │   └── plugin.json                   Plugin manifest (name: adk)
 ├── .mcp.json                         MCP server configurations
@@ -381,9 +464,8 @@ agents-devkit/                        51 skills · 18 agents · ~42K lines
 ├── templates/skill/                  Canonical templates and propagation
 │   ├── common/                       Cross-skill files (help-format, project-guidelines)
 │   └── scripts/                      Preflight and propagation scripts
-├── skills/                           51 skills (only relevant ones load per task)
+├── skills/                           52 skills (only relevant ones load per task)
 │   ├── use/                          Routing — default orchestrator
-│   ├── team/                         Routing — multi-model agent dispatch
 │   ├── code-review/                  Routing — review type detection
 │   ├── docs/                         Routing — documentation task routing
 │   ├── dev/                          Routing — development task routing
@@ -403,8 +485,14 @@ agents-devkit/                        51 skills · 18 agents · ~42K lines
 │   ├── code-review-pr/              Task — PR review (11 conditional stages)
 │   ├── dev-build/                    Task — implement/debug/TDD (7 conditional stages)
 │   ├── docs-write/                   Task — formal docs (16 conditional stages)
-│   ├── (+ 25 more task skills)
+│   ├── team/                         Task — multi-model agent dispatch
+│   ├── (+ 26 more task skills)
 ├── manifest.json                     Upstream source tracking
+├── skills-manifest.json              Programmatic skill discovery index
+├── workflows/                        Composable workflow pipelines (YAML)
+├── scripts/                          Repo-level utilities
+│   ├── generate-skills-manifest.py   Regenerate skills-manifest.json
+│   └── add-maturity-field.py         Add maturity to new SKILL.md files
 └── docs/                             Documentation site (@pagesmith/docs)
 ```
 
@@ -419,6 +507,10 @@ Skills automatically load relevant guidelines based on repository type:
 ## Contributing
 
 See [CONTRIBUTING.md](./CONTRIBUTING.md) for how to add skills, agents, and guidelines.
+
+## AI-Readable Summary
+
+See [llms.txt](./llms.txt) for a compact AI-readable summary of this repository.
 
 ## License
 

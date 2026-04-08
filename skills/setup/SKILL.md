@@ -1,6 +1,5 @@
 ---
-
-## name: setup
+name: setup
 description: "adk - [abbreviated] [setup] Use when setting up, validating, or updating CLI tools and MCP server configurations for DevKit skills"
 user-invocable: true
 argument-hint: "[--type tools|mcps|hooks|config|all] [--check-only] [--skip-update] [--server ] [--tool ] [--verbosity short|standard|detailed] [--help]"
@@ -8,6 +7,8 @@ allowed-tools: [Read, Bash, Write]
 dependencies:
   commands: [python3]
 workflow-tier: abbreviated
+maturity: stable
+workflow-family: quick-action
 
 ---
 
@@ -45,7 +46,7 @@ This skill uses shared helper skills. Load each skill's reference file ONLY when
 
 | Skill                | Load When | Inline Fallback                                                             |
 | -------------------- | --------- | --------------------------------------------------------------------------- |
-| `/adk:workflow`      | always    | 6-phase workflow: intent → research → approach → plan → execute → validate. |
+| `/adk:workflow --family quick-action` | always | Quick Action workflow: confirm → execute → verify. For narrow tasks with single execution path. `--auto` skips confirmations. |
 | `/adk:communication` | always    | Lead with conclusion. Bullet points. No preamble. Concrete specifics.       |
 
 
@@ -106,19 +107,6 @@ When `--help` is passed, display this reference and stop.
 ```
 
 ---
-
-## Phase Applicability
-
-
-| Phase                 | Applies | Skill-Specific Notes                                                              |
-| --------------------- | ------- | --------------------------------------------------------------------------------- |
-| 0. Intent Expansion   | yes     | Confirm the goal, assumptions, required tools, and success criteria before acting |
-| 1. Research & Options | yes     | Analyze requirements and context                                                  |
-| 2. Approach Selection | skip    | Direct execution after early confirmation                                         |
-| 3. Planning           | skip    | Direct execution                                                                  |
-| 4. Execute            | yes     | Execute the main workflow                                                         |
-| 5. Validate & Learn   | yes     | Validate output quality and completeness                                          |
-
 
 ## Output Format
 

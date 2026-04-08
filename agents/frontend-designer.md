@@ -85,11 +85,21 @@ For each variation:
 
 ## Memory
 
-Update your agent memory as you design:
+### Persistent Knowledge (update MEMORY.md across sessions)
 - Project design system tokens, patterns, and component conventions
 - Typography and color choices established in previous sessions
-- User aesthetic preferences and accessibility requirements
 - Framework and component library patterns used in this project
 - Design decisions and their rationale for consistency
+- User preferences: aesthetic direction, accessibility strictness, preferred component patterns, color themes, animation preferences
 
-Read your memory at the start of each design task to maintain visual consistency.
+### Session Context (track within current task)
+- Design tokens and variables defined in the current task
+- Component hierarchy and relationships for the current design
+- Accessibility audit results for current components
+
+### Read Protocol
+At the start of each design task, read MEMORY.md and apply:
+- Established design tokens for visual consistency
+- User's aesthetic preferences and accessibility requirements
+- Known component patterns to maintain design system coherence
+- Prior design decisions to avoid contradictory directions

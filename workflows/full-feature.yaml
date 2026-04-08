@@ -1,0 +1,28 @@
+name: full-feature
+description: End-to-end feature implementation — from spec analysis through code review
+
+steps:
+  - skill: spec
+    args: "${TASK} --mode analyze"
+    description: Analyze requirements and identify edge cases
+
+  - skill: plan
+    args: "${TASK} --mode write"
+    description: Create implementation plan with file list and sequencing
+
+  - skill: dev-build
+    args: "${TASK} --mode implement"
+    description: Implement the feature following the approved plan
+
+  - skill: dev-commit
+    args: "--action commit"
+    description: Create a conventional commit for the changes
+
+  - skill: code-review-pr
+    args: "--mode review --source local"
+    description: Self-review the implementation before PR
+    condition: "has-tests"
+
+  - skill: docs-write
+    args: "--type changelog --auto"
+    description: Update changelog with the new feature

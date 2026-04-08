@@ -6,6 +6,7 @@ allowed-tools: [Read, Bash]
 dependencies:
   commands: [python3]
 workflow-tier: helper
+maturity: stable
 ---
 
 # Preflight Validations

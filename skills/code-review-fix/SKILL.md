@@ -8,6 +8,8 @@ dependencies:
   commands: [git, python3, gh, curl, jq]
   mcp-servers: [detect-from-input]
 workflow-tier: full
+maturity: stable
+workflow-family: standard-task
 ---
 
 # Review Fixes
@@ -20,7 +22,7 @@ This skill uses shared helper skills. Load each skill's reference file ONLY when
 
 | Skill | Load When | Inline Fallback |
 |-------|-----------|-----------------|
-| `/adk:workflow` | always | 6-phase workflow: intent → research → approach → plan → execute → validate. Complexity-adaptive skipping for trivial/small tasks. `--auto` skips confirmations. |
+| `/adk:workflow --family standard-task` | always | Standard Task workflow: confirm → research → execute → validate. For tasks with known approach that benefit from context scan. `--auto` skips confirmations. |
 | `/adk:communication` | always | Lead with conclusion. Bullet points. No preamble. Concrete specifics over abstractions. Verbosity follows context. |
 | `/adk:preflight-check` | before work | Run preflight.py for tool dependencies and MCP validation. Detect source type and route to correct MCP. |
 | `/adk:output-format` | when producing output | short/standard/detailed verbosity. Priority labels: Blocker, Critical, Should Have, May Have, Nitpick, Question. Cross-platform markdown safe for GitHub + Bitbucket. |
@@ -151,20 +153,7 @@ If no token is found:
 
 ---
 
-## Phase Applicability
-
-| Phase | Applies | Skill-Specific Notes |
-|-------|---------|----------------------|
-| 0. Intent Expansion | yes | Confirm which PR, which comments to address (all, blockers only, specific threads) |
-| 1. Research & Options | yes | Read all unresolved comments, categorize by severity and type |
-| 2. Approach Selection | yes | Present the fix plan — which comments will be fixed, how, and which need discussion |
-| 3. Planning | yes | Plan fix order: dependencies between fixes, group by file |
-| 4. Execute | yes | Apply fixes, reply to comments, mark resolved |
-| 5. Validate & Learn | yes | Run tests/linting, produce summary of fixed vs needs-discussion |
-
----
-
-## Phase 0: Confirm Scope
+## 1. Confirm
 
 Confirm with the user:
 
@@ -180,7 +169,7 @@ In `--auto` mode, skip confirmation: process all unresolved comments matching th
 
 ---
 
-## Phase 1: Read & Categorize Comments
+## 2. Research
 
 ### Step 1: Read All Review Comments
 
@@ -212,54 +201,7 @@ Invoke `/adk:coding` to detect the repo stack and load matching coding guideline
 
 ---
 
-## Phase 2: Fix Plan
-
-Present the categorized comments and proposed actions:
-
-```text
-## Fix Plan for PR #<number>
-
-### Will Fix (N comments)
-| # | File | Line | Reviewer | Severity | Type | Proposed Fix |
-|---|------|------|----------|----------|------|-------------|
-| 1 | src/auth.ts | 47 | @reviewer | blocker | code-fix | Add null check before access |
-| 2 | src/api.ts | 102 | @reviewer | critical | code-fix | Switch to parameterized query |
-
-### Needs Discussion (N comments)
-| # | File | Line | Reviewer | Severity | Type | Reason |
-|---|------|------|----------|----------|------|--------|
-| 3 | src/db.ts | 88 | @reviewer | suggestion | design-change | Conflicts with existing pattern |
-
-### Will Skip (N comments)
-| # | Reason |
-|---|--------|
-| 4 | Already resolved |
-| 5 | Nitpick, no code change needed |
-
-Approve? [Y]es / [E]dit plan / [C]ancel
-```
-
-The user can:
-- Approve the full plan
-- Move comments between categories (e.g., skip a blocker, force-fix a discussion item)
-- Cancel and exit
-
-In `--auto` mode, skip this confirmation. Fix all "Will Fix" items, skip "Needs Discussion" and "Will Skip".
-
----
-
-## Phase 3: Fix Order
-
-Plan the execution order:
-
-1. **Group by file** — minimize context switching
-2. **Dependency order** — if fix B depends on fix A, do A first
-3. **Severity order within groups** — blockers first, then critical, then suggestions
-4. **Test additions last** — after the code they test is already fixed
-
----
-
-## Phase 4: Execute Fixes
+## 3. Execute
 
 For each fix in the planned order:
 
@@ -301,7 +243,7 @@ At any point the user can say:
 
 ---
 
-## Phase 5: Validate & Summarize
+## 4. Validate
 
 ### Validation
 

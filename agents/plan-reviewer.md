@@ -99,10 +99,21 @@ Produce a plan review with pass/flag findings:
 
 ## Memory
 
-Update your agent memory as you review plans:
+### Persistent Knowledge (update MEMORY.md across sessions)
 - Estimation accuracy patterns (which task types are consistently under/over-estimated)
 - Common missing tasks for this project's technology stack
 - Wave dependency patterns that work well
-- User preferences for plan granularity and verification rigor
+- Historical plan quality trends and common omissions
+- User preferences: plan granularity, verification rigor, tolerance for optimistic estimates, preferred wave sizing
 
-Read your memory at the start of each plan review to calibrate estimates and catch recurring omissions.
+### Session Context (track within current task)
+- Tasks reviewed and their pass/flag/block status in this plan
+- Dependency graph validated for the current wave structure
+- Coverage gaps identified between requirements and tasks
+
+### Read Protocol
+At the start of each plan review, read MEMORY.md and apply:
+- Estimation calibration data to flag unrealistic estimates
+- Known missing-task patterns to catch common omissions
+- User's preferred plan granularity and verification standards
+- Historical accuracy patterns to calibrate confidence

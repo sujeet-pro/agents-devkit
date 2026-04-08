@@ -108,13 +108,13 @@ For documents that need formal structure and rigorous content, use `docs-write`:
 ```text
 /adk:docs-write --type adr caching strategy decision for the API layer
 /adk:docs-write --type rfc migration from REST to gRPC for inter-service communication
-/adk:docs-write --type tdd user authentication service technical design
+/adk:docs-write --type system-design user authentication service technical design
 ```
 
 ### Controlling the audience and tone
 
 ```text
-/adk:docs-write --type hld --audience executives --tone formal system architecture overview
+/adk:docs-write --type system-design --audience executives --tone formal system architecture overview
 /adk:docs-write --type runbook --audience on-call-engineers --tone procedural database failover procedure
 ```
 
@@ -129,7 +129,7 @@ Publish to Confluence during creation:
 ### Output location
 
 ```text
-/adk:docs-write --type tdd --output-dir ./docs/designs/ payment processing design
+/adk:docs-write --type system-design --output-dir ./docs/designs/ payment processing design
 ```
 
 ---
@@ -248,6 +248,6 @@ This reads comments (from Confluence or inline), generates responses, and option
 
 ## Related Skills
 
-- **[`spec`](/reference/skills/spec/)** — write specifications (a specialized form of documentation)
-- **[`diagram`](/reference/skills/diagram/)** — create diagrams to include in docs
-- **[`research`](/reference/skills/research/)** — research a topic before documenting it
+- **[`spec`](/reference/skill-spec/)** — write specifications (a specialized form of documentation)
+- **[`diagram`](/reference/skill-diagram/)** — create diagrams to include in docs
+- **[`research`](/reference/skill-research/)** — research a topic before documenting it

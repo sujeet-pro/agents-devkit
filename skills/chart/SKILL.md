@@ -8,6 +8,8 @@ dependencies:
   commands: [git, node, python3]
   npm-packages: [@chartts/cli]
 workflow-tier: full
+maturity: stable
+workflow-family: quick-action
 ---
 
 # Data Chart
@@ -22,7 +24,7 @@ This skill uses shared helper skills. Load each skill's reference file ONLY when
 
 | Skill | Load When | Inline Fallback |
 |-------|-----------|-----------------|
-| `/adk:workflow` | always | 6-phase workflow: intent → research → approach → plan → execute → validate. Complexity-adaptive skipping for trivial/small tasks. |
+| `/adk:workflow --family quick-action` | always | Quick Action workflow: confirm → execute → verify. For narrow tasks with single execution path. `--auto` skips confirmations. |
 | `/adk:communication` | always | Lead with conclusion. Bullet points. No preamble. Concrete specifics over abstractions. |
 | `/adk:preflight-check` | before rendering | Run preflight.py for chartts CLI validation. |
 | `/adk:output-format` | when producing output | short/standard/detailed verbosity. Keep both data file and rendered chart. |
@@ -70,17 +72,6 @@ If a required helper skill is unavailable, print a warning and continue using th
 
 `python3 ${CLAUDE_SKILL_DIR}/scripts/preflight.py ${CLAUDE_SKILL_DIR}`
 
-## Phase Applicability
-
-| Phase | Applies | Notes |
-|-------|---------|-------|
-| 0. Intent Expansion | yes | Confirm the goal, data source, chart type, and output format |
-| 1. Research & Options | yes | Analyze data, determine chart type and data structure |
-| 2. Approach Selection | skip | Direct execution after early confirmation |
-| 3. Planning | skip | Direct execution |
-| 4. Execute | yes | Generate data file and render chart |
-| 5. Validate & Learn | yes | Verify rendering, check data accuracy, confirm readability |
-
 ## Human in the Loop
 
 - **Plan first (Phase 0)**: Confirm intent — data source, chart type, dimensions, and theme — before generating.
@@ -88,11 +79,11 @@ If a required helper skill is unavailable, print a warning and continue using th
 
 ## Workflow
 
-### Phase 0: Intent Confirmation
+### 1. Confirm
 
 Confirm: chart type, data source (existing file or data to generate), output format, dimensions, and theme.
 
-### Phase 1: Data Analysis
+### 2. Execute
 
 If `--data` is provided, read the file and analyze its structure. If no data file exists, create one from the user's description or research.
 
@@ -113,8 +104,6 @@ Determine the best chart type if not specified:
 | Price/financial data | `candlestick` |
 | Heat patterns | `heatmap` |
 | Progress over time | `waterfall` |
-
-### Phase 4: Generate Chart
 
 #### Step 1: Prepare Data File
 
@@ -165,7 +154,7 @@ For `--theme both`, render two variants:
 - `<name>-light.svg` with `--theme light`
 - `<name>-dark.svg` with `--theme dark`
 
-### Phase 5: Validate & Report
+### 3. Verify
 
 ```
 Chart rendered:

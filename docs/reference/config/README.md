@@ -87,7 +87,7 @@ Each skill's `SKILL.md` uses YAML frontmatter:
 ## Plugin Structure
 
 ```
-agents-devkit/                        51 skills · 18 agents · ~42K lines
+agents-devkit/                        52 skills · 18 agents · ~42K lines
 ├── .claude-plugin/
 │   └── plugin.json                   Plugin manifest (name: adk)
 ├── .mcp.json                         MCP server configurations
@@ -98,9 +98,8 @@ agents-devkit/                        51 skills · 18 agents · ~42K lines
 ├── templates/skill/                  Canonical templates and propagation
 │   ├── common/                       Cross-skill files (help-format, project-guidelines)
 │   └── scripts/                      Preflight and propagation scripts
-├── skills/                           51 skills (only relevant ones load per task)
+├── skills/                           52 skills (only relevant ones load per task)
 │   ├── use/                          Routing — default orchestrator
-│   ├── team/                         Routing — multi-model agent dispatch
 │   ├── code-review/                  Routing — review type detection
 │   ├── docs/                         Routing — documentation task routing
 │   ├── dev/                          Routing — development task routing
@@ -120,7 +119,8 @@ agents-devkit/                        51 skills · 18 agents · ~42K lines
 │   ├── code-review-pr/              Task — PR review (11 conditional stages)
 │   ├── dev-build/                    Task — implement/debug/TDD (7 conditional stages)
 │   ├── docs-write/                   Task — formal docs (16 conditional stages)
-│   ├── (+ 25 more task skills)
+│   ├── team/                         Task — multi-model agent dispatch
+│   ├── (+ 26 more task skills)
 ├── manifest.json                     Upstream source tracking
 └── docs/                             Documentation site (@pagesmith/docs)
 ```

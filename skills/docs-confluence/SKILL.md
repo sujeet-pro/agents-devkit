@@ -8,6 +8,8 @@ dependencies:
   commands: [curl, jq, python3]
   mcp-servers: [detect-from-input]
 workflow-tier: full
+maturity: stable
+workflow-family: standard-task
 ---
 
 # Confluence Documentation
@@ -20,7 +22,7 @@ This skill uses shared helper skills. Load each skill's reference file ONLY when
 
 | Skill | Load When | Inline Fallback |
 |-------|-----------|-----------------|
-| `/adk:workflow` | always | 6-phase workflow: intent -> research -> approach -> plan -> execute -> validate. |
+| `/adk:workflow --family standard-task` | always | Standard Task workflow: confirm → research → execute → validate. For tasks with known approach that benefit from context scan. `--auto` skips confirmations. |
 | `/adk:communication` | always | Lead with conclusion. Bullet points. No preamble. |
 | `/adk:preflight-check` | before work | Run preflight.py for tool/MCP validation. |
 | `/adk:output-format` | when producing output | short/standard/detailed verbosity. |
@@ -116,17 +118,6 @@ last_synced: "2026-04-06T00:00:00Z"
 ```
 
 When writing to Confluence, read frontmatter to determine target page.
-
-## Phase Applicability
-
-| Phase | Applies | Notes |
-|-------|---------|-------|
-| 0. Intent | yes | Confirm action, target, format |
-| 1. Research | yes | Read page/file, detect format, check sync state |
-| 2. Approach | conditional | Only for sync when conflicts detected |
-| 3. Planning | conditional | Only for sync with multiple pages |
-| 4. Execute | yes | Perform read/write/sync |
-| 5. Validate | yes | Verify content matches, links work |
 
 ## Adjacent Skills
 

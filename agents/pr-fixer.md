@@ -54,10 +54,21 @@ For each fix, report:
 
 ## Memory
 
-Update your agent memory as you fix PR comments:
+### Persistent Knowledge (update MEMORY.md across sessions)
 - Project code style and conventions observed
 - Common fix patterns for recurring review feedback
 - File relationships and dependencies encountered
-- Reviewer preferences and expectations
+- Reviewer preferences and expectations per team member
+- User preferences: fix conservatism, auto-format behavior, comment reply style
 
-Read your memory at the start of each fix session to apply project conventions consistently.
+### Session Context (track within current task)
+- Comments processed and fixes applied in this session
+- Files modified and their interdependencies
+- Ambiguous comments flagged for clarification
+
+### Read Protocol
+At the start of each fix session, read MEMORY.md and apply:
+- Known code conventions to write style-consistent fixes
+- Reviewer-specific expectations for targeted responses
+- Common fix patterns to handle recurring feedback types
+- User's preferred fix approach and reply verbosity

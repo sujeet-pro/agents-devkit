@@ -88,11 +88,22 @@ For each finding, output:
 
 ## Memory
 
-Update your agent memory as you review code:
+### Persistent Knowledge (update MEMORY.md across sessions)
 - Project coding patterns, conventions, and style preferences
 - Recurring issues and anti-patterns specific to this codebase
 - Framework and library usage patterns
-- User preferences for review depth and comment style
 - False positives to avoid in future reviews
+- User preferences: review depth, comment style, severity thresholds, preferred fix verbosity
 
-Read your memory at the start of each review to apply accumulated knowledge.
+### Session Context (track within current task)
+- Files reviewed and their relationships in the current changeset
+- Patterns observed across this review's diff
+- Confidence calibration notes for findings in progress
+- Cross-file issues that span multiple changes
+
+### Read Protocol
+At the start of each review, read MEMORY.md and apply:
+- Known project conventions to reduce false positives
+- User's preferred review depth and feedback tone
+- Previously identified anti-patterns to catch recurring issues faster
+- Codebase-specific severity calibration

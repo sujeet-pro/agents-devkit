@@ -9,7 +9,7 @@
     {
       "name": "adk",
       "description": "Agent Development Kit — 41 principal-engineer-grade skills for software development agents: code review, docs, research, audits, diagrams, planning, migration, refactoring, and MCP-native publishing.",
-      "version": "2.0.0",
+      "version": "2.1.0",
       "source": "./",
       "author": {
         "name": "Sujeet Jaiswal",

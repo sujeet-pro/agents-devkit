@@ -137,4 +137,4 @@ See [Prerequisites — API Tokens](/guide/prerequisites/#step-2-api-tokens) for 
 ## Related Skills
 
 - **[Prerequisites guide](/guide/prerequisites/)** — required tokens and Homebrew setup
-- **[`preflight-check`](/reference/skills/preflight-check/)** — per-task tool validation (auto-invoked)
+- **[`preflight-check`](/reference/skill-preflight-check/)** — per-task tool validation (auto-invoked)

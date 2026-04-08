@@ -4,16 +4,9 @@ Write the test first. Watch it fail. Write minimal code to pass.
 
 **Core principle:** If you didn't watch the test fail, you don't know if it tests the right thing.
 
-## Phase Applicability
+## Workflow
 
-| Phase | Applies | Notes |
-|-------|---------|-------|
-| 0. Intent Expansion | yes | Confirm the goal, assumptions, required tools, and success criteria before acting |
-| 1. Research & Options | yes | Analyze requirements, scan test patterns, identify test framework; Research test patterns for chosen approach, define test plan |
-| 2. Approach Selection | yes | Discuss test strategy, API design, edge cases to cover; Iterate on test plan and API design with user |
-| 3. Planning | yes | Sequence of red-green-refactor cycles |
-| 4. Execute | yes | Strict red-green-refactor cycle |
-| 5. Validate & Learn | yes | Verify all tests meaningful, no over-engineering |
+This stage uses the **Complex Build** workflow: confirm → research → select approach → plan → execute → validate.
 
 ## Exploration Guidance
 

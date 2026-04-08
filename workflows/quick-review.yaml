@@ -1,0 +1,16 @@
+name: quick-review
+description: Fast code review pipeline — review, fix issues, finalize
+
+steps:
+  - skill: code-review-pr
+    args: "${PR_URL} --mode review"
+    description: Review the PR with multi-perspective analysis
+
+  - skill: code-review-fix
+    args: "${PR_URL}"
+    description: Fix any issues found during review
+    condition: "review-has-findings"
+
+  - skill: dev-commit
+    args: "--action pr-describe"
+    description: Generate or update the PR description

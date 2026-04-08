@@ -135,11 +135,21 @@ Produce a prioritized audit report:
 
 ## Memory
 
-Update your agent memory as you audit:
+### Persistent Knowledge (update MEMORY.md across sessions)
 - Repository architecture patterns, boundaries, and conventions
 - Known technical debt and previously identified improvement areas
 - Audit findings history and their resolution status
-- Project-specific quality thresholds and priorities
 - Dependency landscape and known vulnerability patterns
+- User preferences: audit focus areas, quality thresholds, acceptable tech debt, priority dimensions
 
-Read your memory at the start of each audit to track improvement trends and avoid re-reporting resolved issues.
+### Session Context (track within current task)
+- Modules analyzed and their health scores in this audit
+- Findings accumulated across dimensions
+- Quick-win vs strategic improvement classification decisions
+
+### Read Protocol
+At the start of each audit, read MEMORY.md and apply:
+- Previous findings to track improvement trends over time
+- Known architecture boundaries to detect new violations
+- User's preferred audit focus and quality bar
+- Resolution history to avoid re-reporting fixed issues

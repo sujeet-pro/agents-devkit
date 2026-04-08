@@ -166,6 +166,6 @@ Use `test` for interactive user acceptance testing (UAT) based on specs, plans, 
 
 ## Related Skills
 
-- **[`code-review-repo`](/reference/skills/code-review-repo/)** — whole-repo code review (overlaps with codebase audit)
-- **[`dev-build --mode debug`](/reference/skills/dev-build/)** — fix issues found during audits
-- **[`code-review-fix`](/reference/skills/code-review-fix/)** — fix review comments
+- **[`code-review-repo`](/reference/skill-code-review-repo/)** — whole-repo code review (overlaps with codebase audit)
+- **[`dev-build --mode debug`](/reference/skill-dev-build/)** — fix issues found during audits
+- **[`code-review-fix`](/reference/skill-code-review-fix/)** — fix review comments

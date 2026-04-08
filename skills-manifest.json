@@ -1,0 +1,744 @@
+{
+  "version": "2.0.0",
+  "generated": "2026-04-08",
+  "skill_count": 52,
+  "categories": {
+    "task": 30,
+    "guideline": 17,
+    "routing": 5
+  },
+  "skills": [
+    {
+      "name": "agentic-teams",
+      "description": "Child-agent contract for parallel agentic teams. Standard team shapes for review, research, docs, diagrams, security, migration, planning.",
+      "category": "guideline",
+      "tier": "helper",
+      "maturity": "stable",
+      "user_invocable": "false",
+      "invocation": {
+        "plugin": "/adk:agentic-teams",
+        "skills_sh": "/agentic-teams"
+      },
+      "area": "guideline"
+    },
+    {
+      "name": "architecture",
+      "description": "Helper skill that provides software architecture patterns, principles, and review criteria. Used by review, audit, and design skills.",
+      "category": "guideline",
+      "tier": "helper",
+      "maturity": "stable",
+      "user_invocable": "false",
+      "invocation": {
+        "plugin": "/adk:architecture",
+        "skills_sh": "/architecture"
+      },
+      "area": "guidelines"
+    },
+    {
+      "name": "audit",
+      "description": "Use when performing a codebase, security, performance, or dependency audit -- auto-detects focus or use --focus to specify",
+      "category": "task",
+      "tier": "full",
+      "maturity": "stable",
+      "user_invocable": "true",
+      "invocation": {
+        "plugin": "/adk:audit",
+        "skills_sh": "/audit"
+      },
+      "area": "audit",
+      "family": "complex-build",
+      "has_stages": true
+    },
+    {
+      "name": "bitbucket",
+      "description": "Bitbucket REST API operations — PR reviews, comments, repository access, and pipeline status",
+      "category": "guideline",
+      "tier": "helper",
+      "maturity": "stable",
+      "user_invocable": "false",
+      "invocation": {
+        "plugin": "/adk:bitbucket",
+        "skills_sh": "/bitbucket"
+      },
+      "area": "connector",
+      "has_references": true
+    },
+    {
+      "name": "chart",
+      "description": "Create data charts — bar, line, pie, scatter, area, and 30+ chart types from CSV/JSON data. CLI-based SVG/PNG rendering.",
+      "category": "task",
+      "tier": "full",
+      "maturity": "stable",
+      "user_invocable": "true",
+      "invocation": {
+        "plugin": "/adk:chart",
+        "skills_sh": "/chart"
+      },
+      "area": "chart",
+      "family": "quick-action"
+    },
+    {
+      "name": "code-review",
+      "description": "Code review router — detects review type and routes to the right sub-skill",
+      "category": "routing",
+      "tier": "orchestrator",
+      "maturity": "stable",
+      "user_invocable": "true",
+      "invocation": {
+        "plugin": "/adk:code-review",
+        "skills_sh": "/code-review"
+      },
+      "area": "code-review"
+    },
+    {
+      "name": "code-review-fix",
+      "description": "Fix PR review comments — reads comments, applies code fixes, replies to reviewers, marks threads resolved.",
+      "category": "task",
+      "tier": "full",
+      "maturity": "stable",
+      "user_invocable": "true",
+      "invocation": {
+        "plugin": "/adk:code-review-fix",
+        "skills_sh": "/code-review-fix"
+      },
+      "area": "code-review",
+      "family": "standard-task"
+    },
+    {
+      "name": "code-review-pr",
+      "description": "PR, local, or branch code review — review, fix, describe, finalize with conditional stages",
+      "category": "task",
+      "tier": "full",
+      "maturity": "stable",
+      "user_invocable": "true",
+      "invocation": {
+        "plugin": "/adk:code-review-pr",
+        "skills_sh": "/code-review-pr"
+      },
+      "area": "code-review",
+      "family": "complex-build",
+      "has_stages": true
+    },
+    {
+      "name": "code-review-repo",
+      "description": "Review an entire repository — architecture, code quality, patterns, tech debt. Prioritized improvement plan.",
+      "category": "task",
+      "tier": "full",
+      "maturity": "stable",
+      "user_invocable": "true",
+      "invocation": {
+        "plugin": "/adk:code-review-repo",
+        "skills_sh": "/code-review-repo"
+      },
+      "area": "code-review",
+      "family": "complex-build"
+    },
+    {
+      "name": "coding",
+      "description": "Helper skill that detects repo tools, frameworks, and languages, then loads matching coding guidelines from the shared guideline library — invoked by review, PR, and development skills, not directly by users",
+      "category": "guideline",
+      "tier": "helper",
+      "maturity": "stable",
+      "user_invocable": "false",
+      "invocation": {
+        "plugin": "/adk:coding",
+        "skills_sh": "/coding"
+      },
+      "area": "guidelines",
+      "has_references": true
+    },
+    {
+      "name": "communication",
+      "description": "Communication style rules for all DevKit output. Lead with conclusions, use concrete specifics, avoid preamble.",
+      "category": "guideline",
+      "tier": "helper",
+      "maturity": "stable",
+      "user_invocable": "false",
+      "invocation": {
+        "plugin": "/adk:communication",
+        "skills_sh": "/communication"
+      },
+      "area": "guideline"
+    },
+    {
+      "name": "confluence",
+      "description": "Confluence REST API operations — page CRUD, comments, attachments, and space management",
+      "category": "guideline",
+      "tier": "helper",
+      "maturity": "stable",
+      "user_invocable": "false",
+      "invocation": {
+        "plugin": "/adk:confluence",
+        "skills_sh": "/confluence"
+      },
+      "area": "connector",
+      "has_references": true
+    },
+    {
+      "name": "create-skill",
+      "description": "Scaffold a new ADK skill — generates directory structure, SKILL.md with proper frontmatter, preflight script, and runs propagation",
+      "category": "task",
+      "tier": "abbreviated",
+      "maturity": "stable",
+      "user_invocable": "true",
+      "invocation": {
+        "plugin": "/adk:create-skill",
+        "skills_sh": "/create-skill"
+      },
+      "area": "meta",
+      "family": "quick-action"
+    },
+    {
+      "name": "deps-tracker",
+      "description": "Track upstream dependencies and inspirations for ADK skills. Detect changes in referenced tools/libraries and update skills accordingly.",
+      "category": "task",
+      "tier": "full",
+      "maturity": "stable",
+      "user_invocable": "true",
+      "invocation": {
+        "plugin": "/adk:deps-tracker",
+        "skills_sh": "/deps-tracker"
+      },
+      "area": "project",
+      "family": "investigative-loop"
+    },
+    {
+      "name": "design",
+      "description": "Use when designing frontend UI/UX, auditing visual design, or creating design direction",
+      "category": "task",
+      "tier": "full",
+      "maturity": "stable",
+      "user_invocable": "true",
+      "invocation": {
+        "plugin": "/adk:design",
+        "skills_sh": "/design"
+      },
+      "area": "design",
+      "family": "complex-build"
+    },
+    {
+      "name": "dev",
+      "description": "Development router — detects dev task type and routes to the right sub-skill",
+      "category": "routing",
+      "tier": "orchestrator",
+      "maturity": "stable",
+      "user_invocable": "true",
+      "invocation": {
+        "plugin": "/adk:dev",
+        "skills_sh": "/dev"
+      },
+      "area": "dev"
+    },
+    {
+      "name": "dev-build",
+      "description": "Implement features, debug, enhance code, or run TDD — auto-detects mode from context",
+      "category": "task",
+      "tier": "full",
+      "maturity": "stable",
+      "user_invocable": "true",
+      "invocation": {
+        "plugin": "/adk:dev-build",
+        "skills_sh": "/dev-build"
+      },
+      "area": "dev",
+      "family": "complex-build",
+      "has_stages": true
+    },
+    {
+      "name": "dev-commit",
+      "description": "Create commits or PR descriptions — analyzes changes, generates conventional commit messages",
+      "category": "task",
+      "tier": "full",
+      "maturity": "stable",
+      "user_invocable": "true",
+      "invocation": {
+        "plugin": "/adk:dev-commit",
+        "skills_sh": "/dev-commit"
+      },
+      "area": "dev",
+      "family": "quick-action"
+    },
+    {
+      "name": "dev-migrate",
+      "description": "Migrate frameworks, libraries, or language versions — analyze breaking changes, map to codebase, execute migration plan",
+      "category": "task",
+      "tier": "full",
+      "maturity": "stable",
+      "user_invocable": "true",
+      "invocation": {
+        "plugin": "/adk:dev-migrate",
+        "skills_sh": "/dev-migrate"
+      },
+      "area": "dev",
+      "family": "complex-build"
+    },
+    {
+      "name": "dev-refactor",
+      "description": "Refactor code — extract, rename, restructure, simplify, or modernize patterns across files with safe, tested transformations",
+      "category": "task",
+      "tier": "full",
+      "maturity": "stable",
+      "user_invocable": "true",
+      "invocation": {
+        "plugin": "/adk:dev-refactor",
+        "skills_sh": "/dev-refactor"
+      },
+      "area": "dev",
+      "family": "standard-task"
+    },
+    {
+      "name": "diagram",
+      "description": "Diagram router — auto-detects the best engine and routes to the right diagram skill",
+      "category": "routing",
+      "tier": "orchestrator",
+      "maturity": "stable",
+      "user_invocable": "true",
+      "invocation": {
+        "plugin": "/adk:diagram",
+        "skills_sh": "/diagram"
+      },
+      "area": "diagram"
+    },
+    {
+      "name": "diagram-drawio",
+      "description": "Create draw.io diagrams — precise layout with rich icon library for network topology, enterprise architecture, and BPMN.",
+      "category": "task",
+      "tier": "full",
+      "maturity": "stable",
+      "user_invocable": "true",
+      "invocation": {
+        "plugin": "/adk:diagram-drawio",
+        "skills_sh": "/diagram-drawio"
+      },
+      "area": "diagram",
+      "family": "quick-action",
+      "has_references": true
+    },
+    {
+      "name": "diagram-excalidraw",
+      "description": "Create Excalidraw diagrams — hand-drawn style architecture overviews and freeform diagrams. Full JSON format reference with light/dark mode.",
+      "category": "task",
+      "tier": "full",
+      "maturity": "stable",
+      "user_invocable": "true",
+      "invocation": {
+        "plugin": "/adk:diagram-excalidraw",
+        "skills_sh": "/diagram-excalidraw"
+      },
+      "area": "diagram",
+      "family": "quick-action",
+      "has_references": true
+    },
+    {
+      "name": "diagram-graphviz",
+      "description": "Create Graphviz DOT diagrams — strict layout for dependency graphs and existing .dot assets. WASM-based rendering, no browser needed.",
+      "category": "task",
+      "tier": "full",
+      "maturity": "stable",
+      "user_invocable": "true",
+      "invocation": {
+        "plugin": "/adk:diagram-graphviz",
+        "skills_sh": "/diagram-graphviz"
+      },
+      "area": "diagram",
+      "family": "quick-action",
+      "has_references": true
+    },
+    {
+      "name": "diagram-mermaid",
+      "description": "Create Mermaid diagrams with full syntax reference for all 21 diagram types. Supports light/dark mode via diagramkit.",
+      "category": "task",
+      "tier": "full",
+      "maturity": "stable",
+      "user_invocable": "true",
+      "invocation": {
+        "plugin": "/adk:diagram-mermaid",
+        "skills_sh": "/diagram-mermaid"
+      },
+      "area": "diagram",
+      "family": "quick-action",
+      "has_references": true
+    },
+    {
+      "name": "docs",
+      "description": "Documentation router — detects doc task type and routes to the right sub-skill",
+      "category": "routing",
+      "tier": "orchestrator",
+      "maturity": "stable",
+      "user_invocable": "true",
+      "invocation": {
+        "plugin": "/adk:docs",
+        "skills_sh": "/docs"
+      },
+      "area": "docs"
+    },
+    {
+      "name": "docs-confluence",
+      "description": "Confluence-specific documentation — read/write Confluence pages with format mapping between Confluence storage format and markdown",
+      "category": "task",
+      "tier": "full",
+      "maturity": "stable",
+      "user_invocable": "true",
+      "invocation": {
+        "plugin": "/adk:docs-confluence",
+        "skills_sh": "/docs-confluence"
+      },
+      "area": "docs",
+      "family": "standard-task"
+    },
+    {
+      "name": "docs-crud",
+      "description": "Manage documentation lifecycle — create, update, improve, respond to comments",
+      "category": "task",
+      "tier": "full",
+      "maturity": "stable",
+      "user_invocable": "true",
+      "invocation": {
+        "plugin": "/adk:docs-crud",
+        "skills_sh": "/docs-crud"
+      },
+      "area": "docs",
+      "family": "standard-task",
+      "has_references": true
+    },
+    {
+      "name": "docs-guidelines",
+      "description": "Detects the document type being written and loads matching document guidelines — invoked by docs-write and docs-review",
+      "category": "guideline",
+      "tier": "helper",
+      "maturity": "stable",
+      "user_invocable": "false",
+      "invocation": {
+        "plugin": "/adk:docs-guidelines",
+        "skills_sh": "/docs-guidelines"
+      },
+      "area": "docs",
+      "has_references": true
+    },
+    {
+      "name": "docs-md",
+      "description": "Markdown feature detection and formatting guidelines — pagesmith, GitHub, and plain markdown",
+      "category": "guideline",
+      "tier": "helper",
+      "maturity": "stable",
+      "user_invocable": "false",
+      "invocation": {
+        "plugin": "/adk:docs-md",
+        "skills_sh": "/docs-md"
+      },
+      "area": "docs"
+    },
+    {
+      "name": "docs-repo",
+      "description": "Generate comprehensive repository documentation using pagesmith",
+      "category": "task",
+      "tier": "full",
+      "maturity": "stable",
+      "user_invocable": "true",
+      "invocation": {
+        "plugin": "/adk:docs-repo",
+        "skills_sh": "/docs-repo"
+      },
+      "area": "docs",
+      "family": "standard-task"
+    },
+    {
+      "name": "docs-review",
+      "description": "Review documentation — local files, Confluence, or Google Docs. Standard, interactive, and follow-up modes with multi-dimensional analysis.",
+      "category": "task",
+      "tier": "full",
+      "maturity": "stable",
+      "user_invocable": "true",
+      "invocation": {
+        "plugin": "/adk:docs-review",
+        "skills_sh": "/docs-review"
+      },
+      "area": "docs",
+      "family": "standard-task",
+      "has_stages": true
+    },
+    {
+      "name": "docs-write",
+      "description": "Create or update formal engineering documents — auto-detects type, loads the right stage, optional Confluence/Google Docs publishing",
+      "category": "task",
+      "tier": "full",
+      "maturity": "stable",
+      "user_invocable": "true",
+      "invocation": {
+        "plugin": "/adk:docs-write",
+        "skills_sh": "/docs-write"
+      },
+      "area": "docs",
+      "family": "standard-task",
+      "has_stages": true
+    },
+    {
+      "name": "github",
+      "description": "GitHub operations via gh CLI — PR reviews, comments, issues, and repository access",
+      "category": "guideline",
+      "tier": "helper",
+      "maturity": "stable",
+      "user_invocable": "false",
+      "invocation": {
+        "plugin": "/adk:github",
+        "skills_sh": "/github"
+      },
+      "area": "connector",
+      "has_references": true
+    },
+    {
+      "name": "handoff",
+      "description": "Use when handing off sessions or managing persistent context threads",
+      "category": "task",
+      "tier": "full",
+      "maturity": "stable",
+      "user_invocable": "true",
+      "invocation": {
+        "plugin": "/adk:handoff",
+        "skills_sh": "/handoff"
+      },
+      "area": "handoff",
+      "family": "quick-action",
+      "has_stages": true
+    },
+    {
+      "name": "interaction",
+      "description": "Inline interaction protocols for intent confirmation, approach selection, plan approval, review findings, and progress dashboards.",
+      "category": "guideline",
+      "tier": "helper",
+      "maturity": "stable",
+      "user_invocable": "false",
+      "invocation": {
+        "plugin": "/adk:interaction",
+        "skills_sh": "/interaction"
+      },
+      "area": "guideline"
+    },
+    {
+      "name": "interactivity",
+      "description": "Agent-first interaction orchestration for option selection, data capture, edits, and human approval",
+      "category": "task",
+      "tier": "full",
+      "maturity": "stable",
+      "user_invocable": "true",
+      "invocation": {
+        "plugin": "/adk:interactivity",
+        "skills_sh": "/interactivity"
+      },
+      "area": "interaction",
+      "family": "quick-action"
+    },
+    {
+      "name": "jira",
+      "description": "Jira REST API operations — issue management, comments, search, projects, boards, and sprints",
+      "category": "guideline",
+      "tier": "helper",
+      "maturity": "stable",
+      "user_invocable": "false",
+      "invocation": {
+        "plugin": "/adk:jira",
+        "skills_sh": "/jira"
+      },
+      "area": "connector",
+      "has_references": true
+    },
+    {
+      "name": "output-format",
+      "description": "Output format standards: verbosity modes (short/standard/detailed), PR comment templates, document templates, priority labels, and cross-platform markdown rules.",
+      "category": "guideline",
+      "tier": "helper",
+      "maturity": "stable",
+      "user_invocable": "false",
+      "invocation": {
+        "plugin": "/adk:output-format",
+        "skills_sh": "/output-format"
+      },
+      "area": "guideline"
+    },
+    {
+      "name": "plan",
+      "description": "Use when brainstorming, approving, executing, or tracking implementation plans with explicit human checkpoints before execution",
+      "category": "task",
+      "tier": "full",
+      "maturity": "stable",
+      "user_invocable": "true",
+      "invocation": {
+        "plugin": "/adk:plan",
+        "skills_sh": "/plan"
+      },
+      "area": "plan",
+      "family": "complex-build",
+      "has_stages": true
+    },
+    {
+      "name": "preflight-check",
+      "description": "Preflight validation for dependencies, MCP servers, and tool readiness. Run before launching child agents, reviews, or publishing.",
+      "category": "guideline",
+      "tier": "helper",
+      "maturity": "stable",
+      "user_invocable": "false",
+      "invocation": {
+        "plugin": "/adk:preflight-check",
+        "skills_sh": "/preflight-check"
+      },
+      "area": "guideline"
+    },
+    {
+      "name": "principal-engineer",
+      "description": "Principal Engineer questioning framework applied before committing to significant work. Five questions: need, simplest, alternatives, maintenance, clarity.",
+      "category": "guideline",
+      "tier": "helper",
+      "maturity": "stable",
+      "user_invocable": "false",
+      "invocation": {
+        "plugin": "/adk:principal-engineer",
+        "skills_sh": "/principal-engineer"
+      },
+      "area": "guideline"
+    },
+    {
+      "name": "project",
+      "description": "Use when initializing projects, managing milestones, or capturing ideas",
+      "category": "task",
+      "tier": "full",
+      "maturity": "stable",
+      "user_invocable": "true",
+      "invocation": {
+        "plugin": "/adk:project",
+        "skills_sh": "/project"
+      },
+      "area": "project",
+      "family": "standard-task",
+      "has_stages": true
+    },
+    {
+      "name": "research",
+      "description": "Use when you need to research a software engineering topic — searches official sources, implementations, and community patterns, then produces structured markdown with citations",
+      "category": "task",
+      "tier": "full",
+      "maturity": "stable",
+      "user_invocable": "true",
+      "invocation": {
+        "plugin": "/adk:research",
+        "skills_sh": "/research"
+      },
+      "area": "research",
+      "family": "complex-build",
+      "has_references": true
+    },
+    {
+      "name": "review-standards",
+      "description": "Review pipeline, source routing, and comment template standards for all review-oriented skills.",
+      "category": "guideline",
+      "tier": "helper",
+      "maturity": "stable",
+      "user_invocable": "false",
+      "invocation": {
+        "plugin": "/adk:review-standards",
+        "skills_sh": "/review-standards"
+      },
+      "area": "guideline"
+    },
+    {
+      "name": "setup",
+      "description": "Use when setting up, validating, or updating CLI tools and MCP server configurations for DevKit skills",
+      "category": "task",
+      "tier": "abbreviated",
+      "maturity": "stable",
+      "user_invocable": "true",
+      "invocation": {
+        "plugin": "/adk:setup",
+        "skills_sh": "/setup"
+      },
+      "area": "setup",
+      "family": "quick-action",
+      "has_stages": true,
+      "has_references": true
+    },
+    {
+      "name": "spec",
+      "description": "Use when analyzing specs, writing specifications, generating checklists, or writing constitutions",
+      "category": "task",
+      "tier": "full",
+      "maturity": "stable",
+      "user_invocable": "true",
+      "invocation": {
+        "plugin": "/adk:spec",
+        "skills_sh": "/spec"
+      },
+      "area": "spec",
+      "family": "standard-task",
+      "has_stages": true
+    },
+    {
+      "name": "team",
+      "description": "Use when dispatching multi-model tasks or coordinating agent teams",
+      "category": "task",
+      "tier": "full",
+      "maturity": "stable",
+      "user_invocable": "true",
+      "invocation": {
+        "plugin": "/adk:team",
+        "skills_sh": "/team"
+      },
+      "area": "team",
+      "family": "complex-build",
+      "has_stages": true
+    },
+    {
+      "name": "test",
+      "description": "Use when you need interactive user acceptance testing that extracts testable deliverables and walks the user through manual verification with automatic failure diagnosis",
+      "category": "task",
+      "tier": "abbreviated",
+      "maturity": "stable",
+      "user_invocable": "true",
+      "invocation": {
+        "plugin": "/adk:test",
+        "skills_sh": "/test"
+      },
+      "area": "utility",
+      "family": "quick-action"
+    },
+    {
+      "name": "use",
+      "description": "Use when starting any task to expand intent, identify the right DevKit skills, confirm the plan early with the user, and then execute the approved workflow",
+      "category": "routing",
+      "tier": "orchestrator",
+      "maturity": "stable",
+      "user_invocable": "true",
+      "invocation": {
+        "plugin": "/adk:use",
+        "skills_sh": "/use"
+      },
+      "area": "pipeline",
+      "has_references": true
+    },
+    {
+      "name": "workflow",
+      "description": "Helper skill providing 4 workflow families — Quick Action, Standard Task, Complex Build, Investigative Loop. Invoked by all task skills with --family flag.",
+      "category": "guideline",
+      "tier": "helper",
+      "maturity": "stable",
+      "user_invocable": "false",
+      "invocation": {
+        "plugin": "/adk:workflow",
+        "skills_sh": "/workflow"
+      },
+      "area": "framework",
+      "has_references": true
+    },
+    {
+      "name": "workspace-conventions",
+      "description": "Workspace file conventions — temp files, diagram output, artifact locations, and .gitignore management",
+      "category": "guideline",
+      "tier": "helper",
+      "maturity": "stable",
+      "user_invocable": "false",
+      "invocation": {
+        "plugin": "/adk:workspace-conventions",
+        "skills_sh": "/workspace-conventions"
+      },
+      "area": "guideline"
+    }
+  ]
+}

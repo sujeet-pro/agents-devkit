@@ -4,6 +4,7 @@ description: "adk - [helper] [guideline] Review pipeline, source routing, and co
 user-invocable: false
 allowed-tools: [Read]
 workflow-tier: helper
+maturity: stable
 ---
 
 # Review Standards

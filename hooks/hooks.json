@@ -1,12 +1,23 @@
 {
   "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "prompt",
+            "prompt": "Check if the bash command involves any of these dangerous git operations: 'git push --force' or 'git push -f' to main/master, 'git reset --hard' on main/master, 'git clean -fd' at repo root, or 'git branch -D main' / 'git branch -D master'. Also block 'rm -rf /' or any recursive delete of the project root. Return {\"decision\": \"block\", \"reason\": \"...\"} to block, or {\"decision\": \"allow\"} to allow. Only block genuinely dangerous commands, not normal git operations."
+          }
+        ]
+      }
+    ],
     "PostToolUse": [
       {
         "matcher": "Edit|Write",
         "hooks": [
           {
             "type": "prompt",
-            "prompt": "Check if the edited file is a SKILL.md. If so, verify the frontmatter has: name (no 'adk-' prefix), description (starts with 'adk -'). Return {\"ok\": true} if valid or not a SKILL.md, {\"ok\": false, \"reason\": \"...\"} if invalid."
+            "prompt": "Check if the edited file is a SKILL.md. If so, verify the frontmatter has: name (no 'adk-' prefix), description (starts with 'adk -'), maturity (one of: experimental, stable, battle-tested). Return {\"ok\": true} if valid or not a SKILL.md, {\"ok\": false, \"reason\": \"...\"} if invalid."
           }
         ]
       }

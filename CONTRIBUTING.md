@@ -23,7 +23,9 @@ agents-devkit/
 │   └── scripts/                 Preflight and propagation scripts
 ├── agents/                      Shared agent definitions (one .md per agent)
 ├── settings/                    MCP configuration guide
-└── skills/                      Skill library (41 skills: 12 guideline, 27 task, 2 routing)
+├── scripts/                     Repo-level utilities (manifest generation, maturity updates)
+├── workflows/                   Composable workflow pipelines (YAML)
+└── skills/                      Skill library (52 skills: 17 guideline/connector, 30 task, 5 routing)
 ```
 
 ## Skill Categories
@@ -33,20 +35,29 @@ agents-devkit/
 | **Guideline** (helper) | Reusable knowledge auto-invoked by task skills | `workflow`, `communication`, `coding`, `review-standards` |
 | **Connector** (helper) | Platform API wrappers with MCP fallback, auto-invoked by task skills | `github`, `bitbucket`, `confluence`, `jira` |
 | **Task** (user-facing) | Specific engineering tasks, self-sufficient with inline fallbacks | `code-review-pr`, `dev-build`, `docs-write`, `dev-migrate` |
-| **Routing** (orchestrator) | Coordinate and route across other skills | `use`, `team` |
+| **Routing** (orchestrator) | Coordinate and route across other skills | `use`, `team`, `code-review`, `docs`, `dev`, `diagram` |
 
 ## Skill Architecture
 
-### Workflow Tiers
+### Workflow Tiers and Families
 
-Every skill declares a `workflow-tier` in its YAML frontmatter:
+Every skill declares a `workflow-tier` and `workflow-family` in its YAML frontmatter:
 
-| Tier | Description | Skills |
-| ---- | ----------- | ------ |
-| `full` | Full 6-phase framework with human-in-the-loop | code-review-pr, code-review-repo, code-review-fix, docs-review, docs-write, dev-build, dev-refactor, dev-migrate, dev-commit, plan, diagram, diagram-*, spec, project, audit, research, design, handoff, team, docs-repo, docs-crud, deps-tracker |
-| `abbreviated` | Framework with permanently skipped phases | test, setup |
-| `helper` | Auto-invoked by other skills, no workflow ownership | workflow, communication, principal-engineer, agentic-teams, output-format, interaction, preflight-check, review-standards, coding, docs-guidelines, docs-md, architecture, github, bitbucket, confluence, jira |
-| `orchestrator` | Multi-skill pipeline manager | use |
+| Tier | Description |
+| ---- | ----------- |
+| `full` | Uses a workflow family with human-in-the-loop |
+| `abbreviated` | Uses Quick Action workflow |
+| `helper` | Auto-invoked by other skills, no workflow ownership |
+| `orchestrator` | Multi-skill pipeline manager |
+
+| Family | Shape | Used By |
+| ------ | ----- | ------- |
+| `quick-action` | confirm → execute → verify | diagram-*, chart, test, setup, dev-commit, handoff, interactivity |
+| `standard-task` | confirm → research → execute → validate | docs-*, code-review-fix, dev-refactor, spec, project |
+| `complex-build` | confirm → research → select approach → plan → execute → validate | dev-build, dev-migrate, design, audit, code-review-pr/repo, research, plan, team |
+| `investigative-loop` | confirm → loop(investigate → hypothesize → test → refine) → summarize | deps-tracker, dev-build (debug mode) |
+
+Multi-mode skills declare a default family and per-mode overrides in frontmatter.
 
 ### Naming Convention
 
@@ -72,7 +83,7 @@ Example pattern in task skills:
 
 | Skill | Invoked | Inline Fallback |
 |-------|---------|-----------------|
-| `/adk:workflow` | always | 6-phase workflow: intent → research → approach → plan → execute → validate. |
+| `/adk:workflow --family standard-task` | always | Standard Task workflow: confirm → research → execute → validate. `--auto` skips confirmations. |
 | `/adk:communication` | always | Lead with conclusion. No preamble. Concrete specifics. |
 ```
 
@@ -90,6 +101,16 @@ python3 templates/skill/scripts/propagate.py --clean-refs     # Remove deprecate
 
 ## Adding a Skill
 
+The fastest way to create a new skill is with the `create-skill` meta-skill:
+
+```
+/adk:create-skill my-new-skill --category task --family standard-task
+```
+
+This generates the directory structure, SKILL.md with proper frontmatter, preflight script, and propagated common files.
+
+### Manual Creation
+
 1. **Create the skill directory**: `skills/<skill-name>/`
 2. **Create `SKILL.md`** with frontmatter:
    ```yaml
@@ -100,6 +121,7 @@ python3 templates/skill/scripts/propagate.py --clean-refs     # Remove deprecate
    argument-hint: "<required-arg> [--optional-arg]"
    allowed-tools: [Glob, Grep, Read, Edit, Write, Bash, Agent]
    workflow-tier: full
+   maturity: experimental
    dependencies:
      commands: [git]
    ---
@@ -107,11 +129,12 @@ python3 templates/skill/scripts/propagate.py --clean-refs     # Remove deprecate
 3. **Add the "Shared Skills" section** with the guideline skills your skill uses and their inline fallbacks
 4. **Create `references/`** for skill-specific reference material
 5. **Create `scripts/preflight.py`** — copy from `templates/skill/scripts/preflight.py`
-6. **Add the Phase Applicability table** to SKILL.md
+6. **Add `workflow-family` to frontmatter** and a `## Workflow` section describing the skill-specific workflow steps
 7. **Add the Output Format section** defining the markdown output structure
 8. **Add the Adjacent Skills section** listing related skills with `/adk:` prefix
 9. Use `${CLAUDE_SKILL_DIR}` to reference files within the skill directory
-10. **Test**: Run the skill with `--help` to verify
+10. **Run propagation**: `python3 templates/skill/scripts/propagate.py`
+11. **Test**: `python3 tests/test_skills.py` to validate structure and frontmatter
 
 ## Adding a Guideline Skill
 
@@ -170,7 +193,7 @@ python3 templates/skill/scripts/propagate.py --clean-refs     # Remove deprecate
    memory: project
    color: blue
    skills:
-     - adk-coding
+     - coding
    ---
    ```
 2. **`name` field**: Use `adk-<agent-name>` prefix to avoid collisions with user custom agents
@@ -183,11 +206,41 @@ python3 templates/skill/scripts/propagate.py --clean-refs     # Remove deprecate
 9. Skills reference agents by name with `adk-` prefix
 10. **Agent teams**: To enable parallel agent orchestration, add `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` to `.claude/settings.json` env
 
+## Maturity Levels
+
+Every skill declares a `maturity` field in frontmatter:
+
+| Level | Meaning | When to Use |
+|-------|---------|-------------|
+| `experimental` | New or significantly reworked; may have rough edges | New skills, major rewrites |
+| `stable` | Tested across multiple real-world uses; reliable | Most skills after initial validation |
+| `battle-tested` | Extensively used in production; thoroughly validated | Core skills with proven track record |
+
+New skills start as `experimental`. Promote to `stable` after real-world validation. Promote to `battle-tested` after extended production use.
+
+## Workspace Context
+
+Users can provide project-specific defaults via `.adk/context.yaml` in their workspace. Skills should check for this file and use its values to skip redundant questions. See the README for the context file format.
+
+## Composable Workflows
+
+Reusable multi-skill pipelines live in `workflows/` as YAML files. See [`workflows/README.md`](./workflows/README.md) for the format. Add new workflows when common skill chains emerge.
+
+## Skills Manifest
+
+`skills-manifest.json` at the repo root provides a machine-readable index of all skills. Regenerate after adding or modifying skills:
+
+```bash
+python3 scripts/generate-skills-manifest.py
+python3 scripts/generate-skills-manifest.py --check  # verify it's up to date
+```
+
 ## Conventions
 
 - **Skill descriptions**: start with `adk -` followed by bracket tags and "Use when..."
 - **Skill `name` field**: `<skill-name>` matching directory name (no `adk-` prefix; plugin provides the namespace)
 - **Workflow tier**: declare in frontmatter (`full`, `abbreviated`, `helper`, `orchestrator`)
+- **Maturity**: declare in frontmatter (`experimental`, `stable`, `battle-tested`)
 - **Skill cross-references**: use `/adk:<skill-name>` format
 - **Skill file references**: use `${CLAUDE_SKILL_DIR}/references/` or `${CLAUDE_SKILL_DIR}/scripts/`
 - **Self-sufficiency**: task skills include inline fallbacks for all shared knowledge
@@ -198,6 +251,7 @@ python3 templates/skill/scripts/propagate.py --clean-refs     # Remove deprecate
 - **Intermediary artifacts**: `.temp/<task-slug>/` directory (gitignored; see `/adk:workspace-conventions`)
 - **Diagram output**: `diagrams/` folder sibling to the document (or project root for standalone); both light+dark SVG and PNG
 - **Output**: markdown by default for all skill outputs
+- **Manifest**: regenerate `skills-manifest.json` after skill changes
 
 ## Upstream Sources
 

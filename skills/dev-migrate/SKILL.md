@@ -7,6 +7,8 @@ allowed-tools: [Glob, Grep, Read, Edit, Write, Bash, WebSearch, WebFetch, Agent]
 dependencies:
   commands: [git, python3]
 workflow-tier: full
+maturity: stable
+workflow-family: complex-build
 ---
 
 # Migration
@@ -19,12 +21,12 @@ This skill uses shared helper skills. Load each skill's reference file ONLY when
 
 | Skill | Load When | Inline Fallback |
 |-------|-----------|-----------------|
-| `/adk:workflow` | always | 6-phase workflow: intent → research → approach → plan → execute → validate. Complexity-adaptive skipping. |
+| `/adk:workflow --family complex-build` | always | Complex Build workflow: confirm → research → select approach → plan → execute → validate. Full human-in-the-loop for architectural decisions. `--auto` skips confirmations. |
 | `/adk:communication` | always | Lead with conclusion. Bullet points. No preamble. Concrete specifics over abstractions. |
 | `/adk:preflight-check` | before work | Run preflight.py for tool dependencies and MCP validation. |
 | `/adk:output-format` | when producing output | short/standard/detailed verbosity. Markdown default. |
 | `/adk:principal-engineer` | always for migrations | Five questions: need? simplest? alternatives? maintenance costs? clarity in 6 months? |
-| `/adk:agentic-teams` | complexity >= medium AND parallel work needed | Migration team: usage analyzer, changelog researcher, migration planner, risk assessor. |
+| `/adk:agentic-teams` | complexity >= medium AND parallel work needed | Launch `adk-migration-analyst` for migration analysis (usage mapping, changelogs, breaking changes, file-level impact). For larger scopes, split into parallel focused agents: usage analyzer, changelog researcher, migration planner, risk assessor. |
 | `/adk:interaction` | NOT --auto | Inline protocols for intent confirmation, approach selection, plan approval. |
 
 ---
@@ -75,17 +77,6 @@ When `--help` is passed, display this reference and stop.
 `python3 ${CLAUDE_SKILL_DIR}/scripts/preflight.py ${CLAUDE_SKILL_DIR}`
 
 If any declared dependency is missing, stop and tell the user what to install before proceeding.
-
-## Phase Applicability
-
-| Phase | Applies | Notes |
-|-------|---------|-------|
-| 0. Intent Expansion | yes | Confirm source, target, scope, and constraints |
-| 1. Research & Options | yes | Read official migration guides, changelogs, breaking changes, community patterns |
-| 2. Approach Selection | yes | Present migration strategies: incremental, big-bang, strangler pattern |
-| 3. Planning | yes | Map breaking changes to specific files, create ordered migration waves |
-| 4. Execute | yes | Apply changes wave by wave, run tests after each wave |
-| 5. Validate & Learn | yes | Full test suite, manual verification of critical paths |
 
 ---
 

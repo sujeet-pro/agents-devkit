@@ -4,6 +4,7 @@ description: "adk - [helper] [guideline] Inline interaction protocols for intent
 user-invocable: false
 allowed-tools: [Read]
 workflow-tier: helper
+maturity: stable
 ---
 
 # Inline Interaction Protocol
@@ -12,14 +13,13 @@ Claude Code's Bash tool does not provide an interactive TTY, so all interactivit
 
 ## Interaction Flags
 
-Skills that support interactive workflows accept these flags:
+Skills that support interactive workflows accept this flag:
 
 | Flag | Description |
 | ------ | ----------------------------------------------------------------------------------------- |
-| `-i` | **Inline interactivity** (default) — render interactions directly in the conversation |
 | `--auto` | **Automatic** — skip human confirmations and proceed with recommended defaults |
 
-When neither flag is provided, default to `-i` (inline).
+When `--auto` is not set, all interaction is rendered inline in the conversation (the default). When no arguments are provided, the skill enters interactive mode — asking the user for each required parameter with options to pick from, where the first option is the recommended choice based on prompt analysis.
 
 ---
 

@@ -4,16 +4,9 @@ Systematic debugging for bugs, test failures, and unexpected behavior. Random fi
 
 **Core principle:** ALWAYS find root cause before attempting fixes. Symptom fixes are failure.
 
-## Phase Applicability
+## Workflow
 
-| Phase | Applies | Notes |
-|-------|---------|-------|
-| 0. Intent Expansion | yes | Confirm the goal, assumptions, required tools, and success criteria before acting |
-| 1. Research & Options | yes | Gather evidence, reproduce bug, trace data flow; Root cause analysis replaces proposal |
-| 2. Approach Selection | skip | Debugging follows a fixed methodology; Fix is validated by tests, not iteration |
-| 3. Planning | skip | Single targeted fix, not a plan |
-| 4. Execute | yes | Four-phase debugging methodology |
-| 5. Validate & Learn | yes | Verify fix, check for regressions |
+This stage uses the **Investigative Loop** workflow: confirm → loop(investigate → hypothesize → test → refine) → summarize.
 
 ## Exploration Guidance
 

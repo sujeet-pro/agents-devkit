@@ -3,6 +3,7 @@ name: workspace-conventions
 description: "adk - [helper] [guideline] Workspace file conventions — temp files, diagram output, artifact locations, and .gitignore management"
 user-invocable: false
 workflow-tier: helper
+maturity: stable
 ---
 
 # Workspace Conventions

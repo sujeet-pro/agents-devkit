@@ -30,7 +30,7 @@ Traditional AI workflows often surprise users: the agent researches extensively,
 ```text
 Intent:
 - Goal: review PR #42 for security and performance
-- Skills: review-pr (primary), coding (guidelines)
+- Skills: code-review-pr (primary), coding (guidelines)
 - Tools: GitHub MCP (available)
 - Complexity: Medium (8 files changed)
 ```

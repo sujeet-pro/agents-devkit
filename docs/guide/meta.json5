@@ -1,18 +1,43 @@
 {
   displayName: "Guide",
   items: [
-    { displayName: "Prerequisites", slug: "prerequisites" },
-    { displayName: "Getting Started", slug: "getting-started" },
-    { displayName: "Philosophy & Design", slug: "philosophy" },
-    { displayName: "Skills Overview", slug: "skills" },
-    { displayName: "Workflow", slug: "workflow" },
-    { displayName: "Code Reviews", slug: "code-reviews" },
-    { displayName: "Development", slug: "development" },
-    { displayName: "Documentation", slug: "documentation" },
-    { displayName: "Diagrams", slug: "diagrams" },
-    { displayName: "Research & Planning", slug: "research-planning" },
-    { displayName: "Audits & Quality", slug: "audits-quality" },
-    { displayName: "Project Management", slug: "project-management" },
-    { displayName: "Setup & Configuration", slug: "setup-config" },
+    "prerequisites",
+    "getting-started",
+    "philosophy",
+
+    "skills",
+    "workflow",
+
+    "code-reviews",
+    "development",
+    "documentation",
+    "diagrams",
+    "research-planning",
+    "audits-quality",
+
+    "project-management",
+    "setup-config",
+  ],
+  series: [
+    {
+      displayName: "Getting Started",
+      slug: "getting-started-series",
+      articles: ["prerequisites", "getting-started", "philosophy"],
+    },
+    {
+      displayName: "Core Concepts",
+      slug: "core-concepts",
+      articles: ["skills", "workflow"],
+    },
+    {
+      displayName: "Use Cases",
+      slug: "use-cases",
+      articles: ["code-reviews", "development", "documentation", "diagrams", "research-planning", "audits-quality"],
+    },
+    {
+      displayName: "Administration",
+      slug: "administration",
+      articles: ["project-management", "setup-config"],
+    },
   ],
 }

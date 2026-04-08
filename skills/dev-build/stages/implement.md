@@ -2,16 +2,9 @@
 
 Build a new feature end-to-end: from interactive discussion through planning, test-driven development, review checkpoints, and full verification.
 
-## Phase Applicability
+## Workflow
 
-| Phase | Applies | Notes |
-|-------|---------|-------|
-| 0. Intent Expansion | yes | Confirm the goal, assumptions, required tools, and success criteria before acting |
-| 1. Research & Options | yes | Analyze requirements, scan codebase for patterns, identify constraints; Focused research on chosen approach, produce proposal with task breakdown |
-| 2. Approach Selection | yes | Surface gray areas, confirm scope, present 2-3 implementation approaches; Iterate on proposal — scope, architecture, testing strategy |
-| 3. Planning | yes | Break into discrete tasks with TDD steps, group into waves |
-| 4. Execute | yes | TDD cycle per task, review checkpoints between waves |
-| 5. Validate & Learn | yes | Full test suite, lint, type-check, build, UAT |
+This stage uses the **Complex Build** workflow: confirm → research → select approach → plan → execute → validate.
 
 ## Exploration Guidance
 

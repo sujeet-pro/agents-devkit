@@ -177,7 +177,7 @@ Use `code-review-repo` for a full codebase audit. This is read-only — it produ
 /adk:code-review-repo --focus all
 ```
 
-Available focus areas: architecture, code quality, patterns, testing, security, performance, dependencies, documentation.
+Available focus areas: `architecture`, `quality`, `patterns`, `debt`, `security`, `performance`, `all`.
 
 ### Review a specific path
 
@@ -236,6 +236,6 @@ Check PR status (CI, approvals, conflicts):
 
 ## Related Skills
 
-- **[`audit`](/reference/skills/audit/)** — deeper codebase audits with security/performance/dependency focus
-- **[`dev-build`](/reference/skills/dev-build/)** — implement fixes after review
-- **[`dev-commit`](/reference/skills/dev-commit/)** — commit changes and generate PR descriptions
+- **[`audit`](/reference/skill-audit/)** — deeper codebase audits with security/performance/dependency focus
+- **[`dev-build`](/reference/skill-dev-build/)** — implement fixes after review
+- **[`dev-commit`](/reference/skill-dev-commit/)** — commit changes and generate PR descriptions

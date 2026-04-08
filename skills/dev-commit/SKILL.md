@@ -8,6 +8,8 @@ allowed-tools: [Glob, Grep, Read, Bash, Agent]
 dependencies:
   commands: [git, python3]
 workflow-tier: full
+maturity: stable
+workflow-family: quick-action
 ---
 
 # Commit & PR
@@ -20,7 +22,7 @@ This skill uses shared helper skills. Load each skill's reference file ONLY when
 
 | Skill | Load When | Inline Fallback |
 |-------|-----------|-----------------|
-| `/adk:workflow` | always | 6-phase workflow. For commits, trivial complexity — direct execution. |
+| `/adk:workflow --family quick-action` | always | Quick Action workflow: confirm → execute → verify. For narrow tasks with single execution path. `--auto` skips confirmations. |
 | `/adk:communication` | always | Lead with conclusion. Concrete specifics. No preamble. |
 | `/adk:preflight-check` | before work | Run preflight.py for tool dependencies and MCP validation. |
 | `/adk:output-format` | when producing output | short/standard/detailed verbosity. |

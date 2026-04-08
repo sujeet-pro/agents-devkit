@@ -7,6 +7,8 @@ allowed-tools: [Glob, Grep, Read, Edit, Write, Bash, WebSearch, WebFetch, Agent]
 dependencies:
   commands: [git, python3]
 workflow-tier: full
+maturity: stable
+workflow-family: complex-build
 ---
 
 # Review Repo
@@ -19,7 +21,7 @@ This skill uses shared helper skills. Load each skill's reference file ONLY when
 
 | Skill | Load When | Inline Fallback |
 |-------|-----------|-----------------|
-| `/adk:workflow` | always | 6-phase workflow: intent → research → approach → plan → execute → validate. Complexity-adaptive skipping for trivial/small tasks. `--auto` skips confirmations. |
+| `/adk:workflow --family complex-build` | always | Complex Build workflow: confirm → research → select approach → plan → execute → validate. Full human-in-the-loop for architectural decisions. `--auto` skips confirmations. |
 | `/adk:communication` | always | Lead with conclusion. Bullet points. No preamble. Concrete specifics over abstractions. Verbosity follows context. |
 | `/adk:preflight-check` | before work | Run preflight.py for tool dependencies and MCP validation. Detect source type and route to correct MCP. |
 | `/adk:output-format` | when producing output | short/standard/detailed verbosity. Priority labels: Blocker, Critical, Should Have, May Have, Nitpick, Question. Cross-platform markdown safe for GitHub + Bitbucket. |
@@ -89,17 +91,6 @@ Run before scanning the codebase or launching child agents:
 `python3 ${CLAUDE_SKILL_DIR}/scripts/preflight.py ${CLAUDE_SKILL_DIR}`
 
 ---
-
-## Phase Applicability
-
-| Phase | Applies | Skill-Specific Notes |
-|-------|---------|----------------------|
-| 0. Intent Expansion | yes | Confirm scope (entire repo vs specific packages/dirs), focus areas, and output format |
-| 1. Research & Options | yes | Research codebase structure, build mental model, identify key patterns and anti-patterns |
-| 2. Approach Selection | yes | Present 2-3 review depth options: quick scan, standard review, deep audit |
-| 3. Planning | yes | Plan review waves by package/module for parallel execution |
-| 4. Execute | yes | Execute review via parallel child agents per dimension |
-| 5. Validate & Learn | yes | Merge findings, deduplicate, prioritize by impact, produce improvement plan |
 
 ---
 

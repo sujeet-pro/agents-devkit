@@ -6,6 +6,8 @@ user-invocable: true
 argument-hint: " [--flag1] [--flag2]"
 allowed-tools: [Glob, Grep, Read, Edit, Write, Bash, Agent]
 workflow-tier: full
+maturity: stable
+workflow-family: <family>
 dependencies:
   commands: [git]
 
@@ -21,7 +23,7 @@ If a **required** helper is unavailable in the user’s environment, print a sho
 
 | Helper skill | Invoke (Claude plugin) | Invoke (Codex / skills.sh) | When | Inline fallback (1–2 lines) |
 |--------------|------------------------|------------------------------|------|----------------------------|
-| workflow | `/adk:workflow` | `/workflow` | always | 6-phase workflow: intent → research → approach → plan → execute → validate. Complexity-adaptive skipping for trivial/small tasks. `--auto` skips confirmations. |
+| workflow | `/adk:workflow --family <family>` | `/workflow --family <family>` | always | <Family> workflow: <shape>. `--auto` skips confirmations. |
 | communication | `/adk:communication` | `/communication` | always | Lead with conclusion. Bullet points. No preamble. Concrete specifics over abstractions. Verbosity follows context. |
 | preflight-check | `/adk:preflight-check` | `/preflight-check` | before work | Run preflight.py for tool dependencies and MCP validation. Detect source type and route to correct MCP. |
 | output-format | `/adk:output-format` | `/output-format` | when producing output | short/standard/detailed verbosity. Priority labels: Blocker, Critical, Should Have, May Have, Nitpick, Question. |
@@ -39,42 +41,26 @@ Use the **Shared Skills** table above: call the helper skill when installed; oth
 python3 ${CLAUDE_SKILL_DIR}/scripts/preflight.py ${CLAUDE_SKILL_DIR}
 ```
 
-## Phase Applicability
+## Workflow
 
+<!-- Replace <family> with the actual family: quick-action, standard-task, complex-build, or investigative-loop -->
+<!-- Then replace these placeholder steps with the family-appropriate steps -->
 
-| Phase                 | Applies | Skill-Specific Notes |
-| --------------------- | ------- | -------------------- |
-| 0. Intent Expansion   | yes     |                      |
-| 1. Research & Options | yes     |                      |
-| 2. Approach Selection | yes     |                      |
-| 3. Planning           | yes     |                      |
-| 4. Execute            | yes     |                      |
-| 5. Validate & Learn   | yes     |                      |
+### 1. Confirm
 
+<Intent confirmation — what the skill confirms before starting>
 
-## Phase 0: Intent Expansion
+### 2. Research
 
+<Research step — what the skill investigates (omit for quick-action)>
 
+### 3. Execute
 
-## Phase 1: Research & Options
+<Execution step — the core work the skill performs>
 
+### 4. Validate
 
-
-## Phase 2: Approach Selection
-
-
-
-## Phase 3: Planning
-
-
-
-## Phase 4: Execute
-
-
-
-## Phase 5: Validate & Learn
-
-<Skill-specific validation criteria, checks, and "what to know" guidance>
+<Validation — how the skill verifies its output>
 
 ## Output Format
 

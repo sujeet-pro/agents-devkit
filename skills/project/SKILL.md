@@ -1,6 +1,5 @@
 ---
-
-## name: project
+name: project
 description: "adk - [full] [project] Use when initializing projects, managing milestones, or capturing ideas"
 user-invocable: true
 argument-hint: " [--mode init|milestone|idea] [--verbosity short|standard|detailed] [--help]"
@@ -8,6 +7,8 @@ allowed-tools: [Glob, Grep, Read, Edit, Write, Bash, WebSearch, WebFetch, Agent]
 dependencies:
   commands: [git, python3]
 workflow-tier: full
+maturity: stable
+workflow-family: standard-task
 
 ---
 
@@ -22,7 +23,7 @@ This skill uses shared helper skills. Load each skill's reference file ONLY when
 
 | Skill                     | Load When                                     | Inline Fallback                                                                                                                                                 |
 | ------------------------- | --------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `/adk:workflow`           | always                                        | 6-phase workflow: intent → research → approach → plan → execute → validate. Complexity-adaptive skipping for trivial/small tasks. `--auto` skips confirmations. |
+| `/adk:workflow --family standard-task` | always | Standard Task workflow: confirm → research → execute → validate. For tasks with known approach that benefit from context scan. `--auto` skips confirmations. |
 | `/adk:communication`      | always                                        | Lead with conclusion. Bullet points. No preamble. Concrete specifics over abstractions. Verbosity follows context.                                              |
 | `/adk:preflight-check`    | before work                                   | Run preflight.py for tool dependencies and MCP validation. Detect source type and route to correct MCP.                                                         |
 | `/adk:output-format`      | when producing output                         | short/standard/detailed verbosity. Priority labels: Blocker, Critical, Should Have, May Have, Nitpick, Question.                                                |
@@ -55,9 +56,9 @@ If a required helper skill is unavailable, print a warning and continue using th
 
 ### Behavior Variations
 
-- `**--mode init**`: Full 6-phase workflow for bootstrapping a new project. Interactive discovery, parallel research, requirements extraction, constitution, and roadmap generation.
-- `**--mode milestone**`: Full 6-phase workflow for creating, tracking, auditing, and archiving development milestones. Supports `--action create|track|audit|complete|gaps`.
-- `**--mode idea**`: Abbreviated workflow for capturing ideas to a backlog parking lot, reviewing/triaging accumulated ideas, or promoting ideas to specs/plans.
+- `**--mode init**`: Uses Standard Task workflow for bootstrapping a new project. Interactive discovery, parallel research, requirements extraction, constitution, and roadmap generation.
+- `**--mode milestone**`: Uses Standard Task workflow for creating, tracking, auditing, and archiving development milestones. Supports `--action create|track|audit|complete|gaps`.
+- `**--mode idea**`: Uses Quick Action workflow (confirm → execute → verify) for this mode. Captures ideas to a backlog parking lot, reviews/triages accumulated ideas, or promotes ideas to specs/plans.
 
 ### Examples
 
@@ -109,29 +110,21 @@ After selecting the mode, load the corresponding stage file and follow its instr
 
 ## Common Phases
 
-All modes share the 6-phase workflow from `/adk:workflow`. Each stage file defines which phases apply and what to do in each.
+This skill uses the Standard Task workflow: confirm → research → execute → validate.
 
-### Phase 0: Intent Expansion
+### 1. Confirm
 
 Follow the stage file's intent confirmation guidance. Always run this phase before taking action.
 
-### Phase 1: Research & Options
+### 2. Research
 
 Follow the stage file's exploration guidance. Every mode uses this phase, though simpler modes may keep it brief.
 
-### Phase 2: Approach Selection
-
-Use this phase when the stage surfaces alternatives or needs user confirmation beyond intent expansion. Simpler modes may skip it.
-
-### Phase 3: Planning
-
-Use this phase when the stage needs an explicit task plan before execution. Simpler modes may skip it and move directly from approval to execution.
-
-### Phase 4: Execute
+### 3. Execute
 
 Follow the stage file's execution instructions.
 
-### Phase 5: Validate & Learn
+### 4. Validate
 
 Follow the stage file's validation criteria. End with a concise summary of what changed, what was verified, and what the user should know.
 
