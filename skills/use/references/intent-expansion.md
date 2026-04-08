@@ -1,6 +1,6 @@
 # Intent Expansion
 
-Use this reference during Phase 0 of `/adk-use`.
+Use this reference during Phase 0 of `/use`.
 
 The goal is to turn a raw prompt into a compact, reviewable execution brief before any real work starts.
 
@@ -53,10 +53,10 @@ Pick the minimum useful pipeline.
 
 Common examples:
 
-- PR review -> `/adk-coding`, `/adk-code-review-pr`
-- feature implementation -> `/adk-coding`, `/adk-research`, `/adk-plan`, `/adk-dev-build`, `/adk-code-review-pr`
-- docs -> `/adk-research`, `/adk-docs-guidelines`, `/adk-docs-write`, `/adk-docs-review`
-- audit -> `/adk-coding`, `/adk-audit`, `/adk-docs-write`
+- PR review -> `/coding`, `/code-review-pr`
+- feature implementation -> `/coding`, `/research`, `/plan`, `/dev-build`, `/code-review-pr`
+- docs -> `/research`, `/docs-guidelines`, `/docs-write`, `/docs-review`
+- audit -> `/coding`, `/audit`, `/docs-write`
 
 ### Tools and MCPs
 

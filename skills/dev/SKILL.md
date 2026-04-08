@@ -1,5 +1,5 @@
 ---
-name: adk-dev
+name: dev
 description: "adk - [routing] [dev] Development router — detects dev task type and routes to the right sub-skill"
 user-invocable: true
 argument-hint: "<task> [--help]"

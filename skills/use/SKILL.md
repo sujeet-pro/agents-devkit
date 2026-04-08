@@ -1,11 +1,11 @@
 ---
-name: adk-use
+name: use
 description: "adk - [orchestrator] [pipeline] Use when starting any task to expand intent, identify the right DevKit skills, confirm the plan early with the user, and then execute the approved workflow"
 user-invocable: true
 argument-hint: "<task description> [--auto] [--verbosity short|standard|detailed] [--help]"
 allowed-tools: [Glob, Grep, Read, Edit, Write, Bash, WebSearch, WebFetch, Agent]
 dependencies:
-  commands: [git]
+  commands: [git, python3]
 workflow-tier: orchestrator
 ---
 
@@ -117,6 +117,7 @@ When `--help` is passed, display this reference and stop.
 | setup | Setup | `/adk:setup` | Configure CLI tools and MCP servers |
 | deps-tracker | Project | `/adk:deps-tracker` | Track upstream dependencies and sync |
 | interactivity | Interaction | `/adk:interactivity` | Structured user interaction orchestration (inline-first, optional external TUI) |
+| chart | Data Viz | `/adk:chart` | Create data charts (bar, line, pie, scatter, area, 30+ types) from CSV/JSON |
 
 ### Routing Skills
 
@@ -139,13 +140,13 @@ When `--help` is passed, display this reference and stop.
 | agentic-teams | `/adk:agentic-teams` | Child-agent contract and standard team shapes |
 | output-format | `/adk:output-format` | Verbosity modes, PR comment templates, priority labels |
 | interaction | `/adk:interaction` | Inline protocols for intent confirm, approach select, plan approve |
-| interactivity | `/adk:interactivity` | Operational interaction workflow: options, data capture, edits, approvals, optional TUI session flow |
 | preflight-check | `/adk:preflight-check` | Preflight validation for dependencies, MCP, and tools |
 | review-standards | `/adk:review-standards` | Review pipeline, comment template, source routing |
 | coding | `/adk:coding` | Detects repo stack, loads coding guidelines |
 | docs-guidelines | `/adk:docs-guidelines` | Detects doc type, loads writing guidelines |
 | docs-md | `/adk:docs-md` | Detects markdown target, loads formatting guidelines |
 | architecture | `/adk:architecture` | Architecture patterns, principles, and anti-pattern detection |
+| workspace-conventions | `/adk:workspace-conventions` | Where to create files: temp in `.temp/`, diagrams in `diagrams/`, respect `diagramkit.config.json`, light+dark output |
 
 ## Core Rules
 
@@ -163,7 +164,7 @@ When `--help` is passed, display this reference and stop.
 
 Start by expanding the prompt using `references/intent-expansion.md`.
 
-For Medium and Large work, invoke the **intent-analyst** agent (see `agents/intent-analyst.md`) to pressure-test the prompt expansion before presenting it to the user.
+For Medium and Large work, invoke the **adk-intent-analyst** agent (see `agents/intent-analyst.md`) to pressure-test the prompt expansion before presenting it to the user.
 
 ### What to Produce — Phase Summary Card
 
@@ -240,12 +241,14 @@ Pick the smallest useful pipeline that covers the confirmed intent. Resolve para
 | "excalidraw" / "architecture overview diagram" | `/adk:diagram-excalidraw` |
 | "graphviz" / "dot graph" | `/adk:diagram-graphviz` |
 | "draw.io" / "network topology" | `/adk:diagram-drawio` |
+| "chart" / "graph data" / "bar chart" / "pie chart" / "line chart" / "data visualization" | `/adk:chart` |
 | "design" / "UI" / "mockup" | `/adk:design` |
 | "audit" / "security review" / "performance review" | `/adk:audit` |
 | "review this doc" / "review the RFC" | `/adk:docs-review` |
 | "generate docs" / "document this repo" | `/adk:docs-repo` |
 | "review the docs" / "check documentation" | `/adk:docs-review` |
 | "update the docs" / "fix this doc" / "respond to doc comments" | `/adk:docs-crud` |
+| "create TDD" / "create HLD" / "create LLD" / "create PRD" / "create ERD" / "incident report" / "status report" / "API reference" | `/adk:docs-crud` |
 | "test" / "acceptance test" / "verify" | `/adk:test` |
 | "new project" / "init" / "milestone" | `/adk:project` |
 | "handoff" / "save session" / "resume" | `/adk:handoff` |
@@ -296,7 +299,7 @@ The approved plan must include:
 For Medium and Large work:
 
 1. draft the plan
-2. review it with the **plan-reviewer** agent (see `agents/plan-reviewer.md`)
+2. review it with the **adk-plan-reviewer** agent (see `agents/plan-reviewer.md`)
 3. let the user approve it
 4. only then execute it
 

@@ -28,7 +28,7 @@ Run at least these child agents in parallel:
 ## Workflow
 
 1. **Detect technology stack.** Identify frameworks, build tools, and runtime to determine which performance checks are relevant.
-2. **Load coding guidelines.** Invoke `/adk-coding` to detect repo frameworks and load matching coding guidelines.
+2. **Load coding guidelines.** Invoke `/coding` to detect repo frameworks and load matching coding guidelines.
 3. **Analyze bundle size** (frontend). Examine dependency tree, identify oversized packages, check for duplicates, evaluate code splitting strategy, and assess asset optimization.
 4. **Analyze latency patterns.** Trace API call chains, check caching strategy, evaluate database query patterns, identify waterfall requests, and check middleware overhead.
 5. **Analyze memory usage.** Scan for potential memory leaks, evaluate data structure choices, check resource cleanup, and identify unbounded growth patterns.

@@ -1,5 +1,5 @@
 ---
-name: adk-docs-md
+name: docs-md
 description: "adk - [helper] [docs] Markdown feature detection and formatting guidelines — pagesmith, GitHub, and plain markdown"
 user-invocable: false
 argument-hint: "[--target pagesmith|github|plain]"

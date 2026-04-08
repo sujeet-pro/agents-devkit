@@ -1,6 +1,6 @@
 # Feature Specification
 
-Specs define the "what" and "why" -- never the "how." No technology choices, no implementation details, no framework references. Those belong in `/adk-plan`.
+Specs define the "what" and "why" -- never the "how." No technology choices, no implementation details, no framework references. Those belong in `/plan`.
 
 ## Phase Applicability
 
@@ -21,15 +21,15 @@ Before starting specification work, run:
 
 ## Spec Storage
 
-Save all specs to `.temp/specs/<feature-slug>/adk-spec.md` in the current working directory. If `.temp/` does not exist, create it and ensure it is listed in `.gitignore`.
+Save all specs to `.temp/specs/<feature-slug>/spec.md` in the current working directory. If `.temp/` does not exist, create it and ensure it is listed in `.gitignore`.
 
 ## Required Child Agents
 
 Run at least these child agents in parallel:
 
 - **Domain analyst**: reads the codebase to understand existing domain model, patterns, and constraints. Produces a domain brief with entity inventory and boundary map.
-- **Requirements researcher** (`research-agent`): researches similar features in comparable products, identifies edge cases and user expectations. Produces a research brief with competitive analysis and edge case inventory.
-- **Spec reviewer** (`doc-reviewer`): reviews the draft spec for completeness, clarity, testability, and consistency. Flags requirements that are ambiguous, untestable, or conflicting.
+- **Requirements researcher** (`adk-research-agent`): researches similar features in comparable products, identifies edge cases and user expectations. Produces a research brief with competitive analysis and edge case inventory.
+- **Spec reviewer** (`adk-doc-reviewer`): reviews the draft spec for completeness, clarity, testability, and consistency. Flags requirements that are ambiguous, untestable, or conflicting.
 
 ## Phase 1: Feature Intake
 
@@ -114,7 +114,7 @@ If any criterion is not met, loop back to the relevant section for revision befo
 
 ## Output
 
-Spec saved to `.temp/specs/<feature-slug>/adk-spec.md`. Display summary:
+Spec saved to `.temp/specs/<feature-slug>/spec.md`. Display summary:
 
 ```text
 ## Specification Complete

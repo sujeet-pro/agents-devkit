@@ -1,5 +1,5 @@
 ---
-name: adk-principal-engineer
+name: principal-engineer
 description: "adk - [helper] [guideline] Principal Engineer questioning framework applied before committing to significant work. Five questions: need, simplest, alternatives, maintenance, clarity."
 user-invocable: false
 allowed-tools: [Read]

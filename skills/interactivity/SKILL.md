@@ -1,5 +1,5 @@
 ---
-name: adk-interactivity
+name: interactivity
 description: "adk - [full] [interaction] Agent-first interaction orchestration for option selection, data capture, edits, and human approval with optional external TUI"
 user-invocable: true
 argument-hint: "<goal> [--mode auto|options|collect|edit|review] [--tui true|false] [--form <path>] [--verbosity short|standard|detailed] [--help]"

@@ -1,11 +1,11 @@
 ---
-name: adk-code-review-pr
+name: code-review-pr
 description: "adk - [full] [code-review] PR, local, or branch code review — review, fix, describe, finalize with conditional stages"
 user-invocable: true
 argument-hint: "<target> [--fix] [--action describe|fix|finalize|status] [--focus security|performance|deps|ui|codebase] [--mode auto|standard|interactive|followup] [--skip-repo] [--verbosity short|standard|detailed] [--cross] [--context <url>...] [--help]"
 allowed-tools: [Glob, Grep, Read, Edit, Write, Bash, WebSearch, WebFetch, Agent]
 dependencies:
-  commands: [git]
+  commands: [git, python3, gh, curl, jq]
   mcp-servers: [detect-from-input]
 workflow-tier: full
 ---
@@ -30,6 +30,7 @@ This skill uses shared helper skills. Load each skill's reference file ONLY when
 | `/adk:interaction` | NOT --auto | Inline protocols for intent confirmation, approach selection, plan approval, review findings, progress dashboard. |
 | `/adk:github` | when target is GitHub | GitHub operations via `gh` CLI — PR details, diff, reviews, comments, thread resolution. Validates `gh` install and auth. |
 | `/adk:bitbucket` | when target is Bitbucket | Bitbucket REST API via `curl` — PR details, diff, comments, tasks. Uses `BITBUCKET_USERNAME`+`BITBUCKET_TOKEN` from `~/.zshenv`. |
+| `/adk:coding` | during guideline loading | Detect repo languages, frameworks, and tools. Load matching coding guidelines for the detected stack. Pass changed files for scoped detection. |
 
 Key review behaviors:
 - **Smart parameter detection**: Infers `--mode`, `--action`, and `--focus` from prompt context and PR state (e.g., existing comments trigger re-review mode automatically)
@@ -45,7 +46,7 @@ Key review behaviors:
 
 ## Helper Skill Resolution
 
-Resolve shared behavior through **helper skills**, not by loading reference markdown files. Invoke the needed skill using either form: `/adk:<skill>` (Claude plugin) or `/adk-<skill>` (skills.sh). The usual helpers are **workflow** (phase structure), **communication** (tone and structure), **preflight-check** (tool and MCP validation), **output-format** (verbosity and deliverable shape), **principal-engineer** (engineering bar), **agentic-teams** (child agents), and **interaction** (prompting and confirmations).
+Resolve shared behavior through **helper skills**, not by loading reference markdown files. Invoke the needed skill using either form: `/adk:<skill>` (Claude plugin) or `/<skill>` (skills.sh). The usual helpers are **workflow** (phase structure), **communication** (tone and structure), **preflight-check** (tool and MCP validation), **output-format** (verbosity and deliverable shape), **principal-engineer** (engineering bar), **agentic-teams** (child agents), and **interaction** (prompting and confirmations).
 
 If a required helper skill is unavailable, print a warning and continue using the inline fallback summary in the Shared Skills table.
 

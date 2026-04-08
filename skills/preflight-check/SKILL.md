@@ -1,8 +1,10 @@
 ---
-name: adk-preflight-check
+name: preflight-check
 description: "adk - [helper] [guideline] Preflight validation for dependencies, MCP servers, and tool readiness. Run before launching child agents, reviews, or publishing."
 user-invocable: false
 allowed-tools: [Read, Bash]
+dependencies:
+  commands: [python3]
 workflow-tier: helper
 ---
 

@@ -13,7 +13,7 @@ Read the full document content plus all existing comments, their resolution stat
 
 ## Guideline Loading
 
-Invoke the `/adk-coding` helper skill to detect the repo stack and load the appropriate coding guidelines.
+Invoke the `/coding` helper skill to detect the repo stack and load the appropriate coding guidelines.
 
 ## Phase 1: Build Comment Ledger
 
@@ -104,7 +104,7 @@ After user confirmation:
 
 - Always reply within existing comment threads, never create new top-level comments for thread-related responses.
 - For Confluence: use `mcp__atlassian-confluence__confluence_add_comment` with the parent comment ID.
-- For Google Docs: do **not** post comments or replies via MCP (unreliable). Instead, collect all actions (replies, new comments, resolutions) and produce a markdown file at `.temp/adk-docs-review/<doc-title>-followup-comments.md` listing each action with its target comment/section and content. Present the file path and ask the user to apply the actions manually.
+- For Google Docs: do **not** post comments or replies via MCP (unreliable). Instead, collect all actions (replies, new comments, resolutions) and produce a markdown file at `.temp/docs-review/<doc-title>-followup-comments.md` listing each action with its target comment/section and content. Present the file path and ask the user to apply the actions manually.
 - When the platform does not support threaded replies, post a new comment that references the original by quoting its first line.
 
 ## Summary

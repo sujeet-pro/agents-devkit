@@ -119,7 +119,7 @@ services.
   converts exceptions to HTTP responses.
 
 > **Reference**: [Node.js Error Handling Best Practices](https://nodejs.org/api/errors.html),
-> [Joyent Error Handling Guide](https://www.joyent.com/node-js/production/adk-design/errors)
+> [Joyent Error Handling Guide](https://www.joyent.com/node-js/production/design/errors)
 
 ## 3. Express
 
@@ -509,6 +509,6 @@ services.
 - **Avoid mocking the module system** (`jest.mock`). It couples tests to
   implementation details. Prefer dependency injection and test doubles.
 
-> **Reference**: [Node.js Test Runner](https://nodejs.org/api/adk-test.html),
+> **Reference**: [Node.js Test Runner](https://nodejs.org/api/test.html),
 > [Vitest Documentation](https://vitest.dev/),
 > [Mock Service Worker](https://mswjs.io/)

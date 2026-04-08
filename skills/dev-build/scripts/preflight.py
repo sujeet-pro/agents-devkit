@@ -121,9 +121,9 @@ def find_repo_root_from_skill_dir(skill_dir: Path) -> Path | None:
     return None
 
 
-# Matches /adk:workflow and /adk-workflow (skill slug is [a-z0-9-]+)
+# Matches /adk:workflow (plugin invocation — always present in Shared Skills tables)
 ADK_SKILL_INVOCATION = re.compile(
-    r"/adk:([a-z0-9-]+)(?![a-z0-9-])|/adk-([a-z0-9-]+)(?![a-z0-9-])"
+    r"/adk:([a-z0-9-]+)(?![a-z0-9-])"
 )
 
 
@@ -132,7 +132,7 @@ def discover_invoked_helper_slugs(skill_md_text: str) -> list[str]:
     seen: set[str] = set()
     order: list[str] = []
     for m in ADK_SKILL_INVOCATION.finditer(skill_md_text):
-        slug = m.group(1) or m.group(2)
+        slug = m.group(1)
         if slug and slug not in seen:
             seen.add(slug)
             order.append(slug)
@@ -141,7 +141,7 @@ def discover_invoked_helper_slugs(skill_md_text: str) -> list[str]:
 
 def warn_missing_helper_skills(skill_dir: Path, repo_root: Path | None) -> int:
     """
-    For each /adk:<name> or /adk-<name> in SKILL.md, warn if skills/<name> is missing.
+    For each /adk:<name> in SKILL.md, warn if skills/<name> is missing.
     Non-fatal: does not affect exit code.
     """
     skill_md = skill_dir / "SKILL.md"
@@ -158,7 +158,7 @@ def warn_missing_helper_skills(skill_dir: Path, repo_root: Path | None) -> int:
         if not (skills_root / slug / "SKILL.md").exists():
             print(
                 f"  ⚠ Required skill not found: {slug} "
-                f"(expected invocation /adk:{slug} or /adk-{slug})."
+                f"(expected at skills/{slug}/SKILL.md, invoked as /adk:{slug})."
             )
             warned += 1
     return warned

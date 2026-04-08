@@ -1,12 +1,12 @@
 ---
 title: Skills Overview
-description: Browse all 49 ADK skills organized by category
+description: Browse all 51 ADK skills organized by category
 order: 3
 ---
 
 # Skills Overview
 
-ADK provides 49 skills organized into four categories: **guideline skills** (shared knowledge, auto-invoked), **connector skills** (platform API wrappers), **task skills** (user-facing engineering tasks), and **routing skills** (orchestrators). Only the relevant skill files load per task (see [lazy loading](/guide/philosophy/#token-efficient-lazy-loading)).
+ADK provides 51 skills organized into four categories: **guideline skills** (shared knowledge, auto-invoked), **connector skills** (platform API wrappers), **task skills** (user-facing engineering tasks), and **routing skills** (orchestrators). Only the relevant skill files load per task (see [lazy loading](/guide/philosophy/#token-efficient-lazy-loading)).
 
 ## How Skills Work
 
@@ -20,10 +20,10 @@ ADK provides 49 skills organized into four categories: **guideline skills** (sha
 | Install Method | Invocation Pattern | Example |
 | -------------- | ------------------ | ------- |
 | Claude Plugin | `/adk:<skill-name>` | `/adk:code-review-pr` |
-| skills.sh | `/adk-<skill-name>` | `/adk-code-review-pr` |
+| skills.sh | `/<skill-name>` | `/code-review-pr` |
 | Local plugin-dir | `/adk:<skill-name>` | `/adk:code-review-pr` |
 
-The `name` field in each skill's frontmatter is set to `adk-<skill-name>`. When installed as a Claude plugin, the plugin namespace `adk:` is used and the folder name determines the command. When installed via skills.sh, the `name` field is used directly.
+The `name` field in each skill's frontmatter is set to `<skill-name>`. When installed as a Claude plugin, the plugin namespace `adk:` is used and the folder name determines the command. When installed via skills.sh, the `name` field is used directly.
 
 ## Recipe Table
 
@@ -50,6 +50,7 @@ The `name` field in each skill's frontmatter is set to `adk-<skill-name>`. When 
 | Architecture overview | `diagram-excalidraw` | — |
 | Dependency graph | `diagram-graphviz` | — |
 | Network topology | `diagram-drawio` | — |
+| Data visualization | `chart` | — |
 | Design a UI | `design` | `architecture` |
 | Security audit | `audit --focus security` | `coding`, `review-standards` |
 | Performance audit | `audit --focus performance` | `coding` |
@@ -138,6 +139,7 @@ Connector skills (auto-invoked by task skills for platform APIs):
 | `diagram-excalidraw` | `/adk:diagram-excalidraw` | Excalidraw hand-drawn style architecture diagrams |
 | `diagram-graphviz` | `/adk:diagram-graphviz` | Graphviz DOT diagrams for dependency graphs |
 | `diagram-drawio` | `/adk:diagram-drawio` | Draw.io precise layout for network/enterprise architecture |
+| `chart` | `/adk:chart` | Data charts (bar, line, pie, scatter, area, 30+ types) from CSV/JSON |
 
 > [!TIP]
 > Each diagram skill contains a complete syntax reference. Use `--engine` to force an engine, or let `/adk:diagram` auto-detect.

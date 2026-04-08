@@ -1,11 +1,11 @@
 ---
-name: adk-code-review-fix
+name: code-review-fix
 description: "adk - [full] [code-review] Fix PR review comments — reads comments, applies code fixes, replies to reviewers, marks threads resolved."
 user-invocable: true
 argument-hint: "<pr-url> [--auto] [--filter blocker|critical|all] [--dry-run]"
 allowed-tools: [Glob, Grep, Read, Edit, Write, Bash, WebSearch, WebFetch, Agent]
 dependencies:
-  commands: [git]
+  commands: [git, python3, gh, curl, jq]
   mcp-servers: [detect-from-input]
 workflow-tier: full
 ---
@@ -41,7 +41,7 @@ Core principles:
 
 ## Helper Skill Resolution
 
-Resolve shared behavior through **helper skills**, not by loading reference markdown files. Invoke the needed skill using either form: `/adk:<skill>` (Claude plugin) or `/adk-<skill>` (skills.sh). The usual helpers are **workflow** (phase structure), **communication** (tone and structure), **preflight-check** (tool and MCP validation), **output-format** (verbosity and deliverable shape), **principal-engineer** (engineering bar), **agentic-teams** (child agents), and **interaction** (prompting and confirmations).
+Resolve shared behavior through **helper skills**, not by loading reference markdown files. Invoke the needed skill using either form: `/adk:<skill>` (Claude plugin) or `/<skill>` (skills.sh). The usual helpers are **workflow** (phase structure), **communication** (tone and structure), **preflight-check** (tool and MCP validation), **output-format** (verbosity and deliverable shape), **principal-engineer** (engineering bar), **agentic-teams** (child agents), and **interaction** (prompting and confirmations).
 
 If a required helper skill is unavailable, print a warning and continue using the inline fallback summary in the Shared Skills table.
 

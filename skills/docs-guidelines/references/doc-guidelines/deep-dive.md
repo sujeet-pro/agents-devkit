@@ -32,7 +32,7 @@ Every technical deep-dive must include the following sections in order.
   - ECMAScript: [tc39.es/ecma262](https://tc39.es/ecma262/) with section number
   - Java: [Java Language Specification](https://docs.oracle.com/javase/specs/jls/se21/html/index.html) with chapter reference
   - HTTP: RFC 9110-9114 with section number
-  - Go: [The Go Specification](https://go.dev/ref/adk-spec) with section name
+  - Go: [The Go Specification](https://go.dev/ref/spec) with section name
   - Python: [Python Language Reference](https://docs.python.org/3/reference/) with section
   - Rust: [The Rust Reference](https://doc.rust-lang.org/reference/) with section
 - State the version or edition of the spec you are referencing. Specs evolve; pin your claims.

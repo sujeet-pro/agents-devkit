@@ -18,8 +18,8 @@ Use this stage when the agent should create or directly refresh onboarding mater
 ## Document Structure
 
 ### Welcome and Overview
-- Team/adk-project mission and goals
-- Where this service/adk-project fits in the broader system
+- Team/project mission and goals
+- Where this service/project fits in the broader system
 - Key contacts and communication channels
 
 ### Architecture Context

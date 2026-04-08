@@ -1,7 +1,7 @@
 ---
 
-## name: adk-
-description: "Use when "
+## name: 
+description: "adk - [tier] [area] Use when "
 user-invocable: true
 argument-hint: " [--flag1] [--flag2]"
 allowed-tools: [Glob, Grep, Read, Edit, Write, Bash, Agent]
@@ -21,13 +21,13 @@ If a **required** helper is unavailable in the user’s environment, print a sho
 
 | Helper skill | Invoke (Claude plugin) | Invoke (Codex / skills.sh) | When | Inline fallback (1–2 lines) |
 |--------------|------------------------|------------------------------|------|----------------------------|
-| workflow | `/adk:workflow` | `/adk-workflow` | always | 6-phase workflow: intent → research → approach → plan → execute → validate. Complexity-adaptive skipping for trivial/small tasks. `--auto` skips confirmations. |
-| communication | `/adk:communication` | `/adk-communication` | always | Lead with conclusion. Bullet points. No preamble. Concrete specifics over abstractions. Verbosity follows context. |
-| preflight-check | `/adk:preflight-check` | `/adk-preflight-check` | before work | Run preflight.py for tool dependencies and MCP validation. Detect source type and route to correct MCP. |
-| output-format | `/adk:output-format` | `/adk-output-format` | when producing output | short/standard/detailed verbosity. Priority labels: Blocker, Critical, Should Have, May Have, Nitpick, Question. |
-| principal-engineer | `/adk:principal-engineer` | `/adk-principal-engineer` | complexity >= medium | Five questions: need? simplest? alternatives? maintenance costs? clarity in 6 months? |
-| agentic-teams | `/adk:agentic-teams` | `/adk-agentic-teams` | complexity >= medium AND parallel work needed | Launch 2+ child agents with distinct roles. Standard team shapes: review, research, docs, diagram, security, migration, planning. |
-| interaction | `/adk:interaction` | `/adk-interaction` | NOT --auto | Inline protocols for intent confirmation, approach selection, plan approval, review findings, progress dashboard. |
+| workflow | `/adk:workflow` | `/workflow` | always | 6-phase workflow: intent → research → approach → plan → execute → validate. Complexity-adaptive skipping for trivial/small tasks. `--auto` skips confirmations. |
+| communication | `/adk:communication` | `/communication` | always | Lead with conclusion. Bullet points. No preamble. Concrete specifics over abstractions. Verbosity follows context. |
+| preflight-check | `/adk:preflight-check` | `/preflight-check` | before work | Run preflight.py for tool dependencies and MCP validation. Detect source type and route to correct MCP. |
+| output-format | `/adk:output-format` | `/output-format` | when producing output | short/standard/detailed verbosity. Priority labels: Blocker, Critical, Should Have, May Have, Nitpick, Question. |
+| principal-engineer | `/adk:principal-engineer` | `/principal-engineer` | complexity >= medium | Five questions: need? simplest? alternatives? maintenance costs? clarity in 6 months? |
+| agentic-teams | `/adk:agentic-teams` | `/agentic-teams` | complexity >= medium AND parallel work needed | Launch 2+ child agents with distinct roles. Standard team shapes: review, research, docs, diagram, security, migration, planning. |
+| interaction | `/adk:interaction` | `/interaction` | NOT --auto | Inline protocols for intent confirmation, approach selection, plan approval, review findings, progress dashboard. |
 
 ## Helper skills instead of copied reference packs
 
@@ -98,5 +98,5 @@ python3 ${CLAUDE_SKILL_DIR}/scripts/preflight.py ${CLAUDE_SKILL_DIR}
 
 ## Adjacent Skills
 
-- `/adk:<related>` / `/adk-<related>` — when to use instead or in combination (ensure the named skill exists in `skills/<related>/` or treat as optional).
+- `/adk:<related>` / `/<related>` — when to use instead or in combination (ensure the named skill exists in `skills/<related>/` or treat as optional).
 

@@ -55,6 +55,20 @@ All CLI tools that DevKit skills depend on. Each entry defines the tool, how to 
 - **Used by**: github MCP server (Docker variant)
 - **Note**: Docker Desktop must be running for MCP servers that use Docker
 
+## HTTP & JSON Tools (required by connector skills)
+
+### curl
+- **Check**: `curl --version`
+- **Install**: `brew install curl` (pre-installed on macOS, brew version is newer)
+- **Update**: `brew upgrade curl`
+- **Used by**: bitbucket, confluence, jira connectors (REST API calls)
+
+### jq
+- **Check**: `jq --version`
+- **Install**: `brew install jq`
+- **Update**: `brew upgrade jq`
+- **Used by**: bitbucket, confluence, jira connectors (JSON parsing)
+
 ## GitHub CLI
 
 ### gh
@@ -62,3 +76,19 @@ All CLI tools that DevKit skills depend on. Each entry defines the tool, how to 
 - **Install**: `brew install gh`
 - **Update**: `brew upgrade gh`
 - **Used by**: PR management, GitHub interactions
+- **Auth**: Run `gh auth login` after install — the setup script checks auth status and stops if not logged in
+
+## Global npm Packages
+
+### diagramkit
+- **Check**: `diagramkit --version`
+- **Install**: `npm install -g diagramkit`
+- **Update**: `npm install -g diagramkit`
+- **Used by**: diagram-mermaid, diagram-excalidraw, diagram-drawio, diagram-graphviz
+
+### pagesmith
+- **Check**: `pagesmith --version`
+- **Install**: `npm install -g @pagesmith/docs`
+- **Update**: `npm install -g @pagesmith/docs`
+- **Used by**: docs-crud, docs-repo
+- **Note**: `@pagesmith/docs` is the CLI package. `@pagesmith/core` is the rendering library used by the CLI.

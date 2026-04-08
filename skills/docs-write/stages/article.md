@@ -66,11 +66,11 @@ Structured into logical sections, each building on the previous:
 
 ## Child Agent Team
 
-- `research-agent` for deep research on the topic
+- `adk-research-agent` for deep research on the topic
 - `code-example-agent` for creating and testing code examples
 - `diagram-agent` for architecture and flow diagrams
 - `fact-checker` for verifying claims, versions, and benchmarks
-- `doc-reviewer` for structure, flow, and readability
+- `adk-doc-reviewer` for structure, flow, and readability
 
 ## Type-Specific Output Format
 

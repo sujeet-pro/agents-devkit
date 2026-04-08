@@ -1,11 +1,11 @@
 ---
-name: adk-spec
+name: spec
 description: "adk - [full] [spec] Use when analyzing specs, writing specifications, generating checklists, or writing constitutions"
 user-invocable: true
 argument-hint: "<topic> [--mode analyze|write|checklist|constitution] [--verbosity short|standard|detailed] [--help]"
 allowed-tools: [Glob, Grep, Read, Edit, Write, Bash, WebSearch, WebFetch, Agent]
 dependencies:
-  commands: [git]
+  commands: [git, python3]
 workflow-tier: full
 ---
 
@@ -29,7 +29,7 @@ This skill uses shared helper skills. Load each skill's reference file ONLY when
 
 ## Helper Skill Resolution
 
-Resolve shared behavior through **helper skills**, not by loading reference markdown files. Invoke the needed skill using either form: `/adk:<skill>` (Claude plugin) or `/adk-<skill>` (skills.sh). The usual helpers are **workflow** (phase structure), **communication** (tone and structure), **preflight-check** (tool and MCP validation), **output-format** (verbosity and deliverable shape), **principal-engineer** (engineering bar), **agentic-teams** (child agents), and **interaction** (prompting and confirmations).
+Resolve shared behavior through **helper skills**, not by loading reference markdown files. Invoke the needed skill using either form: `/adk:<skill>` (Claude plugin) or `/<skill>` (skills.sh). The usual helpers are **workflow** (phase structure), **communication** (tone and structure), **preflight-check** (tool and MCP validation), **output-format** (verbosity and deliverable shape), **principal-engineer** (engineering bar), **agentic-teams** (child agents), and **interaction** (prompting and confirmations).
 
 If a required helper skill is unavailable, print a warning and continue using the inline fallback summary in the Shared Skills table.
 
@@ -61,11 +61,11 @@ If a required helper skill is unavailable, print a warning and continue using th
 ```
 /adk:spec write a feature spec for user notifications
 /adk:spec --mode analyze .temp/specs/notifications/
-/adk:spec --mode checklist .temp/specs/notifications/adk-spec.md
+/adk:spec --mode checklist .temp/specs/notifications/spec.md
 /adk:spec --mode constitution
 /adk:spec --mode constitution --action update
 /adk:spec --mode constitution --action audit
-/adk:spec --spec .temp/specs/auth/adk-spec.md
+/adk:spec --spec .temp/specs/auth/spec.md
 ```
 
 ## Preflight
@@ -124,7 +124,7 @@ Follow the stage file's validation criteria. End with a concise summary of what 
 
 Use the output format defined in the loaded stage file. Adapt verbosity based on `--verbosity`:
 
-- **short**: Summary line only (e.g., "Spec written to .temp/specs/notifications/adk-spec.md")
+- **short**: Summary line only (e.g., "Spec written to .temp/specs/notifications/spec.md")
 - **standard**: Full structured output from the stage file's Output Format section
 - **detailed**: Standard output plus all child agent findings, decision rationale, and traceability matrices
 

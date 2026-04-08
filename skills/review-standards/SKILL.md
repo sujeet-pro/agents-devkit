@@ -1,5 +1,5 @@
 ---
-name: adk-review-standards
+name: review-standards
 description: "adk - [helper] [guideline] Review pipeline, source routing, and comment template standards for all review-oriented skills."
 user-invocable: false
 allowed-tools: [Read]

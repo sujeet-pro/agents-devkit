@@ -65,10 +65,10 @@ Additional MCP servers can be configured via `/adk:setup`.
 | Install Method | Invocation Pattern | Example |
 | -------------- | ------------------ | ------- |
 | Claude Plugin | `/adk:<skill-name>` | `/adk:code-review-pr` |
-| skills.sh | `/adk-<skill-name>` | `/adk-code-review-pr` |
+| skills.sh | `/<skill-name>` | `/code-review-pr` |
 | Local plugin-dir | `/adk:<skill-name>` | `/adk:code-review-pr` |
 
-The `name` field in each skill's frontmatter is set to `adk-<skill-name>`. When installed as a Claude plugin, the plugin namespace `adk:` is used and the folder name determines the command. When installed via skills.sh, the `name` field is used directly, giving `/adk-<skill-name>`.
+The `name` field in each skill's frontmatter is set to `<skill-name>`. When installed as a Claude plugin, the plugin namespace `adk:` is used and the folder name determines the command. When installed via skills.sh, the `name` field is used directly, giving `/<skill-name>`.
 
 ## Skill Frontmatter
 
@@ -76,7 +76,7 @@ Each skill's `SKILL.md` uses YAML frontmatter:
 
 | Field | Required | Description |
 |-------|----------|-------------|
-| `name` | Yes | `adk-<skill-name>` for dual-install support |
+| `name` | Yes | `<skill-name>` for dual-install support |
 | `description` | Yes | Starts with `adk -` followed by bracket tags |
 | `user-invocable` | No | `true` (default) or `false` for helper skills |
 | `argument-hint` | No | Parameter hint for autocomplete |
@@ -87,18 +87,18 @@ Each skill's `SKILL.md` uses YAML frontmatter:
 ## Plugin Structure
 
 ```
-agents-devkit/                        49 skills · 15 agents · ~42K lines
+agents-devkit/                        51 skills · 18 agents · ~42K lines
 ├── .claude-plugin/
 │   └── plugin.json                   Plugin manifest (name: adk)
 ├── .mcp.json                         MCP server configurations
 ├── hooks/hooks.json                  Hook configurations
 ├── settings.json                     Default settings (routes to /adk:use)
-├── agents/                           15 shared agent definitions
+├── agents/                           18 shared agent definitions
 ├── settings/                         MCP setup guides
 ├── templates/skill/                  Canonical templates and propagation
 │   ├── common/                       Cross-skill files (help-format, project-guidelines)
 │   └── scripts/                      Preflight and propagation scripts
-├── skills/                           49 skills (only relevant ones load per task)
+├── skills/                           51 skills (only relevant ones load per task)
 │   ├── use/                          Routing — default orchestrator
 │   ├── team/                         Routing — multi-model agent dispatch
 │   ├── code-review/                  Routing — review type detection

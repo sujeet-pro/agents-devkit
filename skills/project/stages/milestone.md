@@ -301,7 +301,7 @@ Launch at least these child agents in parallel:
 
 5. **Update milestone file.** Append approved new phases to the milestone. Update the `updated` timestamp.
 
-6. **Suggest next steps.** Recommend running `action: track` to see updated progress, or `/adk-plan --mode write` to create execution plans for the new phases.
+6. **Suggest next steps.** Recommend running `action: track` to see updated progress, or `/plan --mode write` to create execution plans for the new phases.
 
 ## Workflow Modes
 

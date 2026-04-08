@@ -61,7 +61,7 @@ Specific, verifiable goals that define the success criteria for the proposal.
 What this RFC explicitly does not address. Prevents scope creep during review and implementation.
 
 ### 5. Proposal
-The recommended direction with enough detail to evaluate. Include 1-2 architecture or flow diagrams (use `/adk-diagram` skills). Stay at the "direction" level -- defer implementation-level detail to a Tech Spec.
+The recommended direction with enough detail to evaluate. Include 1-2 architecture or flow diagrams (use `/diagram` skills). Stay at the "direction" level -- defer implementation-level detail to a Tech Spec.
 
 ### 6. Alternatives Considered
 At least two genuine alternative approaches with pros, cons, and rejection rationale for each. Strawman alternatives undermine the document.
@@ -97,12 +97,12 @@ Let user adjust weights and scores interactively.
 
 ## Type-Specific Output Format
 
-Markdown file. Invoke `/adk-docs-guidelines --type rfc` to load RFC writing guidelines for validation.
+Markdown file. Invoke `/docs-guidelines --type rfc` to load RFC writing guidelines for validation.
 
 ## Adjacent Skills
 
 - `system-design` stage for Tech Spec / Technical Design Documents (implementation detail)
 - `adr` stage for Architecture Decision Records (recording decisions)
 - `proposal` stage for lighter decision proposals
-- `/adk-diagram` for standalone architecture diagrams
-- `/adk-plan --mode brainstorm` for deeper option exploration before RFC
+- `/diagram` for standalone architecture diagrams
+- `/plan --mode brainstorm` for deeper option exploration before RFC

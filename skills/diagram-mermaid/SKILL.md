@@ -1,11 +1,11 @@
 ---
-name: adk-diagram-mermaid
+name: diagram-mermaid
 description: "adk - [full] [diagram] Create Mermaid diagrams with full syntax reference for all 21 diagram types. Supports light/dark mode via diagramkit."
 user-invocable: true
 argument-hint: "<description> [--type flowchart|sequence|class|state|er|gantt|mindmap|timeline|c4|...] [--render] [--format svg|png] [--theme both|light|dark]"
 allowed-tools: [Glob, Grep, Read, Edit, Write, Bash, Agent]
 dependencies:
-  commands: [git]
+  commands: [git, node, python3]
   npm-packages: [diagramkit]
 workflow-tier: full
 ---
@@ -28,10 +28,11 @@ This skill uses shared helper skills. Load each skill's reference file ONLY when
 | `/adk:communication` | always | Lead with conclusion. Bullet points. No preamble. Concrete specifics over abstractions. |
 | `/adk:preflight-check` | before rendering | Run preflight.py for diagramkit and MCP validation. Ensure npm packages are installed. |
 | `/adk:output-format` | when producing output | short/standard/detailed verbosity. Keep both editable source file and rendered SVG. |
+| `/adk:workspace-conventions` | always | All work inside the project repo. Temp files in `.temp/<task-slug>/` (gitignored). Diagrams in `diagrams/` (sibling to doc, or project root). Both light+dark SVG and PNG. Respect `diagramkit.config.json` when present. Always commit source files with rendered output. |
 
 ## Helper Skill Resolution
 
-Resolve shared behavior through **helper skills**, not by loading reference markdown files. Invoke the needed skill using either form: `/adk:<skill>` (Claude plugin) or `/adk-<skill>` (skills.sh). The usual helpers are **workflow** (phase structure), **communication** (tone and structure), **preflight-check** (tool and MCP validation), **output-format** (verbosity and deliverable shape), **principal-engineer** (engineering bar), **agentic-teams** (child agents), and **interaction** (prompting and confirmations).
+Resolve shared behavior through **helper skills**, not by loading reference markdown files. Invoke the needed skill using either form: `/adk:<skill>` (Claude plugin) or `/<skill>` (skills.sh). The usual helpers are **workflow** (phase structure), **communication** (tone and structure), **preflight-check** (tool and MCP validation), **output-format** (verbosity and deliverable shape), **principal-engineer** (engineering bar), **agentic-teams** (child agents), and **interaction** (prompting and confirmations).
 
 If a required helper skill is unavailable, print a warning and continue using the inline fallback summary in the Shared Skills table.
 
@@ -58,7 +59,7 @@ If a required helper skill is unavailable, print a warning and continue using th
 | 2. Approach Selection | skip | Direct execution after confirmation |
 | 3. Planning | skip | Direct execution |
 | 4. Execute | yes | Generate diagram source file |
-| 5. Validate & Learn | yes | Verify renderability, naming, consistency |
+| 5. Validate & Learn | yes | Render to SVG/PNG (light+dark), verify renderability, naming, consistency |
 
 ## Human in the Loop
 
@@ -69,7 +70,7 @@ If a required helper skill is unavailable, print a warning and continue using th
 
 ### Phase 0: Intent Confirmation
 
-Confirm: diagram type, components to include, audience, output location. For Trivial requests, 1-line inline confirm.
+Confirm: diagram type, components to include, audience, output location. Invoke `/adk:workspace-conventions` to determine output location. For Trivial requests, 1-line inline confirm.
 
 ### Phase 1: Determine Type & Structure
 
@@ -77,7 +78,7 @@ If `--type` is not specified, auto-detect from the description. Analyze requirem
 
 ### Phase 4: Generate Mermaid Source
 
-Write a `.mermaid` file following the type reference loaded below. Apply quality standards.
+Write a `.mermaid` file to the determined output location following the type reference loaded below. Apply quality standards. Ensure `.temp/` is gitignored if using temp files.
 
 File header:
 
@@ -86,15 +87,18 @@ File header:
 %% Type: <diagram-type>
 ```
 
-### Phase 5: Validate & Report
+### Phase 5: Render, Validate & Report
 
-Validate syntax, check for reserved word conflicts, verify renderability.
+Run the rendering pipeline (see Rendering Pipeline below). Validate syntax, check for reserved word conflicts, verify renderability.
 
 ```
-Mermaid source file written:
+Mermaid diagram complete:
   Source: ./diagrams/<name>.mermaid
-
-Render with: diagramkit render ./diagrams/<name>.mermaid
+  Output:
+    ./diagrams/<name>-light.svg
+    ./diagrams/<name>-dark.svg
+    ./diagrams/<name>-light.png
+    ./diagrams/<name>-dark.png
 ```
 
 ## Type Selection
@@ -127,20 +131,51 @@ Based on `--type` parameter or auto-detection from the description, load the mat
 
 Load ONLY the single type reference file that matches the user's request. Do NOT load multiple type files.
 
-## Rendering
+## Rendering Pipeline
+
+Rendering always produces both **light and dark** variants in **SVG and PNG** by default.
+
+### Step 1: Determine Output Location
+
+1. If a `diagramkit.config.json` exists at the project root → use its `outputDir` setting
+2. If invoked by a doc skill → place in `diagrams/` folder sibling to the document
+3. Otherwise → place in `./diagrams/` at the project root
+
+### Step 2: Render with diagramkit (Primary)
 
 ```bash
-# Default: both light and dark SVG variants
-diagramkit render diagram.mermaid
+# SVG — both light and dark
+diagramkit render diagram.mermaid --format svg --theme both
 
-# PNG only, light mode
-diagramkit render diagram.mermaid --format png --theme light
-
-# Both themes, custom scale
-diagramkit render diagram.mermaid --format png --scale 2
+# PNG — both themes, 2x scale for retina
+diagramkit render diagram.mermaid --format png --theme both --scale 2
 ```
 
 diagramkit renders Mermaid using a headless browser with Mermaid's built-in renderer. For dark mode, it applies `postProcessDarkSvg` which adjusts background, text colors, and element fills for WCAG-compliant contrast on dark surfaces.
+
+If the project has a `diagramkit.config.json`, diagramkit reads it automatically for output directory, default format, theme, and scale.
+
+### Step 3: Fallback — Mermaid CLI (`mmdc`)
+
+If diagramkit is not installed or fails, use the Mermaid CLI directly.
+
+**Install:** `npm install -g @mermaid-js/mermaid-cli`
+
+```bash
+# Light variants
+mmdc -i diagram.mermaid -o diagrams/diagram-light.svg --theme default
+mmdc -i diagram.mermaid -o diagrams/diagram-light.png --theme default
+
+# Dark variants
+mmdc -i diagram.mermaid -o diagrams/diagram-dark.svg --theme dark
+mmdc -i diagram.mermaid -o diagrams/diagram-dark.png --theme dark
+```
+
+### Step 4: Verify Outputs
+
+Confirm these files exist:
+- `<name>-light.svg` and `<name>-dark.svg`
+- `<name>-light.png` and `<name>-dark.png`
 
 ## Theming & Dark Mode
 

@@ -31,10 +31,16 @@ Skills are organized into three categories:
 
 ## Skill Naming
 
-- **Claude plugin**: Skills use the namespace `adk:` — invoked as `/adk:<skill-name>`
-- **skills.sh**: Skills use the `name` field with `adk-` prefix — invoked as `/adk-<skill-name>`
-- **`name` field**: Set to `adk-<skill-name>` in SKILL.md frontmatter (used by skills.sh for namespacing)
-- **`description` field**: Starts with `adk -` followed by bracket tags and the description
+- **Claude plugin** (recommended): Skills use the namespace `adk:` — invoked as `/adk:<skill-name>`
+- **skills.sh / npx skills**: Skills use the `name` field — invoked as `/<skill-name>`
+- **`name` field**: Set to `<skill-name>` in SKILL.md frontmatter (matches the directory name). The plugin provides the `adk:` namespace; the name itself has no prefix.
+- **`description` field**: Starts with `adk -` followed by bracket tags and the description (retained for identification when skills are installed outside the plugin)
+
+## Agent Naming
+
+- **`name` field**: Set to `adk-<agent-name>` (e.g., `adk-code-reviewer`). The `adk-` prefix prevents collisions with user custom agents.
+- **Plugin typeahead**: Plugin users see agents as `adk:adk-<agent-name>`
+- **Agent teams**: Require `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` in `.claude/settings.json` env. Skills check and prompt the user to enable if not set.
 
 ## Cross-Skill Update Dependencies
 
@@ -58,3 +64,7 @@ When updating shared concepts, these skills need coordinated updates:
 | **Bitbucket connector** (`skills/bitbucket/`) | `code-review-pr`, `code-review-fix` |
 | **Confluence connector** (`skills/confluence/`) | `docs-review`, `docs-crud`, `docs-write`, `docs-confluence` |
 | **Jira connector** (`skills/jira/`) | `docs-crud`, `code-review-pr` (context reading) |
+| **Workspace conventions** (`skills/workspace-conventions/`) | All diagram skills (`diagram-*`), `docs-write`, `docs-repo`, `docs-crud`, `plan`, `spec`, `research`, `handoff` |
+| **Chart skill** (`skills/chart/`) | `docs-crud`, `docs-write` (data visualization in documents) |
+| **Doc templates** (`skills/docs-crud/references/doc-templates/`) | `docs-crud` (document type skeletons) |
+| **Agent definitions** (`agents/`) | All skills that spawn child agents reference agents by `adk-` prefixed name |

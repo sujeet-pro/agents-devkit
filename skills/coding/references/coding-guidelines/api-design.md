@@ -143,7 +143,7 @@ that are consistent, evolvable, and pleasant to consume.
 - **Run old and new versions simultaneously** during migration periods. Do not
   force all clients to upgrade at once.
 
-> **Reference**: [API Versioning Best Practices](https://cloud.google.com/apis/adk-design/versioning),
+> **Reference**: [API Versioning Best Practices](https://cloud.google.com/apis/design/versioning),
 > [Sunset Header RFC draft](https://www.rfc-editor.org/rfc/rfc8594)
 
 ## 5. Pagination
@@ -316,7 +316,7 @@ that are consistent, evolvable, and pleasant to consume.
   `edges`, `nodes`, `pageInfo`, and cursor-based pagination that clients and tools
   understand.
 
-> **Reference**: [GraphQL Specification](https://adk-spec.graphql.org/),
+> **Reference**: [GraphQL Specification](https://spec.graphql.org/),
 > [DataLoader GitHub](https://github.com/graphql/dataloader),
 > [Relay Cursor Connections](https://relay.dev/graphql/connections.htm)
 
@@ -365,5 +365,5 @@ that are consistent, evolvable, and pleasant to consume.
 - **For GraphQL**: The schema is the documentation. Ensure every type, field, and
   argument has a description string in the schema definition.
 
-> **Reference**: [OpenAPI Specification](https://adk-spec.openapis.org/oas/latest.html),
+> **Reference**: [OpenAPI Specification](https://spec.openapis.org/oas/latest.html),
 > [Swagger Editor](https://editor.swagger.io/)

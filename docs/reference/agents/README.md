@@ -1,57 +1,66 @@
 ---
 title: Agent Reference
-description: 15 shared agent definitions used by ADK skills
+description: 18 shared agent definitions used by ADK skills
 order: 2
 ---
 
 # Agent Reference
 
-ADK includes 15 shared agent definitions in the `agents/` directory. These provide reusable system prompts for child agents spawned by skills during execution.
+ADK includes 18 shared agent definitions in the `agents/` directory. Each is a `.md` file with YAML frontmatter (`name`, `description`, `model`, `tools`, `effort`, `memory`, `color`, `skills`) and a system prompt body. Skills reference agents by name via Claude Code's native agent system.
 
-## How Agents Work
+All agents use `adk-` prefix to avoid collisions with user custom agents, `memory: project` for cross-session learning, and `effort: high` for quality output.
 
-Skills launch child agents in parallel during Phase 4 (Execute). Each agent receives focused context for its role and produces findings that the parent skill merges and deduplicates.
+## Agent Teams
 
-## Agent Index
+Agents work best with [agent teams](https://code.claude.com/docs/en/agent-teams) enabled:
 
-| Agent | Purpose |
-| ----- | ------- |
-| `code-reviewer` | Multi-perspective code review |
-| `repo-auditor` | Whole-codebase architecture and maintainability review |
-| `doc-reviewer` | Technical document review |
-| `research-agent` | Primary-source and implementation research |
-| `source-publisher` | Publish to GitHub, Bitbucket, Confluence, or Google Docs |
-| `consensus-agent` | Merge and reconcile multi-agent outputs |
-| `frontend-designer` | Frontend and design system direction |
-| `pr-fixer` | Read PR comments and apply targeted code fixes |
-| `security-reviewer` | Security-focused code review (OWASP, auth, data) |
-| `migration-analyst` | Framework/library migration analysis |
-| `guideline-auditor` | Audit guidelines against authoritative sources |
-| `code-snippet-agent` | Code snippet extraction and formatting |
-| `intent-analyst` | Expand user intent, assumptions, complexity, and routing |
-| `plan-reviewer` | Review plans for completeness and sequencing |
-| `progress-tracker` | Monitor execution progress, stalls, and recovery |
+```json
+{ "env": { "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1" } }
+```
+
+## Code Review & Quality Agents
+
+| Agent | Model | Purpose | Reference |
+|-------|-------|---------|-----------|
+| [`adk-code-reviewer`](./code-reviewer.md) | opus | Multi-perspective code review (correctness, security, performance, architecture) | [Details →](./code-reviewer.md) |
+| [`adk-repo-auditor`](./repo-auditor.md) | opus | Whole-codebase architecture and maintainability review | [Details →](./repo-auditor.md) |
+| [`adk-security-reviewer`](./security-reviewer.md) | opus | Security-focused review (OWASP, auth, data, deps) | [Details →](./security-reviewer.md) |
+| [`adk-pr-fixer`](./pr-fixer.md) | sonnet | Targeted code fixes from PR review comments | [Details →](./pr-fixer.md) |
+
+## Documentation & Research Agents
+
+| Agent | Model | Purpose | Reference |
+|-------|-------|---------|-----------|
+| [`adk-doc-reviewer`](./doc-reviewer.md) | opus | Technical and engineering document reviewer | [Details →](./doc-reviewer.md) |
+| [`adk-doc-writer`](./doc-writer.md) | opus | Technical document creation with audience-aware structure | [Details →](./doc-writer.md) |
+| [`adk-research-agent`](./research-agent.md) | opus | Primary-source and implementation research with citations | [Details →](./research-agent.md) |
+| [`adk-code-snippet-agent`](./code-snippet-agent.md) | sonnet | Code example extraction and formatting for docs | [Details →](./code-snippet-agent.md) |
+| [`adk-source-publisher`](./source-publisher.md) | sonnet | Publish to GitHub, Bitbucket, Confluence, or Google Docs | [Details →](./source-publisher.md) |
+
+## Design & Migration Agents
+
+| Agent | Model | Purpose | Reference |
+|-------|-------|---------|-----------|
+| [`adk-frontend-designer`](./frontend-designer.md) | opus | Frontend UI and design-system direction | [Details →](./frontend-designer.md) |
+| [`adk-migration-analyst`](./migration-analyst.md) | opus | Framework/library migration path analysis | [Details →](./migration-analyst.md) |
+| [`adk-guideline-auditor`](./guideline-auditor.md) | opus | Audit guidelines against authoritative sources | [Details →](./guideline-auditor.md) |
+
+## Orchestration Agents
+
+| Agent | Model | Purpose | Reference |
+|-------|-------|---------|-----------|
+| [`adk-intent-analyst`](./intent-analyst.md) | sonnet | Phase-0 prompt expansion and skill routing | [Details →](./intent-analyst.md) |
+| [`adk-plan-reviewer`](./plan-reviewer.md) | sonnet | Plan validation for completeness and sequencing | [Details →](./plan-reviewer.md) |
+| [`adk-progress-tracker`](./progress-tracker.md) | sonnet | Execution monitoring across waves | [Details →](./progress-tracker.md) |
+| [`adk-consensus-agent`](./consensus-agent.md) | sonnet | Merge multi-agent outputs with confidence | [Details →](./consensus-agent.md) |
+
+## Execution Agents
+
+| Agent | Model | Purpose | Reference |
+|-------|-------|---------|-----------|
+| [`adk-test-agent`](./test-agent.md) | opus | Test writing, coverage analysis, and failure diagnosis | [Details →](./test-agent.md) |
+| [`adk-debugger`](./debugger.md) | opus | Root cause analysis and systematic fault isolation | [Details →](./debugger.md) |
 
 ## Standard Team Shapes
 
-Skills compose agents into teams for different types of work:
-
-### Review Team
-
-context reader + architecture reviewer + quality reviewer + documentation reviewer + domain specialist
-
-### Research Team
-
-landscape mapper + primary-source researcher + implementation researcher + risk analyst
-
-### Documentation Team
-
-source analyst + outline editor + fact checker + code/diagram specialist + publisher
-
-### Security Audit Team
-
-auth reviewer + data flow analyzer + dependency scanner + OWASP checker
-
-### Planning Team
-
-intent analyst + plan reviewer
+Skills compose agents into teams for different types of work. See the [`agentic-teams`](/reference/skills/agentic-teams.md) skill reference for the full list of 9 team shapes (Review, Research, Documentation, Diagram, Security, Migration, Engineering, Planning, Execution).

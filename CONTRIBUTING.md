@@ -50,9 +50,10 @@ Every skill declares a `workflow-tier` in its YAML frontmatter:
 
 ### Naming Convention
 
-- **`name` field**: Set to `adk-<skill-name>` (e.g., `name: adk-code-review-pr`). Used by skills.sh for invocation as `/adk-code-review-pr`.
+- **`name` field**: Set to `<skill-name>` matching the directory name (e.g., `name: code-review-pr`). No `adk-` prefix — the plugin provides the `adk:` namespace.
 - **Plugin namespace**: `adk:` — Claude plugin users invoke as `/adk:code-review-pr`. The folder name determines the plugin invocation.
-- **Description prefix**: Always starts with `adk -` (e.g., `description: "adk - [full] [review] ..."`)
+- **skills.sh**: Uses the `name` field directly — invoked as `/<skill-name>` (e.g., `/code-review-pr`).
+- **Description prefix**: Always starts with `adk -` (e.g., `description: "adk - [full] [review] ..."`). This prefix is retained so skills remain identifiable when installed outside the plugin (e.g., via `npx skills`).
 - **No interactive scripts**: All interactivity is via the agent itself.
 
 ### Self-Sufficiency Rule
@@ -93,7 +94,7 @@ python3 templates/skill/scripts/propagate.py --clean-refs     # Remove deprecate
 2. **Create `SKILL.md`** with frontmatter:
    ```yaml
    ---
-   name: adk-skill-name
+   name: skill-name
    description: "adk - [tier] [area] Use when..."
    user-invocable: true
    argument-hint: "<required-arg> [--optional-arg]"
@@ -117,7 +118,7 @@ python3 templates/skill/scripts/propagate.py --clean-refs     # Remove deprecate
 1. Create `skills/<guideline-name>/SKILL.md` with:
    ```yaml
    ---
-   name: adk-guideline-name
+   name: guideline-name
    description: "adk - [helper] [guideline] ..."
    user-invocable: false
    workflow-tier: helper
@@ -132,7 +133,7 @@ python3 templates/skill/scripts/propagate.py --clean-refs     # Remove deprecate
 1. Create `skills/<platform-name>/SKILL.md` with:
    ```yaml
    ---
-   name: adk-platform-name
+   name: platform-name
    description: "adk - [helper] [connector] ..."
    user-invocable: false
    workflow-tier: helper
@@ -158,22 +159,34 @@ python3 templates/skill/scripts/propagate.py --clean-refs     # Remove deprecate
 1. Create `agents/<agent-name>.md` with YAML frontmatter:
    ```yaml
    ---
-   name: agent-name
-   description: "..."
+   name: adk-agent-name
+   description: "When Claude should delegate to this agent"
    model: opus | sonnet
-   allowed-tools:
+   tools:
      - Glob
      - Grep
      - Read
+   effort: high
+   memory: project
+   color: blue
+   skills:
+     - adk-coding
    ---
    ```
-2. Keep tool lists minimal and realistic
-3. Skills reference agents by name
+2. **`name` field**: Use `adk-<agent-name>` prefix to avoid collisions with user custom agents
+3. **`tools`**: Keep tool lists minimal — only grant tools the agent actually needs
+4. **`effort: high`**: Default for all ADK agents (higher quality output)
+5. **`memory: project`**: Enables cross-session learning stored in `.claude/agent-memory/`
+6. **`color`**: Assign by category — blue (code), green (docs), cyan (research), pink (design), yellow (planning), purple (orchestration), orange (quality), red (execution)
+7. **`skills`**: Preload relevant helper skills into agent context
+8. Add a `## Memory` section to the system prompt body instructing the agent what to learn
+9. Skills reference agents by name with `adk-` prefix
+10. **Agent teams**: To enable parallel agent orchestration, add `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` to `.claude/settings.json` env
 
 ## Conventions
 
 - **Skill descriptions**: start with `adk -` followed by bracket tags and "Use when..."
-- **Skill `name` field**: `adk-<skill-name>` for dual-install support
+- **Skill `name` field**: `<skill-name>` matching directory name (no `adk-` prefix; plugin provides the namespace)
 - **Workflow tier**: declare in frontmatter (`full`, `abbreviated`, `helper`, `orchestrator`)
 - **Skill cross-references**: use `/adk:<skill-name>` format
 - **Skill file references**: use `${CLAUDE_SKILL_DIR}/references/` or `${CLAUDE_SKILL_DIR}/scripts/`
@@ -182,7 +195,8 @@ python3 templates/skill/scripts/propagate.py --clean-refs     # Remove deprecate
 - **Human-in-the-loop**: confirm intent, present options, approve plan before executing
 - **Auto mode**: support `--auto` flag to skip confirmations
 - **Git**: use system identity
-- **Intermediary artifacts**: `.temp/` directory (gitignored)
+- **Intermediary artifacts**: `.temp/<task-slug>/` directory (gitignored; see `/adk:workspace-conventions`)
+- **Diagram output**: `diagrams/` folder sibling to the document (or project root for standalone); both light+dark SVG and PNG
 - **Output**: markdown by default for all skill outputs
 
 ## Upstream Sources

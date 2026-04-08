@@ -285,7 +285,7 @@ rules for building reliable, maintainable, and performant backend services.
 - **isort** for import ordering (or Ruff's isort rules). Group imports:
   1. Standard library
   2. Third-party
-  3. Local/adk-project
+  3. Local/project
 - **Docstrings**: Use Google-style or NumPy-style docstrings consistently. Every
   public function, class, and module should have a docstring.
   ```python

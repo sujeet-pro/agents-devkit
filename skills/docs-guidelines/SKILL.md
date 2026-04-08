@@ -1,5 +1,5 @@
 ---
-name: adk-docs-guidelines
+name: docs-guidelines
 description: "adk - [helper] [docs] Detects the document type being written and loads matching document guidelines — invoked by docs-write and docs-review"
 user-invocable: false
 argument-hint: "[--type <doc-type>] [--help]"

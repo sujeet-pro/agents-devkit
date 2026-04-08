@@ -1,9 +1,18 @@
 {
   displayName: "Guide",
   items: [
+    { displayName: "Prerequisites", slug: "prerequisites" },
     { displayName: "Getting Started", slug: "getting-started" },
     { displayName: "Philosophy & Design", slug: "philosophy" },
     { displayName: "Skills Overview", slug: "skills" },
     { displayName: "Workflow", slug: "workflow" },
+    { displayName: "Code Reviews", slug: "code-reviews" },
+    { displayName: "Development", slug: "development" },
+    { displayName: "Documentation", slug: "documentation" },
+    { displayName: "Diagrams", slug: "diagrams" },
+    { displayName: "Research & Planning", slug: "research-planning" },
+    { displayName: "Audits & Quality", slug: "audits-quality" },
+    { displayName: "Project Management", slug: "project-management" },
+    { displayName: "Setup & Configuration", slug: "setup-config" },
   ],
 }

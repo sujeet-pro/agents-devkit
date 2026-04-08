@@ -61,7 +61,7 @@ For each endpoint:
 - `endpoint-scanner` for discovering and cataloging all API endpoints from code
 - `schema-extractor` for extracting request/response schemas
 - `example-generator` for creating realistic request/response examples
-- `doc-reviewer` for completeness and accuracy checking
+- `adk-doc-reviewer` for completeness and accuracy checking
 
 ## Type-Specific Output Format
 

@@ -13,7 +13,7 @@ Read the full document content, existing comments, and any resolution state befo
 
 ## Guideline Loading
 
-Invoke the `/adk-coding` helper skill to detect the repo stack and load the appropriate coding guidelines.
+Invoke the `/coding` helper skill to detect the repo stack and load the appropriate coding guidelines.
 
 ## Interaction Mode
 
@@ -93,7 +93,7 @@ After the user responds inline, process each finding:
 
 - **`accepted`** -> Post to platform or produce manual comment file:
   - Confluence: `mcp__atlassian-confluence__confluence_add_comment`
-  - Google Docs: do **not** post via MCP (unreliable). Instead, collect all accepted comments and produce a markdown file at `.temp/adk-docs-review/<doc-title>-comments.md` listing each comment with its target section/paragraph and content. Present the file path and ask the user to add comments manually.
+  - Google Docs: do **not** post via MCP (unreliable). Instead, collect all accepted comments and produce a markdown file at `.temp/docs-review/<doc-title>-comments.md` listing each comment with its target section/paragraph and content. Present the file path and ask the user to add comments manually.
 - **`rejected`** -> Discard
 - **`edit`** -> Handle in edit loop (Step 4)
 - **`skipped`** -> Defer, do not post

@@ -1,5 +1,5 @@
 ---
-name: adk-workflow
+name: workflow
 description: "adk - [helper] [framework] Helper skill that provides the 6-phase workflow framework with complexity-adaptive phase skipping. Invoked by all full-tier skills."
 user-invocable: false
 argument-hint: "[--complexity trivial|small|medium|large]"

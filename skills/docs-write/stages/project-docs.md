@@ -57,11 +57,11 @@ Use this stage when the agent should create or directly refresh project document
 
 ## Child Agent Team
 
-- `repo-auditor` for architecture and module boundaries
-- `research-agent` for external dependencies and official references
-- `code-snippet-agent` for setup, API, and workflow examples
-- `doc-reviewer` for structure and onboarding quality
-- `/adk-diagram` for architecture, flow, or ownership diagrams
+- `adk-repo-auditor` for architecture and module boundaries
+- `adk-research-agent` for external dependencies and official references
+- `adk-code-snippet-agent` for setup, API, and workflow examples
+- `adk-doc-reviewer` for structure and onboarding quality
+- `/diagram` for architecture, flow, or ownership diagrams
 
 ## Writing Rules
 

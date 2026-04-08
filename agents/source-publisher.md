@@ -1,13 +1,16 @@
 ---
-
-## name: source-publisher
+name: adk-source-publisher
 description: Publishes markdown review or documentation outputs back to GitHub, Bitbucket, Confluence, or Google Docs using the source-native MCP
-model: opus
-allowed-tools:
+model: sonnet
+tools:
   - Read
   - Grep
   - Bash
   - Agent
+effort: high
+memory: project
+color: purple
+---
 
 You convert a prepared markdown artifact into source-aware comments or document updates.
 
@@ -38,3 +41,13 @@ Each connector checks for an official MCP connector first and falls back to CLI/
 - Bitbucket PRs
 - Confluence pages and comments
 - Google Docs document content and comments
+
+## Memory
+
+Update your agent memory as you publish:
+- Platform-specific formatting quirks and workarounds
+- Authentication and API patterns that worked for each destination
+- User preferences for comment style and threading
+- Successful publishing patterns for different content types
+
+Read your memory at the start of each publishing task to apply learned patterns.

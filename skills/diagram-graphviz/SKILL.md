@@ -1,11 +1,11 @@
 ---
-name: adk-diagram-graphviz
+name: diagram-graphviz
 description: "adk - [full] [diagram] Create Graphviz DOT diagrams — strict layout for dependency graphs and existing .dot assets. WASM-based rendering, no browser needed."
 user-invocable: true
-argument-hint: "<description> [--render] [--format svg|png] [--theme both|light|dark]"
+argument-hint: "<description> [--render] [--format svg|png] [--theme both|light|dark] [--layout dot|neato|fdp|sfdp|circo|twopi]"
 allowed-tools: [Glob, Grep, Read, Edit, Write, Bash, Agent]
 dependencies:
-  commands: [git]
+  commands: [git, node, python3]
   npm-packages: [diagramkit]
 workflow-tier: full
 ---
@@ -38,10 +38,11 @@ This skill uses shared helper skills. Load each skill's reference file ONLY when
 | `/adk:principal-engineer` | complexity >= medium | Five questions: need? simplest? alternatives? maintenance costs? clarity in 6 months? |
 | `/adk:agentic-teams` | complexity >= medium AND parallel work needed | Launch 2+ child agents with distinct roles. |
 | `/adk:interaction` | NOT --auto | Inline protocols for intent confirmation, approach selection, plan approval. |
+| `/adk:workspace-conventions` | always | All work inside the project repo. Temp files in `.temp/<task-slug>/` (gitignored). Diagrams in `diagrams/` (sibling to doc, or project root). Both light+dark SVG and PNG. Respect `diagramkit.config.json` when present. Always commit source files with rendered output. |
 
 ## Helper Skill Resolution
 
-Resolve shared behavior through **helper skills**, not by loading reference markdown files. Invoke the needed skill using either form: `/adk:<skill>` (Claude plugin) or `/adk-<skill>` (skills.sh). The usual helpers are **workflow** (phase structure), **communication** (tone and structure), **preflight-check** (tool and MCP validation), **output-format** (verbosity and deliverable shape), **principal-engineer** (engineering bar), **agentic-teams** (child agents), and **interaction** (prompting and confirmations).
+Resolve shared behavior through **helper skills**, not by loading reference markdown files. Invoke the needed skill using either form: `/adk:<skill>` (Claude plugin) or `/<skill>` (skills.sh). The usual helpers are **workflow** (phase structure), **communication** (tone and structure), **preflight-check** (tool and MCP validation), **output-format** (verbosity and deliverable shape), **principal-engineer** (engineering bar), **agentic-teams** (child agents), and **interaction** (prompting and confirmations).
 
 If a required helper skill is unavailable, print a warning and continue using the inline fallback summary in the Shared Skills table.
 
@@ -68,21 +69,34 @@ If a required helper skill is unavailable, print a warning and continue using th
 | 2. Approach Selection | skip | Direct execution after early confirmation |
 | 3. Planning | skip | Direct execution |
 | 4. Execute | yes | Generate diagram source files |
-| 5. Validate & Learn | yes | Verify renderability, naming, consistency |
+| 5. Validate & Learn | yes | Render to SVG/PNG (light+dark), verify renderability, naming, consistency |
 
 ## Human in the Loop
 
 - **Plan first (Phase 0)**: Always confirm intent — diagram scope, layout engine, and whether updating existing `.dot` files — before generating.
 - **Auto mode**: When invoked with `--auto` or by a parent skill, skip confirmations and proceed directly.
 
-## Rendering
+## Rendering Pipeline
+
+Rendering always produces both **light and dark** variants in **SVG and PNG** by default.
+
+### Step 1: Determine Output Location
+
+1. If a `diagramkit.config.json` exists at the project root → use its `outputDir` setting
+2. If invoked by a doc skill → place in `diagrams/` folder sibling to the document
+3. Otherwise → place in `./diagrams/` at the project root
+
+### Step 2: Render with diagramkit (Primary)
 
 ```bash
-# Default: both light and dark SVG variants
-diagramkit render diagram.dot
+# SVG — both light and dark
+diagramkit render diagram.dot --format svg --theme both
 
-# PNG only, specific layout engine
-diagramkit render diagram.dot --format png --layout neato
+# PNG — both themes, 2x scale for retina
+diagramkit render diagram.dot --format png --theme both --scale 2
+
+# Specific layout engine
+diagramkit render diagram.dot --format svg --theme both --layout neato
 ```
 
 diagramkit uses WASM-based Graphviz rendering (no browser, no local `dot` binary required). For dark mode, it runs `adaptGraphvizSvgForDarkMode` which:
@@ -91,13 +105,47 @@ diagramkit uses WASM-based Graphviz rendering (no browser, no local `dot` binary
 - `postProcessDarkSvg` adjusts high-luminance fills using a WCAG luminance threshold of 0.4
 - Preserves the graph structure and layout exactly
 
+If the project has a `diagramkit.config.json`, diagramkit reads it automatically for output directory, default format, theme, and scale.
+
+### Step 3: Fallback — Graphviz CLI (`dot`)
+
+If diagramkit is not installed or fails, use the Graphviz `dot` binary directly.
+
+**Install:** `brew install graphviz` (macOS) or `apt-get install graphviz` (Linux)
+
+```bash
+# Light variants
+dot -Tsvg -Gbgcolor=white diagram.dot -o diagrams/diagram-light.svg
+dot -Tpng -Gbgcolor=white diagram.dot -o diagrams/diagram-light.png
+
+# Dark variants — create a temp wrapper that overrides colors
+cat > .temp/diagram-dark-wrapper.dot << 'DARKEOF'
+digraph dark_wrapper {
+    graph [bgcolor="#1e1e1e"];
+    node [fontcolor="#cccccc", color="#cccccc"];
+    edge [color="#999999", fontcolor="#999999"];
+}
+DARKEOF
+# Merge dark overrides with the source file manually, or:
+dot -Tsvg -Gbgcolor="#1e1e1e" -Nfontcolor="#cccccc" -Ncolor="#cccccc" -Ecolor="#999999" diagram.dot -o diagrams/diagram-dark.svg
+dot -Tpng -Gbgcolor="#1e1e1e" -Nfontcolor="#cccccc" -Ncolor="#cccccc" -Ecolor="#999999" diagram.dot -o diagrams/diagram-dark.png
+```
+
+For complex graphs with custom colors, the CLI dark fallback may not match diagramkit quality. Consider installing diagramkit for best results.
+
+### Step 4: Verify Outputs
+
+Confirm these files exist:
+- `<name>-light.svg` and `<name>-dark.svg`
+- `<name>-light.png` and `<name>-dark.png`
+
 ---
 
 ## Workflow
 
 ### Phase 0: Intent Confirmation
 
-Confirm: graph type (directed/undirected), nodes, edges, layout engine preference, whether updating existing files.
+Confirm: graph type (directed/undirected), nodes, edges, layout engine preference, whether updating existing files. Invoke `/adk:workspace-conventions` to determine output location.
 
 ### Phase 1: Analyze & Plan
 
@@ -105,15 +153,20 @@ If updating existing `.dot` files, read them first and preserve conventions unle
 
 ### Phase 4: Generate DOT Source
 
-Write a `.dot` file following the reference below.
+Write a `.dot` file to the determined output location following the reference below. Ensure `.temp/` is gitignored if using temp files.
 
-### Phase 5: Validate & Report
+### Phase 5: Render, Validate & Report
+
+Run the rendering pipeline (Step 1–4 above). Then report:
 
 ```
-Graphviz source file written:
+Graphviz diagram complete:
   Source: ./diagrams/dependency-graph.dot
-
-Render with: diagramkit render ./diagrams/dependency-graph.dot
+  Output:
+    ./diagrams/dependency-graph-light.svg
+    ./diagrams/dependency-graph-dark.svg
+    ./diagrams/dependency-graph-light.png
+    ./diagrams/dependency-graph-dark.png
 ```
 
 ---

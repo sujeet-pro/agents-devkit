@@ -24,10 +24,14 @@ Where `<args>` are the arguments passed to this skill (e.g. `--check-only`, `--t
 | Python 3 | `python3` | `brew install python` | preflight.py, scripts |
 | Node.js | `node` | `brew install node` | Diagram skills, audit-dependency |
 | npm | `npm` | Bundled with node | Same as Node.js |
+| jq | `jq` | `brew install jq` | Bitbucket, Confluence, Jira connectors |
+| curl | `curl` | `brew install curl` | Bitbucket, Confluence, Jira connectors |
 | Graphviz | `dot` | `brew install graphviz` | diagram-graphviz |
 | uv / uvx | `uvx` | `curl` installer | Confluence MCP |
 | Docker | `docker` | `brew install --cask docker` | GitHub MCP (Docker variant) |
-| GitHub CLI | `gh` | `brew install gh` | PR management |
+| GitHub CLI | `gh` | `brew install gh` | PR management (checks `gh auth status`) |
+| diagramkit | `diagramkit` | `npm install -g diagramkit` | diagram-mermaid, diagram-excalidraw, diagram-drawio |
+| pagesmith | `pagesmith` | `npm install -g @pagesmith/docs` | docs-crud, docs-repo |
 
 ## Post-Setup
 

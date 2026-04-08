@@ -49,7 +49,7 @@ Each entry should:
 
 - `git-analyzer` for reading and categorizing git history
 - `pr-reader` for extracting PR descriptions and linked issues
-- `doc-reviewer` for changelog format and completeness checking
+- `adk-doc-reviewer` for changelog format and completeness checking
 
 ## Writing Rules
 

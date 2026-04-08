@@ -2,6 +2,8 @@
 
 Principal-engineer-grade skills for software development agents. Code review, documentation, research, codebase audits, diagrams, planning, migrations, refactoring, and MCP-native publishing.
 
+> **Designed for Claude Code.** ADK is built and tested as a Claude Code plugin. Features like custom sub-agents with persistent memory, hooks, and plugin-scoped MCP servers rely on Claude Code. You can install individual skills via `npx skills` for other agents (Codex, etc.), but these Claude-specific features will not be available.
+
 Route general prompts through `/adk:use` first. Invoke a specific skill directly only when you explicitly name it or clearly want that exact workflow. Every skill supports `--help`.
 
 Inspired by [superpowers](https://github.com/obra/superpowers). Diagram skills from [diagramkit](https://github.com/sujeet-pro/diagramkit). Markdown capabilities from [pagesmith](https://github.com/sujeet-pro/pagesmith).
@@ -39,7 +41,7 @@ A typical PR review loads ~400 lines. A Mermaid diagram loads ~250 lines (1 type
 - **Lazy loading** — only the relevant skill, stage, and reference files load per task; ~200-500 lines per invocation out of ~42,000 total
 - **Markdown by default** — all outputs are markdown unless the user requests otherwise
 - **Auto mode** — pass `--auto` to skip confirmations and execute the full workflow automatically
-- **Dual-install support** — works as a Claude plugin (`/adk:skill`), via skills.sh (`/adk-skill`), or Codex (`/adk-skill`)
+- **Claude-first** — designed for Claude Code as a plugin (`/adk:skill`). Also installable via `npx skills` for other agents, though some features (custom sub-agents, memory) require Claude
 
 ## The 6-Phase Workflow
 
@@ -90,7 +92,7 @@ npx skills add sujeet-pro/agents-devkit/skills/code-review-pr
 npx skills add sujeet-pro/agents-devkit/skills/dev-build
 ```
 
-When installed via skills.sh, skills are prefixed with `adk-` (e.g., `/adk-code-review-pr`, `/adk-dev-build`). This prevents conflicts with other skill packs. Works with Claude Code, Codex, and other skills.sh-compatible agents.
+When installed via skills.sh, skills use the `name` field from frontmatter (e.g., `/code-review-pr`, `/dev-build`). Works with Claude Code, Codex, and other skills.sh-compatible agents. Some features — custom sub-agents with memory, hooks — require Claude Code.
 
 Visit [skills.sh](https://skills.sh) for more details.
 
@@ -111,7 +113,7 @@ After installing, add this to your project's `CLAUDE.md` (or `~/.claude/CLAUDE.m
 On every user prompt, follow this workflow before doing any work:
 
 1. **Expand intent** — restate the goal in one line, surface assumptions, estimate complexity
-2. **Identify skills** — check installed ADK skills (`/adk:use` or `/adk-use`) and select the minimum pipeline
+2. **Identify skills** — check installed ADK skills (`/adk:use` or `/use`) and select the minimum pipeline
 3. **Show phase summary** — display a concise phase plan:
    - Goal (one line)
    - Skills to use (with brief rationale)
@@ -162,7 +164,7 @@ npx skills remove sujeet-pro/agents-devkit
 
 ## Skill Categories
 
-ADK's 49 skills are organized into four categories. Only the relevant skill files load per task (see [lazy loading](#token-efficient-lazy-loading)).
+ADK's 51 skills are organized into four categories. Only the relevant skill files load per task (see [lazy loading](#token-efficient-lazy-loading)).
 
 ### Guideline Skills (16 shared helpers)
 
@@ -292,26 +294,29 @@ Coordinate and route work across other skills. Category routers auto-detect the 
 
 ## Agents
 
-15 shared agent definitions in `agents/` provide reusable prompts for child agents spawned by skills during parallel execution.
+18 shared agent definitions in `agents/` provide reusable prompts for child agents spawned by skills during parallel execution. All agents use `memory: project` for cross-session learning and `effort: high` for quality output.
 
 
-| Agent                | Purpose                                                  |
-| -------------------- | -------------------------------------------------------- |
-| `code-reviewer`      | Multi-perspective code review                            |
-| `repo-auditor`       | Whole-codebase architecture and maintainability review   |
-| `doc-reviewer`       | Technical document review                                |
-| `research-agent`     | Primary-source and implementation research               |
-| `source-publisher`   | Publish to GitHub, Bitbucket, Confluence, or Google Docs |
-| `consensus-agent`    | Merge and reconcile multi-agent outputs                  |
-| `frontend-designer`  | Frontend and design system direction                     |
-| `pr-fixer`           | Read PR comments and apply targeted code fixes           |
-| `security-reviewer`  | Security-focused code review (OWASP, auth, data)         |
-| `migration-analyst`  | Framework/library migration analysis                     |
-| `guideline-auditor`  | Audit guidelines against authoritative sources           |
-| `code-snippet-agent` | Code snippet extraction and formatting                   |
-| `intent-analyst`     | Expand user intent, assumptions, complexity, and routing |
-| `plan-reviewer`      | Review plans for completeness and sequencing             |
-| `progress-tracker`   | Monitor execution progress, stalls, and recovery         |
+| Agent                    | Purpose                                                  |
+| ------------------------ | -------------------------------------------------------- |
+| `adk-code-reviewer`      | Multi-perspective code review                            |
+| `adk-repo-auditor`       | Whole-codebase architecture and maintainability review   |
+| `adk-security-reviewer`  | Security-focused code review (OWASP, auth, data)         |
+| `adk-pr-fixer`           | Read PR comments and apply targeted code fixes           |
+| `adk-doc-reviewer`       | Technical document review                                |
+| `adk-doc-writer`         | Technical document creation with audience-aware structure |
+| `adk-code-snippet-agent` | Code snippet extraction and formatting                   |
+| `adk-research-agent`     | Primary-source and implementation research               |
+| `adk-migration-analyst`  | Framework/library migration analysis                     |
+| `adk-frontend-designer`  | Frontend and design system direction                     |
+| `adk-intent-analyst`     | Expand user intent, assumptions, complexity, and routing |
+| `adk-plan-reviewer`      | Review plans for completeness and sequencing             |
+| `adk-progress-tracker`   | Monitor execution progress, stalls, and recovery         |
+| `adk-consensus-agent`    | Merge and reconcile multi-agent outputs                  |
+| `adk-source-publisher`   | Publish to GitHub, Bitbucket, Confluence, or Google Docs |
+| `adk-guideline-auditor`  | Audit guidelines against authoritative sources           |
+| `adk-test-agent`         | Test writing, coverage analysis, and failure diagnosis    |
+| `adk-debugger`           | Root cause analysis and systematic fault isolation        |
 
 
 ## MCP Integrations
@@ -345,11 +350,11 @@ ADK includes hooks that run automatically:
 | Install Method   | Invocation Pattern  | Example               |
 | ---------------- | ------------------- | --------------------- |
 | Claude Plugin    | `/adk:<skill-name>` | `/adk:code-review-pr` |
-| skills.sh        | `/adk-<skill-name>` | `/adk-code-review-pr` |
+| skills.sh        | `/<skill-name>` | `/code-review-pr` |
 | Local plugin-dir | `/adk:<skill-name>` | `/adk:code-review-pr` |
 
 
-The `name` field in each skill's frontmatter is set to `adk-<skill-name>`. When installed as a Claude plugin, the plugin namespace `adk:` is used and the folder name determines the command. When installed via skills.sh, the `name` field is used directly, giving `/adk-<skill-name>`.
+The `name` field in each skill's frontmatter matches the directory name (e.g., `code-review-pr`). No `adk-` prefix — the plugin provides the `adk:` namespace automatically. When installed via skills.sh, the `name` field is used directly as `/<skill-name>`. The `description` field retains an `adk -` prefix for identification when skills are used outside the plugin.
 
 ## Output Style
 
@@ -365,18 +370,18 @@ All ADK output follows **concise by default**:
 ## Plugin Structure
 
 ```
-agents-devkit/                        49 skills · 15 agents · ~42K lines
+agents-devkit/                        51 skills · 18 agents · ~42K lines
 ├── .claude-plugin/
 │   └── plugin.json                   Plugin manifest (name: adk)
 ├── .mcp.json                         MCP server configurations
 ├── hooks/hooks.json                  Hook configurations
 ├── settings.json                     Default settings (routes to /adk:use)
-├── agents/                           15 shared agent definitions
+├── agents/                           18 shared agent definitions
 ├── settings/                         MCP setup guides
 ├── templates/skill/                  Canonical templates and propagation
 │   ├── common/                       Cross-skill files (help-format, project-guidelines)
 │   └── scripts/                      Preflight and propagation scripts
-├── skills/                           49 skills (only relevant ones load per task)
+├── skills/                           51 skills (only relevant ones load per task)
 │   ├── use/                          Routing — default orchestrator
 │   ├── team/                         Routing — multi-model agent dispatch
 │   ├── code-review/                  Routing — review type detection

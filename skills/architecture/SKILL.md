@@ -1,5 +1,5 @@
 ---
-name: adk-architecture
+name: architecture
 description: "adk - [helper] [guidelines] Helper skill that provides software architecture patterns, principles, and review criteria. Used by review, audit, and design skills."
 user-invocable: false
 argument-hint: "[--focus frontend|backend|fullstack|infra]"

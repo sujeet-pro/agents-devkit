@@ -1,5 +1,5 @@
 ---
-name: adk-code-review
+name: code-review
 description: "adk - [routing] [code-review] Code review router — detects review type and routes to the right sub-skill"
 user-invocable: true
 argument-hint: "<target> [--help]"

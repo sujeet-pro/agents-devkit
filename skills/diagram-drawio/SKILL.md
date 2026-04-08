@@ -1,11 +1,11 @@
 ---
-name: adk-diagram-drawio
+name: diagram-drawio
 description: "adk - [full] [diagram] Create draw.io diagrams — precise layout with rich icon library for network topology, enterprise architecture, and BPMN."
 user-invocable: true
 argument-hint: "<description> [--render] [--format svg|png] [--theme both|light|dark]"
 allowed-tools: [Glob, Grep, Read, Edit, Write, Bash, Agent]
 dependencies:
-  commands: [git]
+  commands: [git, node, python3]
   npm-packages: [diagramkit]
 workflow-tier: full
 ---
@@ -31,10 +31,11 @@ This skill uses shared helper skills. Load each skill's reference file ONLY when
 | `/adk:principal-engineer` | complexity >= medium | Five questions: need? simplest? alternatives? maintenance costs? clarity in 6 months? |
 | `/adk:agentic-teams` | complexity >= medium AND parallel work needed | Launch 2+ child agents with distinct roles. |
 | `/adk:interaction` | NOT --auto | Inline protocols for intent confirmation, approach selection, plan approval. |
+| `/adk:workspace-conventions` | always | All work inside the project repo. Temp files in `.temp/<task-slug>/` (gitignored). Diagrams in `diagrams/` (sibling to doc, or project root). Both light+dark SVG and PNG. Respect `diagramkit.config.json` when present. Always commit source files with rendered output. |
 
 ## Helper Skill Resolution
 
-Resolve shared behavior through **helper skills**, not by loading reference markdown files. Invoke the needed skill using either form: `/adk:<skill>` (Claude plugin) or `/adk-<skill>` (skills.sh). The usual helpers are **workflow** (phase structure), **communication** (tone and structure), **preflight-check** (tool and MCP validation), **output-format** (verbosity and deliverable shape), **principal-engineer** (engineering bar), **agentic-teams** (child agents), and **interaction** (prompting and confirmations).
+Resolve shared behavior through **helper skills**, not by loading reference markdown files. Invoke the needed skill using either form: `/adk:<skill>` (Claude plugin) or `/<skill>` (skills.sh). The usual helpers are **workflow** (phase structure), **communication** (tone and structure), **preflight-check** (tool and MCP validation), **output-format** (verbosity and deliverable shape), **principal-engineer** (engineering bar), **agentic-teams** (child agents), and **interaction** (prompting and confirmations).
 
 If a required helper skill is unavailable, print a warning and continue using the inline fallback summary in the Shared Skills table.
 
@@ -60,21 +61,31 @@ If a required helper skill is unavailable, print a warning and continue using th
 | 2. Approach Selection | skip | Direct execution after early confirmation |
 | 3. Planning | skip | Direct execution |
 | 4. Execute | yes | Generate diagram source files |
-| 5. Validate & Learn | yes | Verify renderability, naming, consistency |
+| 5. Validate & Learn | yes | Render to SVG/PNG (light+dark), verify renderability, naming, consistency |
 
 ## Human in the Loop
 
 - **Plan first (Phase 0)**: Always confirm intent — diagram type, components, layout pattern — before generating.
 - **Auto mode**: When invoked with `--auto` or by a parent skill, skip confirmations and proceed directly.
 
-## Rendering
+## Rendering Pipeline
+
+Rendering always produces both **light and dark** variants in **SVG and PNG** by default.
+
+### Step 1: Determine Output Location
+
+1. If a `diagramkit.config.json` exists at the project root → use its `outputDir` setting
+2. If invoked by a doc skill → place in `diagrams/` folder sibling to the document
+3. Otherwise → place in `./diagrams/` at the project root
+
+### Step 2: Render with diagramkit (Primary)
 
 ```bash
-# Default: both light and dark SVG variants
-diagramkit render diagram.drawio
+# SVG — both light and dark
+diagramkit render diagram.drawio --format svg --theme both
 
-# PNG only, light mode
-diagramkit render diagram.drawio --format png --theme light
+# PNG — both themes, 2x scale for retina
+diagramkit render diagram.drawio --format png --theme both --scale 2
 ```
 
 diagramkit uses Playwright Chromium for draw.io rendering. It creates dark variants automatically by:
@@ -85,6 +96,8 @@ diagramkit uses Playwright Chromium for draw.io rendering. It creates dark varia
 
 Standard fill colors from the Color Combinations table below are designed to work with this contrast optimization.
 
+If the project has a `diagramkit.config.json`, diagramkit reads it automatically for output directory, default format, theme, and scale.
+
 **Guidelines for dark mode compatibility:**
 
 - Avoid very light fills (close to white) — they lose distinction when darkened
@@ -92,13 +105,42 @@ Standard fill colors from the Color Combinations table below are designed to wor
 - Use mid-tone stroke colors — dark strokes adapt better than very light ones
 - Use `fontColor=#333333` — diagramkit adjusts this for dark mode
 
+### Step 3: Fallback — draw.io Desktop CLI
+
+If diagramkit is not installed or fails, use the draw.io desktop app's CLI export.
+
+**Install:** Download from https://github.com/jgraph/drawio-desktop/releases
+
+```bash
+# macOS path (adjust for Linux/Windows)
+DRAWIO="/Applications/draw.io.app/Contents/MacOS/draw.io"
+
+# Light variants
+$DRAWIO --export --format svg --output diagrams/diagram-light.svg diagram.drawio
+$DRAWIO --export --format png --output diagrams/diagram-light.png --scale 2 diagram.drawio
+
+# Dark variants — draw.io CLI does not natively support dark mode export.
+# Workaround: modify the XML to set dark background and adjust colors, then export.
+# For best dark mode results, use diagramkit.
+$DRAWIO --export --format svg --output diagrams/diagram-dark.svg diagram.drawio
+$DRAWIO --export --format png --output diagrams/diagram-dark.png --scale 2 diagram.drawio
+```
+
+On Linux, the binary is typically `drawio` or `/usr/bin/draw.io`. On Windows, use `"C:\Program Files\draw.io\draw.io.exe"`.
+
+### Step 4: Verify Outputs
+
+Confirm these files exist:
+- `<name>-light.svg` and `<name>-dark.svg`
+- `<name>-light.png` and `<name>-dark.png`
+
 ---
 
 ## Workflow
 
 ### Phase 0: Intent Confirmation
 
-Confirm: diagram type, components to show, layout pattern, output location.
+Confirm: diagram type, components to show, layout pattern, output location. Invoke `/adk:workspace-conventions` to determine output location.
 
 ### Phase 1: Analyze & Plan
 
@@ -111,15 +153,21 @@ Parse the description to identify:
 
 ### Phase 4: Generate Draw.io XML
 
-Write a `.drawio` file following the XML format reference below.
+Write a `.drawio` file to the determined output location following the XML format reference below. Ensure `.temp/` is gitignored if using temp files.
 
-### Phase 5: Validate & Report
+### Phase 5: Render, Validate & Report
+
+Run the rendering pipeline (Step 1–4 above). Then report:
 
 ```
-Draw.io source file written:
+Draw.io diagram complete:
   Source: ./diagrams/network-topology.drawio
+  Output:
+    ./diagrams/network-topology-light.svg
+    ./diagrams/network-topology-dark.svg
+    ./diagrams/network-topology-light.png
+    ./diagrams/network-topology-dark.png
 
-Render with: diagramkit render ./diagrams/network-topology.drawio
 Edit in browser: https://app.diagrams.net (load the .drawio file)
 VS Code: Install the draw.io extension and open the file directly.
 ```

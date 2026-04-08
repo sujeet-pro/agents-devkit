@@ -73,7 +73,7 @@ Research the chosen approach in depth:
 
 ## Implementation Plan
 
-Create a plan following `/adk-plan --mode write` conventions:
+Create a plan following `/plan --mode write` conventions:
 - Break into discrete, verifiable tasks
 - Identify files to create or modify per task
 - Define verification commands per task
@@ -110,7 +110,7 @@ For each planned task, execute waves sequentially (tasks within each wave in par
 ### Review Checkpoints
 
 After each wave, launch review child agents in parallel:
-- `code-reviewer` for correctness, patterns, and maintainability
+- `adk-code-reviewer` for correctness, patterns, and maintainability
 - A spec/requirement review pass to confirm the implementation matches the plan
 
 Fix issues surfaced by reviewers before moving to the next wave.

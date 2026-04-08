@@ -1,5 +1,5 @@
 ---
-name: adk-docs
+name: docs
 description: "adk - [routing] [docs] Documentation router — detects doc task type and routes to the right sub-skill"
 user-invocable: true
 argument-hint: "<task> [--help]"
@@ -18,7 +18,7 @@ Analyze the user's request and route to the matching skill:
 | Signal | Route To | Invocation |
 |--------|----------|------------|
 | "write ADR", "write RFC", "blog post", "changelog", "migration guide", "runbook", "proposal", "system design", "tech radar", "tool eval" | Write formal document | `/adk:docs-write` |
-| "create doc", "new page", "update doc", "improve doc", "fix doc", "comment reply", "respond to comments" | Doc lifecycle management | `/adk:docs-crud` |
+| "create doc", "new page", "update doc", "improve doc", "fix doc", "comment reply", "respond to comments", "TDD", "HLD", "LLD", "PRD", "ERD", "incident report", "postmortem", "status report", "API reference" | Doc lifecycle management | `/adk:docs-crud` |
 | "generate docs", "document this repo", "document this codebase", "docs for the project" | Bulk repo documentation | `/adk:docs-repo` |
 | "review docs", "check documentation", "review this doc", "review the RFC", Confluence URL, Google Docs URL | Review documentation | `/adk:docs-review` |
 | "Confluence page", "publish to Confluence", "Confluence", "wiki page" | Confluence doc operations | `/adk:docs-confluence` |

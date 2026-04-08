@@ -160,7 +160,7 @@ Deduplicate findings from both approaches. If a finding appears in both, keep th
 
 ## Smart Parameter Detection
 
-When invoked via `/adk-use` or with a natural-language prompt, infer parameters from context:
+When invoked via `/use` or with a natural-language prompt, infer parameters from context:
 
 | Signal | Inferred Parameter | Why |
 |--------|--------------------|-----|
@@ -255,20 +255,20 @@ Run these review dimensions in parallel. Each dimension maps to a specialized ch
 
 | Dimension | Agent Role | Key Checks |
 |-----------|-----------|------------|
-| `syntax` | `code-reviewer` (role: syntax-checker) | Linting, formatting, naming, imports, dead code |
-| `correctness` | `code-reviewer` (role: correctness-analyzer) | Logic bugs, edge cases, null paths, race conditions |
-| `security` | `security-reviewer` | OWASP Top 10, auth, input validation, secrets, injection |
-| `performance` | `code-reviewer` (role: performance-analyzer) | N+1, memory, bundle size, caching, complexity |
-| `design` | `repo-auditor` (role: design-reviewer) | Coupling, dependency direction, data flow, API surface |
-| `reliability` | `code-reviewer` (role: reliability-analyzer) | Error handling, retries, timeouts, observability |
-| `testing` | `code-reviewer` (role: test-reviewer) | Coverage gaps, test quality, flaky patterns |
-| `documentation` | `doc-reviewer` | Doc drift, migration notes, API docs, changelog |
+| `syntax` | `adk-code-reviewer` (role: syntax-checker) | Linting, formatting, naming, imports, dead code |
+| `correctness` | `adk-code-reviewer` (role: correctness-analyzer) | Logic bugs, edge cases, null paths, race conditions |
+| `security` | `adk-security-reviewer` | OWASP Top 10, auth, input validation, secrets, injection |
+| `performance` | `adk-code-reviewer` (role: performance-analyzer) | N+1, memory, bundle size, caching, complexity |
+| `design` | `adk-repo-auditor` (role: design-reviewer) | Coupling, dependency direction, data flow, API surface |
+| `reliability` | `adk-code-reviewer` (role: reliability-analyzer) | Error handling, retries, timeouts, observability |
+| `testing` | `adk-code-reviewer` (role: test-reviewer) | Coverage gaps, test quality, flaky patterns |
+| `documentation` | `adk-doc-reviewer` | Doc drift, migration notes, API docs, changelog |
 | `ui-ux` | `ui-reviewer` | Semantic HTML, ARIA, keyboard nav, responsive, visual |
 | `spec-compliance` | `spec-reviewer` | Requirements coverage, acceptance criteria, edge cases |
 
 Each finding is attributed to the dimension(s) that identified it. When multiple dimensions flag the same issue, list all in the `Dimension` field of the comment metadata.
 
-After consolidation, if `publish` includes source posting, use `source-publisher` to post comments.
+After consolidation, if `publish` includes source posting, use `adk-source-publisher` to post comments.
 
 ---
 
@@ -316,7 +316,7 @@ The `ui-ux` dimension agent checks:
 
 UI findings follow the same interactive loop and comment template as code review findings.
 
-For full visual audit, suggest using `/adk-code-review-pr --focus ui` for a dedicated 6-pillar UI/UX review.
+For full visual audit, suggest using `/code-review-pr --focus ui` for a dedicated 6-pillar UI/UX review.
 
 ---
 
@@ -382,7 +382,7 @@ For each candidate finding:
    - Verify the fix parses correctly in the surrounding context (correct syntax, matching types, valid imports).
    - Check that the fix does not break adjacent code (variable references, return types, function signatures).
    - If the fix is non-trivial or touches shared interfaces, mark it as "suggested fix needs manual verification" rather than presenting it as a drop-in replacement.
-   - Verify the fix is consistent with the project's coding patterns detected by the `/adk-coding` skill.
+   - Verify the fix is consistent with the project's coding patterns detected by the `/coding` skill.
 
 ### Validation Outcomes
 

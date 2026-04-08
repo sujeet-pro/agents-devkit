@@ -17,7 +17,7 @@ order: 2
 - **Lazy loading** — only the relevant skill, stage, and reference files load per task; ~200-500 lines per invocation out of ~42,000 total
 - **Markdown by default** — all outputs are markdown unless the user requests otherwise
 - **Auto mode** — pass `--auto` to skip confirmations and execute the full workflow automatically
-- **Dual-install support** — works as a Claude plugin (`/adk:skill`), via skills.sh (`/adk-skill`), or Codex (`/adk-skill`)
+- **Dual-install support** — works as a Claude plugin (`/adk:skill`), via skills.sh (`/skill`), or Codex (`/skill`)
 
 ## Output Style
 

@@ -1,5 +1,5 @@
 ---
-name: adk-bitbucket
+name: bitbucket
 description: "adk - [helper] [connector] Bitbucket REST API operations — PR reviews, comments, repository access, and pipeline status"
 user-invocable: false
 workflow-tier: helper
@@ -37,13 +37,15 @@ If auth fails or token is expired, tell the user:
 > ```
 > Then run `source ~/.zshenv` and retry.
 
-## MCP Connector Detection
+## API-First Approach
 
-Before using scripts, check if a Bitbucket MCP connector is available:
+Always prefer direct REST API calls (via `curl`) over MCP tools. The bundled scripts under `scripts/` wrap the Bitbucket REST API and work in any environment (Claude Code, Codex, etc.) without MCP dependencies. If the scripts are not accessible via `${CLAUDE_SKILL_DIR}`, construct `curl` commands directly from the reference docs below — do NOT create new shell scripts.
 
-1. Look for tools matching `mcp__bitbucket__*` pattern
-2. If available, prefer MCP tools for supported operations
-3. Fall back to scripts for operations not covered by the MCP
+MCP tools (`mcp__bitbucket__*`) may be used as a secondary option when available, but fall back to direct API calls for any operation not covered or if MCP fails.
+
+## Comments
+
+By default, "comments" means **inline comments** — comments attached to a specific file and line in a PR. Use the `--file` and `--line` flags with `comments.sh create`, or the `inline` field in the REST API body. General (non-inline) comments are only used for PR-level summaries.
 
 ## API Base
 

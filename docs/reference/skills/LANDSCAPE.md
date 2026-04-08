@@ -76,19 +76,19 @@ Assessment against the required philosophy:
 
 To align with popular engineering usage and automation goals:
 
-1. `adk-ci` (task)  
+1. `ci` (task)  
    Focus: CI failures, flaky tests, lint/build breakages, pipeline hardening.
 
-2. `adk-release` (task)  
+2. `release` (task)  
    Focus: release notes, version bump strategy, changelog generation, release validation checklist.
 
-3. `adk-incident` (task)  
+3. `incident` (task)  
    Focus: incident triage, log/signal correlation, mitigation plan, postmortem draft.
 
-4. `adk-deps-remediate` (task)  
+4. `deps-remediate` (task)  
    Focus: dependency update planning, breakage risk scoring, automated fix+verify loop.
 
-5. `adk-db` (task)  
+5. `db` (task)  
    Focus: schema migration planning, query optimization, data backfill and rollback safety.
 
 ## Recommended Router Expansions
@@ -96,9 +96,9 @@ To align with popular engineering usage and automation goals:
 Current router categories are strong for `dev`, `docs`, `code-review`, and `diagram`.
 For consistency, add:
 
-- `adk-quality` router -> `audit`, `test`, `incident`, `deps-remediate`
-- `adk-delivery` router -> `ci`, `release`
-- `adk-platform` router -> `setup`, future `db`, future `infra`
+- `quality` router -> `audit`, `test`, `incident`, `deps-remediate`
+- `delivery` router -> `ci`, `release`
+- `platform` router -> `setup`, future `db`, future `infra`
 
 ## Tool/Connector Preference Policy (Proposed Standard)
 

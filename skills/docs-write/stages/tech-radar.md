@@ -60,7 +60,7 @@ For each technology:
 - `tech-researcher` for gathering evidence on each technology entry
 - `stack-analyzer` for assessing current usage in the codebase
 - `trend-analyst` for industry adoption trends and community health
-- `doc-reviewer` for consistency and evidence quality
+- `adk-doc-reviewer` for consistency and evidence quality
 
 ## Writing Rules
 

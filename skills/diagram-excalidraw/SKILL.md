@@ -1,11 +1,11 @@
 ---
-name: adk-diagram-excalidraw
+name: diagram-excalidraw
 description: "adk - [full] [diagram] Create Excalidraw diagrams — hand-drawn style architecture overviews and freeform diagrams. Full JSON format reference with light/dark mode."
 user-invocable: true
 argument-hint: "<description> [--render] [--format svg|png] [--theme both|light|dark] [--palette default|aws|azure|gcp|k8s]"
 allowed-tools: [Glob, Grep, Read, Edit, Write, Bash, Agent]
 dependencies:
-  commands: [git]
+  commands: [git, node, python3]
   npm-packages: [diagramkit]
 workflow-tier: full
 ---
@@ -29,10 +29,11 @@ This skill uses shared helper skills. Load each skill's reference file ONLY when
 | `/adk:principal-engineer` | complexity >= medium | Five questions: need? simplest? alternatives? maintenance costs? clarity in 6 months? |
 | `/adk:agentic-teams` | complexity >= medium AND parallel work needed | Launch 2+ child agents with distinct roles. |
 | `/adk:interaction` | NOT --auto | Inline protocols for intent confirmation, approach selection, plan approval. |
+| `/adk:workspace-conventions` | always | All work inside the project repo. Temp files in `.temp/<task-slug>/` (gitignored). Diagrams in `diagrams/` (sibling to doc, or project root). Both light+dark SVG and PNG. Respect `diagramkit.config.json` when present. Always commit source files with rendered output. |
 
 ## Helper Skill Resolution
 
-Resolve shared behavior through **helper skills**, not by loading reference markdown files. Invoke the needed skill using either form: `/adk:<skill>` (Claude plugin) or `/adk-<skill>` (skills.sh). The usual helpers are **workflow** (phase structure), **communication** (tone and structure), **preflight-check** (tool and MCP validation), **output-format** (verbosity and deliverable shape), **principal-engineer** (engineering bar), **agentic-teams** (child agents), and **interaction** (prompting and confirmations).
+Resolve shared behavior through **helper skills**, not by loading reference markdown files. Invoke the needed skill using either form: `/adk:<skill>` (Claude plugin) or `/<skill>` (skills.sh). The usual helpers are **workflow** (phase structure), **communication** (tone and structure), **preflight-check** (tool and MCP validation), **output-format** (verbosity and deliverable shape), **principal-engineer** (engineering bar), **agentic-teams** (child agents), and **interaction** (prompting and confirmations).
 
 If a required helper skill is unavailable, print a warning and continue using the inline fallback summary in the Shared Skills table.
 
@@ -59,24 +60,32 @@ If a required helper skill is unavailable, print a warning and continue using th
 | 2. Approach Selection | skip | Direct execution after early confirmation |
 | 3. Planning | skip | Direct execution |
 | 4. Execute | yes | Generate diagram source files |
-| 5. Validate & Learn | yes | Verify renderability, naming, consistency |
+| 5. Validate & Learn | yes | Render to SVG/PNG (light+dark), verify renderability, naming, consistency |
 
 ## Human in the Loop
 
 - **Plan first (Phase 0)**: Always confirm intent — components, scope, layout pattern, palette — before generating.
 - **Auto mode**: When invoked with `--auto` or by a parent skill, skip confirmations and proceed directly.
 
-## Rendering
+## Rendering Pipeline
+
+Rendering always produces both **light and dark** variants in **SVG and PNG** by default.
+
+### Step 1: Determine Output Location
+
+1. If a `diagramkit.config.json` exists at the project root → use its `outputDir` setting
+2. If invoked by a doc skill → place in `diagrams/` folder sibling to the document
+3. Otherwise → place in `./diagrams/` at the project root
+
+### Step 2: Render with diagramkit (Primary)
 
 ```bash
-# Default: both light and dark SVG variants
-diagramkit render diagram.excalidraw
+# SVG — both light and dark
+diagramkit render diagram.excalidraw --format svg --theme both
 
-# PNG, dark only
-diagramkit render diagram.excalidraw --format png --theme dark
+# PNG — both themes, 2x scale for retina
+diagramkit render diagram.excalidraw --format png --theme both --scale 2
 ```
-
-## Dark Mode
 
 diagramkit renders dark/light variants automatically using `postProcessDarkSvg`. Standard palette colors (see Color Palettes below) are designed to work with this transformation:
 
@@ -85,13 +94,62 @@ diagramkit renders dark/light variants automatically using `postProcessDarkSvg`.
 
 No special action is needed — just use the standard palette colors and diagramkit handles the rest.
 
+If the project has a `diagramkit.config.json`, diagramkit reads it automatically for output directory, default format, theme, and scale.
+
+### Step 3: Fallback — Node.js Script with `@excalidraw/utils`
+
+Excalidraw has no standalone CLI. If diagramkit is not installed or fails, use `@excalidraw/utils` programmatically:
+
+**Install:** `npm install @excalidraw/utils`
+
+```bash
+# Create a render script
+cat > .temp/render-excalidraw.mjs << 'EOF'
+import { exportToSvg } from "@excalidraw/utils";
+import { readFileSync, writeFileSync } from "fs";
+
+const data = JSON.parse(readFileSync(process.argv[2], "utf-8"));
+
+// Light variant
+const lightSvg = await exportToSvg({
+  elements: data.elements,
+  appState: { ...data.appState, exportBackground: true, viewBackgroundColor: "#ffffff", theme: "light" },
+  files: data.files || {},
+});
+writeFileSync(process.argv[3], lightSvg.outerHTML);
+
+// Dark variant
+const darkSvg = await exportToSvg({
+  elements: data.elements,
+  appState: { ...data.appState, exportBackground: true, viewBackgroundColor: "#1e1e1e", theme: "dark" },
+  files: data.files || {},
+});
+writeFileSync(process.argv[4], darkSvg.outerHTML);
+EOF
+
+node .temp/render-excalidraw.mjs diagram.excalidraw diagrams/diagram-light.svg diagrams/diagram-dark.svg
+```
+
+For PNG output from SVG, use `sharp`, `resvg`, or `inkscape`:
+
+```bash
+npx resvg-cli diagrams/diagram-light.svg diagrams/diagram-light.png
+npx resvg-cli diagrams/diagram-dark.svg diagrams/diagram-dark.png
+```
+
+### Step 4: Verify Outputs
+
+Confirm these files exist:
+- `<name>-light.svg` and `<name>-dark.svg`
+- `<name>-light.png` and `<name>-dark.png`
+
 ---
 
 ## Workflow
 
 ### Phase 0: Intent Confirmation
 
-Confirm: components to show, relationships, layout pattern, color palette, output location.
+Confirm: components to show, relationships, layout pattern, color palette, output location. Invoke `/adk:workspace-conventions` to determine output location.
 
 ### Phase 1: Analyze & Plan
 
@@ -167,13 +225,19 @@ Spoke positions at 45 degree increments:
 
 Generate a valid `.excalidraw` JSON file following the critical rules below.
 
-### Phase 5: Report Output
+### Phase 5: Render, Validate & Report
+
+Run the rendering pipeline (Step 1–4 above). Then report:
 
 ```
-Excalidraw source file written:
+Excalidraw diagram complete:
   Source: ./diagrams/system-architecture.excalidraw
+  Output:
+    ./diagrams/system-architecture-light.svg
+    ./diagrams/system-architecture-dark.svg
+    ./diagrams/system-architecture-light.png
+    ./diagrams/system-architecture-dark.png
 
-Render with: diagramkit render ./diagrams/system-architecture.excalidraw
 Open in Excalidraw: https://excalidraw.com (load the .excalidraw file)
 VS Code: Install the Excalidraw extension and open the file directly.
 ```

@@ -16,15 +16,15 @@ Review:
 
 Run at least these child agents in parallel:
 
-- **repo-auditor**: system-level architecture and maintainability. Evaluates directory structure, module boundaries, dependency graph between internal packages, and configuration hygiene.
-- **code-reviewer**: correctness, security, performance, and code patterns. Scans for anti-patterns, dead code, duplication, and modernization opportunities across the codebase.
-- **doc-reviewer**: docs drift, onboarding quality, and examples. Checks README accuracy, API docs completeness, inline comment quality, and whether architecture decisions are documented.
+- **adk-repo-auditor**: system-level architecture and maintainability. Evaluates directory structure, module boundaries, dependency graph between internal packages, and configuration hygiene.
+- **adk-code-reviewer**: correctness, security, performance, and code patterns. Scans for anti-patterns, dead code, duplication, and modernization opportunities across the codebase.
+- **adk-doc-reviewer**: docs drift, onboarding quality, and examples. Checks README accuracy, API docs completeness, inline comment quality, and whether architecture decisions are documented.
 - **domain specialist**: one specialist based on the detected repo type (frontend, backend, or design system). Applies domain-specific best practices and checks framework conventions.
 
 ## Workflow
 
 1. **Detect repo type.** Analyze the repository to determine the primary technology stack, frameworks, and domain (frontend, backend, fullstack, design system, library, CLI tool, etc.).
-2. **Load coding guidelines.** Invoke `/adk-coding` to detect repo frameworks and load matching coding guidelines. Use full detection (not scoped to changed files).
+2. **Load coding guidelines.** Invoke `/coding` to detect repo frameworks and load matching coding guidelines. Use full detection (not scoped to changed files).
 3. **Scan repository structure.** Audit directory layout, module boundaries, dependency graph, and configuration files. Check for clear ownership boundaries and separation of concerns.
 4. **Analyze code quality.** Scan for anti-patterns, dead code, duplication, inconsistent patterns, and modernization opportunities. Evaluate test coverage and testing strategy.
 5. **Review build and release.** Check build configuration, CI/CD setup, release process, and developer experience tooling (linting, formatting, type checking).

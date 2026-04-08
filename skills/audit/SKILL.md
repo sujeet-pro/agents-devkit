@@ -1,11 +1,11 @@
 ---
-name: adk-audit
+name: audit
 description: "adk - [full] [audit] Use when performing a codebase, security, performance, or dependency audit -- auto-detects focus or use --focus to specify"
 user-invocable: true
 argument-hint: "[--focus codebase|security|performance|dependency|all] [--scope] [--format] [--verbosity short|standard|detailed] [--help]"
 allowed-tools: [Glob, Grep, Read, Bash, WebSearch, WebFetch, Agent]
 dependencies:
-  commands: [git, node, npm]
+  commands: [git, node, npm, python3]
 workflow-tier: full
 ---
 
@@ -27,12 +27,13 @@ This skill uses shared helper skills. Load each skill's reference file ONLY when
 | `/adk:principal-engineer` | complexity >= medium | Five questions: need? simplest? alternatives? maintenance costs? clarity in 6 months? |
 | `/adk:agentic-teams` | complexity >= medium AND parallel work needed | Launch 2+ child agents with distinct roles. Standard team shapes: review, research, docs, diagram, security, migration, planning. |
 | `/adk:interaction` | NOT --auto | Inline protocols for intent confirmation, approach selection, plan approval, review findings, progress dashboard. |
+| `/adk:coding` | during guideline loading | Detect repo languages, frameworks, and tools. Load matching coding guidelines for the detected stack. |
 
 ---
 
 ## Helper Skill Resolution
 
-Resolve shared behavior through **helper skills**, not by loading reference markdown files. Invoke the needed skill using either form: `/adk:<skill>` (Claude plugin) or `/adk-<skill>` (skills.sh). The usual helpers are **workflow** (phase structure), **communication** (tone and structure), **preflight-check** (tool and MCP validation), **output-format** (verbosity and deliverable shape), **principal-engineer** (engineering bar), **agentic-teams** (child agents), and **interaction** (prompting and confirmations).
+Resolve shared behavior through **helper skills**, not by loading reference markdown files. Invoke the needed skill using either form: `/adk:<skill>` (Claude plugin) or `/<skill>` (skills.sh). The usual helpers are **workflow** (phase structure), **communication** (tone and structure), **preflight-check** (tool and MCP validation), **output-format** (verbosity and deliverable shape), **principal-engineer** (engineering bar), **agentic-teams** (child agents), and **interaction** (prompting and confirmations).
 
 If a required helper skill is unavailable, print a warning and continue using the inline fallback summary in the Shared Skills table.
 
@@ -131,34 +132,34 @@ The team composition depends on the resolved focus area(s). When running `all`, 
 
 ### Codebase Focus Team
 
-- `repo-auditor` for system-level architecture and maintainability
-- `code-reviewer` for correctness, security, performance, and code patterns
-- `doc-reviewer` for docs drift, onboarding quality, and examples
+- `adk-repo-auditor` for system-level architecture and maintainability
+- `adk-code-reviewer` for correctness, security, performance, and code patterns
+- `adk-doc-reviewer` for docs drift, onboarding quality, and examples
 - one domain specialist based on the detected repo type: frontend, backend, or design system
 
 ### Security Focus Team
 
-- `security-reviewer` (role: auth-reviewer) for authentication and authorization flows, session management, JWT handling
-- `security-reviewer` (role: data-flow-analyzer) to trace sensitive data through the system, check encryption, logging, exposure
-- `security-reviewer` (role: dependency-scanner) to check for known CVEs, outdated packages, license issues
-- `security-reviewer` (role: owasp-checker) for systematic OWASP Top 10 review against the codebase
+- `adk-security-reviewer` (role: auth-reviewer) for authentication and authorization flows, session management, JWT handling
+- `adk-security-reviewer` (role: data-flow-analyzer) to trace sensitive data through the system, check encryption, logging, exposure
+- `adk-security-reviewer` (role: dependency-scanner) to check for known CVEs, outdated packages, license issues
+- `adk-security-reviewer` (role: owasp-checker) for systematic OWASP Top 10 review against the codebase
 
-Each agent is a `security-reviewer` child agent launched with a distinct role focus passed in its prompt context.
+Each agent is a `adk-security-reviewer` child agent launched with a distinct role focus passed in its prompt context.
 
 ### Performance Focus Team
 
-- `code-reviewer` (role: bundle-analyzer) for dependency size breakdown, duplication, code-splitting gaps, and asset optimization
-- `code-reviewer` (role: latency-analyzer) for API call patterns, caching gaps, database query issues, and middleware overhead
-- `code-reviewer` (role: memory-analyzer) for potential leaks, data structures, and resource management
-- `code-reviewer` (role: anti-pattern-scanner) for performance anti-patterns with impact estimates
+- `adk-code-reviewer` (role: bundle-analyzer) for dependency size breakdown, duplication, code-splitting gaps, and asset optimization
+- `adk-code-reviewer` (role: latency-analyzer) for API call patterns, caching gaps, database query issues, and middleware overhead
+- `adk-code-reviewer` (role: memory-analyzer) for potential leaks, data structures, and resource management
+- `adk-code-reviewer` (role: anti-pattern-scanner) for performance anti-patterns with impact estimates
 
-Each agent is a `code-reviewer` child agent launched with a performance-specific role focus.
+Each agent is a `adk-code-reviewer` child agent launched with a performance-specific role focus.
 
 ### Dependency Focus Team
 
-- `security-reviewer` (role: vulnerability-scanner) to check dependencies against known CVE databases and advisory sources
-- `research-agent` (role: update-compatibility-checker) to research changelogs and identify breaking changes, migration steps, and peer dependency conflicts
-- `code-reviewer` (role: remediation-planner) to synthesize findings into a prioritized action plan grouped by effort and risk
+- `adk-security-reviewer` (role: vulnerability-scanner) to check dependencies against known CVE databases and advisory sources
+- `adk-research-agent` (role: update-compatibility-checker) to research changelogs and identify breaking changes, migration steps, and peer dependency conflicts
+- `adk-code-reviewer` (role: remediation-planner) to synthesize findings into a prioritized action plan grouped by effort and risk
 
 ## Output
 

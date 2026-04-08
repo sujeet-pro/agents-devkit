@@ -1,5 +1,5 @@
 ---
-name: adk-output-format
+name: output-format
 description: "adk - [helper] [guideline] Output format standards: verbosity modes (short/standard/detailed), PR comment templates, document templates, priority labels, and cross-platform markdown rules."
 user-invocable: false
 allowed-tools: [Read]

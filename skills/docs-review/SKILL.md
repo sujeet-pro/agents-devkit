@@ -1,11 +1,11 @@
 ---
-name: adk-docs-review
+name: docs-review
 description: "adk - [full] [docs] Review documentation — local files, Confluence, or Google Docs. Standard, interactive, and follow-up modes with multi-dimensional analysis."
 user-invocable: true
 argument-hint: "<path-or-url> [--mode standard|interactive|followup|auto] [--focus accuracy|completeness|clarity|style|all] [--publish] [--auto] [--verbosity short|standard|detailed]"
 allowed-tools: [Glob, Grep, Read, Edit, Write, Bash, WebSearch, WebFetch, Agent]
 dependencies:
-  commands: [git]
+  commands: [git, python3, curl, jq]
   mcp-servers: [detect-from-input]
 workflow-tier: full
 ---
@@ -34,7 +34,7 @@ This skill is review-only — it does not modify the source documents. Use `/adk
 
 ## Helper Skill Resolution
 
-Resolve shared behavior through **helper skills**, not by loading reference markdown files. Invoke the needed skill using either form: `/adk:<skill>` (Claude plugin) or `/adk-<skill>` (skills.sh). The usual helpers are **workflow** (phase structure), **communication** (tone and structure), **preflight-check** (tool and MCP validation), **output-format** (verbosity and deliverable shape), **principal-engineer** (engineering bar), **agentic-teams** (child agents), and **interaction** (prompting and confirmations).
+Resolve shared behavior through **helper skills**, not by loading reference markdown files. Invoke the needed skill using either form: `/adk:<skill>` (Claude plugin) or `/<skill>` (skills.sh). The usual helpers are **workflow** (phase structure), **communication** (tone and structure), **preflight-check** (tool and MCP validation), **output-format** (verbosity and deliverable shape), **principal-engineer** (engineering bar), **agentic-teams** (child agents), and **interaction** (prompting and confirmations).
 
 If a required helper skill is unavailable, print a warning and continue using the inline fallback summary in the Shared Skills table.
 

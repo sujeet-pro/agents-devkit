@@ -79,7 +79,7 @@ Run these review dimensions in parallel:
 9. **`ui-ux`** — when changes touch frontend files (`.tsx`, `.jsx`, `.vue`, `.svelte`, `.css`, `.scss`)
 10. **`spec-compliance`** — when context documents are available
 
-**Placeholders for code-reviewer:**
+**Placeholders for adk-code-reviewer:**
 - `{WHAT_WAS_IMPLEMENTED}` - What was built
 - `{PLAN_OR_REQUIREMENTS}` - What it should do
 - `{BASE_SHA}` - Starting commit

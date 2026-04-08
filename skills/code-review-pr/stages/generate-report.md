@@ -12,7 +12,7 @@ This stage runs after the primary review stage (`local-review.md` or `branch-rev
 
 ## Report Structure
 
-Generate a markdown review document at `.temp/adk-code-review-pr/<branch-or-scope>-review.md`:
+Generate a markdown review document at `.temp/code-review-pr/<branch-or-scope>-review.md`:
 
 ```md
 # Code Review Report
@@ -131,6 +131,6 @@ After generating the report, display:
 
 - **Scope:** <scope>
 - **Findings:** N (must fix: N, suggestion: N, note: N)
-- **Report:** .temp/adk-code-review-pr/<name>-review.md
+- **Report:** .temp/code-review-pr/<name>-review.md
 - **Verbosity:** <short|standard|detailed>
 ```

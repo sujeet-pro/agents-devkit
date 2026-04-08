@@ -15,7 +15,7 @@ For pre-alignment on direction before committing to a design, use the `rfc` stag
 ### Execute
 - Write the Tech Spec following the document structure below
 - Use `--weight` to determine depth: `lightweight` (1-3 pages) vs. `heavyweight` (10-20 pages)
-- Include architecture diagrams using `/adk-diagram`
+- Include architecture diagrams using `/diagram`
 
 ## Document Structure
 
@@ -102,7 +102,7 @@ When `weight=heavyweight` or the scope suggests a cross-team, high-impact change
 
 ## Type-Specific Output Format
 
-Markdown file. Invoke `/adk-docs-guidelines --type tdd` to load TDD writing guidelines for validation.
+Markdown file. Invoke `/docs-guidelines --type tdd` to load TDD writing guidelines for validation.
 
 ## Validation Checklist
 
@@ -119,4 +119,4 @@ Markdown file. Invoke `/adk-docs-guidelines --type tdd` to load TDD writing guid
 
 - `rfc` stage for RFC documents (pre-alignment on direction)
 - `adr` stage for recording individual architecture decision records
-- `/adk-diagram` for standalone architecture diagrams
+- `/diagram` for standalone architecture diagrams

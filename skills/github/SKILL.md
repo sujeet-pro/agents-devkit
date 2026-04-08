@@ -1,5 +1,5 @@
 ---
-name: adk-github
+name: github
 description: "adk - [helper] [connector] GitHub operations via gh CLI — PR reviews, comments, issues, and repository access"
 user-invocable: false
 workflow-tier: helper
@@ -13,26 +13,26 @@ Platform connector for GitHub. All operations use the `gh` CLI.
 
 ## Preflight
 
-Before any operation:
+Before any operation, run these checks. **Stop and ask the user** if either fails — do not proceed.
 
 1. Verify `gh` is installed: `command -v gh >/dev/null 2>&1`
 2. Verify authentication: `gh auth status 2>&1`
 
 If `gh` is not installed:
+> **STOP.** Tell the user:
 > Install the GitHub CLI: `brew install gh` (macOS) or see https://cli.github.com/manual/installation
+> Then run `/adk:setup --tool gh` to install and verify.
 
 If not authenticated:
-> Run `gh auth login` and follow the prompts.
+> **STOP.** Tell the user:
+> Run `gh auth login` and follow the browser-based prompts to sign in with your GitHub account.
+> This is a one-time step. Re-run the command after logging in.
 
-## MCP Connector Detection
+## gh CLI First
 
-Before falling back to `gh` CLI, check if a GitHub MCP connector is available:
+Always use the `gh` CLI for all GitHub operations. The `gh` CLI handles authentication, pagination, and rate limiting automatically. Do NOT use `curl` with GitHub APIs.
 
-1. Look for tools matching `mcp__github__*` pattern
-2. If available, prefer MCP tools for supported operations
-3. Use `gh` CLI for operations not covered by the MCP
-
-When MCP tools exist but fail (auth error, missing scope), fall back to `gh` CLI.
+MCP tools (`mcp__github__*`) may be used as a secondary option when available, but `gh` CLI is always the preferred and reliable fallback. When MCP tools fail (auth error, missing scope), fall back to `gh` CLI.
 
 ## Routing
 

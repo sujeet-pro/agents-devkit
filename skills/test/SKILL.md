@@ -1,11 +1,11 @@
 ---
-name: adk-test
+name: test
 description: "adk - [abbreviated] [utility] Use when you need interactive user acceptance testing that extracts testable deliverables and walks the user through manual verification with automatic failure diagnosis"
 user-invocable: true
 argument-hint: "<source> [--scope] [--mode] [--verbosity short|standard|detailed] [--help]"
 allowed-tools: [Glob, Grep, Read, Edit, Write, Bash, Agent]
 dependencies:
-  commands: [git]
+  commands: [git, python3]
 workflow-tier: abbreviated
 ---
 
@@ -33,7 +33,7 @@ This skill uses shared helper skills. Load each skill's reference file ONLY when
 
 ## Helper Skill Resolution
 
-Resolve shared behavior through **helper skills**, not by loading reference markdown files. Invoke the needed skill using either form: `/adk:<skill>` (Claude plugin) or `/adk-<skill>` (skills.sh). The usual helpers are **workflow** (phase structure), **communication** (tone and structure), **preflight-check** (tool and MCP validation), **output-format** (verbosity and deliverable shape), **principal-engineer** (engineering bar), **agentic-teams** (child agents), and **interaction** (prompting and confirmations).
+Resolve shared behavior through **helper skills**, not by loading reference markdown files. Invoke the needed skill using either form: `/adk:<skill>` (Claude plugin) or `/<skill>` (skills.sh). The usual helpers are **workflow** (phase structure), **communication** (tone and structure), **preflight-check** (tool and MCP validation), **output-format** (verbosity and deliverable shape), **principal-engineer** (engineering bar), **agentic-teams** (child agents), and **interaction** (prompting and confirmations).
 
 If a required helper skill is unavailable, print a warning and continue using the inline fallback summary in the Shared Skills table.
 
@@ -62,11 +62,11 @@ When `--help` is passed, display this reference and stop.
 ### Examples
 
 ```
-/adk:test docs/adk-spec.md
+/adk:test docs/spec.md
 /adk:test docs/requirements.md --scope "authentication"
 /adk:test .temp/plans/feature-plan.md --mode auto-approve
 /adk:test docs/prd.md --verbosity detailed
-/adk:test docs/adk-spec.md --scope "API" --verbosity short
+/adk:test docs/spec.md --scope "API" --verbosity short
 ```
 
 ---

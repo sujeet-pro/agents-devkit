@@ -1,11 +1,11 @@
 ---
-name: adk-docs-confluence
+name: docs-confluence
 description: "adk - [full] [docs] Confluence-specific documentation — read/write Confluence pages with format mapping between Confluence storage format and markdown"
 user-invocable: true
 argument-hint: "<action: read|write|sync> <page-url-or-id> [--space <key>] [--parent <page-id>] [--format markdown|confluence] [--auto] [--help]"
 allowed-tools: [Glob, Grep, Read, Edit, Write, Bash, WebSearch, WebFetch, Agent]
 dependencies:
-  commands: [curl, jq]
+  commands: [curl, jq, python3]
   mcp-servers: [detect-from-input]
 workflow-tier: full
 ---
@@ -32,7 +32,7 @@ This skill uses shared helper skills. Load each skill's reference file ONLY when
 
 ## Helper Skill Resolution
 
-Resolve shared behavior through **helper skills**, not by loading reference markdown files. Invoke the needed skill using either form: `/adk:<skill>` (Claude plugin) or `/adk-<skill>` (skills.sh). The usual helpers are **workflow** (phase structure), **communication** (tone and structure), **preflight-check** (tool and MCP validation), **output-format** (verbosity and deliverable shape), **principal-engineer** (engineering bar), **agentic-teams** (child agents), and **interaction** (prompting and confirmations).
+Resolve shared behavior through **helper skills**, not by loading reference markdown files. Invoke the needed skill using either form: `/adk:<skill>` (Claude plugin) or `/<skill>` (skills.sh). The usual helpers are **workflow** (phase structure), **communication** (tone and structure), **preflight-check** (tool and MCP validation), **output-format** (verbosity and deliverable shape), **principal-engineer** (engineering bar), **agentic-teams** (child agents), and **interaction** (prompting and confirmations).
 
 If a required helper skill is unavailable, print a warning and continue using the inline fallback summary in the Shared Skills table.
 

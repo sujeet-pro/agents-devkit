@@ -1,6 +1,6 @@
 ---
 
-## name: adk-setup
+## name: setup
 description: "adk - [abbreviated] [setup] Use when setting up, validating, or updating CLI tools and MCP server configurations for DevKit skills"
 user-invocable: true
 argument-hint: "[--type tools|mcps|hooks|config|all] [--check-only] [--skip-update] [--server ] [--tool ] [--verbosity short|standard|detailed] [--help]"
@@ -60,7 +60,7 @@ When `--help` is passed, display this reference and stop.
 | --------------- | ---------------------------------------------------------------------------------------- | ------------- | --------------------------------------------------------------- |
 | `--type`        | `tools`, `mcps`, `hooks`, `config`, `all`                                                | `all`         | Which category to set up                                        |
 | `--check-only`  | flag                                                                                     | off           | Report status without making changes                            |
-| `--tool`        | `git`, `python3`, `node`, `npm`, `dot`, `uvx`, `docker`, `gh`, `diagramkit`, `pagesmith` | (all tools)   | Only process a specific CLI tool (implies `--type tools`)       |
+| `--tool`        | `git`, `python3`, `node`, `npm`, `jq`, `curl`, `dot`, `uvx`, `docker`, `gh`, `diagramkit`, `pagesmith` | (all tools)   | Only process a specific CLI tool (implies `--type tools`)       |
 | `--server`      | `github`, `bitbucket`, `confluence`, `google-drive`                                      | (all servers) | Only process a specific MCP server (implies `--type mcps`)      |
 | `--skip-update` | flag                                                                                     | off           | Install/configure missing items but do not update existing ones |
 | `--verbosity`   | `short`, `standard`, `detailed`                                                          | `standard`    | Output detail level                                             |
@@ -219,12 +219,14 @@ GitHub MCP uses HTTP transport. Bitbucket, Confluence, and Google Drive are opti
 | Python 3   | `python3`    | `brew install python`          | preflight.py, scripts                                                    |
 | Node.js    | `node`       | `brew install node`            | Diagram skills, audit-dependency                                         |
 | npm        | `npm`        | Bundled with node              | Same as Node.js                                                          |
+| jq         | `jq`         | `brew install jq`              | Bitbucket, Confluence, Jira connectors                                   |
+| curl       | `curl`       | `brew install curl`            | Bitbucket, Confluence, Jira connectors (pre-installed on macOS)          |
 | Graphviz   | `dot`        | `brew install graphviz`        | `/adk:diagram-graphviz`                                                  |
 | uv / uvx   | `uvx`        | `curl` installer               | Confluence MCP                                                           |
 | Docker     | `docker`     | `brew install --cask docker`   | GitHub MCP (Docker variant)                                              |
-| GitHub CLI | `gh`         | `brew install gh`              | PR management                                                            |
+| GitHub CLI | `gh`         | `brew install gh`              | PR management (run `gh auth login` after install)                        |
 | diagramkit | `diagramkit` | `npm install -g diagramkit`    | `/adk:diagram-mermaid`, `/adk:diagram-excalidraw`, `/adk:diagram-drawio` |
-| pagesmith  | `pagesmith`  | `npm install -g pagesmith-cli` | `/adk:docs-crud`, `/adk:docs-repo`                                       |
+| pagesmith  | `pagesmith`  | `npm install -g @pagesmith/docs` | `/adk:docs-crud`, `/adk:docs-repo`                                       |
 
 
 Validation: confirm git, node, npm are installed and on PATH. Install diagramkit and pagesmith globally if not present.
@@ -237,7 +239,7 @@ Validation: confirm git, node, npm are installed and on PATH. Install diagramkit
 
 ## Helper Skill Resolution
 
-Resolve shared behavior through **helper skills**, not by loading reference markdown files. Invoke the needed skill using either form: `/adk:<skill>` (Claude plugin) or `/adk-<skill>` (skills.sh). The usual helpers are **workflow** (phase structure), **communication** (tone and structure), **preflight-check** (tool and MCP validation), **output-format** (verbosity and deliverable shape), **principal-engineer** (engineering bar), **agentic-teams** (child agents), and **interaction** (prompting and confirmations).
+Resolve shared behavior through **helper skills**, not by loading reference markdown files. Invoke the needed skill using either form: `/adk:<skill>` (Claude plugin) or `/<skill>` (skills.sh). The usual helpers are **workflow** (phase structure), **communication** (tone and structure), **preflight-check** (tool and MCP validation), **output-format** (verbosity and deliverable shape), **principal-engineer** (engineering bar), **agentic-teams** (child agents), and **interaction** (prompting and confirmations).
 
 If a required helper skill is unavailable, print a warning and continue using the inline fallback summary in the Shared Skills table.
 

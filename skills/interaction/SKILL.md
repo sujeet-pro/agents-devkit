@@ -1,5 +1,5 @@
 ---
-name: adk-interaction
+name: interaction
 description: "adk - [helper] [guideline] Inline interaction protocols for intent confirmation, approach selection, plan approval, review findings, and progress dashboards."
 user-invocable: false
 allowed-tools: [Read]

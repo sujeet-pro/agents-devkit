@@ -8,7 +8,7 @@ Use this stage when the agent should create or directly improve an operational r
 - Analyze the service: architecture, dependencies, deployment topology, monitoring setup
 - Scan for existing runbooks, incident post-mortems, and operational documentation
 - Identify common failure modes, alert conditions, and escalation paths
-- If the runbook needs topology or deployment diagrams, inherit the `/adk-diagram` preflight
+- If the runbook needs topology or deployment diagrams, inherit the `/diagram` preflight
 
 ### Execute
 - Write the runbook following the document structure below

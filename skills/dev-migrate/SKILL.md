@@ -1,11 +1,11 @@
 ---
-name: adk-dev-migrate
+name: dev-migrate
 description: "adk - [full] [dev] Migrate frameworks, libraries, or language versions — analyze breaking changes, map to codebase, execute migration plan"
 user-invocable: true
 argument-hint: "<source> to <target> [--scope <path>] [--dry-run] [--auto] [--help]"
 allowed-tools: [Glob, Grep, Read, Edit, Write, Bash, WebSearch, WebFetch, Agent]
 dependencies:
-  commands: [git]
+  commands: [git, python3]
 workflow-tier: full
 ---
 
@@ -31,7 +31,7 @@ This skill uses shared helper skills. Load each skill's reference file ONLY when
 
 ## Helper Skill Resolution
 
-Resolve shared behavior through **helper skills**, not by loading reference markdown files. Invoke the needed skill using either form: `/adk:<skill>` (Claude plugin) or `/adk-<skill>` (skills.sh). The usual helpers are **workflow** (phase structure), **communication** (tone and structure), **preflight-check** (tool and MCP validation), **output-format** (verbosity and deliverable shape), **principal-engineer** (engineering bar), **agentic-teams** (child agents), and **interaction** (prompting and confirmations).
+Resolve shared behavior through **helper skills**, not by loading reference markdown files. Invoke the needed skill using either form: `/adk:<skill>` (Claude plugin) or `/<skill>` (skills.sh). The usual helpers are **workflow** (phase structure), **communication** (tone and structure), **preflight-check** (tool and MCP validation), **output-format** (verbosity and deliverable shape), **principal-engineer** (engineering bar), **agentic-teams** (child agents), and **interaction** (prompting and confirmations).
 
 If a required helper skill is unavailable, print a warning and continue using the inline fallback summary in the Shared Skills table.
 
@@ -69,6 +69,12 @@ When `--help` is passed, display this reference and stop.
 ```
 
 ---
+
+## Preflight
+
+`python3 ${CLAUDE_SKILL_DIR}/scripts/preflight.py ${CLAUDE_SKILL_DIR}`
+
+If any declared dependency is missing, stop and tell the user what to install before proceeding.
 
 ## Phase Applicability
 

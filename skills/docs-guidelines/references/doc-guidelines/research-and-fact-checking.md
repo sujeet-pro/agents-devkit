@@ -67,7 +67,7 @@ When writing about topics where behavior has changed:
 
 ## Research Output Contract
 
-When `/adk-docs-guidelines` invokes `/adk-research --deep`, the research output must include:
+When `/docs-guidelines` invokes `/research --deep`, the research output must include:
 
 - **Key findings** with inline citations and source URLs
 - **Per-subtopic sections** with confidence ratings (high/medium/low)

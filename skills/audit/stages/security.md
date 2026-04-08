@@ -18,7 +18,7 @@ Run at least these child agents in parallel:
 ## Workflow
 
 1. **Detect technology stack.** Identify frameworks, languages, and runtime to determine which security checks are relevant.
-2. **Load coding guidelines.** Invoke `/adk-coding` to detect repo frameworks and load matching coding guidelines.
+2. **Load coding guidelines.** Invoke `/coding` to detect repo frameworks and load matching coding guidelines.
 3. **Scan authentication flows.** Trace auth paths from entry points through middleware to protected resources. Check for missing guards, weak token handling, and session management issues.
 4. **Trace data flows.** Map sensitive data from input to storage to output. Check encryption, sanitization, logging, and exposure at each boundary.
 5. **Check OWASP Top 10.** Systematically evaluate the codebase against each OWASP Top 10 category with framework-specific checks.

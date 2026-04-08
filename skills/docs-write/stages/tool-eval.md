@@ -1,6 +1,6 @@
 # Stage: Tool Evaluation
 
-Use this stage to produce a structured comparison of tools or technologies against defined criteria. For deeper investigation of a single tool, use `/adk-research --deep`.
+Use this stage to produce a structured comparison of tools or technologies against defined criteria. For deeper investigation of a single tool, use `/research --deep`.
 
 ## Type-Specific Phase Guidance
 
@@ -73,7 +73,7 @@ A clear recommendation with:
 - `tool-researcher` for gathering detailed data on each candidate
 - `stack-analyzer` for assessing integration with current codebase
 - `benchmark-analyst` for performance comparisons and cost analysis
-- `doc-reviewer` for objectivity and evidence quality
+- `adk-doc-reviewer` for objectivity and evidence quality
 
 ## Writing Rules
 

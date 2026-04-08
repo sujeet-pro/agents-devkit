@@ -1,5 +1,5 @@
 ---
-name: adk-communication
+name: communication
 description: "adk - [helper] [guideline] Communication style rules for all DevKit output. Lead with conclusions, use concrete specifics, avoid preamble."
 user-invocable: false
 allowed-tools: [Read]

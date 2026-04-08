@@ -127,9 +127,9 @@ Implementer subagents report one of four statuses. Handle each appropriately:
 
 Dispatch child agents using the shared agent definitions from `agents/`:
 
-- **Implementer**: use `code-reviewer` with implementation-focused prompt context (the task description, affected files, verification commands)
-- **Spec compliance reviewer**: use `doc-reviewer` to verify the implementation matches the spec
-- **Code quality reviewer**: use `code-reviewer` to review the implemented code for quality, patterns, and correctness
+- **Implementer**: use `adk-code-reviewer` with implementation-focused prompt context (the task description, affected files, verification commands)
+- **Spec compliance reviewer**: use `adk-doc-reviewer` to verify the implementation matches the spec
+- **Code quality reviewer**: use `adk-code-reviewer` to review the implemented code for quality, patterns, and correctness
 
 ## Example Workflow
 
@@ -268,7 +268,7 @@ Done!
 ## Integration
 
 **Related DevKit skills:**
-- `/adk-dev-build --mode worktree` — set up isolated workspace before starting
-- `/adk-plan --mode write` — creates the plan this stage executes
-- `/adk-code-review-pr` — code review after all tasks complete
-- `/adk-dev-build --mode tdd` — subagents follow TDD for each task
+- `/dev-build --mode worktree` — set up isolated workspace before starting
+- `/plan --mode write` — creates the plan this stage executes
+- `/code-review-pr` — code review after all tasks complete
+- `/dev-build --mode tdd` — subagents follow TDD for each task

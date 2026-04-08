@@ -47,11 +47,11 @@ Links to related documents, external resources, and source material.
 
 ## Child Agent Team
 
-- `research-agent` for official docs, standards, and migration notes
-- `code-snippet-agent` for examples grounded in the repository or ecosystem
-- `doc-reviewer` for structure and clarity
-- a diagram pass through `/adk-diagram` when the topic benefits from visuals
-- `source-publisher` if the final output is Confluence or Google Docs
+- `adk-research-agent` for official docs, standards, and migration notes
+- `adk-code-snippet-agent` for examples grounded in the repository or ecosystem
+- `adk-doc-reviewer` for structure and clarity
+- a diagram pass through `/diagram` when the topic benefits from visuals
+- `adk-source-publisher` if the final output is Confluence or Google Docs
 
 ## Writing Rules
 

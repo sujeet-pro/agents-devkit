@@ -4,6 +4,19 @@ These guidelines apply across all DevKit skills. When updating the canonical cop
 
 ---
 
+## Workspace Conventions
+
+All generated artifacts live inside the project workspace. Invoke `/adk:workspace-conventions` for full details.
+
+- **Temp files**: `.temp/<task-slug>/` at project root — gitignored on first creation
+- **Diagrams for docs**: `diagrams/` folder sibling to the document
+- **Standalone diagrams**: `diagrams/` at project root
+- **diagramkit.config.json**: Obey when present for output directory, format, and theme
+- **Diagram output**: Both light and dark variants (SVG + PNG) by default
+- **Source files**: Always commit `.dot`, `.mermaid`, `.excalidraw`, `.drawio` alongside rendered images
+
+---
+
 ## Agentic Team Dispatch
 
 See `references/agentic-teams.md` for full team shapes. Key rules:

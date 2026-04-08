@@ -92,7 +92,7 @@ Every system design article must include the following sections in order.
 - For each trade-off, state the decision criteria: what matters most for this specific system.
 - Reference how real companies solved the same trade-off. Cite the original paper or engineering blog:
   - Amazon DynamoDB: [Dynamo paper (DeCandia et al., 2007)](https://www.allthingsdistributed.com/files/amazon-dynamo-sosp2007.pdf)
-  - Google Spanner: [Spanner paper (Corbett et al., 2012)](https://adk-research.google/pubs/pub39966/)
+  - Google Spanner: [Spanner paper (Corbett et al., 2012)](https://research.google/pubs/pub39966/)
   - Facebook TAO: [TAO paper (Bronson et al., 2013)](https://www.usenix.org/conference/atc13/technical-sessions/presentation/bronson)
 
 ### Scaling Considerations

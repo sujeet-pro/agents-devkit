@@ -217,7 +217,7 @@ Example procedure:
 - [ ] Resolution procedures have numbered steps, exact commands, expected output, and rollback instructions
 - [ ] Each procedure ends with a verification step
 - [ ] Escalation triggers are defined with specific conditions
-- [ ] Escalation contacts include name/adk-team, contact method, and availability
+- [ ] Escalation contacts include name/team, contact method, and availability
 - [ ] Post-incident section covers verification, communication, follow-ups, and blameless review
 - [ ] Commands are copy-pasteable (actual values or clearly marked placeholders)
 - [ ] No TODO/TBD placeholders remain

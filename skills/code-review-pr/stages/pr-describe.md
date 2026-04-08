@@ -18,8 +18,8 @@ If `style` is not specified, check for `.github/pull_request_template.md` or equ
 
 Run in parallel:
 
-- **Diff analyzer** (`code-reviewer`): reads the full diff and commit history. Identifies what changed, categorizes changes (feature, fix, refactor, test, docs), assesses risk areas, and flags breaking changes or rollback considerations.
-- **Docs impact reviewer** (`doc-reviewer`): checks whether the changes affect documentation, migration notes, API contracts, or configuration.
+- **Diff analyzer** (`adk-code-reviewer`): reads the full diff and commit history. Identifies what changed, categorizes changes (feature, fix, refactor, test, docs), assesses risk areas, and flags breaking changes or rollback considerations.
+- **Docs impact reviewer** (`adk-doc-reviewer`): checks whether the changes affect documentation, migration notes, API contracts, or configuration.
 
 ### Step 4: Draft Description
 

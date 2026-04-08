@@ -7,11 +7,11 @@ actions:
   - text: Get Started
     link: /guide/getting-started/
     theme: brand
-  - text: Browse Skills
-    link: /guide/skills/
+  - text: Use Cases
+    link: /guide/code-reviews/
     theme: alt
 features:
-  - title: 49 Skills
+  - title: 51 Skills
     details: Code review, documentation, diagrams, research, audits, planning, migrations, refactoring — all composable.
   - title: Human-in-the-Loop
     details: Every non-trivial task follows a 6-phase workflow with approval gates. You stay in control.
@@ -42,7 +42,7 @@ Update with `/plugin update adk`.
 npx skills add sujeet-pro/agents-devkit
 ```
 
-Works with Claude Code, Codex, and other [skills.sh](https://skills.sh)-compatible agents. Skills are invoked as `/adk-<skill-name>`.
+Works with Claude Code, Codex, and other [skills.sh](https://skills.sh)-compatible agents. Skills are invoked as `/<skill-name>`.
 
 ## Use
 

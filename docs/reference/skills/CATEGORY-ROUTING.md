@@ -14,27 +14,27 @@ This file defines category-level routing so users can invoke either:
 
 | Category | Router skill | Direct skills |
 |---|---|---|
-| code-review | `adk-code-review` | `adk-code-review-pr`, `adk-code-review-repo`, `adk-code-review-fix` |
-| dev | `adk-dev` | `adk-dev-build`, `adk-dev-refactor`, `adk-dev-migrate`, `adk-dev-commit` |
-| docs | `adk-docs` | `adk-docs-write`, `adk-docs-review`, `adk-docs-repo`, `adk-docs-crud`, `adk-docs-confluence` |
-| diagram | `adk-diagram` | `adk-diagram-mermaid`, `adk-diagram-excalidraw`, `adk-diagram-drawio`, `adk-diagram-graphviz` |
+| code-review | `code-review` | `code-review-pr`, `code-review-repo`, `code-review-fix` |
+| dev | `dev` | `dev-build`, `dev-refactor`, `dev-migrate`, `dev-commit` |
+| docs | `docs` | `docs-write`, `docs-review`, `docs-repo`, `docs-crud`, `docs-confluence` |
+| diagram | `diagram` | `diagram-mermaid`, `diagram-excalidraw`, `diagram-drawio`, `diagram-graphviz` |
 
 ## Single-Skill or Mixed Categories (No Dedicated Router Yet)
 
 | Category | Current direct skills | Recommendation |
 |---|---|---|
-| quality | `adk-audit`, `adk-test`, `adk-research` | Add `adk-quality` router |
-| project | `adk-project`, `adk-setup`, `adk-handoff`, `adk-deps-tracker` | Keep as-is or add `adk-platform` router |
-| design | `adk-design` | Keep direct unless more design variants are added |
-| planning/spec | `adk-plan`, `adk-spec` | Optionally add `adk-solutioning` router |
+| quality | `audit`, `test`, `research` | Add `quality` router |
+| project | `project`, `setup`, `handoff`, `deps-tracker` | Keep as-is or add `platform` router |
+| design | `design` | Keep direct unless more design variants are added |
+| planning/spec | `plan`, `spec` | Optionally add `solutioning` router |
 
 ## Proposed New Categories (Based on Current Industry Usage)
 
 | Category | Proposed router | Proposed task skills |
 |---|---|---|
-| delivery | `adk-delivery` | `adk-ci`, `adk-release` |
-| quality | `adk-quality` | `adk-audit`, `adk-test`, `adk-incident`, `adk-deps-remediate` |
-| platform | `adk-platform` | `adk-setup`, `adk-db`, `adk-infra` |
+| delivery | `delivery` | `ci`, `release` |
+| quality | `quality` | `audit`, `test`, `incident`, `deps-remediate` |
+| platform | `platform` | `setup`, `db`, `infra` |
 
 ## Routing Decision Contract
 
@@ -50,7 +50,7 @@ Every category router should:
 
 For any task involving external systems, category routers should choose integrations in this order:
 
-1. standard in-repo connectors (`adk-github`, `adk-bitbucket`, `adk-confluence`, `adk-jira`)
+1. standard in-repo connectors (`github`, `bitbucket`, `confluence`, `jira`)
 2. first-party CLI
 3. first-party MCP
 4. first-party API

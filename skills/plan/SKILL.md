@@ -1,11 +1,11 @@
 ---
-name: adk-plan
+name: plan
 description: "adk - [full] [plan] Use when brainstorming, approving, executing, or tracking implementation plans with explicit human checkpoints before execution"
 user-invocable: true
 argument-hint: "<task> [--mode brainstorm|write|execute|track] [--verbosity short|standard|detailed] [--help]"
 allowed-tools: [Glob, Grep, Read, Edit, Write, Bash, WebSearch, WebFetch, Agent]
 dependencies:
-  commands: [git]
+  commands: [git, python3]
 workflow-tier: full
 ---
 
@@ -34,7 +34,7 @@ This skill uses shared helper skills. Load each skill's reference file ONLY when
 
 ## Helper Skill Resolution
 
-Resolve shared behavior through **helper skills**, not by loading reference markdown files. Invoke the needed skill using either form: `/adk:<skill>` (Claude plugin) or `/adk-<skill>` (skills.sh). The usual helpers are **workflow** (phase structure), **communication** (tone and structure), **preflight-check** (tool and MCP validation), **output-format** (verbosity and deliverable shape), **principal-engineer** (engineering bar), **agentic-teams** (child agents), and **interaction** (prompting and confirmations).
+Resolve shared behavior through **helper skills**, not by loading reference markdown files. Invoke the needed skill using either form: `/adk:<skill>` (Claude plugin) or `/<skill>` (skills.sh). The usual helpers are **workflow** (phase structure), **communication** (tone and structure), **preflight-check** (tool and MCP validation), **output-format** (verbosity and deliverable shape), **principal-engineer** (engineering bar), **agentic-teams** (child agents), and **interaction** (prompting and confirmations).
 
 If a required helper skill is unavailable, print a warning and continue using the inline fallback summary in the Shared Skills table.
 
@@ -112,7 +112,7 @@ Always run this phase.
 - identify needed skills, tools, and MCPs
 - estimate complexity
 - run a PE check for Medium and Large work
-- use `intent-analyst` when the prompt is complex or underspecified
+- use `adk-intent-analyst` when the prompt is complex or underspecified
 
 ### Phase 1: Research & Options
 
@@ -133,7 +133,7 @@ Used by `brainstorm` and `write`.
 ### Phase 3: Planning
 
 - `brainstorm`: produce an approved design direction and hand off to `write`
-- `write`: produce the executable plan, review it with `plan-reviewer` when needed, and get approval
+- `write`: produce the executable plan, review it with `adk-plan-reviewer` when needed, and get approval
 - `execute`: validate that an approved plan exists and is still current
 - `track`: read the plan and current progress state
 
@@ -148,7 +148,7 @@ All modes end with:
 - plan quality check
 - validation of completed work or current status
 - a concise note explaining what the user should understand next
-- for active execution or tracking, use `progress-tracker` when the work is large enough to need live recovery guidance
+- for active execution or tracking, use `adk-progress-tracker` when the work is large enough to need live recovery guidance
 
 ## Output Format
 

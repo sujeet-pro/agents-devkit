@@ -1,5 +1,5 @@
 ---
-name: adk-confluence
+name: confluence
 description: "adk - [helper] [connector] Confluence REST API operations — page CRUD, comments, attachments, and space management"
 user-invocable: false
 workflow-tier: helper
@@ -38,29 +38,24 @@ If auth fails or token is expired:
 > ```
 > Then run `source ~/.zshenv` and retry.
 
-## MCP Connector Detection
+## API-First Approach
 
-Before using scripts, check if an official Atlassian MCP connector is available:
+Always prefer direct REST API calls (via `curl`) over MCP tools. The bundled scripts under `scripts/` wrap the Confluence REST API and work in any environment (Claude Code, Codex, etc.) without MCP dependencies. If the scripts are not accessible via `${CLAUDE_SKILL_DIR}`, construct `curl` commands directly from the reference docs below — do NOT create new shell scripts.
 
-1. Look for tools matching `mcp__atlassian-confluence__*` or `mcp__plugin-atlassian-atlassian__*` or `mcp__atlassian__*` pattern
-2. If available, prefer MCP tools for supported operations (typically: page read, page update, search)
-3. Fall back to scripts for operations NOT covered by the MCP (typically: image/attachment uploads, inline comments, comment replies)
+MCP tools (`mcp__atlassian-confluence__*`, `mcp__plugin-atlassian-atlassian__*`, `mcp__atlassian__*`) may be used as a secondary option when available, but fall back to direct API calls for any operation not covered or if MCP fails.
 
-### Known MCP Connector Limitations
+### MCP Connector Limitations
 
-The official Atlassian MCP connector typically supports:
-- Page read — use MCP
-- Page update — use MCP
-- Page search — use MCP
-- List spaces — use MCP
+The official Atlassian MCP connector typically supports page read, update, search, and list spaces. Operations that always require direct API calls:
 
-Operations that typically require scripts:
-- Upload attachments/images — use `scripts/attachments.sh`
-- Inline comments — use `scripts/comments.sh`
-- Comment replies — use `scripts/comments.sh`
-- Delete pages — use `scripts/pages.sh`
+- Upload attachments/images — use `scripts/attachments.sh` or REST API
+- Inline comments — use `scripts/comments.sh` or REST API
+- Comment replies — use `scripts/comments.sh` or REST API
+- Delete pages — use `scripts/pages.sh` or REST API
 
-When a workflow needs both MCP and script operations (e.g., update page content via MCP then upload images via script), use both in sequence.
+## Comments
+
+By default, "comments" means **inline comments** — comments anchored to specific text in a page. Use `comments.sh create-inline` with `--text-selection` to anchor a comment to exact text in the page body. Footer (page-level) comments are used only for general page feedback.
 
 ## API Base
 

@@ -1,5 +1,5 @@
 ---
-name: adk-coding
+name: coding
 description: "adk - [helper] [guidelines] Helper skill that detects repo tools, frameworks, and languages, then loads matching coding guidelines from the shared guideline library — invoked by review, PR, and development skills, not directly by users"
 user-invocable: false
 argument-hint: "[--scope scoped|full] [--help]"

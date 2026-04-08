@@ -159,15 +159,71 @@ setup_npm() {
   fi
 }
 
+# Generic: install/update a global npm package
+setup_npm_package() {
+  local name="$1"
+  local cmd="$2"
+  local pkg="$3"
+
+  echo ""
+  echo "── ${name} ──"
+
+  if command -v "$cmd" &>/dev/null; then
+    local ver
+    ver=$($cmd --version 2>&1 | head -1)
+    echo "  $(status_icon ok) Installed: $ver"
+
+    if ! $SKIP_UPDATE && ! $CHECK_ONLY; then
+      echo "  Checking for updates..."
+      npm install -g "$pkg" 2>/dev/null && echo "  $(status_icon ok) Updated" || echo "  $(status_icon ok) Already latest"
+    fi
+  else
+    echo "  $(status_icon warn) Not installed"
+    if ! command -v npm &>/dev/null; then
+      echo "  $(status_icon warn) npm not found — install node first"
+      ERRORS=$((ERRORS + 1))
+      return
+    fi
+    if $CHECK_ONLY; then
+      echo "  Install with: npm install -g ${pkg}"
+      ERRORS=$((ERRORS + 1))
+      return
+    fi
+    echo "  Installing ${pkg}..."
+    npm install -g "$pkg" && echo "  $(status_icon ok) Installed" && INSTALLED=$((INSTALLED + 1)) || { echo "  $(status_icon warn) Installation failed"; ERRORS=$((ERRORS + 1)); }
+  fi
+}
+
 # ─── Tool setup functions ──────────────────────────────────────────
-run_git()       { setup_brew_tool "git"       "git"     "git"      "--version"; }
-run_python3()   { setup_brew_tool "Python 3"  "python3" "python"   "--version"; }
-run_node()      { setup_brew_tool "Node.js"   "node"    "node"     "--version"; }
-run_npm()       { setup_npm; }
-run_graphviz()  { setup_brew_tool "Graphviz"  "dot"     "graphviz" "-V"; }
-run_docker()    { setup_brew_tool "Docker"    "docker"  "docker"   "--version" "true"; }
-run_gh()        { setup_brew_tool "GitHub CLI" "gh"     "gh"       "--version"; }
-run_uv()        { setup_uv; }
+run_git()         { setup_brew_tool "git"        "git"     "git"      "--version"; }
+run_python3()     { setup_brew_tool "Python 3"   "python3" "python"   "--version"; }
+run_node()        { setup_brew_tool "Node.js"    "node"    "node"     "--version"; }
+run_npm()         { setup_npm; }
+run_graphviz()    { setup_brew_tool "Graphviz"   "dot"     "graphviz" "-V"; }
+run_docker()      { setup_brew_tool "Docker"     "docker"  "docker"   "--version" "true"; }
+run_gh()          { setup_brew_tool "GitHub CLI" "gh"      "gh"       "--version"; }
+run_uv()          { setup_uv; }
+run_jq()          { setup_brew_tool "jq"         "jq"      "jq"       "--version"; }
+run_curl()        { setup_brew_tool "curl"       "curl"    "curl"     "--version"; }
+run_diagramkit()  { setup_npm_package "diagramkit" "diagramkit" "diagramkit"; }
+run_pagesmith()   { setup_npm_package "pagesmith"  "pagesmith"  "@pagesmith/docs"; }
+
+setup_gh_auth() {
+  echo ""
+  echo "── GitHub CLI Auth ──"
+  if ! command -v gh &>/dev/null; then
+    echo "  $(status_icon warn) gh not installed — skipping auth check"
+    return
+  fi
+  if gh auth status &>/dev/null; then
+    echo "  $(status_icon ok) Authenticated"
+  else
+    echo "  $(status_icon warn) Not authenticated"
+    echo "  Run: gh auth login"
+    echo "  Then follow the prompts to sign in with your GitHub account."
+    ERRORS=$((ERRORS + 1))
+  fi
+}
 
 # ─── Main ───────────────────────────────────────────────────────────
 
@@ -189,20 +245,28 @@ if [[ -n "$TARGET_TOOL" ]]; then
     npm) run_npm ;;
     dot|graphviz) run_graphviz ;;
     docker) run_docker ;;
-    gh) run_gh ;;
+    gh) run_gh; setup_gh_auth ;;
     uv|uvx) run_uv ;;
+    jq) run_jq ;;
+    curl) run_curl ;;
+    diagramkit) run_diagramkit ;;
+    pagesmith) run_pagesmith ;;
     *) echo "Unknown tool: $TARGET_TOOL"; exit 1 ;;
   esac
 else
-  # Run all tools in dependency order
   run_git
   run_python3
   run_node
   run_npm
+  run_jq
+  run_curl
   run_graphviz
   run_uv
   run_docker
   run_gh
+  setup_gh_auth
+  run_diagramkit
+  run_pagesmith
 fi
 
 echo ""

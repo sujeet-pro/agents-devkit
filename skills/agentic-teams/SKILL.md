@@ -1,5 +1,5 @@
 ---
-name: adk-agentic-teams
+name: agentic-teams
 description: "adk - [helper] [guideline] Child-agent contract for parallel agentic teams. Standard team shapes for review, research, docs, diagrams, security, migration, planning."
 user-invocable: false
 allowed-tools: [Read]
@@ -86,7 +86,7 @@ Every non-trivial DevKit skill must use parallel child agents when the current p
 ### Execution Monitoring Team
 
 - **Progress tracker**: monitors task completion across waves, detects stalls and failures, categorizes failure types, and suggests recovery strategies.
-- **Domain specialist**: the relevant domain agent for the task type (code-reviewer for code changes, doc-reviewer for documentation, security-auditor for security-sensitive work, etc.).
+- **Domain specialist**: the relevant domain agent for the task type (adk-code-reviewer for code changes, adk-doc-reviewer for documentation, adk-security-reviewer for security-sensitive work, etc.).
 
 ## Merge Rules
 

@@ -1,17 +1,29 @@
 ---
-name: adk-diagram
+name: diagram
 description: "adk - [routing] [diagram] Diagram router — auto-detects the best engine and routes to the right diagram skill"
 user-invocable: true
-argument-hint: "<description> [--engine mermaid|excalidraw|drawio|graphviz] [--type flowchart|sequence|class|...] [--help]"
+argument-hint: "<description> [--engine mermaid|excalidraw|drawio|graphviz] [--type flowchart|sequence|class|...] [--render] [--format svg|png] [--theme both|light|dark] [--help]"
 allowed-tools: [Glob, Grep, Read]
 workflow-tier: orchestrator
 dependencies:
+  commands: [node]
   npm-packages: [diagramkit]
 ---
 
 # Diagram Router
 
 Unified entry point for diagram creation. Auto-detects the best engine from context and routes to the engine-specific skill, or accepts an explicit `--engine`.
+
+## Workspace Conventions
+
+Invoke `/adk:workspace-conventions` to determine output paths. Key rules:
+
+- **Output location**: `diagrams/` folder sibling to the document (if doc-related), or `./diagrams/` at project root
+- **diagramkit.config.json**: If present at project root, use its settings for output directory, format, and theme
+- **Theme**: Always produce both light and dark variants by default (`--theme both`)
+- **Formats**: Produce SVG (vector) and PNG (raster) output
+- **Temp files**: Use `.temp/<task-slug>/` for intermediary artifacts; gitignore `.temp/` on first use
+- **Source files**: Always commit alongside rendered output
 
 ## Routing
 
@@ -54,8 +66,9 @@ Pass all parameters to the target engine skill. The router does not consume para
 |-----------|--------|---------|-------------|
 | `--engine` | `mermaid`, `excalidraw`, `drawio`, `graphviz` | auto-detect | Force a specific engine |
 | `--type` | `flowchart`, `sequence`, etc. | auto-detect | Diagram type hint |
-| `--render` | flag | off | Render to image |
-| `--format` | `svg`, `png`, `jpeg`, `webp` | `svg` | Output format |
+| `--render` | flag | off | Render to image after generating source |
+| `--format` | `svg`, `png` | `svg` | Output format (both SVG and PNG produced by default) |
+| `--theme` | `both`, `light`, `dark` | `both` | Theme variants to render |
 | `--help` | flag | off | Show help |
 
 ## Sub-Skills

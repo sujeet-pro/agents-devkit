@@ -1,11 +1,11 @@
 ---
-name: adk-docs-write
+name: docs-write
 description: "adk - [full] [docs] Create or update formal engineering documents — auto-detects type, loads the right stage, optional Confluence/Google Docs publishing"
 user-invocable: true
 argument-hint: "<topic> [--type adr|rfc|api|blog|article|changelog|runbook|migration|onboarding|project|proposal|system-design|tech-radar|tool-eval|fix] [--template <path-or-url>] [--format] [--publish] [--publish-space] [--publish-parent] [--publish-update] [--verbosity short|standard|detailed] [--help]"
 allowed-tools: [Glob, Grep, Read, Edit, Write, Bash, WebSearch, WebFetch, Agent]
 dependencies:
-  commands: [git]
+  commands: [git, python3]
   mcp-servers: [detect-from-input]
 workflow-tier: full
 ---
@@ -29,10 +29,13 @@ This skill uses shared helper skills. Load each skill's reference file ONLY when
 | `/adk:principal-engineer` | complexity >= medium | Five questions: need? simplest? alternatives? maintenance costs? clarity in 6 months? |
 | `/adk:agentic-teams` | complexity >= medium AND parallel work needed | Launch 2+ child agents with distinct roles. Standard team shapes: review, research, docs, diagram, security, migration, planning. |
 | `/adk:interaction` | NOT --auto | Inline protocols for intent confirmation, approach selection, plan approval, review findings, progress dashboard. |
+| `/adk:chart` | when doc needs data charts | Generate data charts (bar, line, pie, scatter, etc.) from CSV/JSON data. Render to SVG/PNG for embedding in documents. |
+| `/adk:coding` | when doc describes code or architecture | Detect repo languages, frameworks, and tools. Load matching coding guidelines for accurate technical writing. |
+| `/adk:diagram` | when doc needs diagrams | Auto-detect best diagram engine (Mermaid, Excalidraw, draw.io, Graphviz) and route to the matching diagram skill. |
 
 ## Helper Skill Resolution
 
-Resolve shared behavior through **helper skills**, not by loading reference markdown files. Invoke the needed skill using either form: `/adk:<skill>` (Claude plugin) or `/adk-<skill>` (skills.sh). The usual helpers are **workflow** (phase structure), **communication** (tone and structure), **preflight-check** (tool and MCP validation), **output-format** (verbosity and deliverable shape), **principal-engineer** (engineering bar), **agentic-teams** (child agents), and **interaction** (prompting and confirmations).
+Resolve shared behavior through **helper skills**, not by loading reference markdown files. Invoke the needed skill using either form: `/adk:<skill>` (Claude plugin) or `/<skill>` (skills.sh). The usual helpers are **workflow** (phase structure), **communication** (tone and structure), **preflight-check** (tool and MCP validation), **output-format** (verbosity and deliverable shape), **principal-engineer** (engineering bar), **agentic-teams** (child agents), and **interaction** (prompting and confirmations).
 
 If a required helper skill is unavailable, print a warning and continue using the inline fallback summary in the Shared Skills table.
 
@@ -86,7 +89,7 @@ If a required helper skill is unavailable, print a warning and continue using th
 /adk:docs-write "Cache Strategy" --type system-design --verbosity detailed --output-dir docs/
 /adk:docs-write docs/architecture.md --publish source --publish-space ENG --publish-parent "RFCs"
 /adk:docs-write docs/runbook.md --publish source --publish-space OPS --publish-title "Deploy Runbook v2"
-/adk:docs-write docs/adk-design.md --publish source --publish-space ENG --publish-update 12345
+/adk:docs-write docs/design.md --publish source --publish-space ENG --publish-update 12345
 /adk:docs-write "Onboarding guide" --template docs/templates/onboarding-template.md
 /adk:docs-write "Q2 RFC" --template https://company.atlassian.net/wiki/spaces/ENG/pages/99999
 ```
@@ -206,11 +209,11 @@ The `doc-fix` stage uses an abbreviated workflow (phases 2-5 skipped). See the s
 
 Unless the stage file specifies a different composition, run at least these child agents in parallel:
 
-- `research-agent` for official docs, standards, and migration notes
-- `code-snippet-agent` for examples grounded in the repository or ecosystem
-- `doc-reviewer` for structure and clarity
+- `adk-research-agent` for official docs, standards, and migration notes
+- `adk-code-snippet-agent` for examples grounded in the repository or ecosystem
+- `adk-doc-reviewer` for structure and clarity
 - a diagram pass through `/adk:diagram` when the topic benefits from visuals
-- `source-publisher` if the final output is Confluence or Google Docs (see Confluence Publish Workflow below)
+- `adk-source-publisher` if the final output is Confluence or Google Docs (see Confluence Publish Workflow below)
 
 ## Confluence Publish Workflow
 
@@ -222,7 +225,7 @@ Run at least these child agents in parallel:
 
 - **Markdown converter**: reads the markdown source and converts it to Confluence storage format (XHTML). Handles headings, code blocks, tables, admonitions, and inline formatting. Replaces local image references with Confluence attachment references.
 - **Attachment and diagram agent**: identifies all referenced images, diagrams, and rendered assets in the markdown. Uploads each as a Confluence attachment. For diagram source files (`.mmd`, `.excalidraw`, `.drawio`), uploads both the editable source and the rendered output. Uses `/adk:diagram` if rendering is needed.
-- **Page reviewer** (`doc-reviewer`): reviews the converted page for formatting issues, broken references, and missing attachments before publishing. Verifies all images render correctly in the Confluence preview.
+- **Page reviewer** (`adk-doc-reviewer`): reviews the converted page for formatting issues, broken references, and missing attachments before publishing. Verifies all images render correctly in the Confluence preview.
 
 ### Publish Steps
 
@@ -272,5 +275,7 @@ All output is markdown by default. Structure varies by document type -- see the 
 
 - `/adk:docs-review` for comment-only review of documents (no source edits)
 - `/adk:diagram` for standalone architecture diagrams
+- `/adk:chart` for data charts (bar, line, pie, scatter, etc.) to embed in documents
 - `/adk:coding` for coding guidelines detection
 - `/adk:docs-guidelines` for document writing guidelines
+- `/adk:docs-crud` for template-driven document creation with 14 built-in doc types

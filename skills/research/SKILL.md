@@ -1,11 +1,11 @@
 ---
-name: adk-research
+name: research
 description: "adk - [full] [research] Use when you need to research a software engineering topic — searches official sources, implementations, and community patterns, then produces structured markdown with citations"
 user-invocable: true
 argument-hint: "<topic> [--deep] [--save path] [--verbosity short|standard|detailed] [--help]"
 allowed-tools: [Glob, Grep, Read, Bash, WebSearch, WebFetch, Agent]
 dependencies:
-  commands: [git]
+  commands: [git, python3]
 workflow-tier: full
 ---
 
@@ -31,7 +31,7 @@ This skill uses shared helper skills. Load each skill's reference file ONLY when
 
 ## Helper Skill Resolution
 
-Resolve shared behavior through **helper skills**, not by loading reference markdown files. Invoke the needed skill using either form: `/adk:<skill>` (Claude plugin) or `/adk-<skill>` (skills.sh). The usual helpers are **workflow** (phase structure), **communication** (tone and structure), **preflight-check** (tool and MCP validation), **output-format** (verbosity and deliverable shape), **principal-engineer** (engineering bar), **agentic-teams** (child agents), and **interaction** (prompting and confirmations).
+Resolve shared behavior through **helper skills**, not by loading reference markdown files. Invoke the needed skill using either form: `/adk:<skill>` (Claude plugin) or `/<skill>` (skills.sh). The usual helpers are **workflow** (phase structure), **communication** (tone and structure), **preflight-check** (tool and MCP validation), **output-format** (verbosity and deliverable shape), **principal-engineer** (engineering bar), **agentic-teams** (child agents), and **interaction** (prompting and confirmations).
 
 If a required helper skill is unavailable, print a warning and continue using the inline fallback summary in the Shared Skills table.
 
@@ -68,6 +68,12 @@ When `--help` is passed, display this reference and stop.
 
 ---
 
+## Preflight
+
+`python3 ${CLAUDE_SKILL_DIR}/scripts/preflight.py ${CLAUDE_SKILL_DIR}`
+
+If any declared dependency is missing, stop and tell the user what to install before proceeding.
+
 ## Phase Applicability
 
 | Phase | Applies | Skill-Specific Notes |
@@ -91,8 +97,8 @@ By default, run a **standard search** (2 agents, fast). When the user asks for d
 
 Launch 2 child agents in parallel:
 
-1. **Primary-source researcher** (`research-agent`): searches official docs, specs, RFCs, and maintainer guidance. Produces findings with citations and publication dates.
-2. **Implementation researcher** (`research-agent`): searches real repositories, migration notes, practical examples, and community patterns. Produces implementation snippets with source links.
+1. **Primary-source researcher** (`adk-research-agent`): searches official docs, specs, RFCs, and maintainer guidance. Produces findings with citations and publication dates.
+2. **Implementation researcher** (`adk-research-agent`): searches real repositories, migration notes, practical examples, and community patterns. Produces implementation snippets with source links.
 
 After both complete, merge findings: deduplicate, resolve contradictions, assign confidence ratings.
 
@@ -100,10 +106,10 @@ After both complete, merge findings: deduplicate, resolve contradictions, assign
 
 Launch 4 child agents in parallel:
 
-1. **Primary-source researcher** (`research-agent`): same as standard.
-2. **Implementation researcher** (`research-agent`): same as standard, but broader — also covers Stack Overflow, GitHub issues, and migration case studies.
+1. **Primary-source researcher** (`adk-research-agent`): same as standard.
+2. **Implementation researcher** (`adk-research-agent`): same as standard, but broader — also covers Stack Overflow, GitHub issues, and migration case studies.
 3. **Risk analyst**: identifies edge cases, tradeoffs, version compatibility issues, breaking changes, and open questions. Produces a risk brief with severity ratings.
-4. **Synthesis agent** (`consensus-agent`): merges findings from all agents, resolves contradictions, assigns confidence ratings per claim, and produces a unified document.
+4. **Synthesis agent** (`adk-consensus-agent`): merges findings from all agents, resolves contradictions, assigns confidence ratings per claim, and produces a unified document.
 
 ## Research Rules
 
