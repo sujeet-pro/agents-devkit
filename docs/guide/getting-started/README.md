@@ -153,6 +153,49 @@ For selective setup:
 npx skills update sujeet-pro/agents-devkit
 ```
 
+### Troubleshooting Updates
+
+`/plugin update adk` re-fetches the marketplace manifest but does **not** always pull the latest commit from the source repository. If you're still seeing an old version after updating:
+
+**1. Manually pull the latest source**
+
+The plugin source is cloned into your home directory. Pull it directly:
+
+```bash
+cd ~/.claude/plugins/cache/adk-marketplace/adk && git pull
+```
+
+Restart your Claude Code session after pulling.
+
+**2. Remove stale version caches**
+
+Claude Code caches each plugin version separately under `~/.claude/plugins/cache/adk-marketplace/adk/<version>/`. Old versions can linger and occasionally cause conflicts.
+
+List cached versions:
+
+```bash
+ls ~/.claude/plugins/cache/adk-marketplace/adk/
+```
+
+Remove a stale version (e.g., `2.0.0`):
+
+```bash
+rm -rf ~/.claude/plugins/cache/adk-marketplace/adk/2.0.0
+```
+
+**3. Force a clean reinstall**
+
+If updates are stuck, remove the entire cache and reinstall:
+
+```bash
+rm -rf ~/.claude/plugins/cache/adk-marketplace
+/plugin install adk@adk-marketplace
+```
+
+Restart your terminal session after reinstalling.
+
+> **Skills not showing as slash commands?** This is a [known Claude Code limitation](https://github.com/anthropics/claude-code/issues/38501) — plugin skills load as Agent Skills (the model can use them automatically) but may not appear in the `/` autocomplete menu. The skills still work when referenced in conversation or invoked by the model.
+
 ## Uninstall
 
 ### Claude Code

@@ -80,11 +80,21 @@ export GITHUB_PAT="ghp_your_personal_access_token_here"
 1. Go to [github.com/settings/tokens](https://github.com/settings/tokens?type=beta)
 2. Click **Generate new token** (Fine-grained token recommended)
 3. Give it a name like "ADK"
-4. Select the repositories you want to access
-5. Under permissions, enable: **Contents** (read), **Pull requests** (read/write), **Issues** (read/write)
-6. Click **Generate token** and copy it into `~/.zshenv`
+4. Set expiration (90 days recommended; re-generate when it expires)
+5. Select the repositories you want to access (or "All repositories")
+6. Under **Repository permissions**, enable:
+   - **Contents** — Read
+   - **Pull requests** — Read and write
+   - **Issues** — Read and write
+   - **Metadata** — Read (auto-selected)
+7. Click **Generate token** and copy it into `~/.zshenv`
 
-> **Note:** For GitHub, the recommended approach is using the `gh` CLI (see [Step 3](#step-3-install-tools)). After installing `gh`, run `gh auth login` — this handles authentication without needing a PAT for most operations.
+This token is used by:
+- The **GitHub MCP server** — the plugin's `.mcp.json` reads it via `${env:GITHUB_PAT}`
+- The **`gh` CLI** — as a fallback (though `gh auth login` is preferred for CLI auth)
+- **Direct API calls** — connector skill scripts that use `curl`
+
+> **Also recommended:** Install the `gh` CLI (see [Step 3](#step-3-install-tools)) and run `gh auth login`. This provides browser-based OAuth authentication that works independently of the PAT, giving you a second auth path if the token expires.
 
 ### Bitbucket (for PR reviews, comments, repository access)
 
@@ -209,30 +219,53 @@ npm install -g @pagesmith/docs           # For documentation generation (CLI)
 
 ## Step 4: MCP Servers
 
-MCP (Model Context Protocol) servers let Claude interact with external services like GitHub, Bitbucket, and Confluence directly. Setting them up is optional but recommended — skills will fall back to direct API calls if MCP is not configured.
+MCP (Model Context Protocol) servers let your AI agent interact with external services like GitHub, Bitbucket, and Confluence directly. Setting them up is optional but recommended — skills fall back to direct API calls (using tokens from `~/.zshenv`) if MCP is not configured.
 
-### Automated MCP Setup
+### Cursor (Plugin MCP)
 
-The easiest way to configure MCP servers:
+The ADK plugin ships with a `.mcp.json` that auto-configures MCP servers. After installing the plugin, you'll see these servers in **Settings > MCP**:
+
+| Service | Server Name | How it runs | Required in `~/.zshenv` |
+|---------|------------|-------------|------------------------|
+| GitHub | `plugin-adk-github` | Docker (stdio) | `GITHUB_PAT` |
+| Bitbucket | `plugin-adk-bitbucket` | npx bitbucket-mcp (stdio) | `BITBUCKET_USERNAME`, `BITBUCKET_TOKEN` |
+| Confluence | `plugin-adk-atlassian-confluence` | uvx mcp-atlassian (stdio) | `CONFLUENCE_URL`, `CONFLUENCE_USERNAME`, `CONFLUENCE_API_TOKEN` |
+| Atlassian (all products) | `plugin-adk-atlassian` | HTTP (OAuth, browser-based) | — none — |
+
+All stdio servers use `zsh -c` wrappers, which auto-source `~/.zshenv` on every launch — so env vars are always available, even when Cursor is started from the Dock or Spotlight.
+
+**Atlassian HTTP MCP** uses OAuth — Cursor opens a browser window to authenticate with your Atlassian account on first use. No tokens needed. This single server provides access to Jira, Confluence, and Bitbucket via the Atlassian Rovo API.
+
+### Claude Code (Automated)
 
 ```text
 /adk:setup --type mcps
 ```
 
-This reads your API tokens from `~/.zshenv` and configures the MCP servers in `~/.claude.json`. If tokens are missing, it tells you exactly what to add.
-
-### What gets configured
+This reads your API tokens from `~/.zshenv` and configures MCP servers in `~/.claude.json`. If tokens are missing, it tells you exactly what to add.
 
 | Service | MCP Server Key | How it runs | Required tokens in `~/.zshenv` |
 |---------|---------------|-------------|-------------------------------|
-| GitHub | `github` | HTTP (Copilot endpoint) | `GITHUB_PAT` |
+| GitHub | `github` | Docker `ghcr.io/github/github-mcp-server` | `GITHUB_PAT` |
 | Bitbucket | `bitbucket` | `npx bitbucket-mcp` | `BITBUCKET_USERNAME`, `BITBUCKET_TOKEN` |
 | Confluence | `atlassian-confluence` | `uvx mcp-atlassian` | `CONFLUENCE_URL`, `CONFLUENCE_USERNAME`, `CONFLUENCE_API_TOKEN` |
+| Atlassian | `atlassian` | HTTP (OAuth, browser-based) | — none — |
 | Google Drive | `google-drive` | `npx @piotr-agier/google-drive-mcp` | OAuth credentials file |
+
+### Direct API Fallback
+
+When MCP is not available (or fails), connector skills fall back to direct API calls using `curl`. These always read tokens from `~/.zshenv`:
+
+| Service | Variables |
+|---------|----------|
+| GitHub | `gh` CLI (via `gh auth login`) — preferred; `GITHUB_PAT` as fallback |
+| Bitbucket | `BITBUCKET_USERNAME`, `BITBUCKET_TOKEN` |
+| Confluence | `CONFLUENCE_URL`, `CONFLUENCE_USERNAME`, `CONFLUENCE_API_TOKEN` |
+| Jira | `JIRA_URL`, `JIRA_USERNAME`, `JIRA_API_TOKEN` |
 
 ### Manual MCP Setup
 
-If you prefer to configure MCP servers manually, add them to `~/.claude.json` under the `mcpServers` key. See the [Configuration Reference](/reference/config/) for the exact JSON format.
+If you prefer to configure MCP servers manually, add them to `~/.claude.json` (Claude Code) or `~/.cursor/mcp.json` (Cursor) under the `mcpServers` key.
 
 ---
 

@@ -33,7 +33,7 @@ If not authenticated:
 
 Always use the `gh` CLI for all GitHub operations. The `gh` CLI handles authentication, pagination, and rate limiting automatically. Do NOT use `curl` with GitHub APIs.
 
-MCP tools (`mcp__github__*`) may be used as a secondary option when available, but `gh` CLI is always the preferred and reliable fallback. When MCP tools fail (auth error, missing scope), fall back to `gh` CLI.
+MCP tools (`mcp__github__*`, `mcp__plugin-adk-github__*`) may be used as a secondary option when available, but `gh` CLI is always the preferred and reliable fallback. When MCP tools fail (auth error, missing scope), fall back to `gh` CLI.
 
 ## Routing
 

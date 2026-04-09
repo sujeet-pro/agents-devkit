@@ -128,8 +128,8 @@ Run:
 
 Then do one lightweight read through the matching source-native MCP to confirm it is connected:
 
-- GitHub -> `mcp__github__*`
-- Bitbucket -> `mcp__bitbucket__*`
+- GitHub -> `mcp__github__*`, `mcp__plugin-adk-github__*`
+- Bitbucket -> `mcp__bitbucket__*`, `mcp__plugin-adk-atlassian__*`
 
 ### Step 3: MCP Fallback -- Direct API or Git
 

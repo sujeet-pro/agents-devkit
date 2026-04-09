@@ -2,13 +2,26 @@
 
 All MCP servers that DevKit skills depend on. Each entry defines the server name, config shape, required env vars, and how to install/update.
 
+## Target Config Paths
+
+The setup script writes to user-level config for each AI tool:
+
+| Tool | Config path | Format |
+|---|---|---|
+| Claude Code | `~/.claude.json` → `mcpServers` | JSON object merged into existing file |
+| Cursor | `~/.cursor/mcp.json` → `mcpServers` | Standalone JSON file |
+| Windsurf | `~/.windsurf/mcp.json` → `mcpServers` | Standalone JSON file |
+| Codex | `~/.codex/mcp.json` → `mcpServers` | Standalone JSON file |
+
+All tools share the same `{"mcpServers": {...}}` config shape. The setup script creates the file if it doesn't exist and merges server entries without overwriting other keys (important for `~/.claude.json` which has additional config).
+
 ## GitHub MCP
 
 - **Server name**: `github`
 - **Package**: `github/github-mcp-server` (Docker image: `ghcr.io/github/github-mcp-server`)
 - **Env vars** (from `~/.zshenv`):
   - `GITHUB_PAT` — GitHub Personal Access Token
-- **Config** (`~/.claude.json` → `mcpServers.github`):
+- **Config** (`mcpServers.github`):
   ```json
   {
     "command": "docker",
@@ -42,7 +55,7 @@ No env vars needed for the HTTP variant. Prefer this when the host supports HTTP
 - **Env vars** (from `~/.zshenv`):
   - `BITBUCKET_USERNAME` — Bitbucket email
   - `BITBUCKET_TOKEN` — Bitbucket app password
-- **Config** (`~/.claude.json` → `mcpServers.bitbucket`):
+- **Config** (`mcpServers.bitbucket`):
   ```json
   {
     "command": "sh",
@@ -66,7 +79,7 @@ No env vars needed for the HTTP variant. Prefer this when the host supports HTTP
   - `CONFLUENCE_URL` — e.g. `https://yoursite.atlassian.net/wiki`
   - `CONFLUENCE_USERNAME` — Atlassian email
   - `CONFLUENCE_API_TOKEN` — Atlassian API token
-- **Config** (`~/.claude.json` → `mcpServers.atlassian-confluence`):
+- **Config** (`mcpServers.atlassian-confluence`):
   ```json
   {
     "command": "uvx",
@@ -93,7 +106,7 @@ No env vars needed for the HTTP variant. Prefer this when the host supports HTTP
   - `GOOGLE_MCP_CLIENT_ID` — Google OAuth client ID
   - `GOOGLE_MCP_CLIENT_SECRET` — Google OAuth client secret
   - `GOOGLE_DRIVE_OAUTH_CREDENTIALS` — path to OAuth credentials JSON (default: `~/.config/google-drive-mcp/gcp-oauth.keys.json`)
-- **Config** (`~/.claude.json` → `mcpServers.google-drive`):
+- **Config** (`mcpServers.google-drive`):
   ```json
   {
     "command": "npx",

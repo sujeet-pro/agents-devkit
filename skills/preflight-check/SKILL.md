@@ -60,9 +60,9 @@ Use the source-native MCP first when it exists.
 
 ### Preferred MCPs
 
-- **GitHub**: `mcp__github__*`
-- **Bitbucket**: `mcp__bitbucket__*`
-- **Confluence**: `mcp__atlassian-confluence__confluence_*`
+- **GitHub**: `mcp__github__*`, `mcp__plugin-adk-github__*`
+- **Bitbucket**: `mcp__bitbucket__*`, `mcp__plugin-adk-atlassian__*`, `mcp__plugin-atlassian-atlassian__*`
+- **Confluence**: `mcp__atlassian-confluence__confluence_*`, `mcp__plugin-adk-atlassian__confluence_*`, `mcp__plugin-atlassian-atlassian__confluence_*`
 - **Google Docs / Drive / Sheets / Slides**: `mcp__google-drive__*`
 
 ### Input Detection

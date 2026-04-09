@@ -6,7 +6,7 @@ This stage runs an interactive review loop for Confluence or Google Docs. The us
 
 Detect the platform from the URL:
 
-- Confluence URLs -> use `mcp__atlassian-confluence__*` tools
+- Confluence URLs -> use `mcp__atlassian-confluence__*` or `mcp__plugin-adk-atlassian__*` tools
 - Google Docs URLs -> use `mcp__google-drive__*` tools
 
 Read the full document content, existing comments, and any resolution state before starting analysis. Reconcile existing comments to avoid posting duplicates.

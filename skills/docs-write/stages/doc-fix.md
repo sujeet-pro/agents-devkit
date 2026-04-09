@@ -11,13 +11,13 @@ This stage uses the **Quick Action** workflow: confirm → execute → verify.
 ## Preflight Addition
 
 After the standard preflight, confirm the platform MCP is connected with a lightweight read:
-- Confluence -> `mcp__atlassian-confluence__confluence_get_page`
+- Confluence -> `mcp__atlassian-confluence__confluence_get_page` or `mcp__plugin-adk-atlassian__confluence_get_page`
 - Google Docs -> `mcp__google-drive__getDocumentInfo`
 
 ## Source Handling
 
 Detect the platform from the URL:
-- Confluence URLs -> use `mcp__atlassian-confluence__*` tools
+- Confluence URLs -> use `mcp__atlassian-confluence__*` or `mcp__plugin-adk-atlassian__*` tools
 - Google Docs URLs -> use `mcp__google-drive__*` tools
 
 Read the full document content and all comments (including inline comments, page comments, and reply threads).

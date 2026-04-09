@@ -59,6 +59,8 @@ This installs missing CLI tools via Homebrew (macOS) or equivalent package manag
 
 Reads API tokens from `~/.zshenv` and configures MCP servers for GitHub, Bitbucket, Confluence, and Google Drive.
 
+> **Cursor users:** The ADK plugin auto-configures GitHub and Atlassian MCP servers via `.mcp.json`. GitHub reads `GITHUB_PAT` from your environment (`${env:GITHUB_PAT}`); Atlassian uses OAuth (browser login). See [Prerequisites — MCP Servers](/guide/prerequisites/#step-4-mcp-servers) for details.
+
 ---
 
 ## Check Status Without Changes

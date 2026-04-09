@@ -174,7 +174,7 @@ When `--template <path-or-url>` is provided:
 
 Template sources:
 - **Local path**: read the file directly
-- **Confluence URL**: read via `mcp__atlassian-confluence__confluence_get_page` or API fallback
+- **Confluence URL**: read via `mcp__atlassian-confluence__confluence_get_page` or `mcp__plugin-adk-atlassian__confluence_get_page` or API fallback
 - **Google Docs URL**: read via `mcp__google-drive__getDocument` or API fallback
 
 ### Type Detection from Keywords

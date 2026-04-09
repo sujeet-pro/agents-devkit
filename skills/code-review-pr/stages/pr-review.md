@@ -24,7 +24,7 @@ When the PR description or `--context` parameter references external documents, 
 **Supported sources:**
 - **Jira / issue tracker**: Extract ticket numbers from PR title/description (patterns: `PROJ-123`, `#123`, Jira URLs). Read the ticket description, acceptance criteria, and comments for requirements context
 - **Google Docs**: Use `mcp__google-drive__readGoogleDoc` or `mcp__google-drive__getGoogleDocContent` to read linked Google Docs
-- **Confluence**: Use `mcp__atlassian-confluence__confluence_get_page` to read linked Confluence pages
+- **Confluence**: Use `mcp__atlassian-confluence__confluence_get_page` or `mcp__plugin-adk-atlassian__confluence_get_page` to read linked Confluence pages
 - **Markdown files**: Read any linked `.md` files from the repo or URLs via `WebFetch`
 - **Design docs / RFCs**: Read linked design documents for architectural context
 - **URLs passed via `--context`**: Fetch each URL and extract relevant content
@@ -758,7 +758,7 @@ Use the source-native MCP or API fallback to submit the review status:
 
 - GitHub MCP: `mcp__github__pull_request_review_write`
 - GitHub API: `gh api repos/{owner}/{repo}/pulls/{number}/reviews -f event="APPROVE"` (or `REQUEST_CHANGES`, `COMMENT`)
-- Bitbucket MCP: `mcp__bitbucket__approvePullRequest` or equivalent
+- Bitbucket MCP: `mcp__bitbucket__approvePullRequest` or `mcp__plugin-adk-atlassian__approvePullRequest` or equivalent
 - Bitbucket API: `curl -X POST` to the approve/unapprove endpoint
 
 ---

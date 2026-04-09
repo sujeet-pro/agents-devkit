@@ -1,29 +1,108 @@
 #!/usr/bin/env bash
 # setup-mcps.sh — Idempotent MCP server setup, validation, and update script
-# Usage: bash setup-mcps.sh [--check-only] [--server <name>]
+# Usage: bash setup-mcps.sh [--check-only] [--server <name>] [--ide <tool>]
 #
 # For each MCP server:
-#   1. Check if configured in ~/.claude.json → configure if missing
+#   1. Check if configured in the target tool's config → configure if missing
 #   2. Check for package updates → update if available
 #   3. Check env var tokens in ~/.zshenv → update config if tokens changed
 #
 # Supports: github, bitbucket, atlassian-confluence, google-drive
+# IDE tools: claude, cursor, windsurf, codex (auto-detected if not specified)
 
 set -euo pipefail
 
-CLAUDE_CONFIG="${HOME}/.claude.json"
 ZSHENV="${HOME}/.zshenv"
 CHECK_ONLY=false
 TARGET_SERVER=""
+TARGET_IDE=""
+
+# ─── IDE config paths ────────────────────────────────────────────────
+# Each tool stores MCP config in a different location and format.
+# All use the {"mcpServers": {...}} shape except where noted.
+
+config_path_for_ide() {
+  local ide="$1"
+  case "$ide" in
+    claude)   echo "${HOME}/.claude.json" ;;
+    cursor)   echo "${HOME}/.cursor/mcp.json" ;;
+    windsurf) echo "${HOME}/.windsurf/mcp.json" ;;
+    codex)    echo "${HOME}/.codex/mcp.json" ;;
+    *)        echo ""; return 1 ;;
+  esac
+}
 
 # ─── Argument parsing ───────────────────────────────────────────────
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --check-only) CHECK_ONLY=true; shift ;;
     --server) TARGET_SERVER="$2"; shift 2 ;;
+    --ide) TARGET_IDE="$2"; shift 2 ;;
     *) echo "Unknown arg: $1"; exit 1 ;;
   esac
 done
+
+# ─── IDE Auto-Detection ─────────────────────────────────────────────
+detect_ide() {
+  # Check for Claude Code indicators
+  if [[ -n "${CLAUDE_CODE:-}" ]] || [[ -n "${CLAUDE_SKILL_DIR:-}" ]]; then
+    echo "claude"
+    return
+  fi
+  # Check for Cursor indicators
+  if [[ -n "${CURSOR_SESSION:-}" ]] || [[ "${TERM_PROGRAM:-}" == "cursor" ]]; then
+    echo "cursor"
+    return
+  fi
+  # Check for Windsurf indicators
+  if [[ -n "${WINDSURF_SESSION:-}" ]] || [[ "${TERM_PROGRAM:-}" == "windsurf" ]]; then
+    echo "windsurf"
+    return
+  fi
+  # Check for Codex indicators
+  if [[ -n "${CODEX_SESSION:-}" ]]; then
+    echo "codex"
+    return
+  fi
+  # Fallback: detect by which tools are installed
+  echo ""
+}
+
+detect_available_ides() {
+  local ides=()
+  [[ -f "${HOME}/.claude.json" ]] || command -v claude &>/dev/null && ides+=("claude")
+  [[ -d "${HOME}/.cursor" ]] || command -v cursor &>/dev/null && ides+=("cursor")
+  [[ -d "${HOME}/.windsurf" ]] && ides+=("windsurf")
+  [[ -d "${HOME}/.codex" ]] || command -v codex &>/dev/null && ides+=("codex")
+  echo "${ides[*]}"
+}
+
+# Resolve target IDE(s)
+resolve_ides() {
+  if [[ "$TARGET_IDE" == "all" ]]; then
+    detect_available_ides
+    return
+  fi
+  if [[ -n "$TARGET_IDE" ]]; then
+    echo "$TARGET_IDE"
+    return
+  fi
+  # Auto-detect
+  local detected
+  detected=$(detect_ide)
+  if [[ -n "$detected" ]]; then
+    echo "$detected"
+    return
+  fi
+  # Could not auto-detect — list available and ask
+  local available
+  available=$(detect_available_ides)
+  if [[ -z "$available" ]]; then
+    echo "claude"  # fallback default
+  else
+    echo "ASK:${available}"
+  fi
+}
 
 # ─── Helpers ────────────────────────────────────────────────────────
 
@@ -35,13 +114,13 @@ read_zshenv_var() {
   fi
 }
 
-# Check if an MCP server exists in ~/.claude.json
+# Check if an MCP server exists in a config file
 server_configured() {
-  local name="$1"
+  local name="$1" config_file="$2"
   python3 -c "
 import json, sys
 try:
-    with open('${CLAUDE_CONFIG}') as f:
+    with open('${config_file}') as f:
         data = json.load(f)
     servers = data.get('mcpServers', {})
     sys.exit(0 if '${name}' in servers else 1)
@@ -52,10 +131,10 @@ except:
 
 # Get a value from the MCP server's env block
 get_server_env_val() {
-  local server="$1" key="$2"
+  local server="$1" key="$2" config_file="$3"
   python3 -c "
 import json
-with open('${CLAUDE_CONFIG}') as f:
+with open('${config_file}') as f:
     data = json.load(f)
 val = data.get('mcpServers', {}).get('${server}', {}).get('env', {}).get('${key}', '')
 print(val)
@@ -64,13 +143,13 @@ print(val)
 
 # Update a single env value in the MCP server config
 update_server_env_val() {
-  local server="$1" key="$2" value="$3"
+  local server="$1" key="$2" value="$3" config_file="$4"
   python3 -c "
 import json
-with open('${CLAUDE_CONFIG}') as f:
+with open('${config_file}') as f:
     data = json.load(f)
 data.setdefault('mcpServers', {}).setdefault('${server}', {}).setdefault('env', {})['${key}'] = '${value}'
-with open('${CLAUDE_CONFIG}', 'w') as f:
+with open('${config_file}', 'w') as f:
     json.dump(data, f, indent=2)
 print('  Updated ${key} in ${server}')
 "
@@ -78,23 +157,32 @@ print('  Updated ${key} in ${server}')
 
 # Add/replace entire server config
 set_server_config() {
-  local server="$1" config_json="$2"
+  local server="$1" config_json="$2" config_file="$3"
   python3 -c "
 import json
-with open('${CLAUDE_CONFIG}') as f:
+with open('${config_file}') as f:
     data = json.load(f)
 data.setdefault('mcpServers', {})['${server}'] = json.loads('''${config_json}''')
-with open('${CLAUDE_CONFIG}', 'w') as f:
+with open('${config_file}', 'w') as f:
     json.dump(data, f, indent=2)
-print('  Configured ${server} in ${CLAUDE_CONFIG}')
+print('  Configured ${server} in ${config_file}')
 "
 }
 
-# Ensure ~/.claude.json exists with at least {}
-ensure_claude_config() {
-  if [[ ! -f "$CLAUDE_CONFIG" ]]; then
-    echo '{}' > "$CLAUDE_CONFIG"
-    echo "Created $CLAUDE_CONFIG"
+# Ensure config file exists with proper structure
+ensure_config() {
+  local config_file="$1" ide="$2"
+  if [[ ! -f "$config_file" ]]; then
+    local dir
+    dir=$(dirname "$config_file")
+    mkdir -p "$dir"
+    if [[ "$ide" == "claude" ]]; then
+      # claude.json may have other keys — only create if missing
+      echo '{"mcpServers":{}}' > "$config_file"
+    else
+      echo '{"mcpServers":{}}' > "$config_file"
+    fi
+    echo "Created $config_file"
   fi
 }
 
@@ -104,6 +192,7 @@ status_icon() {
 
 # ─── GitHub MCP ─────────────────────────────────────────────────────
 setup_github() {
+  local config_file="$1"
   echo ""
   echo "── GitHub MCP ──"
 
@@ -111,17 +200,17 @@ setup_github() {
   pat=$(read_zshenv_var "GITHUB_PAT")
 
   # Check if configured
-  if server_configured "github"; then
+  if server_configured "github" "$config_file"; then
     echo "  $(status_icon ok) Server configured"
 
     # Check token freshness
     local current_pat
-    current_pat=$(get_server_env_val "github" "GITHUB_PERSONAL_ACCESS_TOKEN")
+    current_pat=$(get_server_env_val "github" "GITHUB_PERSONAL_ACCESS_TOKEN" "$config_file")
     if [[ -n "$pat" && "$current_pat" != "$pat" ]]; then
       if $CHECK_ONLY; then
         echo "  $(status_icon warn) Token in config differs from ~/.zshenv GITHUB_PAT"
       else
-        update_server_env_val "github" "GITHUB_PERSONAL_ACCESS_TOKEN" "$pat"
+        update_server_env_val "github" "GITHUB_PERSONAL_ACCESS_TOKEN" "$pat" "$config_file"
       fi
     else
       echo "  $(status_icon ok) Token up to date"
@@ -152,7 +241,7 @@ setup_github() {
 ENDJSON
     )
     config=$(echo "$config" | sed "s/PLACEHOLDER/${pat}/")
-    set_server_config "github" "$config"
+    set_server_config "github" "$config" "$config_file"
 
     # Pull the Docker image
     if command -v docker &>/dev/null; then
@@ -166,6 +255,7 @@ ENDJSON
 
 # ─── Bitbucket MCP ──────────────────────────────────────────────────
 setup_bitbucket() {
+  local config_file="$1"
   echo ""
   echo "── Bitbucket MCP ──"
 
@@ -173,13 +263,13 @@ setup_bitbucket() {
   username=$(read_zshenv_var "BITBUCKET_USERNAME")
   token=$(read_zshenv_var "BITBUCKET_TOKEN")
 
-  if server_configured "bitbucket"; then
+  if server_configured "bitbucket" "$config_file"; then
     echo "  $(status_icon ok) Server configured"
 
     # Check token freshness
     local current_token current_username
-    current_token=$(get_server_env_val "bitbucket" "BITBUCKET_TOKEN")
-    current_username=$(get_server_env_val "bitbucket" "BITBUCKET_USERNAME")
+    current_token=$(get_server_env_val "bitbucket" "BITBUCKET_TOKEN" "$config_file")
+    current_username=$(get_server_env_val "bitbucket" "BITBUCKET_USERNAME" "$config_file")
 
     local needs_update=false
     if [[ -n "$token" && "$current_token" != "$token" ]]; then
@@ -195,8 +285,8 @@ setup_bitbucket() {
       if $CHECK_ONLY; then
         echo "  Run without --check-only to update"
       else
-        [[ -n "$token" ]] && update_server_env_val "bitbucket" "BITBUCKET_TOKEN" "$token"
-        [[ -n "$username" ]] && update_server_env_val "bitbucket" "BITBUCKET_USERNAME" "$username"
+        [[ -n "$token" ]] && update_server_env_val "bitbucket" "BITBUCKET_TOKEN" "$token" "$config_file"
+        [[ -n "$username" ]] && update_server_env_val "bitbucket" "BITBUCKET_USERNAME" "$username" "$config_file"
       fi
     else
       echo "  $(status_icon ok) Tokens up to date"
@@ -218,12 +308,13 @@ setup_bitbucket() {
 {"command":"sh","args":["-c","BITBUCKET_USERNAME=\${BITBUCKET_USERNAME} BITBUCKET_PASSWORD=\${BITBUCKET_TOKEN} npx -y bitbucket-mcp@latest"],"env":{"BITBUCKET_USERNAME":"${username}","BITBUCKET_TOKEN":"${token}"}}
 ENDJSON
     )
-    set_server_config "bitbucket" "$config"
+    set_server_config "bitbucket" "$config" "$config_file"
   fi
 }
 
 # ─── Atlassian Confluence MCP ───────────────────────────────────────
 setup_confluence() {
+  local config_file="$1"
   echo ""
   echo "── Atlassian Confluence MCP ──"
 
@@ -232,14 +323,14 @@ setup_confluence() {
   email=$(read_zshenv_var "CONFLUENCE_USERNAME")
   api_token=$(read_zshenv_var "CONFLUENCE_API_TOKEN")
 
-  if server_configured "atlassian-confluence"; then
+  if server_configured "atlassian-confluence" "$config_file"; then
     echo "  $(status_icon ok) Server configured"
 
     # Check token freshness
     local current_url current_email current_token
-    current_url=$(get_server_env_val "atlassian-confluence" "CONFLUENCE_URL")
-    current_email=$(get_server_env_val "atlassian-confluence" "CONFLUENCE_USERNAME")
-    current_token=$(get_server_env_val "atlassian-confluence" "CONFLUENCE_API_TOKEN")
+    current_url=$(get_server_env_val "atlassian-confluence" "CONFLUENCE_URL" "$config_file")
+    current_email=$(get_server_env_val "atlassian-confluence" "CONFLUENCE_USERNAME" "$config_file")
+    current_token=$(get_server_env_val "atlassian-confluence" "CONFLUENCE_API_TOKEN" "$config_file")
 
     local needs_update=false
     [[ -n "$url" && "$current_url" != "$url" ]] && needs_update=true && echo "  $(status_icon warn) CONFLUENCE_URL changed"
@@ -250,9 +341,9 @@ setup_confluence() {
       if $CHECK_ONLY; then
         echo "  Run without --check-only to update"
       else
-        [[ -n "$url" ]] && update_server_env_val "atlassian-confluence" "CONFLUENCE_URL" "$url"
-        [[ -n "$email" ]] && update_server_env_val "atlassian-confluence" "CONFLUENCE_USERNAME" "$email"
-        [[ -n "$api_token" ]] && update_server_env_val "atlassian-confluence" "CONFLUENCE_API_TOKEN" "$api_token"
+        [[ -n "$url" ]] && update_server_env_val "atlassian-confluence" "CONFLUENCE_URL" "$url" "$config_file"
+        [[ -n "$email" ]] && update_server_env_val "atlassian-confluence" "CONFLUENCE_USERNAME" "$email" "$config_file"
+        [[ -n "$api_token" ]] && update_server_env_val "atlassian-confluence" "CONFLUENCE_API_TOKEN" "$api_token" "$config_file"
       fi
     else
       echo "  $(status_icon ok) Tokens up to date"
@@ -288,12 +379,13 @@ setup_confluence() {
 {"command":"uvx","args":["mcp-atlassian","--confluence-url","${url}","--confluence-username","${email}","--confluence-token","${api_token}"],"env":{"CONFLUENCE_URL":"${url}","CONFLUENCE_USERNAME":"${email}","CONFLUENCE_API_TOKEN":"${api_token}"}}
 ENDJSON
     )
-    set_server_config "atlassian-confluence" "$config"
+    set_server_config "atlassian-confluence" "$config" "$config_file"
   fi
 }
 
 # ─── Google Drive MCP ───────────────────────────────────────────────
 setup_google_drive() {
+  local config_file="$1"
   echo ""
   echo "── Google Drive MCP ──"
 
@@ -301,7 +393,7 @@ setup_google_drive() {
   creds_path=$(read_zshenv_var "GOOGLE_DRIVE_OAUTH_CREDENTIALS")
   creds_path="${creds_path:-${HOME}/.config/google-drive-mcp/gcp-oauth.keys.json}"
 
-  if server_configured "google-drive"; then
+  if server_configured "google-drive" "$config_file"; then
     echo "  $(status_icon ok) Server configured"
 
     # Check credentials file exists
@@ -329,7 +421,7 @@ setup_google_drive() {
     fi
 
     local config='{"command":"npx","args":["-y","@piotr-agier/google-drive-mcp"],"env":{}}'
-    set_server_config "google-drive" "$config"
+    set_server_config "google-drive" "$config" "$config_file"
     echo "  Note: Complete the browser OAuth flow on first run"
   fi
 }
@@ -338,7 +430,6 @@ setup_google_drive() {
 
 echo "DevKit MCP Setup"
 echo "================"
-echo "Config: $CLAUDE_CONFIG"
 echo "Env:    $ZSHENV"
 if $CHECK_ONLY; then
   echo "Mode:   check-only (no changes)"
@@ -346,22 +437,57 @@ else
   echo "Mode:   setup & update"
 fi
 
-ensure_claude_config
+# Resolve which IDE(s) to configure
+IDE_LIST=$(resolve_ides)
 
-if [[ -n "$TARGET_SERVER" ]]; then
-  case "$TARGET_SERVER" in
-    github) setup_github ;;
-    bitbucket) setup_bitbucket ;;
-    atlassian-confluence|confluence) setup_confluence ;;
-    google-drive) setup_google_drive ;;
-    *) echo "Unknown server: $TARGET_SERVER"; exit 1 ;;
-  esac
-else
-  setup_github
-  setup_bitbucket
-  setup_confluence
-  setup_google_drive
+# If auto-detection failed and needs user input, output a special marker
+if [[ "$IDE_LIST" == ASK:* ]]; then
+  available="${IDE_LIST#ASK:}"
+  echo ""
+  echo "PROMPT_USER:Could not auto-detect your IDE/tool. Available: ${available}"
+  echo "PROMPT_USER:Pass --ide <tool> to specify (e.g. --ide claude, --ide cursor, --ide all)"
+  exit 2
 fi
 
+echo "Target: $IDE_LIST"
 echo ""
+
+for ide in $IDE_LIST; do
+  config_file=$(config_path_for_ide "$ide")
+  if [[ -z "$config_file" ]]; then
+    echo "$(status_icon warn) Unknown IDE: $ide — skipping"
+    continue
+  fi
+
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  echo "Configuring: $ide ($config_file)"
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+  if ! $CHECK_ONLY; then
+    ensure_config "$config_file" "$ide"
+  elif [[ ! -f "$config_file" ]]; then
+    echo "  $(status_icon warn) Config file does not exist: $config_file"
+    echo "  Run without --check-only to create it"
+    echo ""
+    continue
+  fi
+
+  if [[ -n "$TARGET_SERVER" ]]; then
+    case "$TARGET_SERVER" in
+      github) setup_github "$config_file" ;;
+      bitbucket) setup_bitbucket "$config_file" ;;
+      atlassian-confluence|confluence) setup_confluence "$config_file" ;;
+      google-drive) setup_google_drive "$config_file" ;;
+      *) echo "Unknown server: $TARGET_SERVER"; exit 1 ;;
+    esac
+  else
+    setup_github "$config_file"
+    setup_bitbucket "$config_file"
+    setup_confluence "$config_file"
+    setup_google_drive "$config_file"
+  fi
+
+  echo ""
+done
+
 echo "Done."

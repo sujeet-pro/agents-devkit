@@ -96,7 +96,7 @@ After dependency checks:
 
 1. Resolve the review target — local path, directory, or platform URL.
 2. For local files: verify the path exists and identify all markdown files to review.
-3. For platform URLs: verify MCP connectivity (Confluence via `mcp__atlassian-confluence__confluence_get_page`, Google Docs via `mcp__google-drive__getDocumentInfo`).
+3. For platform URLs: verify MCP connectivity (Confluence via `mcp__atlassian-confluence__confluence_get_page` or `mcp__plugin-adk-atlassian__confluence_get_page`, Google Docs via `mcp__google-drive__getDocumentInfo`).
 4. Check for `pagesmith.config.json5` — if present, add pagesmith-specific style checks (frontmatter validation, meta.json5 consistency, folder/README.md convention).
 5. Scan for the corresponding source code to enable accuracy checks (look for `src/`, `lib/`, `packages/`, standard entry points).
 

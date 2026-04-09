@@ -2,7 +2,7 @@
 name: setup
 description: "adk - [abbreviated] [setup] Use when setting up, validating, or updating CLI tools and MCP server configurations for DevKit skills"
 user-invocable: true
-argument-hint: "[--type tools|mcps|hooks|config|all] [--check-only] [--skip-update] [--server ] [--tool ] [--verbosity short|standard|detailed] [--help]"
+argument-hint: "[--type tools|mcps|hooks|config|all] [--check-only] [--skip-update] [--server ] [--tool ] [--ide claude|cursor|windsurf|codex|all] [--verbosity short|standard|detailed] [--help]"
 allowed-tools: [Read, Bash, Write]
 dependencies:
   commands: [python3]
@@ -24,10 +24,11 @@ This skill idempotently installs, validates, and updates CLI tools, MCP servers,
 
 **MCP Servers** -- processed via `stages/mcps.md`:
 
-1. **Check** -- Is the server configured in `~/.claude.json`?
-2. **Configure** -- If not, add the config using tokens from `~/.zshenv`
-3. **Update packages** -- Pull latest Docker images, npm packages, or Python packages
-4. **Sync tokens** -- Compare `~/.zshenv` values against config; update if they differ
+1. **Detect IDE** -- Auto-detect the current tool (Claude, Cursor, Windsurf, Codex) or use `--ide` flag
+2. **Check** -- Is the server configured in the target tool's user-level config?
+3. **Configure** -- If not, add the config using tokens from `~/.zshenv`
+4. **Update packages** -- Pull latest Docker images, npm packages, or Python packages
+5. **Sync tokens** -- Compare `~/.zshenv` values against config; update if they differ
 
 **Hooks** -- SessionStart hook and compaction reminders:
 
@@ -63,6 +64,7 @@ When `--help` is passed, display this reference and stop.
 | `--check-only`  | flag                                                                                     | off           | Report status without making changes                            |
 | `--tool`        | `git`, `python3`, `node`, `npm`, `jq`, `curl`, `dot`, `uvx`, `docker`, `gh`, `diagramkit`, `pagesmith` | (all tools)   | Only process a specific CLI tool (implies `--type tools`)       |
 | `--server`      | `github`, `bitbucket`, `confluence`, `google-drive`                                      | (all servers) | Only process a specific MCP server (implies `--type mcps`)      |
+| `--ide`         | `claude`, `cursor`, `windsurf`, `codex`, `all`                                           | (auto-detect) | Target AI tool for MCP config (implies `--type mcps`)           |
 | `--skip-update` | flag                                                                                     | off           | Install/configure missing items but do not update existing ones |
 | `--verbosity`   | `short`, `standard`, `detailed`                                                          | `standard`    | Output detail level                                             |
 
@@ -71,6 +73,7 @@ When `--help` is passed, display this reference and stop.
 
 - If `--tool` is provided, `--type` is implicitly `tools`
 - If `--server` is provided, `--type` is implicitly `mcps`
+- If `--ide` is provided, `--type` is implicitly `mcps`
 - If neither `--tool` nor `--server` is provided, `--type` defaults to `all`
 
 ### Behavior Variations
@@ -101,6 +104,9 @@ When `--help` is passed, display this reference and stop.
 /adk:setup --tool node --verbosity detailed # Only process node with full details
 /adk:setup --server github                  # Only process GitHub MCP
 /adk:setup --server confluence              # Only process Confluence MCP
+/adk:setup --ide cursor                     # Configure MCPs for Cursor
+/adk:setup --ide all                        # Configure MCPs for all detected tools
+/adk:setup --ide cursor --server github     # GitHub MCP for Cursor only
 /adk:setup --skip-update                    # Install missing but don't update
 /adk:setup --type tools --check-only        # Check tool status only
 /adk:setup --type mcps --check-only --verbosity short  # Quick MCP status check
@@ -155,7 +161,9 @@ When type is `mcps` or `all`, run the MCP setup script:
 bash ${CLAUDE_SKILL_DIR}/scripts/setup-mcps.sh <args>
 ```
 
-Where `<args>` are the relevant arguments (e.g. `--check-only`, `--server github`).
+Where `<args>` are the relevant arguments (e.g. `--check-only`, `--server github`, `--ide cursor`).
+
+If the script exits with code 2 and outputs `PROMPT_USER:` lines, ask the user which IDE to target and re-run with `--ide <chosen>`.
 
 Load stage details: `stages/mcps.md`.
 
@@ -187,16 +195,27 @@ When type is `config` or `all`:
 
 ### MCP Servers
 
+Config is written to the correct user-level path per tool:
+
+| Tool | Config path |
+| ---- | ----------- |
+| Claude Code | `~/.claude.json` → `mcpServers` |
+| Cursor | `~/.cursor/mcp.json` → `mcpServers` |
+| Windsurf | `~/.windsurf/mcp.json` → `mcpServers` |
+| Codex | `~/.codex/mcp.json` → `mcpServers` |
+
+Use `--ide all` to configure every detected tool at once.
 
 | Server       | Config Key             | Transport | Env vars from `~/.zshenv`                                       |
 | ------------ | ---------------------- | --------- | --------------------------------------------------------------- |
-| GitHub       | `github`               | HTTP      | `GITHUB_PAT`                                                    |
+| GitHub       | `github`               | stdio     | `GITHUB_PAT` (mapped to `GITHUB_PERSONAL_ACCESS_TOKEN` for Docker) |
 | Bitbucket    | `bitbucket`            | stdio     | `BITBUCKET_USERNAME`, `BITBUCKET_TOKEN`                         |
 | Confluence   | `atlassian-confluence` | stdio     | `CONFLUENCE_URL`, `CONFLUENCE_USERNAME`, `CONFLUENCE_API_TOKEN` |
+| Atlassian    | `atlassian`            | HTTP      | — none — (OAuth, browser-based)                                 |
 | Google Drive | `google-drive`         | stdio     | `GOOGLE_DRIVE_OAUTH_CREDENTIALS`                                |
 
 
-GitHub MCP uses HTTP transport. Bitbucket, Confluence, and Google Drive are optional and configured on request.
+All stdio servers use `zsh -c` to auto-source `~/.zshenv` and resolve env vars at startup. Atlassian HTTP MCP uses OAuth (covers Jira, Confluence, and Bitbucket via browser login). Google Drive is optional and configured on request.
 
 ### CLI Tools
 

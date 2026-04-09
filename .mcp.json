@@ -1,8 +1,32 @@
 {
   "mcpServers": {
     "github": {
-      "type": "http",
-      "url": "https://api.githubcopilot.com/mcp/"
+      "command": "sh",
+      "args": [
+        "-c",
+        "GITHUB_PERSONAL_ACCESS_TOKEN=$GITHUB_PAT docker run -i --rm -e GITHUB_PERSONAL_ACCESS_TOKEN ghcr.io/github/github-mcp-server"
+      ]
+    },
+    "bitbucket": {
+      "command": "sh",
+      "args": [
+        "-c",
+        "BITBUCKET_USERNAME=$BITBUCKET_USERNAME BITBUCKET_PASSWORD=$BITBUCKET_TOKEN npx -y bitbucket-mcp@latest"
+      ]
+    },
+    "atlassian-confluence": {
+      "command": "sh",
+      "args": [
+        "-c",
+        "uvx mcp-atlassian --confluence-url $CONFLUENCE_URL --confluence-username $CONFLUENCE_USERNAME --confluence-token $CONFLUENCE_API_TOKEN"
+      ]
+    },
+    "google-drive": {
+      "command": "sh",
+      "args": [
+        "-c",
+        "GOOGLE_DRIVE_OAUTH_CREDENTIALS=${GOOGLE_DRIVE_OAUTH_CREDENTIALS:-$HOME/.config/google-drive-mcp/gcp-oauth.keys.json} GOOGLE_DRIVE_MCP_TOKEN_PATH=${GOOGLE_DRIVE_MCP_TOKEN_PATH:-$HOME/.config/google-drive-mcp/tokens.json} npx -y @piotr-agier/google-drive-mcp"
+      ]
     }
   }
 }

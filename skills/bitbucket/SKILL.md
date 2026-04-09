@@ -42,7 +42,7 @@ If auth fails or token is expired, tell the user:
 
 Always prefer direct REST API calls (via `curl`) over MCP tools. The bundled scripts under `scripts/` wrap the Bitbucket REST API and work in any environment (Claude Code, Codex, etc.) without MCP dependencies. If the scripts are not accessible via `${CLAUDE_SKILL_DIR}`, construct `curl` commands directly from the reference docs below — do NOT create new shell scripts.
 
-MCP tools (`mcp__bitbucket__*`) may be used as a secondary option when available, but fall back to direct API calls for any operation not covered or if MCP fails.
+MCP tools (`mcp__bitbucket__*`, `mcp__plugin-adk-atlassian__*`, `mcp__plugin-atlassian-atlassian__*`, `mcp__atlassian__*`) may be used as a secondary option when available, but fall back to direct API calls for any operation not covered or if MCP fails.
 
 ## Comments
 

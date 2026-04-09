@@ -43,7 +43,7 @@ If auth fails or token is expired:
 
 Before using scripts, check if an official Atlassian/Jira MCP connector is available:
 
-1. Look for tools matching `mcp__atlassian__*`, `mcp__jira__*`, or `mcp__plugin-atlassian-atlassian__*` pattern
+1. Look for tools matching `mcp__atlassian__*`, `mcp__jira__*`, `mcp__plugin-atlassian-atlassian__*`, or `mcp__plugin-adk-atlassian__*` pattern
 2. If available, prefer MCP tools for supported operations
 3. Fall back to scripts for operations not covered by the MCP
 

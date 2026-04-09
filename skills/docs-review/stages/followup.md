@@ -8,7 +8,7 @@ Activated when `--mode followup` is set or when auto-detection finds prior revie
 
 Read the full document content plus all existing comments, their resolution state, and any reply chains:
 
-- Confluence: `mcp__atlassian-confluence__confluence_get_page` + `mcp__atlassian-confluence__confluence_get_comments`
+- Confluence: `mcp__atlassian-confluence__confluence_get_page` (or `mcp__plugin-adk-atlassian__confluence_get_page`) + `mcp__atlassian-confluence__confluence_get_comments` (or `mcp__plugin-adk-atlassian__confluence_get_comments`)
 - Google Docs: `mcp__google-drive__getDocument` + `mcp__google-drive__getComments`
 
 ## Guideline Loading

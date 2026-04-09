@@ -72,7 +72,7 @@ If a required helper skill is unavailable, print a warning and continue using th
 
 Check for Confluence connectivity:
 1. Verify `CONFLUENCE_URL`, `CONFLUENCE_USERNAME`, `CONFLUENCE_API_TOKEN` in environment
-2. Check for MCP connector: `mcp__atlassian-confluence__*` or `mcp__plugin-atlassian-atlassian__*`
+2. Check for MCP connector: `mcp__atlassian-confluence__*`, `mcp__plugin-atlassian-atlassian__*`, or `mcp__plugin-adk-atlassian__*`
 3. Prefer MCP for supported operations, fall back to curl scripts
 
 ## Format Mapping

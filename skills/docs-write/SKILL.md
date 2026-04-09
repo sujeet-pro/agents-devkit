@@ -104,7 +104,7 @@ Before research, drafting, revision, or publishing setup, run:
 
 If the document will be published to Confluence or Google Docs, do a lightweight MCP read before launching the writing team:
 
-- For Confluence (`--publish source` or `--format confluence`): verify access via `mcp__atlassian-confluence__confluence_search` with the space key. If `--publish-update` is provided, verify the page exists via `mcp__atlassian-confluence__confluence_get_page`.
+- For Confluence (`--publish source` or `--format confluence`): verify access via `mcp__atlassian-confluence__confluence_search` or `mcp__plugin-adk-atlassian__confluence_search` with the space key. If `--publish-update` is provided, verify the page exists via `mcp__atlassian-confluence__confluence_get_page` or `mcp__plugin-adk-atlassian__confluence_get_page`.
 - For Google Docs (`--format google-doc`): verify Google Drive MCP connectivity.
 
 If the document needs diagrams, inherit the `/adk:diagram` preflight before rendering assets.
