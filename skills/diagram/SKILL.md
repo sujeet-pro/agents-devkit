@@ -5,6 +5,7 @@ user-invocable: true
 argument-hint: "<description> [--engine mermaid|excalidraw|drawio|graphviz] [--type flowchart|sequence|class|...] [--render] [--format svg|png] [--theme both|light|dark] [--help]"
 allowed-tools: [Glob, Grep, Read]
 workflow-tier: orchestrator
+workflow-family: quick-action
 maturity: stable
 dependencies:
   commands: [node]
@@ -14,6 +15,18 @@ dependencies:
 # Diagram Router
 
 Unified entry point for diagram creation. Auto-detects the best engine from context and routes to the engine-specific skill, or accepts an explicit `--engine`.
+
+## Shared Skills
+
+| Helper skill | Invoke (Claude plugin) | Invoke (Codex / skills.sh) | When | Inline fallback |
+|--------------|------------------------|------------------------------|------|-----------------|
+| preflight-check | `/adk:preflight-check` | `/preflight-check` | before work | Run preflight.py for tool dependencies. |
+
+## Preflight
+
+```
+python3 ${CLAUDE_SKILL_DIR}/scripts/preflight.py ${CLAUDE_SKILL_DIR}
+```
 
 ## Workspace Conventions
 

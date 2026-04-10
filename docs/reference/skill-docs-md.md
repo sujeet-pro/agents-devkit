@@ -1,122 +1,325 @@
 ---
-title: "docs-md"
-description: Markdown feature detection and formatting guidelines — pagesmith, GitHub, and plain markdown
+title: 'docs-md'
+description: 'Markdown feature detection and formatting guidelines — pagesmith, GitHub, and plain markdown'
 skill_name: docs-md
-category: helper
+category: guideline
 workflow_tier: helper
 user_invocable: false
 ---
 
 # docs-md
 
-Detects the markdown rendering target for the current repository and loads the appropriate formatting guidelines. Other skills invoke this before writing or reviewing markdown content to ensure output uses only supported features.
+`docs-md` is a shared helper that keeps cross-cutting rules and expectations consistent across the skills that invoke it. Most users meet it indirectly when another skill loads it to resolve a shared rule set or a reusable contract.
 
-## Purpose
+## Overview
 
-- Detect the markdown rendering target (pagesmith, GitHub, or plain) from project configuration
-- Load feature-specific formatting guidelines for the detected target
-- Provide a feature inventory so calling skills know which markdown features are safe to use
-- Prevent use of unsupported features (e.g., expressive code on GitHub, math on plain markdown)
+`docs-md` belongs to the `guideline` layer and is declared at the `helper` tier. That metadata is more than labeling: it tells you how much planning happens before execution, how much the skill is allowed to infer, and whether the result should be a final artifact, a routing decision, or a shared contract for another skill.
+
+The key design trade-off is indirection. This skill rarely owns an interactive workflow on its own, but it keeps cross-cutting behavior consistent so task skills do not each reinvent the same policy, formatting rule, or detection logic.
 
 ## Parameters
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `--target` | `pagesmith` \| `github` \| `plain` | auto-detect | Force a specific rendering target |
-| `--help` | flag | — | Show parameter reference and exit |
+| Parameter | Values | Default | Description |
+|-----------|--------|---------|-------------|
+| `--target` | `pagesmith`, `github`, `plain` | auto-detect | Force a specific rendering target |
 
-## Behavior Variations
+## How It Works
 
-| Context | Behavior |
-|---------|----------|
-| **Auto-detect (default)** | Infers target from project configuration files and git remote. Detection order: pagesmith → GitHub → plain (first match wins) |
-| **`--target pagesmith`** | Loads full pagesmith feature set (GFM, alerts, math, expressive code, smart typography, frontmatter) |
-| **`--target github`** | Loads GitHub-Flavored Markdown features (GFM, alerts, mermaid, math, standard code blocks) |
-| **`--target plain`** | Loads CommonMark with minimal GFM extensions. No alerts, math, mermaid, or expressive code |
+Helper skills do not usually own the top-level conversation. The calling skill decides when to load them, passes just enough context to resolve the right rules or references, and then consumes the returned guidance inside its own execution flow.
 
-## Target Detection Logic
+The important developer contract is therefore: when the helper is loaded, what context it reads, what rules or artifacts it returns, and how that changes the calling skill's behavior.
 
-Checks run in order; first match wins:
+### Shared Skills
 
-1. **Pagesmith**: `pagesmith.config.json5` or `pagesmith.config.json` in the repo root or any parent directory
-2. **GitHub**: `.github/` directory OR a git remote URL containing `github.com`
+This skill uses shared helper skills. Load each skill's reference file ONLY when the condition in "Load When" is met. If a shared skill is not installed, use the inline summary as a fallback.
+
+| Skill | Load When | Inline Fallback |
+|-------|-----------|-----------------|
+| `/adk:communication` | when formatting the "Markdown Guidelines Loaded" summary for the caller | Lead with conclusion. Bullet points. No preamble. Concrete specifics over abstractions. |
+
+The **invoking skill** owns workflow, preflight, output format, and review standards — follow that skill's Shared Skills and Reference Loading tables for those concerns.
+
+### Workflow
+
+This is a helper skill invoked by other skills, not directly by users. It does not own the workflow — the invoking skill does.
+
+## Modes & Variations
+
+Most helpers do not have end-user modes in the same sense as task skills, but they still vary by scope, invoking context, selected family, or fallback behavior.
+
+
+### Behavior Variations
+
+- **Auto-detect** (default): infers the target from project configuration files and git remote
+- **`--target <target>`**: overrides auto-detection and loads guidelines for the specified target
+- Detection runs in order: pagesmith → GitHub → plain (first match wins)
+
+## Output
+
+Helper skills usually return a rule set, a resolved reference list, or a normalized contract back to the calling skill rather than a standalone report.
+
+
+### Output
+
+Produce a summary listing the detected target and available features. The calling skill uses this to constrain its markdown output.
+
+```text
+
+## Additional Reference
+
+### Reference Loading
+
+Load content conditionally to minimize token usage:
+
+| Content | Load When |
+|---------|-----------|
+| Pagesmith feature reference (this file) | `--target pagesmith` or pagesmith auto-detect |
+| GitHub feature reference (this file) | `--target github` or GitHub auto-detect |
+| Plain markdown feature reference (this file) | `--target plain` or default fallback |
+
+### Target Detection
+
+Determine the rendering target from project configuration, git remote, or explicit `--target` flag.
+
+### Detection Logic
+
+Run these checks in order. First match wins.
+
+1. **Pagesmith**: check for `pagesmith.config.json5` or `pagesmith.config.json` in the repo root or any parent directory
+2. **GitHub**: check for `.github/` directory OR a git remote URL containing `github.com`
 3. **Plain**: default when neither pagesmith nor GitHub is detected
 
-## Feature Reference by Target
+### Flag Override
+
+When `--target` is passed, skip detection and use the specified target directly.
+
+---
+
+### Feature Reference by Target
 
 ### Pagesmith
 
-Full feature set provided by `@pagesmith/core`:
+Full feature set provided by `@pagesmith/core`. Use all of these when writing for a pagesmith site.
 
-| Feature | Syntax | Notes |
-|---------|--------|-------|
-| GFM tables | Pipe-delimited with header separator | Standard |
-| Strikethrough | `~~deleted text~~` | Standard |
-| Task lists | `- [ ]` / `- [x]` | Standard |
-| Autolinks | Bare URLs and emails | Standard |
-| Footnotes | `[^1]` reference / `[^1]: definition` | Standard |
-| GitHub alerts | `> [!NOTE]`, `> [!TIP]`, `> [!IMPORTANT]`, `> [!WARNING]`, `> [!CAUTION]` | Five types |
-| Math (inline) | `$E = mc^2$` | Via remark-math + rehype-mathjax |
-| Math (display) | `$$\sum_{i=1}^{n} x_i$$` | Via remark-math + rehype-mathjax |
-| Expressive Code | `title`, `showLineNumbers`, `mark`, `ins`, `del`, `collapse` | Dual-theme syntax highlighting |
-| Smart typography | Standard quotes/dashes → curly quotes, em dashes, ellipses | Automatic |
-| External links | Auto `target="_blank"` and `rel="noopener noreferrer"` | Automatic |
-| Heading IDs | Auto-generated slug-based IDs | Anchor links via `#heading-slug` |
-| Accessible emoji | `role="img"` + `aria-label` wrapping | Automatic |
-| Frontmatter | `title`, `description`, `navLabel`, `sidebarLabel`, `order`, `draft`, `socialImage`, `layout` | Only with pagesmith config |
-| Content structure | `folder/README.md` as section index, `meta.json5` for ordering | Pagesmith convention |
+#### GFM Extensions
+
+- **Tables**: pipe-delimited with header separator row
+- **Strikethrough**: `~~deleted text~~`
+- **Task lists**: `- [ ] unchecked` and `- [x] checked`
+- **Autolinks**: bare URLs and email addresses auto-link
+- **Footnotes**: `[^1]` reference with `[^1]: definition` at the bottom
+
+#### GitHub-Style Alerts
+
+Five alert types rendered as styled callout blocks:
+
+```markdown
+> [!NOTE]
+> Supplementary information the reader should be aware of.
+
+> [!TIP]
+> Optional advice to help the reader succeed.
+
+> [!IMPORTANT]
+> Key information the reader needs to know.
+
+> [!WARNING]
+> Urgent information demanding immediate attention.
+
+> [!CAUTION]
+> Negative potential consequences of an action.
+```
+
+#### Math
+
+Rendered via remark-math + rehype-mathjax:
+
+- **Inline**: `$E = mc^2$`
+- **Display block**: `$$\sum_{i=1}^{n} x_i$$`
+
+#### Expressive Code
+
+Syntax-highlighted code blocks with dual themes and rich features:
+
+- **Language tag**: always include the language after opening fences
+- **Title**: `title="filename.ts"` — displays a filename header above the block
+- **Line numbers**: `showLineNumbers` — adds line numbers to the gutter
+- **Line marking**: `mark={1,3-5}` — highlights specific lines
+- **Insertions**: `ins={2}` — marks lines as added (green)
+- **Deletions**: `del={4}` — marks lines as removed (red)
+- **Collapse**: `collapse={6-20}` — collapses a range of lines behind an expand toggle
+- **Copy button**: auto-included on all code blocks
+
+Example:
+
+````markdown
+```typescript title="auth.ts" showLineNumbers mark={3} ins={7-8}
+import { verify } from './jwt';
+
+export function authenticate(token: string) {
+  const payload = verify(token);
+  if (!payload) throw new UnauthorizedError();
+
+  // Added: check expiration
+  if (payload.exp < Date.now() / 1000) throw new TokenExpiredError();
+
+  return payload;
+}
+```
+````
+
+#### Smart Typography
+
+Automatic typographic improvements:
+
+- `"straight quotes"` → "curly quotes"
+- `--` → em dashes
+- `...` → ellipses
+
+#### External Links
+
+All external links automatically receive `target="_blank"` and `rel="noopener noreferrer"`.
+
+#### Heading IDs and Anchors
+
+Headings automatically generate slug-based IDs. Anchor links work via `[link text](#heading-slug)`.
+
+#### Accessible Emoji
+
+Emoji characters are wrapped with accessible `role="img"` and `aria-label` attributes.
+
+#### Frontmatter
+
+Only add frontmatter when `pagesmith.config.json5` or `pagesmith.config.json` exists. Available fields:
+
+```yaml
+---
+title: "Page Title"
+description: "SEO and social description"
+navLabel: "Short Nav Label"
+sidebarLabel: "Sidebar Label"
+order: 10
+draft: true
+socialImage: "./og-image.png"
+layout: "doc"
+---
+```
+
+- `title` — page title, used in `<title>` and `<h1>` if no `# heading` exists
+- `description` — meta description for SEO and social cards
+- `navLabel` — short label for top navigation (when different from title)
+- `sidebarLabel` — short label for sidebar navigation
+- `order` — numeric sort order within the section
+- `draft` — when `true`, page is excluded from production builds
+- `socialImage` — relative path to Open Graph image
+- `layout` — page layout template (`doc`, `blog`, `landing`, etc.)
+
+#### Content Structure
+
+- Use `folder/README.md` as the section index page
+- Use `meta.json5` within a folder to control section ordering and metadata
+
+#### Pipeline Order (Reference)
+
+Content flows through: remark-gfm → remark-math → remark-smartypants → remark-github-alerts → rehype-mathjax → rehype-expressive-code → rehype-external-links → rehype-slug → rehype-autolink-headings → rehype-accessible-emojis
+
+---
 
 ### GitHub
 
-Standard GitHub-Flavored Markdown:
+Standard GitHub-Flavored Markdown as rendered on github.com — READMEs, PRs, issues, wikis, and discussions.
 
-| Feature | Syntax | Notes |
-|---------|--------|-------|
-| GFM tables | Pipe-delimited with header separator | Standard |
-| Strikethrough | `~~deleted text~~` | Standard |
-| Task lists | `- [ ]` / `- [x]` | Standard |
-| Autolinks | Bare URLs | Standard |
-| Footnotes | `[^1]` reference / `[^1]: definition` | Standard |
-| GitHub alerts | `> [!NOTE]`, `> [!TIP]`, `> [!IMPORTANT]`, `> [!WARNING]`, `> [!CAUTION]` | Natively rendered |
-| Mermaid diagrams | `` ```mermaid `` code blocks | Natively rendered |
-| Math (inline) | `$E = mc^2$` | Via MathJax |
-| Math (display) | `$$\sum_{i=1}^{n} x_i$$` | Via MathJax |
-| Syntax highlighting | Fenced code blocks with language tags | No titles, line marks, or line numbers |
-| Frontmatter | Not recommended | Renders as a table at the top |
+#### GFM Extensions
+
+- **Tables**: pipe-delimited with header separator row
+- **Strikethrough**: `~~deleted text~~`
+- **Task lists**: `- [ ]` and `- [x]`
+- **Autolinks**: bare URLs auto-link
+- **Footnotes**: `[^1]` reference with `[^1]: definition`
+
+#### GitHub-Style Alerts
+
+All five types supported and rendered natively:
+
+```markdown
+> [!NOTE]
+> Supplementary information.
+
+> [!TIP]
+> Optional advice.
+
+> [!IMPORTANT]
+> Key information.
+
+> [!WARNING]
+> Urgent information.
+
+> [!CAUTION]
+> Negative consequences.
+```
+
+#### Mermaid Diagrams
+
+Rendered natively by GitHub inside fenced code blocks:
+
+````markdown
+```mermaid
+graph LR
+    A[Start] --> B{Decision}
+    B -->|Yes| C[Action]
+    B -->|No| D[Other]
+```
+````
+
+#### Math
+
+Rendered by GitHub's MathJax integration:
+
+- **Inline**: `$E = mc^2$`
+- **Display block**: `$$\sum_{i=1}^{n} x_i$$`
+
+#### Syntax Highlighting
+
+Standard fenced code blocks with language tags. No expressive code features (no titles, line marks, or line numbers).
+
+#### Frontmatter
+
+Do not add YAML frontmatter unless explicitly requested. GitHub renders frontmatter as a table at the top of the document — only use it when the invoking skill specifically needs metadata.
+
+---
 
 ### Plain Markdown
 
-Standard CommonMark with minimal GFM:
+Standard CommonMark with minimal GFM extensions. Target for documentation tools, static sites without advanced plugins, or any unknown renderer.
 
-| Feature | Syntax | Notes |
-|---------|--------|-------|
-| Headings | ATX-style `#` through `######` | Standard |
-| Emphasis | `*italic*`, `**bold**`, `***bold italic***` | Standard |
-| Lists | Ordered and unordered with nesting | Standard |
-| Links | Inline `[text](url)` and reference-style | Standard |
-| Images | `![alt](url)` | Standard |
-| Blockquotes | `> quoted text` | Standard |
-| Code | Inline `` `code` `` and fenced blocks | Standard |
-| Tables | Pipe-delimited GFM tables | Widely supported |
-| Strikethrough | `~~text~~` | Widely supported |
-| No alerts | Use `> **Note:** ...` as fallback | Not supported |
-| No math | Unless invoking skill confirms MathJax/KaTeX | Not supported |
-| No mermaid | Not supported | Not supported |
-| No expressive code | Not supported | Not supported |
+#### Supported Features
 
-## Key Behaviors
+- **Headings**: ATX-style (`#` through `######`)
+- **Emphasis**: `*italic*`, `**bold**`, `***bold italic***`
+- **Lists**: ordered and unordered, with nesting
+- **Links**: inline `[text](url)` and reference-style `[text][ref]`
+- **Images**: `![alt](url)`
+- **Blockquotes**: `> quoted text`
+- **Horizontal rules**: `---`
+- **Code**: inline `` `code` `` and fenced code blocks with language tags
+- **Tables**: pipe-delimited GFM tables (widely supported)
+- **Strikethrough**: `~~text~~` (widely supported)
 
-- **Ordered detection**: checks for pagesmith config first, then GitHub markers, then falls back to plain
-- **Feature inventory**: provides a clear list of available features so calling skills constrain their output
-- **Minimal token usage**: only loads the feature reference for the detected target
-- **No workflow ownership**: this is a helper skill — the invoking skill owns the 6-phase workflow
+#### Not Available
 
-## Output Format
+- No GitHub alerts (`> [!NOTE]` etc.) — use bold text in blockquotes as fallback: `> **Note:** ...`
+- No math rendering unless the invoking skill confirms MathJax/KaTeX support
+- No mermaid rendering
+- No expressive code features
+- No smart typography
 
-Produces a summary for the calling skill:
+#### Frontmatter
 
-```
-## Markdown Guidelines Loaded
+Do not add frontmatter unless the invoking skill explicitly requests it.
+
+---
+
+### Markdown Guidelines Loaded
 
 Target: pagesmith (detected via pagesmith.config.json5)
 
@@ -129,19 +332,15 @@ Available features:
 - Frontmatter: title, description, navLabel, sidebarLabel, order, draft, socialImage, layout
 ```
 
-## Invoked By
-
-| Skill | Context |
-|-------|---------|
-| `/adk:docs-write` | Before writing any document, to determine available markdown features |
-| `/adk:docs-review` | Before reviewing markdown content, to validate feature usage |
-| `/adk:docs-confluence` | When converting between Confluence storage format and markdown |
-| `/adk:spec` | Before writing specifications in markdown |
-
 ## Examples
 
-```
-(invoked automatically by /adk:docs-write, /adk:docs-review, /adk:docs-confluence, /adk:spec)
+The examples below start with a minimal invocation and then show the most common ways developers override detection or change the resulting artifact.
+
+### Start With The Default Path
+
+Start with the smallest useful invocation. If the skill supports auto-detection, this is the fastest way to see which path it chooses before you pin it down with extra flags.
+
+```text
+(invoked automatically by /adk:docs-write, /adk:docs-review, /adk:spec)
 /adk:docs-md --target pagesmith
-/adk:docs-md --target github
 ```

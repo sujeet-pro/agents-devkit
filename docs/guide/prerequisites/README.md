@@ -90,7 +90,7 @@ export GITHUB_PAT="ghp_your_personal_access_token_here"
 7. Click **Generate token** and copy it into `~/.zshenv`
 
 This token is used by:
-- The **GitHub MCP server** — the plugin's `.mcp.json` reads it via `${env:GITHUB_PAT}`
+- The **GitHub MCP server** — the plugin's `mcp-config.json` reads it via `${env:GITHUB_PAT}`
 - The **`gh` CLI** — as a fallback (though `gh auth login` is preferred for CLI auth)
 - **Direct API calls** — connector skill scripts that use `curl`
 
@@ -221,9 +221,17 @@ npm install -g @pagesmith/docs           # For documentation generation (CLI)
 
 MCP (Model Context Protocol) servers let your AI agent interact with external services like GitHub, Bitbucket, and Confluence directly. Setting them up is optional but recommended — skills fall back to direct API calls (using tokens from `~/.zshenv`) if MCP is not configured.
 
+### Automated Setup (Recommended)
+
+```text
+/adk:setup --type mcps
+```
+
+This reads your API tokens from `~/.zshenv` and configures MCP servers automatically. If tokens are missing, it tells you exactly what to add.
+
 ### Cursor (Plugin MCP)
 
-The ADK plugin ships with a `.mcp.json` that auto-configures MCP servers. After installing the plugin, you'll see these servers in **Settings > MCP**:
+The ADK plugin ships with a `mcp-config.json` that auto-configures MCP servers. After installing the plugin, you'll see these servers in **Settings > MCP**:
 
 | Service | Server Name | How it runs | Required in `~/.zshenv` |
 |---------|------------|-------------|------------------------|
@@ -236,22 +244,6 @@ All stdio servers use `zsh -c` wrappers, which auto-source `~/.zshenv` on every 
 
 **Atlassian HTTP MCP** uses OAuth — Cursor opens a browser window to authenticate with your Atlassian account on first use. No tokens needed. This single server provides access to Jira, Confluence, and Bitbucket via the Atlassian Rovo API.
 
-### Claude Code (Automated)
-
-```text
-/adk:setup --type mcps
-```
-
-This reads your API tokens from `~/.zshenv` and configures MCP servers in `~/.claude.json`. If tokens are missing, it tells you exactly what to add.
-
-| Service | MCP Server Key | How it runs | Required tokens in `~/.zshenv` |
-|---------|---------------|-------------|-------------------------------|
-| GitHub | `github` | Docker `ghcr.io/github/github-mcp-server` | `GITHUB_PAT` |
-| Bitbucket | `bitbucket` | `npx bitbucket-mcp` | `BITBUCKET_USERNAME`, `BITBUCKET_TOKEN` |
-| Confluence | `atlassian-confluence` | `uvx mcp-atlassian` | `CONFLUENCE_URL`, `CONFLUENCE_USERNAME`, `CONFLUENCE_API_TOKEN` |
-| Atlassian | `atlassian` | HTTP (OAuth, browser-based) | — none — |
-| Google Drive | `google-drive` | `npx @piotr-agier/google-drive-mcp` | OAuth credentials file |
-
 ### Direct API Fallback
 
 When MCP is not available (or fails), connector skills fall back to direct API calls using `curl`. These always read tokens from `~/.zshenv`:
@@ -263,9 +255,161 @@ When MCP is not available (or fails), connector skills fall back to direct API c
 | Confluence | `CONFLUENCE_URL`, `CONFLUENCE_USERNAME`, `CONFLUENCE_API_TOKEN` |
 | Jira | `JIRA_URL`, `JIRA_USERNAME`, `JIRA_API_TOKEN` |
 
-### Manual MCP Setup
+### Manual MCP Configuration
 
-If you prefer to configure MCP servers manually, add them to `~/.claude.json` (Claude Code) or `~/.cursor/mcp.json` (Cursor) under the `mcpServers` key.
+If you prefer to configure MCP servers manually (or use an agent not covered by `/adk:setup`), each agent stores MCP config in a different location. Add your secrets to `~/.zshenv` first (see [Step 2](#step-2-api-tokens)), then configure the agent-specific file below.
+
+#### Configuration File Locations
+
+| Agent | User-Scope Config | Project-Scope Config | Format |
+|-------|-------------------|----------------------|--------|
+| **Claude Code** | `~/.claude.json` | `.mcp.json` | JSON |
+| **Claude Desktop** | `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) | — not supported — | JSON |
+| **OpenAI Codex** | `~/.codex/config.toml` | `.codex/config.toml` | TOML |
+| **Cursor** | `~/.cursor/mcp.json` | `.cursor/mcp.json` | JSON |
+| **VS Code (Copilot)** | VS Code user settings | `.vscode/mcp.json` | JSON |
+
+> **No universal standard yet.** The MCP specification defines the wire protocol, not client configuration. There is an [open proposal](https://github.com/modelcontextprotocol/modelcontextprotocol/discussions/2218) for a standard config location, but it has not been adopted. Each agent uses its own file path and format.
+
+#### Claude Code
+
+User-scope servers go in `~/.claude.json` under `mcpServers`. These are available across all projects. Claude Code supports `${VAR}` expansion syntax — values are resolved from your shell environment (which includes `~/.zshenv`).
+
+```json
+{
+  "mcpServers": {
+    "github": {
+      "type": "http",
+      "url": "https://api.githubcopilot.com/mcp/"
+    },
+    "bitbucket": {
+      "command": "npx",
+      "args": ["-y", "bitbucket-mcp@latest"],
+      "env": {
+        "BITBUCKET_USERNAME": "${BITBUCKET_USERNAME}",
+        "BITBUCKET_PASSWORD": "${BITBUCKET_TOKEN}"
+      }
+    },
+    "atlassian-confluence": {
+      "command": "uvx",
+      "args": [
+        "--with", "fakeredis<2.35",
+        "mcp-atlassian",
+        "--confluence-url", "${CONFLUENCE_URL}",
+        "--confluence-username", "${CONFLUENCE_USERNAME}",
+        "--confluence-token", "${CONFLUENCE_API_TOKEN}"
+      ]
+    },
+    "google-drive": {
+      "command": "npx",
+      "args": ["-y", "@piotr-agier/google-drive-mcp"],
+      "env": {
+        "GOOGLE_DRIVE_OAUTH_CREDENTIALS": "${GOOGLE_DRIVE_OAUTH_CREDENTIALS}"
+      }
+    }
+  }
+}
+```
+
+Three scopes are available via CLI: `claude mcp add --scope user` (user-wide, in `~/.claude.json`), `--scope project` (shared, in `.mcp.json`), `--scope local` (private, in `~/.claude.json` scoped to the project). Precedence: local > project > user.
+
+#### Claude Desktop
+
+Edit `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS). Claude Desktop does **not** support `${VAR}` expansion — you must paste literal token values. Restart the app after changes.
+
+```json
+{
+  "mcpServers": {
+    "github": {
+      "command": "docker",
+      "args": [
+        "run", "-i", "--rm",
+        "-e", "GITHUB_PERSONAL_ACCESS_TOKEN",
+        "ghcr.io/github/github-mcp-server"
+      ],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "ghp_your_token_here"
+      }
+    },
+    "bitbucket": {
+      "command": "npx",
+      "args": ["-y", "bitbucket-mcp@latest"],
+      "env": {
+        "BITBUCKET_USERNAME": "your-username",
+        "BITBUCKET_PASSWORD": "your-app-password"
+      }
+    },
+    "atlassian-confluence": {
+      "command": "uvx",
+      "args": [
+        "--with", "fakeredis<2.35",
+        "mcp-atlassian",
+        "--confluence-url", "https://your-company.atlassian.net",
+        "--confluence-username", "your-email@company.com",
+        "--confluence-token", "your-api-token"
+      ]
+    }
+  }
+}
+```
+
+#### OpenAI Codex
+
+Edit `~/.codex/config.toml`. Codex uses TOML, not JSON. Use `env_vars` to forward variables by name from your shell (reads from `~/.zshenv`).
+
+```toml
+[mcp_servers.github]
+type = "http"
+url = "https://api.githubcopilot.com/mcp/"
+
+[mcp_servers.bitbucket]
+command = "npx"
+args = ["-y", "bitbucket-mcp@latest"]
+env_vars = ["BITBUCKET_USERNAME", "BITBUCKET_TOKEN"]
+
+[mcp_servers.bitbucket.env]
+BITBUCKET_PASSWORD = ""
+
+[mcp_servers.atlassian-confluence]
+command = "uvx"
+args = ["--with", "fakeredis<2.35", "mcp-atlassian", "--confluence-url", "", "--confluence-username", "", "--confluence-token", ""]
+env_vars = ["CONFLUENCE_URL", "CONFLUENCE_USERNAME", "CONFLUENCE_API_TOKEN"]
+```
+
+CLI management: `codex mcp add`, `codex mcp list`, `codex mcp remove`.
+
+#### Cursor
+
+Edit `~/.cursor/mcp.json` for user-scope, or `.cursor/mcp.json` at project root. Cursor supports `${VAR}` expansion. Project-scope wins when the same server name appears in both files.
+
+```json
+{
+  "mcpServers": {
+    "github": {
+      "type": "http",
+      "url": "https://api.githubcopilot.com/mcp/"
+    },
+    "bitbucket": {
+      "command": "npx",
+      "args": ["-y", "bitbucket-mcp@latest"],
+      "env": {
+        "BITBUCKET_USERNAME": "${BITBUCKET_USERNAME}",
+        "BITBUCKET_PASSWORD": "${BITBUCKET_TOKEN}"
+      }
+    },
+    "atlassian-confluence": {
+      "command": "uvx",
+      "args": [
+        "--with", "fakeredis<2.35",
+        "mcp-atlassian",
+        "--confluence-url", "${CONFLUENCE_URL}",
+        "--confluence-username", "${CONFLUENCE_USERNAME}",
+        "--confluence-token", "${CONFLUENCE_API_TOKEN}"
+      ]
+    }
+  }
+}
+```
 
 ---
 

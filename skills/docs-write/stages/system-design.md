@@ -102,7 +102,7 @@ When `weight=heavyweight` or the scope suggests a cross-team, high-impact change
 
 ## Type-Specific Output Format
 
-Markdown file. Invoke `/docs-guidelines --type tdd` to load TDD writing guidelines for validation.
+Markdown file. Invoke `/adk:docs-guidelines --type tdd` to load TDD writing guidelines for validation.
 
 ## Validation Checklist
 

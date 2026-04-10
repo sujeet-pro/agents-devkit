@@ -456,7 +456,7 @@ All ADK output follows **concise by default**:
 agents-devkit/                        52 skills · 18 agents · ~42K lines
 ├── .claude-plugin/
 │   └── plugin.json                   Plugin manifest (name: adk)
-├── .mcp.json                         MCP server configurations
+├── mcp-config.json                   MCP server configurations
 ├── hooks/hooks.json                  Hook configurations
 ├── settings.json                     Default settings (routes to /adk:use)
 ├── agents/                           18 shared agent definitions

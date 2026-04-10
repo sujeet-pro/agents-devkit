@@ -13,7 +13,7 @@ Read the full document content plus all existing comments, their resolution stat
 
 ## Guideline Loading
 
-Invoke the `/coding` helper skill to detect the repo stack and load the appropriate coding guidelines.
+Invoke the `/adk:coding` helper skill to detect the repo stack and load the appropriate coding guidelines.
 
 ## Phase 1: Build Comment Ledger
 

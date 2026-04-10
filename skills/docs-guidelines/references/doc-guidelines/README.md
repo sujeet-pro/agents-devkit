@@ -28,8 +28,6 @@ Guidelines for writing and reviewing different types of documents. Load the rele
 - [status-report.md](./status-report.md) -- Sprint / weekly status reports. Progress tracking with metrics and blockers.
 - [release-notes.md](./release-notes.md) -- Release notes / changelog documents. User-facing change summaries.
 - [api-reference.md](./api-reference.md) -- API reference documentation. Endpoint specifications with examples.
-- [onboarding.md](./onboarding.md) -- Onboarding / getting started guides. New hire setup and orientation.
-
 ### Coding Guidelines
 
 For code-related guidelines (language-specific standards, architecture, security, testing), invoke `/coding` which detects the repo stack and loads the appropriate coding guidelines automatically.

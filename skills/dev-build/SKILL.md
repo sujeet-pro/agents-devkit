@@ -92,7 +92,7 @@ If `--mode` is explicitly provided, load the matching stage file directly. If `-
 
 | Signal | Mode | Stage File |
 |---|---|---|
-| Bug, error, fix, stack trace, crash, "not working", broken | debug | `stages/debug.md` |
+| Bug, error, fix, stack trace, crash, "not working", broken | debug | `stages/debug.md` (uses `adk-debugger` agent) |
 | Test, TDD, test-first, test-driven, "write tests" | tdd | `stages/tdd.md` |
 | Trivial, single file, typo, config tweak, constant, simple, quick, small | quick | `stages/quick.md` |
 | Enhance, improve, refactor, optimize, upgrade, extend existing | enhance | `stages/enhance.md` |

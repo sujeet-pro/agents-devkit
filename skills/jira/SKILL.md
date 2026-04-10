@@ -6,6 +6,8 @@ workflow-tier: helper
 maturity: stable
 dependencies:
   commands: [curl, jq]
+allowed-tools: [Read, Bash]
+allowed-mcps: [atlassian-jira]
 ---
 
 # Jira
@@ -38,6 +40,10 @@ If auth fails or token is expired:
 > export JIRA_API_TOKEN="your-api-token"
 > ```
 > Then run `source ~/.zshenv` and retry.
+
+## MCP Server Setup
+
+To configure the MCP server for this connector, see `mcp-config.json` in the ADK root directory for the server definition. Copy the relevant entry to your IDE's MCP configuration file (e.g., `~/.claude.json` for Claude Code).
 
 ## MCP Connector Detection
 

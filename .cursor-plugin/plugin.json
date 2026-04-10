@@ -2,7 +2,7 @@
   "name": "adk",
   "displayName": "Agent Development Kit",
   "description": "Principal-engineer-grade skills for software development agents: code review, docs, research, audits, diagrams, planning, migration, refactoring, and MCP-native publishing.",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "author": {
     "name": "Sujeet Jaiswal",
     "url": "https://github.com/sujeet-pro"
@@ -10,7 +10,16 @@
   "homepage": "https://github.com/sujeet-pro/agents-devkit",
   "repository": "https://github.com/sujeet-pro/agents-devkit",
   "license": "MIT",
-  "keywords": ["skills", "agents", "reviews", "research", "diagrams", "workflows", "mcp", "devkit"],
+  "keywords": [
+    "skills",
+    "agents",
+    "reviews",
+    "research",
+    "diagrams",
+    "workflows",
+    "mcp",
+    "devkit"
+  ],
   "skills": "./skills/",
-  "mcp": "./.mcp.json"
+  "mcp": "./mcp-config.json"
 }

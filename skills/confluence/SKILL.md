@@ -5,7 +5,9 @@ user-invocable: false
 workflow-tier: helper
 maturity: stable
 dependencies:
-  commands: [curl, jq]
+  commands: [curl, jq, python3]
+allowed-tools: [Read, Bash]
+allowed-mcps: [atlassian-confluence]
 ---
 
 # Confluence
@@ -38,6 +40,10 @@ If auth fails or token is expired:
 > export CONFLUENCE_API_TOKEN="your-api-token"
 > ```
 > Then run `source ~/.zshenv` and retry.
+
+## MCP Server Setup
+
+To configure the MCP server for this connector, see `mcp-config.json` in the ADK root directory for the server definition. Copy the relevant entry to your IDE's MCP configuration file (e.g., `~/.claude.json` for Claude Code).
 
 ## API-First Approach
 

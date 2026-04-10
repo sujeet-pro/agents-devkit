@@ -1,6 +1,6 @@
 ---
-title: "code-review-fix"
-description: Fix PR review comments — read comments, apply code fixes, reply to reviewers, mark threads resolved
+title: 'code-review-fix'
+description: 'Fix PR review comments — reads comments, applies code fixes, replies to reviewers, marks threads resolved'
 skill_name: code-review-fix
 category: task
 workflow_tier: full
@@ -9,122 +9,318 @@ user_invocable: true
 
 # code-review-fix
 
-The "fix" counterpart to `/adk:code-review-pr`. Reads review comments on a PR, applies code fixes, replies to reviewers explaining what changed, and marks threads resolved. Supports GitHub and Bitbucket PRs with severity filtering and dry-run mode.
+Use `code-review-fix` to fix PR review comments — reads comments, applies code fixes, replies to reviewers, marks threads resolved. In normal use, explicit selector flags win over inference, but the skill can still auto-detect the right path when the prompt is short.
 
-## When to Use
+## Overview
 
-- Fix unresolved review comments on a pull request
-- Address reviewer feedback systematically across all threads
-- Batch-fix blocking or critical comments before re-review
-- Preview what fixes would be applied without making changes (dry-run)
-- Reply to reviewers with concise explanations of fixes
-- Push back on incorrect review comments with technical evidence
+`code-review-fix` belongs to the `task` layer and is declared at the `full` tier with the `standard-task` workflow family. That metadata is more than labeling: it tells you how much planning happens before execution, how much the skill is allowed to infer, and whether the result should be a final artifact, a routing decision, or a shared contract for another skill.
+
+The design philosophy across these skills is self-sufficiency with shared composition. When the helper skills listed in `SKILL.md` are available, the workflow composes with them for workflow structure, preflight checks, communication style, and output shaping. When they are not available, the inline fallback summaries still make the behavior readable and predictable.
 
 ## Parameters
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
+| Parameter | Values | Default | Description |
+|-----------|--------|---------|-------------|
 | `<pr-url>` | PR URL (GitHub or Bitbucket) | required | The PR whose review comments to fix |
 | `--auto` | flag | off | Skip confirmations, fix all fixable comments automatically |
-| `--filter` | `blocker` \| `critical` \| `all` | `all` | Only address comments at or above the specified severity |
+| `--filter` | `blocker`, `critical`, `all` | `all` | Only address comments at or above the specified severity |
 | `--dry-run` | flag | off | Show what would be fixed without making changes |
-| `--verbosity` | `short` \| `standard` \| `detailed` | `standard` | Output detail level |
-| `--help` | flag | — | Show parameter reference and exit |
+| `--verbosity` | `short`, `standard`, `detailed` | `standard` | Output detail level |
+| `--help` | -- | -- | Show this help section and exit |
 
-## Behavior Variations
+### Parameter Notes
 
-| Context | Behavior |
-|---------|----------|
-| **Default** | Reads all unresolved comments, presents fix plan, executes with human approval per comment |
-| `--auto` | Skips Phase 0-2 confirmations, fixes all fixable comments, replies and resolves automatically |
-| `--dry-run` | Runs full analysis but produces a plan only — no code changes, no replies posted |
-| `--filter blocker` | Only addresses comments marked as blocking or must-fix |
-| `--filter critical` | Addresses blocker + critical severity comments |
-| `--filter all` | Addresses all unresolved comments (default) |
+- The positional argument carries the primary target or prompt. In the examples, placeholder invocations are shown first so you can see the minimum shape before substituting a real URL, path, branch, or task description.
+- `--verbosity` changes presentation depth, not the fundamental workflow. It is safe to increase when you want more evidence or rationale.
+- `--auto` normally removes approval pauses rather than validation. Read the behavior section for skill-specific exceptions.
+- `--help` prints the embedded reference and exits without running the workflow.
 
-## Priorities
+## How It Works
 
-Comments are categorized by **severity** and **type** before fixing:
+Execution starts by resolving intent from explicit selector flags first and inference rules second. After that, the workflow family and shared helper skills shape how much confirmation, research, planning, and validation happen around the core action.
 
-**By severity** (in processing order):
-1. **Blocker** — must fix before merge
-2. **Critical** — strongly recommended fix
-3. **Suggestion** — optional improvement
-4. **Nitpick** — style or preference
-5. **Question** — needs clarification, not a fix
+The sections below come directly from the current `SKILL.md` so developers can see the live contract the implementation is supposed to follow.
 
-**By type** (determines action):
-1. **Code-fix** — direct code change needed
-2. **Design-change** — architectural or design refactor
-3. **Test-addition** — missing test coverage
-4. **Doc-update** — documentation or comment change
-5. **Discussion** — needs conversation, not a code change
+### Shared Skills
 
-## Key Behaviors
+This skill uses shared helper skills. Load each skill's reference file ONLY when the condition in "Load When" is met. If a shared skill is not installed, use the inline summary as a fallback.
 
-- **Verify before implementing**: checks each comment against the codebase before acting
-- **No performative agreement**: states the fix or pushes back with technical reasoning — never "Great point!"
-- **YAGNI checks**: if a reviewer suggests over-engineering, checks actual usage first
-- **Technical correctness over social comfort**: pushes back when the comment is wrong, with evidence
-- **Batch operations**: user can say "fix all remaining", "skip remaining", or "fix all in \<file\>"
-- **Fix plan approval**: presents categorized plan (Will Fix / Needs Discussion / Will Skip) before executing
-- **Concise replies**: posts thread replies like "Fixed. Added null check before accessing `user.preferences`."
+| Skill | Load When | Inline Fallback |
+|-------|-----------|-----------------|
+| `/adk:workflow --family standard-task` | always | Standard Task workflow: confirm → research → execute → validate. For tasks with known approach that benefit from context scan. `--auto` skips confirmations. |
+| `/adk:communication` | always | Lead with conclusion. Bullet points. No preamble. Concrete specifics over abstractions. Verbosity follows context. |
+| `/adk:preflight-check` | before work | Run preflight.py for tool dependencies and MCP validation. Detect source type and route to correct MCP. |
+| `/adk:output-format` | when producing output | short/standard/detailed verbosity. Priority labels: Blocker, Critical, Should Have, May Have, Nitpick, Question. Cross-platform markdown safe for GitHub + Bitbucket. |
+| `/adk:review-standards` | always (review skills) | Pipeline: intake → ingestion → parallel review → consolidation → output → postback. Canonical comment template with severity, confidence, concern, depth, dimension, guideline. |
+| `/adk:principal-engineer` | complexity >= medium | Five questions: need? simplest? alternatives? maintenance costs? clarity in 6 months? |
+| `/adk:agentic-teams` | complexity >= medium AND parallel work needed | Launch 2+ child agents with distinct roles. Standard team shapes: review, research, docs, diagram, security, migration, planning. |
+| `/adk:interaction` | NOT --auto | Inline protocols for intent confirmation, approach selection, plan approval, review findings, progress dashboard. |
+| `/adk:github` | when target is GitHub | GitHub operations via `gh` CLI — PR details, diff, reviews, comments, thread resolution. Validates `gh` install and auth. |
+| `/adk:bitbucket` | when target is Bitbucket | Bitbucket REST API via `curl` — PR details, diff, comments, tasks. Uses `BITBUCKET_USERNAME`+`BITBUCKET_TOKEN` from `~/.zshenv`. |
 
-## Workflow
+Core principles:
+- **Verify before implementing.** Check each comment against the codebase before acting.
+- **No performative agreement.** State the fix or push back with technical reasoning — never "Great point!"
+- **YAGNI checks.** If a reviewer suggests over-engineering, check actual usage first.
+- **Technical correctness over social comfort.** Push back when the comment is wrong, with evidence.
 
-Follows the full 6-phase workflow.
+---
 
-| Phase | Applies | Notes |
-|-------|---------|-------|
-| 0. Intent Expansion | yes | Confirm which PR, which comments to address (all, blockers only, specific threads) |
-| 1. Research & Options | yes | Read all unresolved comments, categorize by severity and type |
-| 2. Approach Selection | yes | Present the fix plan — which comments will be fixed, how, and which need discussion |
-| 3. Planning | yes | Plan fix order: dependencies between fixes, group by file |
-| 4. Execute | yes | Apply fixes, reply to comments, mark resolved |
-| 5. Validate & Learn | yes | Run tests/linting, produce summary of fixed vs needs-discussion |
+### Helper Skill Resolution
 
-## Shared Skills
+Resolve shared behavior through **helper skills**, not by loading reference markdown files. Invoke the needed skill using either form: `/adk:<skill>` (Claude plugin) or `/<skill>` (skills.sh). The usual helpers are **workflow** (phase structure), **communication** (tone and structure), **preflight-check** (tool and MCP validation), **output-format** (verbosity and deliverable shape), **principal-engineer** (engineering bar), **agentic-teams** (child agents), and **interaction** (prompting and confirmations).
 
-| Skill | Load When | Fallback |
-|-------|-----------|----------|
-| `workflow` | always | 6-phase: intent → research → approach → plan → execute → validate |
-| `communication` | always | Lead with conclusion, bullet points, no preamble |
-| `preflight-check` | before work | Run preflight.py, detect source, validate MCP |
-| `output-format` | producing output | short/standard/detailed verbosity; priority labels |
-| `review-standards` | always | Review pipeline and canonical comment template |
-| `principal-engineer` | complexity >= medium | Five PE questions: need? simplest? alternatives? maintenance? clarity? |
-| `agentic-teams` | complexity >= medium AND parallel work needed | Launch child agents with distinct roles |
-| `interaction` | NOT --auto | Inline protocols for confirmations and approvals |
-| `github` | target is GitHub | PR details, diff, comments, thread resolution via `gh` CLI |
-| `bitbucket` | target is Bitbucket | PR details, diff, comments, tasks via REST API |
+If a required helper skill is unavailable, print a warning and continue using the inline fallback summary in the Shared Skills table.
 
-## Output Format
+### Preflight & MCP Resolution
 
-Produces a fix summary with these sections:
+Before reading the PR or launching child agents, attempt MCP-first, then fall back gracefully.
 
-- **Fixed**: count and table of applied fixes with file, line, description, and test status
-- **Replied (pushback)**: comments where the current implementation was kept with technical reasoning
-- **Needs discussion**: comments requiring design conversation
-- **Skipped**: already resolved or no-action-needed comments
-- **Validation**: test suite results, lint status, type-check status
-- **Needs Follow-Up**: comments requiring further discussion with reviewer references
+### Step 1: Detect Provider
 
-When `--dry-run` is set, produces the same summary with "Would fix" instead of "Fixed", and no code changes or replies posted.
+Detect GitHub or Bitbucket from:
+- The PR URL (required argument)
+- The git remote origin (`git remote get-url origin`)
 
-## Adjacent Skills
+### Step 2: Check MCP
 
-| Skill | When to use instead |
-|-------|-------------------|
-| `/adk:code-review-pr` | Perform the review that generates the comments |
-| `/adk:dev-build` | More complex changes that go beyond comment-level fixes |
-| `/adk:coding` | Load repo-specific coding guidelines directly |
+Run:
+
+`python3 ${CLAUDE_SKILL_DIR}/scripts/preflight.py ${CLAUDE_SKILL_DIR} pr=<pr-url>`
+
+Then do one lightweight read through the matching source-native MCP to confirm it is connected:
+
+- GitHub -> `mcp__github__*`, `mcp__plugin-adk-github__*`
+- Bitbucket -> `mcp__bitbucket__*`, `mcp__plugin-adk-atlassian__*`
+
+### Step 3: MCP Fallback — Direct API or Git
+
+If the MCP is **not configured** or the connectivity check fails, fall back in this order:
+
+#### 3a. Direct API via CLI
+
+Check for the required token in `~/.zshenv`:
+
+- **GitHub**: `GITHUB_PAT` — use `gh` CLI or `curl` with the GitHub REST API
+- **Bitbucket**: `BITBUCKET_USERNAME` + `BITBUCKET_TOKEN` — use `curl` with the Bitbucket REST API
+
+Read the token:
+
+```bash
+grep '^export GITHUB_PAT=' ~/.zshenv | sed 's/^export GITHUB_PAT=//' | tr -d '"'"'"
+```
+
+If the token exists, proceed with API-based workflow.
+
+**GitHub API commands:**
+
+```bash
+# PR review comments (unresolved threads)
+gh api repos/{owner}/{repo}/pulls/{number}/comments
+
+# Reply to a comment thread
+gh api repos/{owner}/{repo}/pulls/{number}/comments/{id}/replies -f body="..."
+
+# PR diff
+gh pr diff <number>
+```
+
+**Bitbucket API commands:**
+
+```bash
+# PR comments
+curl -s -u "${BITBUCKET_USERNAME}:${BITBUCKET_TOKEN}" \
+  "https://api.bitbucket.org/2.0/repositories/{workspace}/{repo}/pullrequests/{id}/comments"
+```
+
+#### 3b. Git-Only Fallback (No Token Available)
+
+If no token is found:
+
+1. **Tell the user** which token is missing and ask them to add it.
+2. In git-only mode, this skill cannot read or reply to PR comments. Inform the user and suggest they configure the token or MCP, then re-run.
+
+---
+
+## Modes & Variations
+
+Use this section when you want to force a deterministic path instead of relying on the skill's auto-detection rules.
+
+
+### Behavior Variations
+
+- **Default**: reads all unresolved comments, presents fix plan, executes with human approval per comment
+- **`--auto`**: skips Phase 0-2 confirmations, fixes all fixable comments, replies and resolves automatically
+- **`--dry-run`**: runs full analysis but produces a plan only — no code changes, no replies posted
+- **`--filter blocker`**: only addresses comments marked as blocking or must-fix
+- **`--filter critical`**: addresses blocker + critical severity comments
+- **`--filter all`**: addresses all unresolved comments (default)
+
+## Output
+
+Output is part of the contract for this skill, not just presentation. This is what callers and end users should expect back after execution.
+
+
+## Related Skills
+
+### Adjacent Skills
+
+- `/adk:code-review-pr` for performing the review that generates the comments
+- `/adk:dev-build` for more complex changes that go beyond comment-level fixes
+- `/adk:coding` for loading repo-specific coding guidelines
+
+## Additional Reference
+
+### 1. Confirm
+
+Confirm with the user:
+
+1. **Which PR** to process (from the provided URL)
+2. **Which comments** to address:
+   - All unresolved (default)
+   - Blockers only (`--filter blocker`)
+   - Critical and above (`--filter critical`)
+   - Specific threads (user can list comment IDs or quote text)
+3. **Behavior**: fix and reply, or dry-run
+
+In `--auto` mode, skip confirmation: process all unresolved comments matching the filter.
+
+---
+
+### 2. Research
+
+### Step 1: Read All Review Comments
+
+Read all review comments from the PR via source MCP or API fallback. Include thread replies and resolution state.
+
+### Step 2: Categorize Each Comment
+
+By **severity**:
+- `blocker` — must fix before merge
+- `critical` — strongly recommended fix
+- `suggestion` — optional improvement
+- `nitpick` — style or preference
+- `question` — needs clarification, not a fix
+
+By **type**:
+- `code-fix` — direct code change needed
+- `design-change` — architectural or design refactor
+- `test-addition` — missing test coverage
+- `doc-update` — documentation or comment change
+- `discussion` — needs conversation, not a code change
+
+### Step 3: Filter
+
+Apply `--filter` to remove comments below the severity threshold.
+
+### Guideline Loading
+
+Invoke `/adk:coding` to detect the repo stack and load matching coding guidelines. Use these guidelines when evaluating comment validity and implementing fixes.
+
+---
+
+### 3. Execute
+
+For each fix in the planned order:
+
+### Step 1: Apply the Code Change
+
+Use the `adk-pr-fixer` agent for applying code fixes from PR review comments.
+
+- Read the current file content around the comment location
+- Implement the fix per the coding guidelines
+- Verify the fix addresses the reviewer's concern
+
+### Step 2: Reply to the Comment
+
+Post a reply in the comment thread (never a top-level PR comment):
+
+**Reply format** (concise, states what changed and why):
+```text
+Fixed. <one-sentence description of what changed>.
+```
+
+Examples:
+- "Fixed. Added null check before accessing `user.preferences` — returns early with 400 if missing."
+- "Fixed. Switched to parameterized query to prevent SQL injection."
+- "Addressed. Added unit test for the edge case where `items` is empty."
+
+For pushback (when the comment is incorrect):
+```text
+Keeping current implementation. <technical reasoning with evidence>.
+```
+
+### Step 3: Mark Resolved
+
+After posting the reply, mark the thread as resolved via MCP or API if the platform supports it.
+
+### Batch Operations
+
+At any point the user can say:
+- "Fix all remaining" — implement all remaining planned fixes
+- "Skip remaining" — skip all unprocessed comments
+- "Fix all in <file>" — fix all comments in a specific file
+
+---
+
+### 4. Validate
+
+### Validation
+
+After all fixes are applied:
+
+1. Run the test suite
+2. Run linter and type-checker
+3. If failures occur, identify which fix caused the failure and offer to revert or adjust
+
+### Summary
+
+```text
+
+### Fix Summary for PR #<number>
+
+Fixed: N comments
+Replied (pushback): N comments
+Needs discussion: N comments
+Skipped: N comments
+
+### Fixes Applied
+| # | File | Line | Fix Description | Status |
+|---|------|------|-----------------|--------|
+| 1 | src/auth.ts | 47 | Added null check | tests pass |
+| 2 | src/api.ts | 102 | Parameterized query | tests pass |
+
+### Validation
+- Tests: pass/fail (N passed, N failed)
+- Lint: clean/N issues
+- Types: clean/N issues
+
+### Needs Follow-Up
+- Comment #3 from @reviewer on src/db.ts:88 — needs design discussion
+```
+
+### Dry-Run Output
+
+When `--dry-run` is set, produce the same summary but with "Would fix" instead of "Fixed", and no code changes or replies posted.
+
+---
 
 ## Examples
 
-```
+The examples below start with a minimal invocation and then show the most common ways developers override detection or change the resulting artifact.
+
+### Start With The Default Path
+
+Start with the smallest useful invocation. If the skill supports auto-detection, this is the fastest way to see which path it chooses before you pin it down with extra flags.
+
+```text
+/adk:code-review-fix <pr-url>
 /adk:code-review-fix https://github.com/org/repo/pull/42
+```
+### Change Output Or Execution Style
+
+These examples change the returned artifact, detail level, rendering, or approval behavior without changing what the skill fundamentally does.
+
+```text
 /adk:code-review-fix https://github.com/org/repo/pull/42 --auto
-/adk:code-review-fix https://github.com/org/repo/pull/42 --filter blocker
-/adk:code-review-fix https://github.com/org/repo/pull/42 --dry-run
-/adk:code-review-fix https://bitbucket.org/workspace/repo/pull-requests/15
 ```

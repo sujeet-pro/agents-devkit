@@ -36,6 +36,7 @@ This skill uses shared helper skills. Load each skill's reference file ONLY when
 | `/adk:docs-guidelines` | when `--type` is set | Load type-specific document writing guidelines for quality rules. |
 | `/adk:diagram` | when doc needs diagrams | Generate diagrams (Mermaid, Excalidraw, draw.io, Graphviz) and render to SVG/PNG for embedding. |
 | `/adk:chart` | when doc needs data charts | Generate charts from data (bar, line, pie, scatter, etc.) and render to SVG/PNG for embedding. |
+| `/adk:docs-md` | when writing markdown | Markdown formatting: headings, lists, code blocks, tables, links. Pagesmith extensions for callouts and tabs. |
 
 ## Helper Skill Resolution
 

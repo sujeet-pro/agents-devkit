@@ -1,6 +1,6 @@
 ---
-title: "review-standards"
-description: "Review pipeline, source routing, and comment template standards for all review-oriented skills"
+title: 'review-standards'
+description: 'Review pipeline, source routing, and comment template standards for all review-oriented skills'
 skill_name: review-standards
 category: guideline
 workflow_tier: helper
@@ -9,116 +9,222 @@ user_invocable: false
 
 # review-standards
 
-Review pipeline, source routing, and canonical comment template standards used by all review-oriented DevKit skills. Defines the 6-step review pipeline, comment format that answers five questions, severity labels, platform-compatible templates, comment consolidation rules, and existing interaction handling.
+`review-standards` is a shared helper that keeps cross-cutting rules and expectations consistent across the skills that invoke it. Most users meet it indirectly when another skill loads it to resolve a shared rule set or a reusable contract.
 
-## Purpose
+## Overview
 
-- Standardize the review pipeline so all review skills follow the same intake-to-output flow
-- Define canonical comment templates that render cleanly on both GitHub and Bitbucket
-- Ensure every review comment answers: what is wrong, when does it fail, what could go wrong, what standard is violated, and what is the fix
-- Establish comment consolidation and existing interaction rules for clean PR discussions
+`review-standards` belongs to the `guideline` layer and is declared at the `helper` tier. That metadata is more than labeling: it tells you how much planning happens before execution, how much the skill is allowed to infer, and whether the result should be a final artifact, a routing decision, or a shared contract for another skill.
 
-## Key Behaviors
+The key design trade-off is indirection. This skill rarely owns an interactive workflow on its own, but it keeps cross-cutting behavior consistent so task skills do not each reinvent the same policy, formatting rule, or detection logic.
 
-### 6-Step Review Pipeline
+## Parameters
 
-| Step | Name | Purpose |
-|------|------|---------|
-| 1 | Intake | Run preflight, detect source type, detect output target, load guidelines |
-| 2 | Source Ingestion | Pull primary material (diff, metadata, comments), build comment ledger, build context packet |
-| 3 | Parallel Review | Launch review team covering correctness, architecture, security, performance, tests, docs, and domain-specific concerns |
-| 4 | Consolidation | Deduplicate findings, attach locations, assign confidence scores, separate must-fix from suggestions, reconcile against comment ledger |
-| 5 | Output | Produce markdown review artifact with summary, severity-grouped findings, open questions, and follow-up checklist |
-| 6 | Postback | Post comments to source platform, resolve handled comments, reopen incorrectly resolved critical issues |
+This helper does not expose a broad user-facing parameter surface beyond the narrow controls in `SKILL.md`. In practice, task skills load it indirectly and supply the context it needs.
 
-### Comment Ledger (Step 2)
+## Output
 
-When the source already has comments or threads, build a ledger categorizing:
+Helper skills usually return a rule set, a resolved reference list, or a normalized contract back to the calling skill rather than a standalone report.
 
-- Still-open issues
-- Handled but unresolved issues
-- Resolved or outdated issues that need verification
-- Critical issues that may need to be reopened
+
+## Additional Reference
+
+### Review Pipeline
+
+### 1. Intake
+
+- Run the skill preflight first so tool dependencies and source-native MCP configuration are verified from the actual input.
+- Detect the source type: GitHub PR, Bitbucket PR, local repository, local markdown, Confluence page, Google Doc, or mixed input.
+- Detect whether the requested output is markdown only, source comments, source updates, or both.
+- Detect whether the active skill is `review-*` or `write-*`. `review-*` skills do not mutate the source; `write-*` skills do.
+- Load repo and source-specific guidelines before analysis.
+
+### 2. Source Ingestion
+
+- Pull the primary material first:
+  - PR metadata, diff, commits, and existing comments
+  - document body, attachments, images, diagrams, and comments
+  - relevant source files from the local checkout
+- Build a comment ledger when the source already has comments or threads:
+  - still-open issues
+  - handled but unresolved issues
+  - resolved or outdated issues that need verification
+  - critical issues that may need to be reopened
+- Build a compact context packet for the review team: summary, scope, guidelines, changed files, and existing discussion.
+
+### 3. Parallel Review
+
+Launch a review team (invoke `/adk:agentic-teams` if available).
+
+Every review must cover:
+
+- correctness and behavioral risk
+- architecture and boundary fit
+- security and performance
+- tests, docs, and migration impact
+- source-specific concerns such as frontend, backend, design system, or document quality
+
+### 4. Consolidation
+
+- Deduplicate overlapping findings.
+- Attach file paths, line numbers, or quoted text when available.
+- Assign a confidence score and a concrete next step.
+- Separate must-fix issues from suggestions.
+- Reconcile new findings against the comment ledger before preparing postback actions.
+
+### 5. Output
+
+Always produce a markdown review artifact with:
+
+- summary
+- findings grouped by severity
+- open questions and assumptions
+- follow-up checklist
+
+Optional source-side output:
+
+- PR comments on GitHub or Bitbucket
+- Confluence comments or page updates
+- Google Docs comments or document updates
+
+### 6. Postback Rules
+
+- Reuse or align with existing review interaction when the source already has a live review thread.
+- Avoid posting duplicate comments that already exist.
+- Resolve comments that are truly handled but still left open when the source supports it.
+- Reopen or restate critical comments that were marked outdated or resolved incorrectly and are still valid.
+- Prefer line comments when the source supports them and the line mapping is stable.
+- Fall back to a grouped summary comment when exact line mapping is not possible.
+
+---
+
+### Comment Template
+
+Every non-trivial review comment **must** follow this canonical format so the PR author can immediately answer:
+
+- What is wrong?
+- When does it fail?
+- What could go wrong if not fixed?
+- What standard or best practice does it violate?
+- What is the likely fix?
+
+### Platform Compatibility
+
+The comment format uses only markdown that renders cleanly on **both GitHub and Bitbucket**:
+
+- Metadata subtext uses `*italic*` (not `<sub>` — Bitbucket strips HTML)
+- No `<details>`, `<summary>`, or other HTML tags
+- No emoji shortcodes — use unicode or omit
+- Tables only when >2 columns
 
 ### Severity Labels
 
 **Issue severities (3 tiers):**
 
-| Label | When to Use |
-|-------|-------------|
-| `Must Fix` | Must fix before merge — correctness, security, data loss, or reliability risk |
-| `Suggestion` | Improves quality materially — maintainability, performance, consistency, or moderate risk |
-| `Note` | Minor improvement, style, or future-proofing — safe to defer |
+- `Must Fix` — must be fixed before merge: correctness, security, data loss, or reliability risk
+- `Suggestion` — improves quality materially: maintainability, performance, consistency, or moderate risk
+- `Note` — minor improvement, style, or future-proofing: safe to defer
 
 **Non-issue types:**
 
-| Label | When to Use |
-|-------|-------------|
-| `Praise` | Recognizes well-crafted code — reinforces good patterns |
-| `Question` | Confidence is lower — asking for author context |
+- `Praise` — recognizes well-crafted code: reinforces good patterns
+- `Question` — confidence is lower: asking for author context
 
-### Canonical Comment Format
+### Canonical Format
 
-Every non-trivial comment includes metadata subtext with confidence score, concern domain, review depth, dimension, and guideline reference. Templates scale by severity:
+#### Must Fix — full template
 
-| Severity | Template Sections |
-|----------|-------------------|
-| **Must Fix** | Issue, Risk, Suggested fix (with code), Also affects |
-| **Suggestion** | Issue, Impact, Suggested fix (with code) |
-| **Note** | 1-2 sentence inline description |
-| **Praise** | Brief explanation of what's well done (no confidence score) |
-| **Question** | The question with context for why it matters |
+````md
+:rotating_light: **[Must Fix]** <Short, specific title>
 
-### Platform Compatibility
+*Confidence: <score>/100 | Concern: <concern(s)> | Depth: <depth> | Dimension: <dimension(s)> | Guideline: <guideline>*
 
-- Metadata uses `*italic*` (not `<sub>` — Bitbucket strips HTML)
-- No `<details>`, `<summary>`, or other HTML tags
-- No emoji shortcodes — use unicode or omit
-- Tables only when >2 columns
+#### Issue
+<What is wrong, in which code path, and under what condition. 1-3 sentences.>
+
+#### Risk
+<What could go wrong if this is not fixed. Concrete consequences.>
+
+#### Suggested fix
+<Concrete recommendation. 1-2 sentences.>
+
+```<lang>
+<code snippet>
+```
+
+#### Also affects
+- `<other-file>:<line>` — <brief description>
+````
+
+#### Suggestion — drop "Risk", use "Impact"
+
+````md
+:large_orange_diamond: **[Suggestion]** <Short, specific title>
+
+*Confidence: <score>/100 | Concern: <concern(s)> | Depth: <depth> | Dimension: <dimension(s)> | Guideline: <guideline>*
+
+#### Issue
+<Issue description>
+
+#### Impact
+<Maintainability/consistency consequence>
+
+#### Suggested fix
+```<lang>
+<code>
+```
+````
+
+#### Note — compact, no h4 headings
+
+```md
+:speech_balloon: **[Note]** <Title>
+
+*Confidence: <score>/100 | Concern: <concern> | Depth: <depth> | Dimension: <dimension> | Guideline: <guideline>*
+
+<1-2 sentence inline description. Not blocking.>
+```
+
+#### Praise — no confidence score
+
+```md
+:star2: **[Praise]** <Title>
+
+*Concern: <concern> | Depth: <depth> | Dimension: <dimension>*
+
+<Brief explanation of what's well done.>
+```
+
+#### Question
+
+```md
+:grey_question: **[Question]** <Title>
+
+*Confidence: <score>/100 | Concern: <concern> | Depth: <depth> | Dimension: <dimension>*
+
+<The question, with context for why it matters.>
+```
 
 ### Comment Consolidation
 
-| Condition | Action |
-|-----------|--------|
-| Exact same line | Merge into one comment |
-| Overlapping ranges | Merge covering full range |
-| Same function/block | Consider merging with numbered sub-findings |
+When multiple findings target the same file and line:
 
-Merged comments take the highest severity among sub-findings.
+1. **Exact same line**: merge into one comment
+2. **Overlapping ranges**: merge covering full range
+3. **Same function/block**: consider merging with numbered sub-findings
 
-### Existing Interaction Rules
+The merged comment takes the **highest severity** among the sub-findings.
 
-When the source already has review comments:
+### Existing Interaction Rule
 
-- Read existing comments first
-- Do not duplicate resolved or clearly addressed feedback
-- Verify handled comments before resolving or skipping
-- Resolve handled-but-open comments when the source supports it
-- Reopen critical issues marked outdated but still present, with fresh evidence
-- Align new comments with the source's tone and threading model
+When the source already has review comments or a discussion thread:
 
-### Postback Rules
+- read it first
+- do not duplicate resolved or clearly addressed feedback
+- verify handled comments before resolving or skipping them
+- resolve handled-but-open comments when the source supports it
+- if a critical issue was marked outdated but is still present, reopen with fresh evidence
+- keep new comments aligned with the source's tone and threading model
 
-- Reuse or align with existing review threads
-- Avoid posting duplicate comments
-- Prefer line comments when line mapping is stable
-- Fall back to grouped summary comment when exact line mapping is not possible
+## Examples
 
-## What It Provides
-
-- Complete review pipeline from intake to postback
-- Comment ledger protocol for tracking existing discussion state
-- Canonical comment templates for 5 severity/type levels
-- Platform-safe markdown formatting rules
-- Consolidation logic for deduplicating multi-agent findings
-- Existing interaction handling to avoid duplicate or contradictory comments
-
-## Invoked By
-
-| Skill | Load Condition |
-|-------|---------------|
-| `code-review-pr` | always |
-| `code-review-repo` | always |
-| `code-review-fix` | always |
-| `docs-review` | always |
-| `audit` | always |
+The examples below start with a minimal invocation and then show the most common ways developers override detection or change the resulting artifact.

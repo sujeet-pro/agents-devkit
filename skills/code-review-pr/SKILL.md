@@ -1,9 +1,10 @@
 ---
 name: code-review-pr
-description: "adk - [full] [code-review] PR, local, or branch code review — review, fix, describe, finalize with conditional stages"
+description: "adk - [full] [review] PR, local, or branch code review — review, fix, describe, finalize with conditional stages"
 user-invocable: true
 argument-hint: "<target> [--fix] [--action describe|fix|finalize|status] [--focus security|performance|deps|ui|codebase] [--mode auto|standard|interactive|followup] [--skip-repo] [--verbosity short|standard|detailed] [--cross] [--context <url>...] [--help]"
 allowed-tools: [Glob, Grep, Read, Edit, Write, Bash, WebSearch, WebFetch, Agent]
+allowed-mcps: [github, bitbucket, atlassian-confluence, google-drive]
 dependencies:
   commands: [git, python3, gh, curl, jq]
   mcp-servers: [detect-from-input]
@@ -44,9 +45,11 @@ Key review behaviors:
 - **Comment consolidation**: Multiple findings on the same line are merged into a single comment; multiple replies to the same thread are combined
 - **Praise**: Recognizes well-crafted code with specific, genuine praise (1-3 per review, never forced)
 - **Visual clarity**: Comments use icons and concise metadata for easy scanning on PR platforms
+- **Typed comments**: Every comment classified by type (Blocker, Critical, Suggestion, Nit-pick, Question, Praise) and tagged with aspects (bug, security, logic-error, code-quality, performance, design, etc.)
 - **Context-aware**: Reads PR description, linked Jira tickets, Google Docs, Confluence pages, and other context documents before reviewing code
 - **10 review dimensions**: Syntax, correctness, security, performance, design, reliability, testing, documentation, UI/UX (conditional), spec compliance (conditional)
 - **Dual tagging**: Every comment carries both a Concern domain (what area) and Review Depth (how deep) classification
+- **Batch triage**: Interactive mode presents all findings at once; user triages in one go with `a-1,4;r-2,6;e-3,5` syntax. Accepted comments posted immediately as inline PR comments
 - **Platform-adaptive**: Uses italic pipe-separated metadata that renders cleanly on both GitHub and Bitbucket
 
 ---
@@ -298,7 +301,7 @@ All output is markdown by default. Structure varies by stage -- see the stage-sp
 
 Every review output includes:
 
-- severity-ordered findings (Must Fix -> Suggestion -> Note -> Praise)
+- type-ordered findings (Blocker -> Critical -> Suggestion -> Nit-pick -> Question -> Praise)
 - confidence scores, Concern domain, and Review Depth tags per finding
 - review dimension attribution (which sub-agent identified the issue)
 - source tag (`[diff-only]`, `[full-context]`, `[both]`) per finding (when applicable)

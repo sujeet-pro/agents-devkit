@@ -1,6 +1,6 @@
 ---
-title: "github"
-description: GitHub operations via gh CLI — PR reviews, comments, issues, and repository access
+title: 'github'
+description: 'GitHub operations via gh CLI — PR reviews, comments, issues, and repository access'
 skill_name: github
 category: connector
 workflow_tier: helper
@@ -9,100 +9,76 @@ user_invocable: false
 
 # github
 
-Platform connector for GitHub. Wraps all GitHub operations through the `gh` CLI, providing PR management, code reviews, inline comments, repository access, and issue tracking to task skills that need GitHub integration.
+`github` centralizes platform-specific operations so higher-level skills do not need to own authentication, transport choice, and fallback logic themselves. The calling skill owns the user-facing workflow; this connector owns authentication checks, transport choice, and operation boundaries.
 
-## Purpose
+## Overview
 
-- Provide GitHub API access to task skills like `code-review-pr` and `code-review-fix`
-- Fetch PR metadata, diffs, changed files, and CI status for review workflows
-- Post review comments (inline and general), reply to threads, and resolve conversations
-- Read repository contents, branches, commits, and search code
-- Manage issues: create, update, close, label, assign, and comment
+`github` belongs to the `connector` layer and is declared at the `helper` tier. That metadata is more than labeling: it tells you how much planning happens before execution, how much the skill is allowed to infer, and whether the result should be a final artifact, a routing decision, or a shared contract for another skill.
 
-## Authentication & Setup
+Connector skills deliberately centralize platform-specific behavior. That keeps authentication, fallback order, and operation families in one place so higher-level task skills can focus on review, documentation, or implementation logic instead of API plumbing.
 
-### Requirements
+## Parameters
 
-| Dependency | Check | Install |
-|------------|-------|---------|
-| `gh` CLI | `command -v gh` | `brew install gh` (macOS) or [cli.github.com](https://cli.github.com/manual/installation) |
-| Auth | `gh auth status` | `gh auth login` (browser-based, one-time) |
+This connector does not define a standalone user-facing parameter table. The calling skill decides the operation and passes the relevant context through the connector contract.
 
-If `gh` is not installed or not authenticated, the skill stops and prompts the user with setup instructions. Run `/adk:setup --tool gh` to install and verify.
+## How It Works
 
-### No Environment Variables Required
+Connector behavior starts with preflight. The skill validates authentication, tooling, or MCP access first, then routes the requested operation through the preferred transport and fallback path defined in `SKILL.md`.
 
-Unlike other connectors, `github` uses `gh auth login` for authentication — no manual token or environment variable configuration needed. The `gh` CLI handles auth tokens, pagination, and rate limiting automatically.
+That split matters for developers because task skills depend on this page to understand what is guaranteed before a networked action happens and what should happen when auth or transport is unavailable.
 
-## Available Operations
+### Preflight
 
-### PR Management
+Before any operation, run these checks. **Stop and ask the user** if either fails — do not proceed.
 
-| Operation | Command Pattern |
-|-----------|----------------|
-| Get PR details | `gh pr view <number>` |
-| Get PR diff | `gh pr diff <number>` |
-| Get changed files | `gh pr view <number> --json files` |
-| Create PR | `gh pr create` |
-| Update PR | `gh pr edit <number>` |
-| Merge PR | `gh pr merge <number>` |
-| Check CI status | `gh pr checks <number>` |
+1. Verify `gh` is installed: `command -v gh >/dev/null 2>&1`
+2. Verify authentication: `gh auth status 2>&1`
 
-### Reviews & Comments
+If `gh` is not installed:
+> **STOP.** Tell the user:
+> Install the GitHub CLI: `brew install gh` (macOS) or see https://cli.github.com/manual/installation
+> Then run `/adk:setup --tool gh` to install and verify.
 
-| Operation | Command Pattern |
-|-----------|----------------|
-| Post review with inline comments | `gh api` with review create endpoint |
-| List review comments | `gh api` repos endpoint |
-| Reply to a comment | `gh api` with reply endpoint |
-| Resolve a thread | `gh api` with resolve endpoint |
-| Create standalone comment | `gh api` with comment endpoint |
+If not authenticated:
+> **STOP.** Tell the user:
+> Run `gh auth login` and follow the browser-based prompts to sign in with your GitHub account.
+> This is a one-time step. Re-run the command after logging in.
 
-### Repository Access
+### Operation References
 
-| Operation | Command Pattern |
-|-----------|----------------|
-| Read file contents | `gh api` with contents endpoint (supports `ref` param for branch) |
-| Search code | `gh search code` |
-| List branches | `gh api` with branches endpoint |
-| Compare branches | `gh api` with compare endpoint |
-| List commits | `gh api` with commits endpoint |
-| Get single commit | `gh api` with commit endpoint |
+| Domain | Reference | Common Use Cases |
+|--------|-----------|-----------------|
+| PR Management | `${CLAUDE_SKILL_DIR}/references/pr-operations.md` | Get PR, diff, files, create, update, merge |
+| Reviews & Comments | `${CLAUDE_SKILL_DIR}/references/review-operations.md` | Post review, inline comments, reply, resolve threads |
+| Repository | `${CLAUDE_SKILL_DIR}/references/repo-operations.md` | File contents, branches, search, commits |
+| Issues | `${CLAUDE_SKILL_DIR}/references/issue-operations.md` | Issue CRUD, labels, milestones, assignees |
 
-### Issue Management
+## Modes & Variations
 
-| Operation | Command Pattern |
-|-----------|----------------|
-| View an issue | `gh issue view <number>` |
-| Create an issue | `gh issue create` |
-| Update an issue | `gh issue edit <number>` |
-| Close an issue | `gh issue close <number>` |
-| Comment on an issue | `gh issue comment <number>` |
-| Manage labels | `gh issue edit --add-label` / `--remove-label` |
-| Assign users | `gh issue edit --add-assignee` |
-| List milestones | `gh api` with milestones endpoint |
+The important variations here are usually transport choice, operation family, or platform-specific fallback behavior rather than a user-visible workflow mode.
 
-## MCP vs CLI Fallback Behavior
 
-| Priority | Method | When Used |
-|----------|--------|-----------|
-| **Primary** | `gh` CLI | Always preferred. Handles auth, pagination, rate limiting automatically |
-| **Secondary** | MCP tools (`mcp__github__*`) | Used when available, as a convenience option |
-| **Fallback** | `gh` CLI | When MCP tools fail (auth error, missing scope, unavailable) |
+### Routing
 
-The `gh` CLI is always the reliable fallback — never `curl` with raw GitHub APIs. MCP tools are a secondary convenience, not a dependency.
+Load `${CLAUDE_SKILL_DIR}/references/routing.md` to determine which reference to use based on the operation needed.
 
-## Key Behaviors
+## Output
 
-- **gh CLI first**: all operations go through `gh` CLI; MCP is supplementary, never primary
-- **Preflight validation**: checks `gh` install and auth status before any operation; stops with actionable instructions on failure
-- **Routing-based dispatch**: uses internal routing table to map use cases to the correct operation reference and command pattern
-- **Idempotency-aware**: review comment operations check for existing comments before posting to avoid duplicates
-- **Inline comments default**: when posting review feedback, inline (file + line) comments are preferred over general PR comments
+Connectors typically return platform data or perform side effects for the calling skill. They do not usually define the final human-facing narrative on their own.
 
-## Invoked By
 
-| Skill | When |
-|-------|------|
-| `/adk:code-review-pr` | Target is a GitHub PR — fetches PR details, diff, posts review comments |
-| `/adk:code-review-fix` | Target is a GitHub PR — reads unresolved comments, applies fixes, resolves threads |
+## Additional Reference
+
+### MCP Server Setup
+
+To configure the MCP server for this connector, see `mcp-config.json` in the ADK root directory for the server definition. Copy the relevant entry to your IDE's MCP configuration file (e.g., `~/.claude.json` for Claude Code).
+
+### gh CLI First
+
+Always use the `gh` CLI for all GitHub operations. The `gh` CLI handles authentication, pagination, and rate limiting automatically. Do NOT use `curl` with GitHub APIs.
+
+MCP tools (`mcp__github__*`, `mcp__plugin-adk-github__*`) may be used as a secondary option when available, but `gh` CLI is always the preferred and reliable fallback. When MCP tools fail (auth error, missing scope), fall back to `gh` CLI.
+
+## Examples
+
+The examples below start with a minimal invocation and then show the most common ways developers override detection or change the resulting artifact.

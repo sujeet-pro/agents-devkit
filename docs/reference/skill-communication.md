@@ -1,6 +1,6 @@
 ---
-title: "communication"
-description: "Communication style rules for all DevKit output"
+title: 'communication'
+description: 'Communication style rules for all DevKit output. Lead with conclusions, use concrete specifics, avoid preamble'
 skill_name: communication
 category: guideline
 workflow_tier: helper
@@ -9,19 +9,29 @@ user_invocable: false
 
 # communication
 
-Communication style rules applied to every response, deliverable, and summary produced by any DevKit skill. Enforces a concise, conclusion-first writing style with concrete specifics.
+`communication` is a shared helper that keeps cross-cutting rules and expectations consistent across the skills that invoke it. Most users meet it indirectly when another skill loads it to resolve a shared rule set or a reusable contract.
 
-## Purpose
+## Overview
 
-- Establish a consistent tone and structure across all DevKit output
-- Eliminate preamble, filler, and verbose narration
-- Ensure answers lead with conclusions and offer detail on request
-- Define concrete before/after examples so skills can calibrate output
+`communication` belongs to the `guideline` layer and is declared at the `helper` tier. That metadata is more than labeling: it tells you how much planning happens before execution, how much the skill is allowed to infer, and whether the result should be a final artifact, a routing decision, or a shared contract for another skill.
 
-## Key Rules
+The key design trade-off is indirection. This skill rarely owns an interactive workflow on its own, but it keeps cross-cutting behavior consistent so task skills do not each reinvent the same policy, formatting rule, or detection logic.
+
+## Parameters
+
+This helper does not expose a broad user-facing parameter surface beyond the narrow controls in `SKILL.md`. In practice, task skills load it indirectly and supply the context it needs.
+
+## Output
+
+Helper skills usually return a rule set, a resolved reference list, or a normalized contract back to the calling skill rather than a standalone report.
+
+
+## Additional Reference
+
+### Rules
 
 1. **Lead with conclusion, then reasoning** — never bury the answer
-2. **Concise by default, elaborate on request** — show the compact result first; offer "Need a detailed breakdown?" instead of dumping full output
+2. **Concise by default, elaborate on request** — show the compact result first; after completing a task, offer "Need a detailed breakdown?" instead of dumping full output unsolicited
 3. **Bullet points for multi-part answers**, not paragraphs
 4. **Decisions**: state decision, key factor, max 2 supporting points
 5. **Show reasoning concisely**: "X because Y, which means Z"
@@ -32,49 +42,72 @@ Communication style rules applied to every response, deliverable, and summary pr
 10. **Explain for learning**: state the concept, show the concrete example, explain why it matters — in that order
 11. **Verbosity follows context**: short for confirmations, standard for work output, detailed only when explicitly requested or `--verbosity detailed` is passed
 
-## What It Provides
+### Before / After
 
-### Output Calibration
+### Example 0: Task completion (concise → offer to elaborate)
 
-Skills use these rules to calibrate every piece of output:
+**Before (dumps everything):**
 
-- **Status updates**: 2-3 lines with findings count and top issues; offer full list
-- **Decision recommendations**: state recommendation, key factor, trade-off — 3 lines total
-- **Concept explanations**: concept statement, concrete code example, why-it-matters — in that order
-- **Task completions**: summary line with counts, top-priority items expanded, offer to elaborate
+> I've completed the PR review. Here are all 12 findings organized by severity. Finding 1: In `src/auth/jwt.ts` at line 47, the token validation doesn't check expiration... [500 more words of findings, then repeats what was done]
 
-### Anti-Patterns to Avoid
+**After (concise with offer):**
 
-| Anti-Pattern | Correct Approach |
-|-------------|-----------------|
-| Verbose status narration | Concise finding summary with counts |
-| Buried recommendations | Lead with the recommendation |
-| Abstract descriptions ("the relevant code") | Concrete references (`src/middleware/auth.ts:47`) |
-| Preamble phrases ("I'd be happy to help") | Start directly with the answer |
-| Trailing summaries of what was done | End with offer to elaborate or next action |
-| Repeating user's question back | Acknowledge briefly, then answer |
+> **PR review complete** — 12 findings (2 blocker, 3 critical, 7 should-have).
+>
+> Blockers:
+> - **JWT expiration unchecked** — `src/auth/jwt.ts:47`
+> - **SQL injection in search** — `src/api/search.ts:23`
+>
+> Need the full findings list or a detailed breakdown?
 
-## Invoked By
+### Example 1: Status update
 
-All task skills invoke this skill for tone consistency:
+**Before (verbose):**
 
-| Skill | Load Condition |
-|-------|---------------|
-| `code-review-pr` | always |
-| `code-review-repo` | always |
-| `code-review-fix` | always |
-| `audit` | always |
-| `dev-build` | always |
-| `dev-refactor` | always |
-| `dev-migrate` | always |
-| `docs-write` | always |
-| `docs-review` | always |
-| `docs-repo` | always |
-| `docs-crud` | always |
-| `docs-confluence` | always |
-| `design` | always |
-| `plan` | always |
-| `spec` | always |
-| `research` | always |
-| `handoff` | always |
-| `coding` | always (for tone consistency) |
+> I've completed the analysis of your authentication system. After carefully reviewing all the files in the auth directory, I found that there are several issues that need to be addressed. The main issue is that the JWT token validation in the middleware doesn't check for token expiration. This is a significant security concern because expired tokens could be used to access protected resources. I've also noticed that the refresh token rotation isn't implemented correctly. Let me explain what I found in detail...
+
+**After (concise):**
+
+> Two auth issues found:
+>
+> - **JWT expiration not checked** in `src/middleware/auth.ts:47` — expired tokens grant access. Fix: add `exp` claim validation before `verify()`.
+> - **Refresh token rotation broken** in `src/auth/refresh.ts:23` — old tokens aren't invalidated after rotation. Fix: add token to denylist on rotation.
+
+### Example 2: Decision recommendation
+
+**Before (verbose):**
+
+> After considering the various options available for the database migration, I think we should go with option B, which is to use the incremental migration approach. The reason I recommend this is because it's less risky than doing a big-bang migration, and while it takes a bit longer, the reduced risk is worth it. Additionally, the team is already familiar with this pattern from the last migration we did. There are some downsides though — it will take about 2 weeks longer than a big-bang approach, and we'll need to maintain backward compatibility during the transition period. However, I believe the benefits outweigh the costs.
+
+**After (concise):**
+
+> **Recommendation: incremental migration** (option B).
+>
+> - Key factor: 70% lower risk of production downtime vs big-bang
+> - Team already uses this pattern — no ramp-up time
+> - Trade-off: 2 weeks longer, requires backward compatibility during transition
+
+### Example 3: Explaining a concept
+
+**Before (verbose):**
+
+> So what's happening here is that JavaScript closures are a really important concept to understand. Basically, a closure is when a function "remembers" the variables from the scope where it was created, even after that scope has finished executing. This is really useful for things like data privacy and creating factory functions. Let me show you an example of how this works in your code...
+
+**After (concise):**
+
+> **Closures** let a function access variables from its creation scope, even after that scope exits.
+>
+> In your code at `src/handlers/createCounter.ts:12`:
+>
+> ```ts
+> function createCounter(start: number) {
+>   let count = start;
+>   return () => ++count; // closes over `count`
+> }
+> ```
+>
+> This matters here because each route handler gets its own `count` — without the closure, all routes would share a single counter.
+
+## Examples
+
+The examples below start with a minimal invocation and then show the most common ways developers override detection or change the resulting artifact.

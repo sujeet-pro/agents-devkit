@@ -13,7 +13,7 @@ Read the full document content, existing comments, and any resolution state befo
 
 ## Guideline Loading
 
-Invoke the `/coding` helper skill to detect the repo stack and load the appropriate coding guidelines.
+Invoke the `/adk:coding` helper skill to detect the repo stack and load the appropriate coding guidelines.
 
 ## Interaction Mode
 

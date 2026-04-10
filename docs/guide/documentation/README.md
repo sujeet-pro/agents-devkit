@@ -6,248 +6,110 @@ order: 3
 
 # Documentation
 
-ADK offers a suite of documentation skills for the full doc lifecycle — creating new documents from templates, updating existing ones, reviewing quality, generating repo docs, and publishing to Confluence. The `docs` router picks the right sub-skill, or invoke each directly.
+Start with the `docs` router when you want ADK to choose the documentation workflow, then move to the specific skill once you know whether the job is page lifecycle work, formal document authoring, review, repository docs, or Confluence sync.
 
-> **Quick start:** `/adk:docs <describe what you need>` — the router picks the right skill.
+> **Quick start:** `/adk:docs <prompt-text>` is the simplest way to tell ADK what documentation outcome you want and let it choose the right skill.
 
 ## Scenarios
 
-- [Create a new document](#create-a-new-document)
-- [Use document templates](#use-document-templates)
-- [Update an existing document](#update-an-existing-document)
-- [Improve document quality](#improve-document-quality)
-- [Write formal engineering docs](#write-formal-engineering-docs)
-- [Review documentation](#review-documentation)
-- [Generate repository documentation](#generate-repository-documentation)
-- [Work with Confluence](#work-with-confluence)
-- [Respond to document comments](#respond-to-document-comments)
+- [Create Or Update A Page](#create-or-update-a-page)
+- [Write A Formal Engineering Document](#write-a-formal-engineering-document)
+- [Review Documentation Quality](#review-documentation-quality)
+- [Generate Repository Documentation](#generate-repository-documentation)
+- [Work With Confluence](#work-with-confluence)
 
 ---
 
-## Create a New Document
+## Create Or Update A Page
 
-Use `docs-crud` with the `create` action to create a document:
-
-```text
-/adk:docs-crud create ./docs/api-reference.md
-```
-
-### Specify a document type
-
-ADK has built-in templates for common engineering document types. Use `--type` to load the right structure:
+Use `docs-crud` when the job is the lifecycle of one page or one document target: create it, refresh it, improve it, or reply to comments on it.
 
 ```text
-/adk:docs-crud create ./docs/decisions/caching-strategy.md --type adr
-/adk:docs-crud create ./docs/specs/auth-tdd.md --type tdd
-/adk:docs-crud create ./docs/specs/payment-hld.md --type hld
+/adk:docs-crud <action> <path>
+/adk:docs-crud create <path> --type adr
+/adk:docs-crud create docs/decisions/caching-strategy.md --type adr
+/adk:docs-crud update <path>
+/adk:docs-crud improve <path>
+/adk:docs-crud comment-reply <path>
 ```
 
-Available types: `adr`, `api-reference`, `erd`, `hld`, `incident-report`, `lld`, `onboarding`, `prd`, `project`, `release-notes`, `rfc`, `runbook`, `status-report`, `tdd`.
-
-### Using a custom template
-
-Point to any markdown file as a template:
-
-```text
-/adk:docs-crud create ./docs/new-doc.md --template ./templates/team-template.md
-```
+Use `--type` when you want one of the built-in document skeletons. Use `update` when the source-of-truth has changed, `improve` when the content is mostly right but not easy enough to read, and `comment-reply` when the review queue is the real input.
 
 ---
 
-## Use Document Templates
+## Write A Formal Engineering Document
 
-ADK includes templates for 14 document types under `skills/docs-crud/references/doc-templates/`. When you specify `--type`, the matching template is loaded and populated.
+Use `docs-write` when the output needs to be a durable engineering artifact such as an ADR, RFC, runbook, system design, or similar formal document.
 
-| Type | Template | Use When |
-|------|----------|----------|
-| `adr` | Architecture Decision Record | Recording architectural decisions with context, options, and rationale |
-| `rfc` | Request for Comments | Proposing significant changes that need team input |
-| `tdd` | Technical Design Document | Detailed technical design for a feature or system |
-| `hld` | High-Level Design | Architecture overview for a system or major feature |
-| `lld` | Low-Level Design | Detailed module/component design with interfaces and algorithms |
-| `prd` | Product Requirements Document | Product requirements with user stories and success metrics |
-| `api-reference` | API Reference | REST/GraphQL/RPC API documentation |
-| `erd` | Entity Relationship Diagram | Database schema and relationships |
-| `runbook` | Operational Runbook | Step-by-step procedures for operations and incidents |
-| `incident-report` | Incident Report | Post-incident analysis with timeline and action items |
-| `onboarding` | Onboarding Guide | New team member onboarding documentation |
-| `release-notes` | Release Notes | Version release notes with changes and migration steps |
-| `status-report` | Status Report | Project progress and status updates |
-| `project` | Project Document | General project documentation |
+```text
+/adk:docs-write --type adr <prompt-text>
+/adk:docs-write --type runbook <prompt-text>
+/adk:docs-write --audience executives --type system-design <prompt-text>
+/adk:docs-write --publish both --publish-space <name> --publish-parent <name> --type adr <prompt-text>
+/adk:docs-write --output-dir <path> --type system-design <prompt-text>
+```
+
+`--type` controls the document family, `--audience` helps ADK tune depth and tone, and the publish flags are for cases where the destination is Confluence rather than a local markdown file.
 
 ---
 
-## Update an Existing Document
+## Review Documentation Quality
 
-Update a document with new information while preserving its structure:
-
-```text
-/adk:docs-crud update ./docs/api-reference.md
-```
-
-ADK reads the existing document, detects its type, and applies updates while maintaining formatting and structure.
-
----
-
-## Improve Document Quality
-
-Use `improve` to enhance an existing document without changing its core content:
+Use `docs-review` when you want findings first instead of edits first.
 
 ```text
-/adk:docs-crud improve ./docs/architecture/overview.md
-```
-
-This fixes grammar, improves clarity, adds missing sections, and enhances formatting.
-
----
-
-## Write Formal Engineering Documents
-
-For documents that need formal structure and rigorous content, use `docs-write`:
-
-```text
-/adk:docs-write --type adr caching strategy decision for the API layer
-/adk:docs-write --type rfc migration from REST to gRPC for inter-service communication
-/adk:docs-write --type system-design user authentication service technical design
-```
-
-### Controlling the audience and tone
-
-```text
-/adk:docs-write --type system-design --audience executives --tone formal system architecture overview
-/adk:docs-write --type runbook --audience on-call-engineers --tone procedural database failover procedure
-```
-
-### Publishing directly
-
-Publish to Confluence during creation:
-
-```text
-/adk:docs-write --type adr --publish --publish-space ENG --publish-parent "Architecture Decisions" caching strategy
-```
-
-### Output location
-
-```text
-/adk:docs-write --type system-design --output-dir ./docs/designs/ payment processing design
-```
-
----
-
-## Review Documentation
-
-Use `docs-review` to analyze documentation quality across multiple dimensions:
-
-```text
+/adk:docs-review <path>
 /adk:docs-review ./docs/api-reference.md
-/adk:docs-review ./docs/architecture/
+/adk:docs-review <path> --focus accuracy
+/adk:docs-review <path> --mode interactive
 ```
 
-### Focus on specific aspects
-
-```text
-/adk:docs-review ./docs/api-reference.md --focus accuracy
-/adk:docs-review ./docs/api-reference.md --focus completeness
-/adk:docs-review ./docs/api-reference.md --focus clarity
-/adk:docs-review ./docs/api-reference.md --focus style
-```
-
-### Interactive review
-
-Walk through findings one by one, accepting or rejecting each:
-
-```text
-/adk:docs-review ./docs/api-reference.md --mode interactive
-```
-
-### Review Confluence pages
-
-```text
-/adk:docs-review https://company.atlassian.net/wiki/spaces/ENG/pages/12345
-```
+Start with the plain file or directory path, then add `--focus` when you care most about one dimension such as accuracy or completeness. Interactive mode is the best fit when you want to triage findings as you go.
 
 ---
 
 ## Generate Repository Documentation
 
-Use `docs-repo` to auto-generate documentation for an entire repository:
+Use `docs-repo` when the target is the repository as a whole rather than one page.
 
 ```text
 /adk:docs-repo
-```
-
-### Initialize documentation structure
-
-```text
 /adk:docs-repo --init
-```
-
-### Scope to a specific package
-
-```text
-/adk:docs-repo --scope package my-library
-```
-
-### Format selection
-
-```text
+/adk:docs-repo --scope package <name>
 /adk:docs-repo --format pagesmith
-/adk:docs-repo --format markdown
 ```
+
+`--init` bootstraps the doc structure, `--scope` narrows generation to a package, and `--format` lets you choose the target doc system.
 
 ---
 
-## Work with Confluence
+## Work With Confluence
 
-Use `docs-confluence` for Confluence-specific operations:
-
-### Read a Confluence page
+Use `docs-confluence` when the source or destination is Confluence and you want a skill that understands that platform directly.
 
 ```text
-/adk:docs-confluence read https://company.atlassian.net/wiki/spaces/ENG/pages/12345
+/adk:docs-confluence read <url>
+/adk:docs-confluence write <path> --space <name> --parent <name>
+/adk:docs-confluence sync <url>
 ```
 
-### Write to Confluence
-
-```text
-/adk:docs-confluence write ./docs/api-reference.md --space ENG --parent "API Documentation"
-```
-
-### Sync between local and Confluence
-
-```text
-/adk:docs-confluence sync https://company.atlassian.net/wiki/spaces/ENG/pages/12345
-```
+This is the right path when the local markdown flow is not enough and the important part of the job is platform-aware publishing or synchronization.
 
 ---
 
-## Respond to Document Comments
-
-When collaborators leave comments on your document:
-
-```text
-/adk:docs-crud comment-reply ./docs/api-reference.md
-```
-
-This reads comments (from Confluence or inline), generates responses, and optionally applies suggested changes.
-
----
-
-## Which Skill to Use?
+## Which Skill To Use?
 
 | Scenario | Skill | Key Parameters |
 |----------|-------|----------------|
-| Create a doc from template | `docs-crud` | `create`, `--type`, `--template` |
-| Update existing doc | `docs-crud` | `update` |
-| Improve doc quality | `docs-crud` | `improve` |
-| Reply to doc comments | `docs-crud` | `comment-reply` |
-| Write formal engineering doc | `docs-write` | `--type`, `--audience`, `--publish` |
-| Review doc quality | `docs-review` | `--focus`, `--mode interactive` |
+| Let ADK choose the documentation path | `docs` | `<prompt-text>` |
+| Create, update, improve, or reply on one page | `docs-crud` | `<action>`, `<path>`, `--type` |
+| Write a formal engineering document | `docs-write` | `--type`, `--audience`, `--publish`, `--output-dir` |
+| Review docs without editing | `docs-review` | `<path>`, `--focus`, `--mode` |
 | Generate repo docs | `docs-repo` | `--init`, `--scope`, `--format` |
-| Read/write Confluence | `docs-confluence` | `read/write/sync`, `--space` |
+| Read, write, or sync Confluence content | `docs-confluence` | `read|write|sync`, `--space`, `--parent` |
 
 ## Related Skills
 
-- **[`spec`](/reference/skill-spec/)** — write specifications (a specialized form of documentation)
-- **[`diagram`](/reference/skill-diagram/)** — create diagrams to include in docs
-- **[`research`](/reference/skill-research/)** — research a topic before documenting it
+- **[`spec`](/reference/skill-spec/)** when the missing artifact is a formal specification rather than general documentation.
+- **[`diagram`](/reference/skill-diagram/)** when the document needs diagrams as part of the explanation.
+- **[`research`](/reference/skill-research/)** when the document needs cited source material before it can be written well.

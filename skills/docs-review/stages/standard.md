@@ -11,7 +11,7 @@ This stage is the default (non-interactive) mode. It produces a markdown review 
 
 ## Guideline Loading
 
-Invoke the `/coding` helper skill to detect the repo stack and load the appropriate coding guidelines.
+Invoke the `/adk:coding` helper skill to detect the repo stack and load the appropriate coding guidelines.
 
 ## Execution
 

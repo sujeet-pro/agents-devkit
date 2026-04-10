@@ -1,16 +1,29 @@
 ---
 name: dev
-description: "adk - [routing] [dev] Development router — detects dev task type and routes to the right sub-skill"
+description: "adk - [orchestrator] [dev] Development router — detects dev task type and routes to the right sub-skill"
 user-invocable: true
 argument-hint: "<task> [--help]"
 allowed-tools: [Glob, Grep, Read]
 workflow-tier: orchestrator
+workflow-family: complex-build
 maturity: stable
 ---
 
 # Development Router
 
 Lightweight entry point for all development tasks. Detects the task type from the user's input and routes to the appropriate sub-skill. Does not perform any dev work itself.
+
+## Shared Skills
+
+| Helper skill | Invoke (Claude plugin) | Invoke (Codex / skills.sh) | When | Inline fallback |
+|--------------|------------------------|------------------------------|------|-----------------|
+| preflight-check | `/adk:preflight-check` | `/preflight-check` | before work | Run preflight.py for tool dependencies. |
+
+## Preflight
+
+```
+python3 ${CLAUDE_SKILL_DIR}/scripts/preflight.py ${CLAUDE_SKILL_DIR}
+```
 
 ## Routing
 

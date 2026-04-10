@@ -1,6 +1,6 @@
 ---
-title: "bitbucket"
-description: Bitbucket REST API operations — PR reviews, comments, repository access, and pipeline status
+title: 'bitbucket'
+description: 'Bitbucket REST API operations — PR reviews, comments, repository access, and pipeline status'
 skill_name: bitbucket
 category: connector
 workflow_tier: helper
@@ -9,29 +9,51 @@ user_invocable: false
 
 # bitbucket
 
-Platform connector for Bitbucket Cloud. Wraps the Bitbucket REST API v2.0 via `curl`, providing PR management, inline review comments, task tracking, and repository access to task skills that need Bitbucket integration.
+`bitbucket` centralizes platform-specific operations so higher-level skills do not need to own authentication, transport choice, and fallback logic themselves. The calling skill owns the user-facing workflow; this connector owns authentication checks, transport choice, and operation boundaries.
 
-## Purpose
+## Overview
 
-- Provide Bitbucket Cloud API access to task skills like `code-review-pr` and `code-review-fix`
-- Fetch PR metadata, diffs, diffstats, commits, and pipeline status for review workflows
-- Post inline and general comments, reply to threads, and manage tasks on PRs
-- Read repository info, file contents, branches, and compare branches
-- Approve, merge, decline, and manage PRs
+`bitbucket` belongs to the `connector` layer and is declared at the `helper` tier. That metadata is more than labeling: it tells you how much planning happens before execution, how much the skill is allowed to infer, and whether the result should be a final artifact, a routing decision, or a shared contract for another skill.
 
-## Authentication & Setup
+Connector skills deliberately centralize platform-specific behavior. That keeps authentication, fallback order, and operation families in one place so higher-level task skills can focus on review, documentation, or implementation logic instead of API plumbing.
 
-### Requirements
+## Parameters
 
-| Dependency | Check | Install |
-|------------|-------|---------|
-| `curl` | `command -v curl` | Pre-installed on macOS/Linux |
-| `jq` | `command -v jq` | `brew install jq` (macOS) |
-| Bitbucket credentials | `bash scripts/auth.sh` | Set env vars in `~/.zshenv` |
+This connector does not define a standalone user-facing parameter table. The calling skill decides the operation and passes the relevant context through the connector contract.
 
-### Environment Variables
+## How It Works
 
-Add to `~/.zshenv`:
+Connector behavior starts with preflight. The skill validates authentication, tooling, or MCP access first, then routes the requested operation through the preferred transport and fallback path defined in `SKILL.md`.
+
+That split matters for developers because task skills depend on this page to understand what is guaranteed before a networked action happens and what should happen when auth or transport is unavailable.
+
+### Operation References
+
+| Domain | Reference | Script | Common Use Cases |
+|--------|-----------|--------|-----------------|
+| PR Management | `${CLAUDE_SKILL_DIR}/references/pr-operations.md` | `scripts/pr.sh` | Get PR, diff, diffstat, create, update, merge, approve |
+| Comments | `${CLAUDE_SKILL_DIR}/references/comment-operations.md` | `scripts/comments.sh` | List, create inline, reply, update, delete |
+| Repository | `${CLAUDE_SKILL_DIR}/references/repo-operations.md` | `scripts/repo.sh` | File contents, branches, commits |
+
+## Modes & Variations
+
+The important variations here are usually transport choice, operation family, or platform-specific fallback behavior rather than a user-visible workflow mode.
+
+
+### Routing
+
+Load `${CLAUDE_SKILL_DIR}/references/routing.md` to determine which reference and script to use.
+
+## Output
+
+Connectors typically return platform data or perform side effects for the calling skill. They do not usually define the final human-facing narrative on their own.
+
+
+## Additional Reference
+
+### Auth
+
+Requires environment variables in `~/.zshenv`:
 
 ```bash
 export BITBUCKET_USERNAME="your-username"
@@ -39,81 +61,52 @@ export BITBUCKET_TOKEN="your-app-password"
 ```
 
 Generate an app password at: https://bitbucket.org/account/settings/app-passwords/
-
 Required scopes: `repository:read`, `pullrequest:read`, `pullrequest:write`
 
 ### Validation
 
-Run `bash scripts/auth.sh` to verify credentials. If auth fails, the skill stops and prompts the user to add or update credentials in `~/.zshenv`, then `source ~/.zshenv`.
+```bash
+bash ${CLAUDE_SKILL_DIR}/scripts/auth.sh
+```
 
-## Available Operations
+If auth fails or token is expired, tell the user:
+> Add or update your Bitbucket credentials in `~/.zshenv`:
+> ```bash
+> export BITBUCKET_USERNAME="your-username"
+> export BITBUCKET_TOKEN="your-app-password"
+> ```
+> Then run `source ~/.zshenv` and retry.
 
-### PR Management
+### MCP Server Setup
 
-| Operation | Script Command |
-|-----------|----------------|
-| Get PR details | `pr.sh get <ws> <repo> <pr-id>` |
-| Get full diff | `pr.sh diff <ws> <repo> <pr-id>` |
-| Get diffstat (file-level summary) | `pr.sh diffstat <ws> <repo> <pr-id>` |
-| List PR commits | `pr.sh commits <ws> <repo> <pr-id>` |
-| Check pipeline/build status | `pr.sh statuses <ws> <repo> <pr-id>` |
-| List open PRs | `pr.sh list <ws> <repo> --state OPEN` |
-| List merged PRs | `pr.sh list <ws> <repo> --state MERGED` |
-| Create PR | `pr.sh create <ws> <repo> --title "..." --source-branch feature --dest-branch main` |
-| Update PR | `pr.sh update <ws> <repo> <pr-id> --title "..." --description "..."` |
-| Merge PR | `pr.sh merge <ws> <repo> <pr-id> --strategy squash --close-source true` |
-| Decline PR | `pr.sh decline <ws> <repo> <pr-id>` |
-| Approve PR | `pr.sh approve <ws> <repo> <pr-id>` |
-| Remove approval | `pr.sh unapprove <ws> <repo> <pr-id>` |
-| View activity feed | `pr.sh activity <ws> <repo> <pr-id>` |
+To configure the MCP server for this connector, see `mcp-config.json` in the ADK root directory for the server definition. Copy the relevant entry to your IDE's MCP configuration file (e.g., `~/.claude.json` for Claude Code).
 
-### Comment Operations
+### API-First Approach
 
-| Operation | Script Command |
-|-----------|----------------|
-| List all comments | `comments.sh list <ws> <repo> <pr-id>` |
-| Get single comment | `comments.sh get <ws> <repo> <pr-id> --comment-id N` |
-| Post general comment | `comments.sh create <ws> <repo> <pr-id> --body "..."` |
-| Post inline comment | `comments.sh create <ws> <repo> <pr-id> --body "..." --file path --line N` |
-| Reply to comment | `comments.sh reply <ws> <repo> <pr-id> --parent-id N --body "..."` |
-| Update comment | `comments.sh update <ws> <repo> <pr-id> --comment-id N --body "..."` |
-| Delete comment | `comments.sh delete <ws> <repo> <pr-id> --comment-id N` |
-| List tasks | `comments.sh list-tasks <ws> <repo> <pr-id>` |
-| Create task | `comments.sh create-task <ws> <repo> <pr-id> --body "..." --comment-id N` |
-| Resolve/reopen task | `comments.sh resolve-task <ws> <repo> <pr-id> --task-id N --state RESOLVED` |
+Always prefer direct REST API calls (via `curl`) over MCP tools. The bundled scripts under `scripts/` wrap the Bitbucket REST API and work in any environment (Claude Code, Codex, etc.) without MCP dependencies. If the scripts are not accessible via `${CLAUDE_SKILL_DIR}`, construct `curl` commands directly from the reference docs below — do NOT create new shell scripts.
 
-### Repository Access
+MCP tools (`mcp__bitbucket__*`, `mcp__plugin-adk-atlassian__*`, `mcp__plugin-atlassian-atlassian__*`, `mcp__atlassian__*`) may be used as a secondary option when available, but fall back to direct API calls for any operation not covered or if MCP fails.
 
-| Operation | Script Command |
-|-----------|----------------|
-| Get repo info | `repo.sh get <ws> <repo>` |
-| Read file contents | `repo.sh file <ws> <repo> --path src/main.py --ref main` |
-| List branches | `repo.sh branches <ws> <repo>` |
-| List commits | `repo.sh commits <ws> <repo> --branch main` |
-| Compare branches | `repo.sh diff <ws> <repo> --spec main..feature` |
+### Comments
 
-## MCP vs API Fallback Behavior
+By default, "comments" means **inline comments** — comments attached to a specific file and line in a PR. Use the `--file` and `--line` flags with `comments.sh create`, or the `inline` field in the REST API body. General (non-inline) comments are only used for PR-level summaries.
 
-| Priority | Method | When Used |
-|----------|--------|-----------|
-| **Primary** | REST API via `curl` (bundled scripts) | Always preferred. Works in any environment without MCP dependencies |
-| **Secondary** | MCP tools (`mcp__bitbucket__*`) | Used when available, for supported operations |
-| **Fallback** | Direct `curl` commands | When scripts are not accessible via `${CLAUDE_SKILL_DIR}`, construct `curl` commands from reference docs |
+### API Base
 
-The API-first approach ensures the connector works in any environment (Claude Code, Codex, etc.) without MCP dependencies. If scripts are inaccessible, direct `curl` commands are constructed — new shell scripts are never created.
+All endpoints use: `https://api.bitbucket.org/2.0`
 
-## Key Behaviors
+### Script Usage
 
-- **API-first**: direct REST API calls via bundled `scripts/` always preferred over MCP tools
-- **Inline comments default**: "comments" means inline (file + line) comments unless explicitly requesting general PR-level comments
-- **Structured script interface**: all scripts accept subcommands with consistent patterns — `<script>.sh <action> <workspace> <repo> [args...]`
-- **JSON output**: scripts output JSON to stdout, errors to stderr, non-zero exit on failure
-- **API base**: all endpoints use `https://api.bitbucket.org/2.0`
-- **Task management**: supports creating, resolving, and reopening tasks attached to PR comments
+All scripts accept subcommands:
 
-## Invoked By
+```bash
+bash ${CLAUDE_SKILL_DIR}/scripts/pr.sh <action> <workspace> <repo> [args...]
+bash ${CLAUDE_SKILL_DIR}/scripts/comments.sh <action> <workspace> <repo> <pr-id> [args...]
+bash ${CLAUDE_SKILL_DIR}/scripts/repo.sh <action> <workspace> <repo> [args...]
+```
 
-| Skill | When |
-|-------|------|
-| `/adk:code-review-pr` | Target is a Bitbucket PR — fetches PR details, diff, posts inline comments, manages tasks |
-| `/adk:code-review-fix` | Target is a Bitbucket PR — reads unresolved comments/tasks, applies fixes, replies to threads |
+Scripts output JSON to stdout. Errors go to stderr. Non-zero exit on failure.
+
+## Examples
+
+The examples below start with a minimal invocation and then show the most common ways developers override detection or change the resulting artifact.

@@ -18,7 +18,14 @@
       "command": "sh",
       "args": [
         "-c",
-        "uvx mcp-atlassian --confluence-url $CONFLUENCE_URL --confluence-username $CONFLUENCE_USERNAME --confluence-token $CONFLUENCE_API_TOKEN"
+        "uvx --with 'fakeredis<2.35' mcp-atlassian --confluence-url $CONFLUENCE_URL --confluence-username $CONFLUENCE_USERNAME --confluence-token $CONFLUENCE_API_TOKEN"
+      ]
+    },
+    "atlassian-jira": {
+      "command": "sh",
+      "args": [
+        "-c",
+        "uvx --with 'fakeredis<2.35' mcp-atlassian --jira-url $JIRA_URL --jira-username $JIRA_USERNAME --jira-token $JIRA_API_TOKEN"
       ]
     },
     "google-drive": {

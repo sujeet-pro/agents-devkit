@@ -1,6 +1,6 @@
 ---
-title: "preflight-check"
-description: "Preflight validation for dependencies, MCP servers, and tool readiness"
+title: 'preflight-check'
+description: 'Preflight validation for dependencies, MCP servers, and tool readiness. Run before launching child agents, reviews, or publishing'
 skill_name: preflight-check
 category: guideline
 workflow_tier: helper
@@ -9,103 +9,100 @@ user_invocable: false
 
 # preflight-check
 
-Preflight validation skill that checks dependencies, MCP server configuration, and tool readiness before skills launch child agents, start reviews, or publish to external sources. Prevents failures by catching missing tools and misconfigured integrations early.
+`preflight-check` is a shared helper that keeps cross-cutting rules and expectations consistent across the skills that invoke it. Most users meet it indirectly when another skill loads it to resolve a shared rule set or a reusable contract.
 
-## Purpose
+## Overview
 
-- Validate that required CLI tools, MCP servers, and dependencies are available before work begins
-- Route to the correct source-native MCP based on input URL or destination
-- Stop with actionable install/setup instructions when a dependency is missing
-- Ensure diagram rendering tools are ready before generation starts
+`preflight-check` belongs to the `guideline` layer and is declared at the `helper` tier. That metadata is more than labeling: it tells you how much planning happens before execution, how much the skill is allowed to infer, and whether the result should be a final artifact, a routing decision, or a shared contract for another skill.
 
-## Key Behaviors
+The key design trade-off is indirection. This skill rarely owns an interactive workflow on its own, but it keeps cross-cutting behavior consistent so task skills do not each reinvent the same policy, formatting rule, or detection logic.
 
-### Preflight Script
+## Parameters
 
-Skills run `python3 ${CLAUDE_SKILL_DIR}/scripts/preflight.py ${CLAUDE_SKILL_DIR}` before the main workflow, passing real input parameters so the check can infer the right dependency:
+This helper does not expose a broad user-facing parameter surface beyond the narrow controls in `SKILL.md`. In practice, task skills load it indirectly and supply the context it needs.
 
-| Parameter | Purpose |
-|-----------|---------|
-| `pr=<url-or-number>` | Detect PR source (GitHub or Bitbucket) |
-| `source=<url-or-path>` | Detect source type |
-| `target=<url-or-path>` | Detect target type |
-| `format=<svg\|png\|jpeg\|webp\|markdown\|google-doc\|confluence\|pdf>` | Detect output format dependencies |
-| `publish=<markdown\|source\|both>` | Detect publishing destination |
-| `provider=<github\|bitbucket\|confluence\|google-drive>` | Explicit provider specification |
+## Output
 
-### Missing Dependency Handling
+Helper skills usually return a rule set, a resolved reference list, or a normalized contract back to the calling skill rather than a standalone report.
 
-When a required dependency is missing:
 
-1. Stop before analysis — do not proceed with degraded functionality
-2. Show the exact install or setup command
-3. Give the user two paths: run the command manually, or (if the host supports command approval) explicitly ask for approval and run it for them
+## Additional Reference
 
-### MCP Source Routing
+### Shared Rule
 
-The preflight validates MCP configuration and routes to the correct source-native MCP:
-
-| Input | MCP |
-|-------|-----|
-| GitHub PR or repo URL | GitHub MCP (`mcp__github__*`) |
-| Bitbucket PR or repo URL | Bitbucket MCP (`mcp__bitbucket__*`) |
-| `atlassian.net/wiki` or Confluence publishing | Atlassian Confluence MCP (`mcp__atlassian-confluence__confluence_*`) |
-| Google Docs or Drive URL, or `format=google-doc` | Google Drive MCP (`mcp__google-drive__*`) |
-| Local markdown or docs path | Read locally, optionally publish later |
-| Local repo path | Treat as codebase review or documentation generation |
-
-If the required MCP is missing, stop and inform the user which MCP server needs to be configured instead of falling back to the wrong source.
+- Run `python3 ${CLAUDE_SKILL_DIR}/scripts/preflight.py ${CLAUDE_SKILL_DIR}` before the main workflow.
+- Pass the real input so the check can infer the right dependency or MCP:
+  - `pr=<url-or-number>`
+  - `source=<url-or-path>`
+  - `target=<url-or-path>`
+  - `format=<svg|png|jpeg|webp|markdown|google-doc|confluence|pdf>`
+  - `publish=<markdown|source|both>`
+  - `provider=<github|bitbucket|confluence|google-drive>`
+- If a required dependency is missing, stop before analysis and show the exact install or setup command.
+- Give the user two paths:
+  - run the command manually
+  - or, if the current host supports command approval, explicitly ask for approval and run it for them
 
 ### Diagram Preflight
 
-For `diagramkit` and engine-specific diagram skills:
+For `diagramkit` and the engine-specific diagram skills (`diagram-mermaid`, `diagram-excalidraw`, `diagram-drawio`, `diagram-graphviz`):
 
-1. Validate global npm install: `npm install -g diagramkit`
-2. Validate Playwright Chromium readiness: `diagramkit warmup`
-3. If raster output requested (`png`, `jpeg`, `jpg`, `webp`), validate `sharp`: `npm install -g sharp`
-4. Do not start generation or rendering until these checks pass
+- validate the global npm install: `npm install -g diagramkit`
+- validate Playwright Chromium readiness: `diagramkit warmup`
+- if the requested output is raster (`png`, `jpeg`, `jpg`, `webp`), also validate `sharp`: `npm install -g sharp`
+- do not start generation or rendering until these checks pass
+
+### MCP Preflight
+
+For MCP-backed skills:
+
+- use the input URL or requested destination to choose the right MCP before analysis
+- the preflight script (`scripts/preflight.py`) validates MCP configuration from `~/.claude.json` or `mcp-config.json`
+- then do a lightweight source-native read with the matching MCP before launching the full team
+
+Source mapping:
+
+- GitHub PR or repo URL -> GitHub MCP
+- Bitbucket PR or repo URL -> Bitbucket MCP
+- `atlassian.net/wiki` or Confluence publishing -> Atlassian Confluence MCP
+- Google Docs or Drive URL, or `format=google-doc` -> Google Drive MCP
+
+If the required MCP is missing, stop and inform the user which MCP server needs to be configured instead of falling back to the wrong source.
+
+### Source Routing
+
+Use the source-native MCP first when it exists.
+
+### Preferred MCPs
+
+- **GitHub**: `mcp__github__*`, `mcp__plugin-adk-github__*`
+- **Bitbucket**: `mcp__bitbucket__*`, `mcp__plugin-adk-atlassian__*`, `mcp__plugin-atlassian-atlassian__*`
+- **Confluence**: `mcp__atlassian-confluence__confluence_*`, `mcp__plugin-adk-atlassian__confluence_*`, `mcp__plugin-atlassian-atlassian__confluence_*`
+- **Google Docs / Drive / Sheets / Slides**: `mcp__google-drive__*`
+
+### Input Detection
+
+- GitHub PR URL or repo with PR identifier: use GitHub MCP.
+- Bitbucket PR URL or repo with PR identifier: use Bitbucket MCP.
+- `atlassian.net/wiki` URL: use Confluence MCP.
+- Google Docs/Drive URL: use Google Drive MCP.
+- Local markdown or docs path: read locally and optionally publish later.
+- Local repo path: treat as codebase review or documentation generation.
 
 ### Output Actions
 
-| Destination | Action |
-|-------------|--------|
-| Markdown | Always supported, always produced first |
-| GitHub PR comments | Post via GitHub MCP review or comment tools |
-| Bitbucket PR comments | Post via Bitbucket MCP PR comment tools |
-| Confluence | Add comments, update pages, upload attachments |
-| Google Docs | Add comments or write through Google Drive MCP |
+- **Markdown**: always supported and always produced first.
+- **GitHub PR comments**: post via GitHub MCP review or comment tools.
+- **Bitbucket PR comments**: post via Bitbucket MCP PR comment tools.
+- **Confluence**: add comments, update pages, and upload rendered diagrams and source attachments.
+- **Google Docs**: add comments or write the generated document through Google Drive MCP.
 
 ### Free-Only Rule
 
-- Prefer open-source CLIs and MCP servers
-- Do not require paid SaaS reviewers or proprietary review backends
-- If a destination requires credentials, use the user's existing account through the relevant MCP
+- Prefer open-source CLIs and MCP servers.
+- Do not require paid SaaS reviewers or proprietary review backends.
+- If a destination requires credentials, use the user's existing account through the relevant MCP instead of adding a third-party service.
 
-## What It Provides
+## Examples
 
-- Pre-work validation that catches missing tools and misconfigured MCPs before wasted effort
-- Source routing logic that maps input URLs to the correct MCP
-- Diagram dependency validation chain
-- Actionable install commands when dependencies are missing
-- Two-path resolution: manual install or agent-assisted install with user approval
-
-## Invoked By
-
-| Skill | Load Condition |
-|-------|---------------|
-| `code-review-pr` | before work (validates source MCP and CLI tools) |
-| `code-review-repo` | before work |
-| `code-review-fix` | before work |
-| `audit` | before work |
-| `docs-write` | before work (validates publishing destination MCP) |
-| `docs-review` | before work |
-| `docs-repo` | before work |
-| `docs-crud` | before work |
-| `docs-confluence` | before work (validates Confluence MCP) |
-| `diagram-mermaid` | before work (validates diagramkit) |
-| `diagram-excalidraw` | before work (validates diagramkit) |
-| `diagram-drawio` | before work (validates diagramkit) |
-| `diagram-graphviz` | before work (validates diagramkit) |
-| `design` | before work |
-| `dev-build` | before work |
-| `workflow` (always loaded) | before main workflow |
+The examples below start with a minimal invocation and then show the most common ways developers override detection or change the resulting artifact.

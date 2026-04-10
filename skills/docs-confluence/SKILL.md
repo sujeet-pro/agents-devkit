@@ -75,6 +75,30 @@ Check for Confluence connectivity:
 2. Check for MCP connector: `mcp__atlassian-confluence__*`, `mcp__plugin-atlassian-atlassian__*`, or `mcp__plugin-adk-atlassian__*`
 3. Prefer MCP for supported operations, fall back to curl scripts
 
+## Common Workflow
+
+### 1. Confirm
+
+- Confirm action (read, write, sync), target page, and format
+- Verify Confluence connectivity via MCP or env vars
+
+### 2. Research
+
+- Read the source content (Confluence page or local markdown)
+- Identify format mapping requirements (macros, attachments, alerts)
+
+### 3. Execute
+
+- For `read`: fetch page, convert to markdown, save locally with frontmatter
+- For `write`: convert markdown to Confluence storage format, upload attachments, create/update page
+- For `sync`: compare local and remote, apply changes in the appropriate direction
+
+### 4. Validate
+
+- Verify round-trip fidelity (no content loss in format conversion)
+- Confirm attachments and images render correctly
+- Print summary with page URL and action taken
+
 ## Format Mapping
 
 ### Confluence -> Markdown

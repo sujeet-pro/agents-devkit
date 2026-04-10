@@ -6,137 +6,103 @@ order: 8
 
 # Setup & Configuration
 
-The `setup` skill installs CLI tools, configures MCP servers, and sets up hooks and configuration for ADK skills. It's **idempotent** — run it as many times as you want. It only installs what's missing and syncs tokens that have changed.
+Use `setup` when the important job is making the DevKit environment healthy: tools installed, MCP servers configured, hooks in place, and default routing set correctly.
 
-> **First time?** Complete the [Prerequisites](/guide/prerequisites/) guide first for API tokens and Homebrew setup.
+> **Quick start:** `/adk:setup` performs the full setup path and is safe to re-run because the skill is idempotent.
 
 ## Scenarios
 
-- [Full setup](#full-setup)
-- [Install CLI tools only](#install-cli-tools-only)
-- [Configure MCP servers only](#configure-mcp-servers-only)
-- [Check status without changes](#check-status-without-changes)
-- [Install a specific tool](#install-a-specific-tool)
-- [Configure a specific MCP server](#configure-a-specific-mcp-server)
-- [Set up hooks and config](#set-up-hooks-and-config)
+- [Run Full Setup](#run-full-setup)
+- [Check Status Without Changing Anything](#check-status-without-changing-anything)
+- [Install One Class Of Dependency](#install-one-class-of-dependency)
+- [Target One Tool Or MCP Server](#target-one-tool-or-mcp-server)
+- [Know Which Tokens Matter](#know-which-tokens-matter)
 
 ---
 
-## Full Setup
+## Run Full Setup
 
-Install everything — CLI tools, MCP servers, hooks, and config:
+Run the full setup when you want tools, MCPs, hooks, and routing defaults handled together.
 
 ```text
 /adk:setup
-/adk:setup --type all
-```
-
-This checks for and installs:
-
-| Category | Tools |
-|----------|-------|
-| **CLI tools** | git, python3, node, npm, jq, curl, gh, graphviz, uv, diagramkit, pagesmith |
-| **MCP servers** | GitHub, Bitbucket, Confluence, Google Drive (using tokens from `~/.zshenv`) |
-| **Config** | Default agent configuration, skill routing prompt in `CLAUDE.md` |
-
----
-
-## Install CLI Tools Only
-
-```text
 /adk:setup --type tools
-```
-
-This installs missing CLI tools via Homebrew (macOS) or equivalent package managers.
-
----
-
-## Configure MCP Servers Only
-
-```text
 /adk:setup --type mcps
+/adk:setup --type hooks
+/adk:setup --type config
 ```
 
-Reads API tokens from `~/.zshenv` and configures MCP servers for GitHub, Bitbucket, Confluence, and Google Drive.
-
-> **Cursor users:** The ADK plugin auto-configures GitHub and Atlassian MCP servers via `.mcp.json`. GitHub reads `GITHUB_PAT` from your environment (`${env:GITHUB_PAT}`); Atlassian uses OAuth (browser login). See [Prerequisites — MCP Servers](/guide/prerequisites/#step-4-mcp-servers) for details.
+Use the type flag when you already know you only want one slice of the setup surface instead of the full pass.
 
 ---
 
-## Check Status Without Changes
+## Check Status Without Changing Anything
 
-See what's installed and what's missing without making any changes:
+Use check-only mode when you want an inventory first.
 
 ```text
 /adk:setup --check-only
-```
-
----
-
-## Install a Specific Tool
-
-```text
-/adk:setup --tool gh              # Install/verify GitHub CLI
-/adk:setup --tool diagramkit      # Install/verify diagramkit
-/adk:setup --tool pagesmith       # Install/verify pagesmith
-```
-
----
-
-## Configure a Specific MCP Server
-
-```text
-/adk:setup --server github        # Configure GitHub MCP
-/adk:setup --server confluence    # Configure Confluence MCP
-/adk:setup --server bitbucket     # Configure Bitbucket MCP
-```
-
----
-
-## Set Up Hooks and Config
-
-```text
-/adk:setup --type hooks           # Set up git hooks
-/adk:setup --type config          # Set up default configuration
-```
-
-### Skip update check
-
-When running setup, skip checking for ADK updates:
-
-```text
 /adk:setup --skip-update
 ```
 
----
-
-## Required API Tokens
-
-Setup reads tokens from `~/.zshenv`. Set these environment variables before running setup:
-
-| Token | Variable | Required For |
-|-------|----------|-------------|
-| GitHub | `GITHUB_TOKEN` | GitHub MCP, `gh` CLI |
-| Bitbucket | `BITBUCKET_TOKEN` | Bitbucket MCP |
-| Confluence | `CONFLUENCE_TOKEN` + `CONFLUENCE_URL` | Confluence MCP |
-
-See [Prerequisites — API Tokens](/guide/prerequisites/#step-2-api-tokens) for generation instructions.
+`--check-only` avoids changes entirely. `--skip-update` still installs missing items, but it will not upgrade anything that is already present.
 
 ---
 
-## Which Parameters to Use?
+## Install One Class Of Dependency
+
+Sometimes the environment is mostly healthy and only one area needs work.
+
+```text
+/adk:setup --type tools
+/adk:setup --type mcps
+```
+
+Tool setup is for CLI binaries like `gh`, `diagramkit`, and `pagesmith`. MCP setup is for platform connectivity such as GitHub, Bitbucket, Confluence, and Google Drive.
+
+---
+
+## Target One Tool Or MCP Server
+
+When the issue is very specific, narrow the command to one target.
+
+```text
+/adk:setup --tool gh
+/adk:setup --server github
+/adk:setup --ide cursor
+```
+
+Use `--tool` for one CLI dependency, `--server` for one MCP definition, and `--ide` when the MCP configuration should be written for a specific AI client.
+
+---
+
+## Know Which Tokens Matter
+
+The `setup` skill reads or syncs these environment variables from `~/.zshenv` when MCP configuration requires them:
+
+| Integration | Variables |
+|-------------|-----------|
+| GitHub MCP | `GITHUB_PAT` |
+| Bitbucket MCP | `BITBUCKET_USERNAME`, `BITBUCKET_TOKEN` |
+| Confluence MCP | `CONFLUENCE_URL`, `CONFLUENCE_USERNAME`, `CONFLUENCE_API_TOKEN` |
+| Google Drive MCP | `GOOGLE_DRIVE_OAUTH_CREDENTIALS` |
+
+GitHub CLI authentication is still handled through `gh auth login`, but the GitHub MCP configuration path uses `GITHUB_PAT`.
+
+---
+
+## Which Parameters To Use?
 
 | Scenario | Parameters |
 |----------|-----------|
-| First-time full setup | `--type all` or no args |
-| Verify installation | `--check-only` |
-| Add a single tool | `--tool <name>` |
-| Configure one MCP server | `--server <name>` |
-| CLI tools only | `--type tools` |
-| MCP servers only | `--type mcps` |
-| Skip update check | `--skip-update` |
+| Full setup | no flags, or `--type all` |
+| Check health without changing anything | `--check-only` |
+| Tools only | `--type tools` or `--tool <name>` |
+| MCPs only | `--type mcps` or `--server <name>` |
+| Target one IDE for MCP config | `--ide <name>` |
+| Install missing but do not upgrade | `--skip-update` |
 
 ## Related Skills
 
-- **[Prerequisites guide](/guide/prerequisites/)** — required tokens and Homebrew setup
-- **[`preflight-check`](/reference/skill-preflight-check/)** — per-task tool validation (auto-invoked)
+- **[`preflight-check`](/reference/skill-preflight-check/)** for per-skill dependency validation at runtime.
+- **[`project`](/reference/skill-project/)** when the next problem is bootstrapping project work rather than bootstrapping the environment.

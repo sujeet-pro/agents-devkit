@@ -189,6 +189,18 @@ Execute `git commit` with the approved message.
 <None, or description of breaking changes>
 ```
 
+### 3. Confirm
+
+Present the generated PR description and ask for confirmation:
+
+```
+## PR Description
+
+<rendered description>
+
+> **approve**, **edit: <changes>**, or **cancel**
+```
+
 ---
 
 ## Adjacent Skills

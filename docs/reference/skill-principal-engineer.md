@@ -1,6 +1,6 @@
 ---
-title: "principal-engineer"
-description: "Principal Engineer questioning framework for validating significant work"
+title: 'principal-engineer'
+description: 'Principal Engineer questioning framework applied before committing to significant work. Five questions: need, simplest, alternatives, maintenance, clarity'
 skill_name: principal-engineer
 category: guideline
 workflow_tier: helper
@@ -9,40 +9,47 @@ user_invocable: false
 
 # principal-engineer
 
-A questioning framework applied before committing to significant work. Surfaces five questions that challenge necessity, simplicity, alternatives, maintenance cost, and long-term clarity to prevent over-engineering and wasted effort.
+`principal-engineer` is a shared helper that keeps cross-cutting rules and expectations consistent across the skills that invoke it. Most users meet it indirectly when another skill loads it to resolve a shared rule set or a reusable contract.
 
-## Purpose
+## Overview
 
-- Gate significant work with structured critical thinking before execution
-- Prevent premature abstraction, unnecessary dependencies, and speculative features
-- Surface simpler alternatives that achieve the same goal with less effort and risk
-- Ensure decisions will still make sense to future readers in 6 months
+`principal-engineer` belongs to the `guideline` layer and is declared at the `helper` tier. That metadata is more than labeling: it tells you how much planning happens before execution, how much the skill is allowed to infer, and whether the result should be a final artifact, a routing decision, or a shared contract for another skill.
 
-## Activation Criteria
+The key design trade-off is indirection. This skill rarely owns an interactive workflow on its own, but it keeps cross-cutting behavior consistent so task skills do not each reinvent the same policy, formatting rule, or detection logic.
 
-This skill is loaded conditionally, not for every task:
+## Parameters
 
-| Condition | Applies |
-|-----------|---------|
-| Complexity >= Medium | yes |
-| Architectural changes (new modules, changed boundaries, new dependencies) | yes |
-| New abstractions (interfaces, base classes, shared utilities) | yes |
-| Significant effort (>2 hours estimated work) | yes |
-| Trivial or Small complexity | no |
+This helper does not expose a broad user-facing parameter surface beyond the narrow controls in `SKILL.md`. In practice, task skills load it indirectly and supply the context it needs.
 
-## Key Behaviors
+## Output
+
+Helper skills usually return a rule set, a resolved reference list, or a normalized contract back to the calling skill rather than a standalone report.
+
+
+## Additional Reference
+
+### When to Apply
+
+- Complexity >= Medium
+- Architectural changes (new modules, changed boundaries, new dependencies)
+- New abstractions (interfaces, base classes, shared utilities)
+- Significant effort (>2 hours estimated work)
 
 ### The Five Questions
 
 1. **"Do we need this?"** — Is the problem real? Is it already solved by existing code, a library, or an established pattern in this codebase?
+
 2. **"What's the simplest version?"** — What is the minimum viable approach that solves the actual problem, not the imagined future problem?
+
 3. **"What are the alternatives?"** — Are there 2-3 other ways to achieve this? What are their trade-offs in effort, risk, and maintenance?
+
 4. **"What are the maintenance costs?"** — What does this add to the ongoing burden? New dependencies, complexity, testing surface, deployment considerations?
+
 5. **"Will this make sense in 6 months?"** — Will someone reading this code, doc, or decision understand why it was done without asking the author?
 
-### Presentation Format
+### Presenting Findings
 
-When surfacing PE findings to the user, use this compact format:
+Use this format when surfacing PE findings to the user:
 
 ```
 ### Principal Engineer Check
@@ -53,35 +60,8 @@ When surfacing PE findings to the user, use this compact format:
 **Maintenance cost**: [Low/Medium/High — with one-line justification]
 ```
 
-If all five questions have straightforward answers, collapse to a single line: "PE check: clearly needed, simple approach, low maintenance."
+Keep it to 4 lines. If the answer to all five questions is straightforward, collapse to a single line: "PE check: clearly needed, simple approach, low maintenance."
 
-## What It Provides
+## Examples
 
-- A structured decision gate that prevents over-engineering before work begins
-- Compact presentation format for surfacing findings to users
-- Integration points with Phase 0 (intent expansion) and Phase 2 (approach selection) of the workflow
-- Concrete examples of redirecting work toward simpler solutions
-
-### Example Outcomes
-
-| Scenario | PE Finding | Result |
-|----------|-----------|--------|
-| Caching layer requested, but DB already has query caching at <50ms | Questionable need | Configured existing DB cache TTL instead |
-| Plugin system for 3 notification channels (only email used today) | Premature abstraction | Implemented email directly with clean interface |
-| Full REST-to-GraphQL migration for 40 endpoints | Over-scoped | Added sparse fieldsets to 3 over-fetching endpoints |
-
-## Invoked By
-
-| Skill | Load Condition |
-|-------|---------------|
-| `code-review-pr` | complexity >= medium |
-| `code-review-repo` | always (repo-wide reviews are inherently medium+) |
-| `audit` | complexity >= medium |
-| `dev-build` | complexity >= medium |
-| `dev-refactor` | complexity >= medium |
-| `dev-migrate` | complexity >= medium |
-| `docs-write` | complexity >= medium |
-| `design` | complexity >= medium |
-| `plan` | complexity >= medium |
-| `spec` | complexity >= medium |
-| `workflow` (Phase 0) | complexity >= medium; Phase 2 for Large tasks |
+The examples below start with a minimal invocation and then show the most common ways developers override detection or change the resulting artifact.

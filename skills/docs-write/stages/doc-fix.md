@@ -2,7 +2,7 @@
 
 Use this stage to read comments on a Confluence or Google Docs document, propose fixes, and resolve the comment threads. This stage uses an abbreviated workflow -- phases 2-5 are skipped.
 
-Use the shared contracts in `references/source-routing.md`, `references/output-formats.md`, and `references/preflight.md`.
+Invoke `/adk:preflight-check` for tool dependencies, `/adk:output-format` for output formatting, and `/adk:confluence` or Google Drive MCP for platform routing.
 
 ## Workflow
 

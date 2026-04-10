@@ -110,6 +110,8 @@ Map each breaking change to specific files in the codebase:
 | Plugin API      | 5 files        | High   | Med  | No                 |
 ```
 
+> **Gate**: Present impact analysis to user for review before generating migration plan. Skip if `--auto`.
+
 ### 4. Migration Plan
 
 Generate ordered waves of changes:
@@ -119,6 +121,8 @@ Generate ordered waves of changes:
 - **Wave 3**: Behavioral changes requiring manual review
 - **Wave 4**: Plugin/extension updates
 - **Wave 5**: Test updates and cleanup
+
+> **Gate**: Present migration plan to user for approval before execution. Skip if `--auto`.
 
 ### 5. Execution
 

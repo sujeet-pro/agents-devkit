@@ -41,11 +41,17 @@ VALID_TIERS = {"full", "abbreviated", "helper", "orchestrator"}
 VALID_MATURITY = {"experimental", "stable", "battle-tested"}
 
 # ── Canonical propagated files (templates/skill/common → skills/*/references/) ──
+# Note: common/ files (help-format.md, project-guidelines.md, inline-interaction.md)
+# were removed — shared knowledge is now accessed via helper skill invocations.
+_common_dir = TEMPLATES_DIR / "common"
 CANONICAL_COMMON = sorted(
-    f.relative_to(TEMPLATES_DIR / "common")
-    for f in (TEMPLATES_DIR / "common").rglob("*")
+    f.relative_to(_common_dir)
+    for f in (_common_dir.rglob("*") if _common_dir.exists() else [])
     if f.is_file()
 )
+
+# ── Skills with custom preflight.py (allowed to differ from template) ──
+CUSTOM_PREFLIGHT_SKILLS = {"github", "bitbucket", "confluence", "jira"}
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -221,7 +227,10 @@ def test_propagation(r: TestResult):
 
         src = TEMPLATES_DIR / "scripts" / "preflight.py"
         dst = skill_dir / "scripts" / "preflight.py"
-        if dst.exists() and not filecmp.cmp(src, dst, shallow=False):
+        if name in CUSTOM_PREFLIGHT_SKILLS:
+            if dst.exists():
+                r.ok(f"{name}/scripts/preflight.py has custom preflight (connector)")
+        elif dst.exists() and not filecmp.cmp(src, dst, shallow=False):
             r.fail(f"{name}/scripts/preflight.py DIFFERS from template")
         elif dst.exists():
             r.ok(f"{name}/scripts/preflight.py matches template")

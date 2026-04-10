@@ -68,6 +68,12 @@ Analyzes prompts across six dimensions:
 
 Read, Glob, Grep, Bash, WebSearch
 
+## Preloaded Skills
+
+| Skill | Purpose |
+|-------|---------|
+| `workflow` | 6-phase workflow framework for complexity-adaptive execution |
+
 ## Output Format
 
 Produces a structured intent expansion matching the intent.json schema:

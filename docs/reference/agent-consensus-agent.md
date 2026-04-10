@@ -52,6 +52,13 @@ Evaluates contributor outputs across seven dimensions:
 
 Read, Write, Bash, Glob, Grep
 
+## Preloaded Skills
+
+| Skill | Purpose |
+|-------|---------|
+| `communication` | Communication style and tone consistency |
+| `output-format` | Verbosity modes and output formatting standards |
+
 ## Output Format
 
 ### Merge strategy (default)

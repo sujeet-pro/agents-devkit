@@ -2,13 +2,11 @@
 
 Run a task through multiple models in parallel using Claude Code child agents and merge the result with a consensus pass.
 
-Read the child-agent contract from `references/agentic-teams.md`.
+Invoke /adk:agentic-teams for the child-agent contract.
 
 ## Workflow
 
 This stage uses the **Quick Action** workflow: confirm → execute → verify.
-
-## Workflow
 
 1. **Normalize the task**: Build a self-contained prompt with the full task description, relevant context from the codebase, and any skill instructions needed.
 

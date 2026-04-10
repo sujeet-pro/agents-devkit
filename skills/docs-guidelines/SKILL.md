@@ -130,6 +130,9 @@ Load the guideline matching the detected document type:
 | appraisal-review | `appraisal-review.md` |
 | tool-evaluation | `tool-evaluation.md` |
 | api-reference | `api-reference.md` |
+| incident-report | `${CLAUDE_SKILL_DIR}/references/doc-guidelines/incident-report.md` |
+| release-notes | `${CLAUDE_SKILL_DIR}/references/doc-guidelines/release-notes.md` |
+| status-report | `${CLAUDE_SKILL_DIR}/references/doc-guidelines/status-report.md` |
 
 ### Research-Heavy Documents
 

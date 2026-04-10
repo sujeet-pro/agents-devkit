@@ -39,7 +39,7 @@ This activates the `/adk:use` orchestrator as the default agent, so all prompts 
 
 ## MCP Servers
 
-`.mcp.json` configures MCP server connections. Some skills use MCP servers for source-native operations. Most skills work without any MCP.
+`mcp-config.json` configures MCP server connections for the ADK plugin. Some skills use MCP servers for source-native operations. Most skills work without any MCP.
 
 | MCP Server | Used By | Transport |
 | ---------- | ------- | --------- |
@@ -49,6 +49,17 @@ This activates the `/adk:use` orchestrator as the default agent, so all prompts 
 | Google Drive | docs-review, docs-write | detect-from-input |
 
 Additional MCP servers can be configured via `/adk:setup`.
+
+For manual configuration, each agent stores MCP config in a different location:
+
+| Agent | User-Scope Config | Project-Scope Config |
+|-------|-------------------|----------------------|
+| Claude Code | `~/.claude.json` | `.mcp.json` |
+| Claude Desktop | `~/Library/Application Support/Claude/claude_desktop_config.json` | — |
+| OpenAI Codex | `~/.codex/config.toml` | `.codex/config.toml` |
+| Cursor | `~/.cursor/mcp.json` | `.cursor/mcp.json` |
+
+See the [Prerequisites — Manual MCP Configuration](/guide/prerequisites/#manual-mcp-configuration) guide for full setup instructions per agent.
 
 ## Hooks
 
@@ -90,7 +101,7 @@ Each skill's `SKILL.md` uses YAML frontmatter:
 agents-devkit/                        52 skills · 18 agents · ~42K lines
 ├── .claude-plugin/
 │   └── plugin.json                   Plugin manifest (name: adk)
-├── .mcp.json                         MCP server configurations
+├── mcp-config.json                   MCP server configurations
 ├── hooks/hooks.json                  Hook configurations
 ├── settings.json                     Default settings (routes to /adk:use)
 ├── agents/                           18 shared agent definitions

@@ -74,6 +74,12 @@ Reviews plans across seven dimensions, ordered by impact:
 
 Read, Glob, Grep
 
+## Preloaded Skills
+
+| Skill | Purpose |
+|-------|---------|
+| `workflow` | 6-phase workflow framework for complexity-adaptive execution |
+
 ## Output Format
 
 ```markdown

@@ -1,6 +1,6 @@
 ---
-title: "design"
-description: Frontend UI/UX design with bold variations, visual previews, and iterative refinement
+title: 'design'
+description: 'Use when designing frontend UI/UX, auditing visual design, or creating design direction'
 skill_name: design
 category: task
 workflow_tier: full
@@ -9,119 +9,271 @@ user_invocable: true
 
 # design
 
-Unified design skill that creates distinctive, production-grade frontend interfaces. Generates 5 bold design variations as visual HTML previews, iterates on feedback in a loop, and converts the chosen direction to the target framework. Also handles auditing existing UI via `--action audit` (delegates to `/adk:code-review-pr --focus ui`).
+Use `design` when designing frontend UI/UX, auditing visual design, or creating design direction. In normal use, explicit selector flags win over inference, but the skill can still auto-detect the right path when the prompt is short.
 
-## When to Use
+## Overview
 
-- Design a new frontend component, page, or layout from scratch
-- Generate multiple bold aesthetic directions for comparison
-- Iterate on visual design with live HTML previews
-- Convert finalized designs to a target framework (React, Next.js, Vue, etc.)
-- Audit existing frontend UI for visual/UX issues
-- Explore different typography, color palette, and layout strategies
-- Build production-ready, accessible UI components
+`design` belongs to the `task` layer and is declared at the `full` tier with the `complex-build` workflow family. That metadata is more than labeling: it tells you how much planning happens before execution, how much the skill is allowed to infer, and whether the result should be a final artifact, a routing decision, or a shared contract for another skill.
+
+The design philosophy across these skills is self-sufficiency with shared composition. When the helper skills listed in `SKILL.md` are available, the workflow composes with them for workflow structure, preflight checks, communication style, and output shaping. When they are not available, the inline fallback summaries still make the behavior readable and predictable.
 
 ## Parameters
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `<task>` | design brief or description | (required) | What to design — component, page, or layout description |
+| Parameter | Values | Default | Description |
+|-----------|--------|---------|-------------|
 | `--focus` | `ui`, `ux`, `visual`, `accessibility` | auto-detect | Focus area for the design task |
-| `--framework` | `react`, `nextjs`, `vue`, `vanilla`, etc. | `vanilla` | Target framework for final deliverable (previews always use pure HTML/CSS) |
+| `--framework` | `react`, `nextjs`, `vue`, `vanilla`, etc. | `vanilla` | Target framework for final deliverable |
 | `--style` | `tailwind`, `css-modules`, `styled-components`, etc. | `css` | Target styling approach for final deliverable |
-| `--theme` | `<theme-name>` | none | Theme or aesthetic direction hint (e.g., "dark luxe", "brutalist") |
+| `--theme` | `<theme-name>` | none | Theme or aesthetic direction hint |
 | `--action` | `design`, `audit` | auto-detect | Whether to create new designs or audit existing UI |
 | `--verbosity` | `short`, `standard`, `detailed` | `standard` | Output detail level |
-| `--auto` | flag | off | Skip all confirmations and approval gates |
-| `--help` | flag | — | Show parameter reference and exit |
+| `--help` | flag | off | Show this help section |
 
-## Behavior Variations
+### Parameter Notes
 
-| Context | Behavior |
-|---------|----------|
-| **Default** (`--action design`) | Full 6-phase workflow. Generates 5 bold design variations as an HTML preview, iterates on feedback, then converts to the target framework |
-| **Audit** (`--action audit`) | Routes to `/adk:code-review-pr --focus ui` for 6-pillar review (layout, typography, color, responsiveness, accessibility, interaction states) |
-| **Framework specified** (`--framework react`) | Preview rounds still use pure HTML/CSS; final deliverable is converted to the target framework |
-| **Theme hint** (`--theme "dark luxe"`) | Influences the aesthetic direction of generated variations while maintaining diversity |
-| `--verbosity short` | Status line only (e.g., "5 variations generated, preview opened") |
-| `--verbosity detailed` | Full design rationale, accessibility audit results, and all child agent outputs |
+- `--action` is usually narrower than `--mode`: it keeps the broader workflow but forces one concrete operation inside it.
+- `--focus` changes what the skill optimizes for and often changes which child agents, checks, or review dimensions are loaded.
+- `--verbosity` changes presentation depth, not the fundamental workflow. It is safe to increase when you want more evidence or rationale.
+- `--help` prints the embedded reference and exits without running the workflow.
 
-## Priorities
+## How It Works
 
-Design variations are evaluated across five quality dimensions:
+Execution starts by resolving intent from explicit selector flags first and inference rules second. After that, the workflow family and shared helper skills shape how much confirmation, research, planning, and validation happen around the core action.
 
-1. **Typography** — distinctive, characterful font pairings (display + body); never generic fonts (Inter, Roboto, Arial, system-ui as display)
-2. **Color & Theme** — cohesive palette defined in CSS variables; bold, intentional choices; dominant color with sharp accents
-3. **Motion** — high-impact moments (staggered page load, scroll-triggered reveals, surprising hover states) over scattered micro-interactions
-4. **Spatial Composition** — unexpected layouts; asymmetry, overlap, diagonal flow, grid-breaking elements; generous negative space or controlled density
-5. **Backgrounds & Visual Details** — atmosphere and depth through gradient meshes, noise textures, geometric patterns, layered transparencies, decorative borders
+The sections below come directly from the current `SKILL.md` so developers can see the live contract the implementation is supposed to follow.
 
-## Key Behaviors
+### Shared Skills
 
-- **5 parallel child agents**: each commits to a different bold aesthetic direction (brutally minimal, maximalist, retro-futuristic, organic, luxury, etc.) — no two variations share the same aesthetic family
-- **Pure HTML/CSS previews**: all preview rounds use self-contained HTML/CSS/vanilla JS with no build tools, regardless of target framework
-- **Live browser preview**: assembles a single `.design-preview/preview.html` file with navigation between variations and opens it in the browser
-- **Iterative feedback loop**: keeps iterating until the user explicitly picks a direction — supports mixing elements, tweaking, or requesting replacement variations
-- **Framework conversion**: on finalize, converts the chosen HTML variation to the target `--framework` and `--style` with interactive states, WCAG 2.1 AA accessibility, and reusable tokens
-- **Audit routing**: `--action audit` delegates to `/adk:code-review-pr --focus ui` for existing UI review
+This skill uses shared helper skills. Load each skill's reference file ONLY when the condition in "Load When" is met. If a shared skill is not installed, use the inline summary as a fallback.
 
-## Workflow
+| Skill | Load When | Inline Fallback |
+|-------|-----------|-----------------|
+| `/adk:workflow --family complex-build` | always | Complex Build workflow: confirm → research → select approach → plan → execute → validate. Full human-in-the-loop for architectural decisions. `--auto` skips confirmations. |
+| `/adk:communication` | always | Lead with conclusion. Bullet points. No preamble. Concrete specifics over abstractions. Verbosity follows context. |
+| `/adk:preflight-check` | before work | Run preflight.py for tool dependencies and MCP validation. Detect source type and route to correct MCP. |
+| `/adk:output-format` | when producing output | short/standard/detailed verbosity. Priority labels: Blocker, Critical, Should Have, May Have, Nitpick, Question. |
+| `/adk:principal-engineer` | complexity >= medium | Five questions: need? simplest? alternatives? maintenance costs? clarity in 6 months? |
+| `/adk:agentic-teams` | complexity >= medium AND parallel work needed | Launch 2+ child agents with distinct roles. Standard team shapes: review, research, docs, diagram, security, migration, planning. |
+| `/adk:interaction` | NOT --auto | Inline protocols for intent confirmation, approach selection, plan approval, review findings, progress dashboard. |
 
-Follows the 6-phase workflow for design creation. Audit mode routes externally.
+### Helper Skill Resolution
 
-| Phase | Applies | Notes |
-|-------|---------|-------|
-| 0. Intent Expansion | yes | Confirm goal, constraints, target framework, and success criteria |
-| 1. Research & Options | yes | Analyze design requirements, scan existing patterns |
-| 2. Approach Selection | yes | Present 2-3 approaches, user picks or mixes |
-| 3. Planning | yes | Break into tasks/waves for parallel child agents |
-| 4. Execute | yes | Generate 5 variations, build preview, iterate on feedback, finalize to framework |
-| 5. Validate & Learn | yes | Review design against requirements and accessibility standards |
+Resolve shared behavior through **helper skills**, not by loading reference markdown files. Invoke the needed skill using either form: `/adk:<skill>` (Claude plugin) or `/<skill>` (skills.sh). The usual helpers are **workflow** (phase structure), **communication** (tone and structure), **preflight-check** (tool and MCP validation), **output-format** (verbosity and deliverable shape), **principal-engineer** (engineering bar), **agentic-teams** (child agents), and **interaction** (prompting and confirmations).
 
-## Design Workflow
+If a required helper skill is unavailable, print a warning and continue using the inline fallback summary in the Shared Skills table.
 
-| Phase | Activity | Output |
-|-------|----------|--------|
-| Context & Design Thinking | Understand brief, purpose, constraints, differentiation | Design brief document |
-| Generate 5 Variations | 5 parallel child agents, each a distinct aesthetic | 5 self-contained HTML/CSS snippets |
-| Build & Open Preview | Assemble single HTML file with variation switcher | `.design-preview/preview.html` opened in browser |
-| Iterate | Apply feedback, re-open preview, repeat until user confirms | Updated preview file |
-| Finalize to Framework | Convert chosen variation to target framework with full states | Production-ready component files |
+### Preflight
 
-## Shared Skills
+`python3 ${CLAUDE_SKILL_DIR}/scripts/preflight.py ${CLAUDE_SKILL_DIR}`
 
-| Skill | Load When | Fallback |
-|-------|-----------|----------|
-| `workflow` | always | 6-phase: intent → research → approach → plan → execute → validate |
-| `communication` | always | Lead with conclusion, bullet points, no preamble |
-| `preflight-check` | before work | Run preflight.py, detect source, validate MCP |
-| `output-format` | producing output | short/standard/detailed verbosity; priority labels |
-| `principal-engineer` | complexity >= medium | Five PE questions: need? simplest? alternatives? maintenance? clarity? |
-| `agentic-teams` | parallel work needed | Launch child agents with distinct roles |
-| `interaction` | NOT --auto | Inline protocols for confirmations and approvals |
+### Guideline Loading
 
-## Output Format
+- Invoke `/adk:coding` to detect the repo stack and load appropriate coding guidelines (design-system, frontend, general code quality)
 
-All output is markdown in the chat, plus a visual HTML preview opened in the browser.
+## Modes & Variations
 
-- **Phase 2-4**: `.design-preview/preview.html` with variation navigation, comparison strip, and per-variation design rationale
-- **Phase 5**: production-ready code in the target framework with integration notes (font installation, required dependencies, responsive breakpoints)
-- **Comparison table** in chat showing aesthetic, palette, typography, and signature detail per variation
+Use this section when you want to force a deterministic path instead of relying on the skill's auto-detection rules.
 
-## Adjacent Skills
 
-| Skill | When to use instead |
-|-------|-------------------|
-| `/adk:code-review-pr --focus ui` | Audit existing frontend code for visual/UX issues (6-pillar review) |
-| `/adk:dev-build` | Implement the finalized design as working code |
-| `/adk:docs-write` | Document design decisions and component usage |
+### Behavior Variations
+
+- **`--action design`** (default): Uses Complex Build workflow. Generates 5 bold design variations as an HTML preview, iterates on feedback, then converts to the target framework.
+- **`--action audit`**: Routes to `/adk:code-review-pr --focus ui` for reviewing existing frontend code for visual/UX issues (6-pillar review covering layout, typography, color, responsiveness, accessibility, interaction states).
+
+### Routing
+
+If `--action audit` is specified, or the task involves reviewing/auditing existing UI code for visual issues, accessibility, or responsiveness, route to `/adk:code-review-pr --focus ui` and forward all flags.
+
+Otherwise, proceed with the design workflow below.
+
+## Output
+
+Output is part of the contract for this skill, not just presentation. This is what callers and end users should expect back after execution.
+
+
+### Output Format
+
+Adapt verbosity based on `--verbosity`:
+
+- **short**: Status line only (e.g., "5 variations generated, preview opened")
+- **standard**: Comparison table plus iteration summaries
+- **detailed**: Standard output plus full design rationale, accessibility audit results, and all child agent outputs
+
+Phase 2-4: a visual HTML preview file opened in the browser, iterated on until the user is satisfied.
+Phase 5: production-ready code in the target framework with integration notes.
+
+## Related Skills
+
+### Adjacent Skills
+
+- `/adk:code-review-pr --focus ui` -- audit existing frontend code for visual/UX issues (6-pillar review)
+- `/adk:dev-build` -- implement the finalized design
+- `/adk:docs-write` -- document design decisions and component usage
+
+## Additional Reference
+
+### Phase 1: Context & Design Thinking
+
+Before any code, understand the brief:
+
+- **Purpose**: What problem does this interface solve? Who uses it?
+- **Constraints**: Technical requirements (framework, browser support, performance, accessibility).
+- **Differentiation**: What makes this interface *memorable*? What is the one thing someone will remember?
+
+### Phase 2: Generate 5 Design Variations
+
+Run **5 parallel `adk-frontend-designer` child agents**, one per variation. Each agent must commit to a **different, bold aesthetic direction** and produce a complete, working implementation **in pure HTML and CSS** (with optional vanilla JS for interactions).
+
+### Aesthetic Direction Rules
+
+Each variation MUST choose a distinct aesthetic from a pool like (but not limited to):
+
+1. **Brutally minimal** -- extreme whitespace, monochrome or near-monochrome, stark typography, single accent color
+2. **Maximalist / expressive** -- layered textures, bold gradients, overlapping elements, density, saturated palette
+3. **Retro-futuristic** -- CRT glow, scan lines, monospace type, neon accents on dark backgrounds
+4. **Organic / natural** -- earth tones, rounded shapes, hand-drawn feel, soft shadows, natural textures
+5. **Luxury / editorial** -- serif display type, generous spacing, muted palette with gold or metallic accents, magazine-quality layout
+6. **Playful / toy-like** -- rounded everything, candy colors, bouncy animations, oversized elements
+7. **Brutalist / raw** -- system fonts, exposed grids, raw borders, intentionally "undesigned" aesthetic
+8. **Art deco / geometric** -- strong symmetry, gold lines, geometric patterns, decorative borders
+9. **Soft / pastel** -- light palette, gentle gradients, rounded cards, airy spacing, warm feel
+10. **Industrial / utilitarian** -- dark backgrounds, monospace data, LED-style accents, dashboard density
+11. **Glassmorphism** -- frosted glass, backdrop blur, translucent layers, vibrant backgrounds
+12. **Neo-Memphis** -- bold shapes, primary colors, asymmetric layouts, pattern fills, 90s-inspired
+13. **Dark luxe** -- deep blacks, sharp highlights, premium feel, cinematic contrast
+14. **Paper / print** -- newspaper columns, ink-style type, visible texture, off-white backgrounds
+
+**No two variations may share the same aesthetic family.** Pick 5 that contrast sharply with each other.
+
+### Per-Variation Requirements
+
+Each child agent produces a **self-contained HTML/CSS snippet** (no build tools, no framework imports) that includes:
+
+1. **Variation name & aesthetic label** (e.g., "Variation 3 -- Neo-Memphis")
+2. **Design rationale** -- 2-3 sentences on why this direction fits the brief
+3. **Key design choices**:
+   - Typography: specific font pairing (display + body). **NEVER** use Inter, Roboto, Arial, or system-ui as display fonts. Use distinctive, characterful choices from Google Fonts or similar.
+   - Color palette: 4-6 colors defined as CSS variables. Dominant color with sharp accents outperforms timid, evenly-distributed palettes.
+   - Layout strategy: grid, asymmetric, single-column, magazine, dashboard, etc.
+   - Signature detail: one memorable micro-interaction, texture, or visual flourish
+4. **Complete working HTML/CSS** -- fully self-contained:
+   - All HTML structure and inline `<style>` blocks
+   - CSS variables for theming consistency
+   - Responsive design (mobile-first or desktop-first, stated clearly)
+   - Animations and micro-interactions using pure CSS transitions/animations and vanilla JS only
+   - Google Fonts loaded via `<link>` tags -- no other external dependencies
+   - Accessibility: semantic HTML, ARIA labels, keyboard navigation, sufficient contrast
+
+### Aesthetic Quality Standards (apply to every variation)
+
+- **Typography**: Beautiful, unique, interesting. Pair a distinctive display font with a refined body font. Never generic.
+- **Color & Theme**: Cohesive palette defined in CSS variables. Bold, intentional choices.
+- **Motion**: Focus on high-impact moments -- a well-orchestrated page load with staggered reveals creates more delight than scattered micro-interactions. Use scroll-triggering and hover states that surprise.
+- **Spatial Composition**: Unexpected layouts. Asymmetry. Overlap. Diagonal flow. Grid-breaking elements. Generous negative space OR controlled density -- match the aesthetic.
+- **Backgrounds & Visual Details**: Atmosphere and depth, not flat solid colors. Use gradient meshes, noise textures, geometric patterns, layered transparencies, dramatic shadows, decorative borders, or grain overlays as appropriate to the aesthetic.
+
+### What to AVOID across all variations
+
+- Overused font families (Inter, Roboto, Arial, system fonts) as display or primary fonts
+- Generic color schemes -- especially purple gradients on white backgrounds
+- Predictable, cookie-cutter component layouts with no character
+- Identical structural patterns across variations -- each must feel like a different designer made it
+- Placeholder or lorem ipsum content -- use realistic, contextual content
+
+### Phase 3: Build & Open the Preview File
+
+After all child agents complete, **assemble a single HTML preview file** and open it in the browser.
+
+### Preview File Structure
+
+Write a single file to `.design-preview/preview.html` (create the directory if needed). The file must:
+
+1. Be a **complete, self-contained HTML document** -- no external dependencies besides Google Fonts CDN links
+2. Include a **top-level navigation bar** with buttons labeled "Variation 1", "Variation 2", ... "Variation 5" that switch between variations (use vanilla JS to show/hide sections)
+3. Each variation section contains:
+   - A header strip with the variation name, aesthetic label, and 2-3 sentence rationale
+   - The full rendered design below it
+4. Include a **comparison strip** at the top or bottom showing key metadata for all 5 side by side (aesthetic, palette swatches, font names, signature detail)
+5. Default to showing Variation 1 on load, with smooth transitions when switching
+
+### Open in Browser
+
+After writing the file, **immediately open it**:
+
+```
+open .design-preview/preview.html
+```
+
+On Linux use `xdg-open`, on macOS use `open`.
+
+Then present the comparison summary to the user in the chat as well:
+
+| # | Name | Aesthetic | Palette | Typography | Signature Detail |
+|---|------|-----------|---------|------------|------------------|
+| 1 | ...  | ...       | ...     | ...        | ...              |
+| 2 | ...  | ...       | ...     | ...        | ...              |
+| 3 | ...  | ...       | ...     | ...        | ...              |
+| 4 | ...  | ...       | ...     | ...        | ...              |
+| 5 | ...  | ...       | ...     | ...        | ...              |
+
+Ask the user: **"The preview is open in your browser. Which variation do you want to go with? I can also mix elements from multiple variations, or tweak any specific aspect -- just tell me what to change."**
+
+### Phase 4: Iterate (repeat until the user says "done")
+
+This is a **feedback loop**. After the user reviews the preview, they may:
+
+- **Pick a variation** -> proceed to Phase 5
+- **Request changes** (e.g., "use the typography from 2 but the layout from 4", "make variation 3 darker", "add a sidebar to variation 1")
+- **Ask for new variations** to replace ones they don't like
+
+For each round of feedback:
+
+1. Apply the requested changes to the HTML preview file
+2. **Re-open the preview** in the browser (or refresh if already open -- overwrite the same `.design-preview/preview.html` path so the browser tab can be refreshed)
+3. Describe what changed in the chat
+4. Ask for further feedback
+
+**Keep iterating until the user explicitly picks a final direction** (e.g., "go with 3", "this is good", "done", "finalize this").
+
+Do NOT move to Phase 5 until the user confirms.
+
+### Phase 5: Finalize to Target Framework
+
+Once the user locks a design direction:
+
+1. **Convert** the chosen pure-HTML variation into the target `framework` and `style` specified in the arguments (e.g., React + Tailwind, Next.js + CSS Modules, Vue + styled-components, or keep as vanilla if that's the target)
+2. Add any missing interactive states (loading, empty, error, hover, focus, active, disabled)
+3. Ensure full accessibility compliance (WCAG 2.1 AA minimum)
+4. Extract reusable tokens and components if the scope warrants it
+5. Write the final implementation files to the project (ask the user for the target path if not obvious)
+6. Add integration notes: how to install fonts, required dependencies, responsive breakpoints
+
+The `.design-preview/` directory can be kept for reference or deleted -- ask the user.
 
 ## Examples
 
-```
+The examples below start with a minimal invocation and then show the most common ways developers override detection or change the resulting artifact.
+
+### Start With The Default Path
+
+Start with the smallest useful invocation. If the skill supports auto-detection, this is the fastest way to see which path it chooses before you pin it down with extra flags.
+
+```text
+/adk:design
 /adk:design a landing page for a developer tools SaaS product
-/adk:design --framework react --style tailwind a settings dashboard
-/adk:design --theme "dark luxe" a pricing page with toggle
+```
+### Force Or Narrow Behavior
+
+Use selector flags when you want a deterministic mode, scope, route, or downstream stage instead of relying on automatic detection.
+
+```text
 /adk:design --focus accessibility audit the signup flow
 /adk:design --action audit review the main navigation component
+```
+### Change Output Or Execution Style
+
+These examples change the returned artifact, detail level, rendering, or approval behavior without changing what the skill fundamentally does.
+
+```text
+/adk:design --verbosity detailed
 ```

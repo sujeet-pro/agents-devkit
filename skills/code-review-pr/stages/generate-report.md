@@ -32,7 +32,7 @@ Generate a markdown review document at `.temp/code-review-pr/<branch-or-scope>-r
 
 ## Findings
 
-### Must Fix
+### Blocker / Critical
 
 [findings using canonical comment template format from references/review-comment-template.md]
 
@@ -66,9 +66,11 @@ Generate a markdown review document at `.temp/code-review-pr/<branch-or-scope>-r
 - **Lines added:** N
 - **Lines removed:** N
 - **Test files changed:** N
-- **Must Fix findings:** N
+- **Blocker findings:** N
+- **Critical findings:** N
 - **Suggestion findings:** N
-- **Note findings:** N
+- **Nit-pick findings:** N
+- **Question findings:** N
 
 ---
 
@@ -80,9 +82,10 @@ Generate a markdown review document at `.temp/code-review-pr/<branch-or-scope>-r
 
 ## Action Items
 
-- [ ] **Must Fix:** <description> (<file:line>)
+- [ ] **Blocker:** <description> (<file:line>)
+- [ ] **Critical:** <description> (<file:line>)
 - [ ] **Suggestion:** <description> (<file:line>)
-- [ ] **Note:** <description> (<file:line>)
+- [ ] **Nit-pick:** <description> (<file:line>)
 
 ---
 
@@ -103,7 +106,7 @@ Adapt the report based on `--verbosity`:
 ### Short
 
 - Executive summary only
-- Must Fix findings only
+- Blocker and Critical findings only
 - Action items checklist
 - No metrics or methodology sections
 

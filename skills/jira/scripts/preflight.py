@@ -193,8 +193,8 @@ def detect_git_provider() -> str | None:
 
 
 def check_mcp_server(name: str) -> bool:
-    """Check if an MCP server is configured in ~/.claude.json or .mcp.json."""
-    for config_path in [Path.home() / ".claude.json", Path(".mcp.json")]:
+    """Check if an MCP server is configured in ~/.claude.json or mcp-config.json."""
+    for config_path in [Path.home() / ".claude.json", Path("mcp-config.json")]:
         if config_path.exists():
             try:
                 data = json.loads(config_path.read_text(encoding="utf-8"))
@@ -216,6 +216,15 @@ def check_npm_package(package: str) -> bool:
         return result.returncode == 0
     except (subprocess.TimeoutExpired, FileNotFoundError):
         return False
+
+
+def check_env_vars(required_vars: list[str]) -> list[str]:
+    """Check required environment variables are set."""
+    warnings = []
+    for var in required_vars:
+        if not os.environ.get(var):
+            warnings.append(f"  ⚠ Environment variable {var} is not set")
+    return warnings
 
 
 def main():
@@ -306,6 +315,12 @@ def main():
             else:
                 print(f"  ✗ MCP: {server} not configured — See settings/mcp-setup.md")
                 errors += 1
+
+    # Check Jira environment variables
+    env_warnings = check_env_vars(["JIRA_URL", "JIRA_USERNAME", "JIRA_API_TOKEN"])
+    for w in env_warnings:
+        print(w)
+    warnings += len(env_warnings)
 
     # Check format-specific MCP (confluence, google-doc)
     fmt = context.get("format", context.get("output", "")).lower()

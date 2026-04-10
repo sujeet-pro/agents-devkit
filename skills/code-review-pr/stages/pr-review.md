@@ -263,8 +263,8 @@ Run these review dimensions in parallel. Each dimension maps to a specialized ch
 | `reliability` | `adk-code-reviewer` (role: reliability-analyzer) | Error handling, retries, timeouts, observability |
 | `testing` | `adk-code-reviewer` (role: test-reviewer) | Coverage gaps, test quality, flaky patterns |
 | `documentation` | `adk-doc-reviewer` | Doc drift, migration notes, API docs, changelog |
-| `ui-ux` | `ui-reviewer` | Semantic HTML, ARIA, keyboard nav, responsive, visual |
-| `spec-compliance` | `spec-reviewer` | Requirements coverage, acceptance criteria, edge cases |
+| `ui-ux` | `adk-ui-reviewer` | Semantic HTML, ARIA, keyboard nav, responsive, visual |
+| `spec-compliance` | `adk-spec-reviewer` | Requirements coverage, acceptance criteria, edge cases |
 
 Each finding is attributed to the dimension(s) that identified it. When multiple dimensions flag the same issue, list all in the `Dimension` field of the comment metadata.
 
@@ -451,12 +451,13 @@ Write `.temp/interactive/pr-<number>/items.json`:
   "items": [
     {
       "id": "finding-<N>",
-      "title": "<icon> [<Severity>] <short title>",
-      "body": "<full comment formatted per review-comment-template.md>",
+      "title": "<icon> [<Type>][<Aspect>] <short title>",
+      "body": "<full comment body>",
       "metadata": {
         "file": "<file-path>",
         "line": "<line-number>",
-        "severity": "<Must Fix|Suggestion|Note|Question|Praise>",
+        "type": "<Blocker|Critical|Suggestion|Nit-pick|Question|Praise>",
+        "aspects": ["<bug|security|logic-error|code-quality|performance|design|reliability|testing|documentation|naming|error-handling|type-safety|accessibility|spec-compliance>"],
         "concern": "<Correctness|Design|Reliability|Performance|DevEx>",
         "depth": "<Surface|Logic|Integration|Architecture|Hardening>",
         "dimension": "<syntax|correctness|security|performance|design|reliability|testing|documentation|ui-ux|spec-compliance>",
@@ -469,7 +470,28 @@ Write `.temp/interactive/pr-<number>/items.json`:
 }
 ```
 
-Sort items by severity (Must Fix first, Note last, then Praise).
+### Comment Type Classification
+
+Every finding must be classified into exactly one type:
+
+| Type | Icon | Meaning | Posting behavior |
+|------|------|---------|------------------|
+| **Blocker** | :no_entry: | Blocks merge — correctness, data loss, security vulnerability | Must be resolved before merge |
+| **Critical** | :rotating_light: | Serious issue — bugs, regressions, significant design flaws | Strongly recommended to fix |
+| **Suggestion** | :large_orange_diamond: | Improvement opportunity — better patterns, readability, maintainability | Author's discretion |
+| **Nit-pick** | :pushpin: | Minor style/convention issue — naming, formatting, trivial cleanup | Nice to have, non-blocking |
+| **Question** | :grey_question: | Clarification needed — unclear intent, missing context, design rationale | Expects a reply, not a code change |
+| **Praise** | :star2: | Well-crafted code worth calling out | Auto-accepted, always posted |
+
+### Aspect Tags
+
+Each finding carries one or more aspect tags describing *what* the comment touches:
+
+`bug` · `security` · `logic-error` · `code-quality` · `performance` · `design` · `reliability` · `testing` · `documentation` · `naming` · `error-handling` · `type-safety` · `accessibility` · `spec-compliance`
+
+Aspects appear in the comment header as bracket tags (e.g., `[Critical][bug, error-handling]`) and in the metadata for filtering.
+
+Sort items by type (Blocker first, then Critical, Suggestion, Nit-pick, Question, Praise last).
 
 #### Step 2: Present Findings
 
@@ -478,79 +500,151 @@ Use the **Review Findings** protocol from `references/inline-interaction.md`. Re
 ```
 ## Review Findings
 
-**<N> findings** | :rotating_light: <must-fix-count> | :large_orange_diamond: <suggestion-count> | :speech_balloon: <note-count> | :star2: <praise-count>
+**<N> findings** | :no_entry: <blocker-count> | :rotating_light: <critical-count> | :large_orange_diamond: <suggestion-count> | :pushpin: <nitpick-count> | :grey_question: <question-count> | :star2: <praise-count>
 
 ---
 
-**1.** :rotating_light: **[Must Fix]** <Short, specific title>
-*Confidence: <score>/100 | Concern: <concern> | Depth: <depth> | Dimension: <dimension> | Guideline: <guideline>*
+**1.** :no_entry: **[Blocker][bug, security]** <Short, specific title>
+*`file.ts:42` | Confidence: <score>/100 | Concern: <concern> | Depth: <depth> | Dimension: <dimension> | Guideline: <guideline>*
 > <1-2 sentence issue explanation>
 > **Fix:** <1 sentence suggested fix>
 
 ---
 
-**2.** :large_orange_diamond: **[Suggestion]** <Short, specific title>
-*Confidence: <score>/100 | Concern: <concern> | Depth: <depth> | Dimension: <dimension> | Guideline: <guideline>*
+**2.** :rotating_light: **[Critical][logic-error]** <Short, specific title>
+*`service.ts:87` | Confidence: <score>/100 | Concern: <concern> | Depth: <depth> | Dimension: <dimension> | Guideline: <guideline>*
 > <1-2 sentence issue explanation>
 > **Fix:** <1 sentence suggested fix>
 
 ---
 
-**3.** :star2: **[Praise]** <Short, specific title>
-*Concern: <concern> | Depth: <depth> | Dimension: <dimension>*
+**3.** :large_orange_diamond: **[Suggestion][code-quality, naming]** <Short, specific title>
+*`utils.ts:15` | Confidence: <score>/100 | Concern: <concern> | Depth: <depth> | Dimension: <dimension> | Guideline: <guideline>*
+> <1-2 sentence issue explanation>
+> **Fix:** <1 sentence suggested fix>
+
+---
+
+**4.** :pushpin: **[Nit-pick][naming]** <Short, specific title>
+*`config.ts:3` | Confidence: <score>/100 | Dimension: <dimension>*
+> <1-2 sentence explanation>
+
+---
+
+**5.** :grey_question: **[Question][design]** <Short, specific title>
+*`handler.ts:55` | Dimension: <dimension>*
+> <1-2 sentence question>
+
+---
+
+**6.** :star2: **[Praise][code-quality]** <Short, specific title>
+*`auth.ts:120` | Dimension: <dimension>*
 > <1-2 sentence explanation of what's well done>
 
 ---
 
 > **Actions:** **a** accept | **r** reject | **e** edit | **s** skip — by number
-> Example: `a-1,4,5 r-2 e-3 s-6`
+> Separate action groups with semicolons.
+> Example: `a-1,4;r-2,6;e-3,5`
 > Also: `a-all` | `details <N>` | `done`
-> Note: Praise comments (#3+) are auto-accepted — no action needed
+> Note: Praise comments (#6) are auto-accepted — no action needed.
 ```
 
-#### Step 3: Process Results
+#### Step 3: Parse Batch Actions
 
-After the user responds inline, process each finding:
+The user responds with semicolon-separated action groups. Parse the input:
 
-- **`accepted`** -> Post to source platform immediately (see Posting below)
-- **`rejected`** -> Discard. Do not post.
-- **`skipped`** -> Deferred by the user. Save to `.temp/pr-review/pr-<number>-deferred.md` for future review sessions. Do not post.
-- **`edit`** -> Handle in edit loop (Step 4). Apply the same auto-validation to regenerated comments.
+```
+a-1,4;r-2,6;e-3,5
+```
+
+This means: accept 1 and 4, reject 2 and 6, edit 3 and 5.
+
+Parsing rules:
+- Each group is `<action>-<comma-separated-ids>`
+- Groups are separated by `;` (semicolons)
+- Actions: `a` (accept), `r` (reject), `e` (edit), `s` (skip)
+- Special: `a-all` accepts all non-praise items
+- Whitespace around separators is tolerated
+
+#### Step 4: Execute Actions in Order
+
+Process in this order: **accept → reject → skip → edit**.
+
+**Accepted items** — post each to the PR **immediately** as an inline comment (one by one, not batched). Each comment is posted to the exact file and line as a PR inline/diff comment via MCP or API. Do not wait for all actions to process — the author should see accepted comments appear on the PR incrementally. See **Posting** section below.
+
+**Rejected items** — discard silently. Do not post.
+
+**Skipped items** — save to `.temp/pr-review/pr-<number>-deferred.md` for future review sessions. Do not post.
+
+**Edit items** — enter the Edit Loop (Step 5).
 
 Write `results.json` to the session directory for traceability.
 
-#### Step 4: Edit Loop
+#### Step 5: Edit Loop
 
-If any findings were marked for edit, handle them one at a time:
+Process edit-marked items **one at a time**, in the order given by the user:
 
 ```
 ## Edit Finding <N>
 
 **Current:**
+<icon> **[<Type>][<aspects>]** <title>
+*`<file>:<line>` | Confidence: <score>/100 | ...*
 > <full finding body>
 
-**Edit instructions?** (type your changes, or `skip` to defer)
+**Edit instructions?** (describe changes, or `skip` to defer)
 ```
 
 After the user provides instructions:
-1. Regenerate the comment based on the user's instructions
-2. Re-run auto-validation on the regenerated comment
-3. Show the regenerated finding in the same card format
-4. Ask: **accept** or **edit again**
-5. Once resolved, move to the next edit item
 
-After all edits are resolved, if any items are still pending, re-render the remaining list and prompt again. Repeat until all items are `accepted` or `rejected`.
+1. Regenerate the comment based on the user's edit instructions.
+2. Re-run auto-validation on the regenerated comment.
+3. Show the regenerated finding in the same card format.
+4. Prompt: `[a] approve  [r] reject  [e] edit again`
+5. **If approve** — post the comment immediately as an inline PR comment, then proceed to the next edit item.
+6. **If reject** — discard the comment, proceed to the next edit item.
+7. **If edit again** — go back to step 1 with the latest version of the comment. This loop repeats until the user either approves or rejects the comment.
+
+After all edit items are resolved, if any items remain unaddressed (not in any action group), re-render the remaining list and prompt again. Repeat until every finding is resolved (accepted, rejected, or skipped).
 
 #### Posting
 
+Comments are posted **immediately when accepted** (during Step 4 or Step 5), not batched at the end. Every comment is an **inline/diff comment** attached to the specific file and line — never a top-level PR comment.
+
+**Comment body format when posted:**
+
+```md
+<icon> **[<Type>][<aspects>]** <Short, specific title>
+
+| | |
+|---|---|
+| **Confidence** | <score>/100 |
+| **Guideline** | <which standard or best practice> |
+
+#### Issue
+<description>
+
+#### Why it matters
+<impact>
+
+#### Suggested fix
+<recommendation with code>
+```
+
+- `<Type>`: one of Blocker, Critical, Suggestion, Nit-pick, Question, Praise
+- `<aspects>`: comma-separated aspect tags (e.g., `bug, error-handling`)
+- The `Location` row is omitted from the posted body since the inline comment itself provides file+line context
+
 **If MCP or API is available:**
-- Post accepted comments through the matching MCP or API
+- Post each accepted comment as an inline review comment at the correct file and line
+- Use PR review comment API (not issue comments) so the comment appears on the diff
 - Resolve handled comments that were confirmed fixed
 - Reopen or replace critical outdated comments that still apply
 
 **If git-only fallback:**
-- Write all accepted comments to `.temp/pr-review/pr-<number>-review.md` using the canonical comment template format
-- Each comment includes the file path, line number, severity, and full comment body
+- Write all accepted comments to `.temp/pr-review/pr-<number>-review.md` using the comment format above, with an added `Location` row
+- Each comment includes the file path, line number, type, aspects, and full comment body
 - Inform the user: "Review saved to .temp/pr-review/pr-<number>-review.md -- post these comments manually or re-run with the token configured."
 
 #### Summary
@@ -731,8 +825,8 @@ Check the current review status on the PR:
 
 | Condition | Status | Action |
 |-----------|--------|--------|
-| Any accepted Must Fix findings remain unresolved | **Request Changes** | Set or keep |
-| All previous comments addressed, no new Must Fix findings | **Approve** | Set (remove existing Request Changes if set by this reviewer) |
+| Any accepted Blocker or Critical findings remain unresolved | **Request Changes** | Set or keep |
+| All previous comments addressed, no new Blocker/Critical findings | **Approve** | Set (remove existing Request Changes if set by this reviewer) |
 | Only Suggestion/Note findings, nothing blocking | **Comment Only** | Optionally remove Request Changes if previously set by this reviewer |
 | No findings at all, code looks good | **Approve** | Set |
 | PR is in draft, findings are irrelevant until out of draft | **Comment Only** | Note draft status in summary |
@@ -767,7 +861,8 @@ Use the source-native MCP or API fallback to submit the review status:
 
 Always produce a markdown review with:
 
-- severity-ordered findings (Must Fix -> Suggestion -> Note -> Praise)
+- type-ordered findings (Blocker -> Critical -> Suggestion -> Nit-pick -> Question -> Praise)
+- aspect tags per finding (bug, security, logic-error, code-quality, etc.)
 - confidence scores
 - concern and depth tags per finding
 - dimension attribution per finding

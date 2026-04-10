@@ -1,9 +1,10 @@
 ---
 name: code-review-fix
-description: "adk - [full] [code-review] Fix PR review comments — reads comments, applies code fixes, replies to reviewers, marks threads resolved."
+description: "adk - [full] [review] Fix PR review comments — reads comments, applies code fixes, replies to reviewers, marks threads resolved."
 user-invocable: true
 argument-hint: "<pr-url> [--auto] [--filter blocker|critical|all] [--dry-run]"
 allowed-tools: [Glob, Grep, Read, Edit, Write, Bash, WebSearch, WebFetch, Agent]
+allowed-mcps: [github, bitbucket]
 dependencies:
   commands: [git, python3, gh, curl, jq]
   mcp-servers: [detect-from-input]
@@ -206,6 +207,8 @@ Invoke `/adk:coding` to detect the repo stack and load matching coding guideline
 For each fix in the planned order:
 
 ### Step 1: Apply the Code Change
+
+Use the `adk-pr-fixer` agent for applying code fixes from PR review comments.
 
 - Read the current file content around the comment location
 - Implement the fix per the coding guidelines

@@ -2,7 +2,7 @@
 
 Dispatch specialized agents with isolated context to work on independent sub-tasks in parallel. Each agent gets precisely crafted instructions and context to stay focused and succeed at their task.
 
-Read the child-agent contract from `references/agentic-teams.md`.
+Invoke /adk:agentic-teams for the child-agent contract.
 
 ## Workflow
 

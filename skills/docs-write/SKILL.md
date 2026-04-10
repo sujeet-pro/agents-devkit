@@ -33,6 +33,9 @@ This skill uses shared helper skills. Load each skill's reference file ONLY when
 | `/adk:interaction` | NOT --auto | Inline protocols for intent confirmation, approach selection, plan approval, review findings, progress dashboard. |
 | `/adk:chart` | when doc needs data charts | Generate data charts (bar, line, pie, scatter, etc.) from CSV/JSON data. Render to SVG/PNG for embedding in documents. |
 | `/adk:coding` | when doc describes code or architecture | Detect repo languages, frameworks, and tools. Load matching coding guidelines for accurate technical writing. |
+| `/adk:docs-guidelines` | when writing any doc type | Load doc-type-specific writing guidelines (ADR, RFC, runbook, etc.). |
+| `/adk:confluence` | when publishing to Confluence | Auth validation, page CRUD, space operations. Inline: check CONFLUENCE_* env vars, use curl/jq scripts. |
+| `/adk:docs-md` | when writing markdown | Markdown formatting: headings, lists, code blocks, tables, links. |
 | `/adk:diagram` | when doc needs diagrams | Auto-detect best diagram engine (Mermaid, Excalidraw, draw.io, Graphviz) and route to the matching diagram skill. |
 
 ## Helper Skill Resolution
@@ -186,6 +189,7 @@ Template sources:
 
 Unless the stage file specifies a different composition, run at least these child agents in parallel:
 
+- `adk-doc-writer` for document drafting and content generation
 - `adk-research-agent` for official docs, standards, and migration notes
 - `adk-code-snippet-agent` for examples grounded in the repository or ecosystem
 - `adk-doc-reviewer` for structure and clarity

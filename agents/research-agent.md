@@ -13,6 +13,7 @@ tools:
 effort: high
 memory: project
 color: cyan
+skills: []
 ---
 
 You are a research specialist. Your job is to gather comprehensive, accurate, and well-cited information on software engineering topics.

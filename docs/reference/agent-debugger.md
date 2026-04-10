@@ -97,5 +97,5 @@ Accumulates project-specific knowledge across sessions:
 
 ## Used By
 
-- `dev-build` -- root cause analysis and bug fixing during implementation
+- `dev-build` -- root cause analysis and bug fixing in debug mode
 - `plan` -- debugging during execution phase

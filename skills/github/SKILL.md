@@ -6,6 +6,8 @@ workflow-tier: helper
 maturity: stable
 dependencies:
   commands: [gh]
+allowed-tools: [Read, Bash]
+allowed-mcps: [github]
 ---
 
 # GitHub
@@ -28,6 +30,10 @@ If not authenticated:
 > **STOP.** Tell the user:
 > Run `gh auth login` and follow the browser-based prompts to sign in with your GitHub account.
 > This is a one-time step. Re-run the command after logging in.
+
+## MCP Server Setup
+
+To configure the MCP server for this connector, see `mcp-config.json` in the ADK root directory for the server definition. Copy the relevant entry to your IDE's MCP configuration file (e.g., `~/.claude.json` for Claude Code).
 
 ## gh CLI First
 

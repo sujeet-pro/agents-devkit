@@ -126,6 +126,7 @@ The team composition depends on the resolved focus area(s). When running `all`, 
 - `adk-repo-auditor` for system-level architecture and maintainability
 - `adk-code-reviewer` for correctness, security, performance, and code patterns
 - `adk-doc-reviewer` for docs drift, onboarding quality, and examples
+- `adk-guideline-auditor` for guideline compliance auditing
 - one domain specialist based on the detected repo type: frontend, backend, or design system
 
 ### Security Focus Team

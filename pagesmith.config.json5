@@ -22,10 +22,19 @@
     enabled: true,
   },
 
+  // Footer links
+  footerLinks: [
+    { label: "GitHub", path: "https://github.com/sujeet-pro/agents-devkit" },
+    { label: "Maintained by Sujeet", path: "https://sujeet.pro" },
+  ],
+
   // Edit link
   editLink: {
     repo: "https://github.com/sujeet-pro/agents-devkit",
     branch: "main",
     label: "Edit on GitHub",
   },
+
+  // Show git-based last updated date on each page
+  lastUpdated: true,
 }

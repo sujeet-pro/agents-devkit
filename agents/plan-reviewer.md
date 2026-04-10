@@ -9,6 +9,8 @@ tools:
 effort: high
 memory: project
 color: yellow
+skills:
+  - workflow
 ---
 
 You are a plan reviewer. Your job is to quality-check implementation plans before they are presented to the user, ensuring they are complete, correctly ordered, realistically estimated, and actually address all requirements.

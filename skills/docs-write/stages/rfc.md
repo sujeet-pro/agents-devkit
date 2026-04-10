@@ -97,7 +97,7 @@ Let user adjust weights and scores interactively.
 
 ## Type-Specific Output Format
 
-Markdown file. Invoke `/docs-guidelines --type rfc` to load RFC writing guidelines for validation.
+Markdown file. Invoke `/adk:docs-guidelines --type rfc` to load RFC writing guidelines for validation.
 
 ## Adjacent Skills
 

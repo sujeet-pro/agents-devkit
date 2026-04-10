@@ -31,6 +31,8 @@ This skill uses shared helper skills. Load each skill's reference file ONLY when
 | `/adk:principal-engineer` | complexity >= medium | Five questions: need? simplest? alternatives? maintenance costs? clarity in 6 months? |
 | `/adk:agentic-teams` | complexity >= medium AND parallel work needed | Launch 2+ child agents. Standard doc team: source analyst, outline editor, fact checker, code/diagram specialist, publisher. |
 | `/adk:interaction` | NOT --auto | Inline protocols for intent confirmation, approach selection, plan approval. |
+| `/adk:docs-md` | when writing markdown | Markdown formatting: headings, lists, code blocks, tables, links. |
+| `/adk:workspace-conventions` | when setting output paths | Check .adk/context.yaml and repo conventions for output directory, naming, and format. |
 
 ## Helper Skill Resolution
 

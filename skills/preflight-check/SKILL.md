@@ -42,7 +42,7 @@ For `diagramkit` and the engine-specific diagram skills (`diagram-mermaid`, `dia
 For MCP-backed skills:
 
 - use the input URL or requested destination to choose the right MCP before analysis
-- the preflight script (`scripts/preflight.py`) validates MCP configuration from `~/.claude.json` or `.mcp.json`
+- the preflight script (`scripts/preflight.py`) validates MCP configuration from `~/.claude.json` or `mcp-config.json`
 - then do a lightweight source-native read with the matching MCP before launching the full team
 
 Source mapping:

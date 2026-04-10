@@ -99,7 +99,7 @@ For each changed file, read the full file to catch issues in surrounding code, m
 ### Step 3: Consolidate
 
 - Deduplicate overlapping findings
-- Assign severity (Must Fix, Suggestion, Note) and confidence scores
+- Assign type (Blocker, Critical, Suggestion, Nit-pick, Question) and confidence scores
 - Attribute each finding to its review dimension(s)
 - Tag with Concern domain and Review Depth
 - Separate must-fix issues from suggestions
@@ -122,7 +122,7 @@ Discard findings where the issue does not actually exist in the current code.
 
 ## Acting on Feedback
 
-- Fix Must Fix issues immediately
+- Fix Blocker and Critical issues immediately
 - Fix Suggestion issues before proceeding
 - Note issues for later
 - Push back if reviewer is wrong (with reasoning)
@@ -150,7 +150,7 @@ Discard findings where the issue does not actually exist in the current code.
 
 **Never:**
 - Skip review because "it's simple"
-- Ignore Must Fix issues
+- Ignore Blocker or Critical issues
 - Proceed with unfixed Suggestion issues
 - Argue with valid technical feedback
 
@@ -181,9 +181,10 @@ Produce a markdown review document:
 [items needing clarification]
 
 ### Action Items
-- [ ] Must Fix: ...
+- [ ] Blocker: ...
+- [ ] Critical: ...
 - [ ] Suggestion: ...
-- [ ] Note: ...
+- [ ] Nit-pick: ...
 ```
 
 Display a final summary:

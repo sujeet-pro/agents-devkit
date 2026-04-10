@@ -8,7 +8,7 @@ dependencies:
   commands: [git, python3]
 workflow-tier: full
 maturity: stable
-workflow-family: complex-build
+workflow-family: quick-action
 ---
 
 # Team

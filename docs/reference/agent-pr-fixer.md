@@ -88,4 +88,4 @@ Accumulates project-specific knowledge across sessions:
 
 ## Used By
 
-- Available as a standalone agent for targeted PR comment resolution
+- `code-review-fix` -- applying targeted fixes from PR review comments and resolving threads

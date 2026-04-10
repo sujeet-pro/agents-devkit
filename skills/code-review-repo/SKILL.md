@@ -1,6 +1,6 @@
 ---
 name: code-review-repo
-description: "adk - [full] [code-review] Review an entire repository — architecture, code quality, patterns, tech debt. Prioritized improvement plan."
+description: "adk - [full] [review] Review an entire repository — architecture, code quality, patterns, tech debt. Prioritized improvement plan."
 user-invocable: true
 argument-hint: "[path] [--focus architecture|quality|patterns|debt|security|performance|all] [--verbosity short|standard|detailed]"
 allowed-tools: [Glob, Grep, Read, Edit, Write, Bash, WebSearch, WebFetch, Agent]
@@ -29,6 +29,7 @@ This skill uses shared helper skills. Load each skill's reference file ONLY when
 | `/adk:principal-engineer` | complexity >= medium | Five questions: need? simplest? alternatives? maintenance costs? clarity in 6 months? |
 | `/adk:agentic-teams` | complexity >= medium AND parallel work needed | Launch 2+ child agents with distinct roles. Standard team shapes: review, research, docs, diagram, security, migration, planning. |
 | `/adk:interaction` | NOT --auto | Inline protocols for intent confirmation, approach selection, plan approval, review findings, progress dashboard. |
+| `/adk:coding` | when analyzing code patterns | Detect stack/framework from package files, apply language-specific conventions. |
 
 This skill is review-only. Do not modify repository files. Produce a review artifact.
 

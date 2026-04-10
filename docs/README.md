@@ -11,7 +11,7 @@ actions:
     link: /guide/code-reviews/
     theme: alt
 features:
-  - title: 51 Skills
+  - title: 52 Skills
     details: Code review, documentation, diagrams, research, audits, planning, migrations, refactoring — all composable.
   - title: Human-in-the-Loop
     details: Every non-trivial task follows a 6-phase workflow with approval gates. You stay in control.

@@ -1,6 +1,6 @@
 ---
-title: "workflow"
-description: "6-phase workflow framework with complexity-adaptive phase skipping"
+title: 'workflow'
+description: 'Helper skill providing 4 workflow families — Quick Action, Standard Task, Complex Build, Investigative Loop. Invoked by all task skills with --family flag'
 skill_name: workflow
 category: guideline
 workflow_tier: helper
@@ -9,48 +9,82 @@ user_invocable: false
 
 # workflow
 
-Structured 6-phase workflow that all full-tier DevKit skills follow. Front-loads human interaction into early phases and makes execution autonomous. Phases are adaptive — simpler tasks skip phases based on a complexity table.
+`workflow` is the shared contract that defines the standard workflow shapes other skills rely on. Most users meet it indirectly when another skill loads it to resolve a shared rule set or a reusable contract.
 
-## Purpose
+## Overview
 
-- Provide a consistent execution framework across all DevKit task skills
-- Ensure human-in-the-loop interaction happens before execution, not during
-- Adapt workflow depth to task complexity so trivial tasks skip unnecessary ceremony
-- Make execution resumable with progress tracking at wave boundaries
-- Define when to load other shared skills based on complexity level
+`workflow` belongs to the `guideline` layer and is declared at the `helper` tier. That metadata is more than labeling: it tells you how much planning happens before execution, how much the skill is allowed to infer, and whether the result should be a final artifact, a routing decision, or a shared contract for another skill.
+
+The key design trade-off is indirection. This skill rarely owns an interactive workflow on its own, but it keeps cross-cutting behavior consistent so task skills do not each reinvent the same policy, formatting rule, or detection logic.
 
 ## Parameters
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `--complexity` | `trivial` \| `small` \| `medium` \| `large` | auto-detect | Force a specific complexity level instead of auto-detection |
-| `--auto` | flag | off | Skip user confirmations in Phases 0, 2, 3. All phases still execute but without waiting for human input |
+| Parameter | Values | Default | Description |
+|-----------|--------|---------|-------------|
+| `--family` | `quick-action`, `standard-task`, `complex-build`, `investigative-loop` | (required) | Which workflow family to load |
+| `--auto` | flag | off | Skip user confirmations. All steps still execute but without waiting for human input. |
 
-## Key Behaviors
+### Parameter Notes
 
-### Six Phases
+- `--auto` normally removes approval pauses rather than validation. Read the behavior section for skill-specific exceptions.
 
-| Phase | Name | Purpose |
-|-------|------|---------|
-| 0 | Intent Expansion & Confirmation | Restate goal, show reasoning, list skills/tools needed, estimate complexity, confirm with user |
-| 1 | Research & Options Discovery | Search docs and codebase, identify constraints, produce 2-3 concrete approaches |
-| 2 | Approach Selection | User picks approach with trade-offs; PE questions resurface for Large tasks |
-| 3 | Planning | Decompose into discrete tasks grouped into parallel waves with sequential dependencies |
-| 4 | Execute | Implement plan autonomously — waves run sequentially, tasks within waves run in parallel |
-| 5 | Validate & Learn | Iteration loop (up to 10 passes) of validation, self-review, simplification, and summary |
+## Modes & Variations
 
-### Complexity-Adaptive Phase Skipping
+Most helpers do not have end-user modes in the same sense as task skills, but they still vary by scope, invoking context, selected family, or fallback behavior.
 
-| Complexity | Files | Phase 0 | Phase 1 | Phase 2 | Phase 3 | Phase 4 | Phase 5 |
-|------------|-------|---------|---------|---------|---------|---------|---------|
-| Trivial | 1 | inline | skip | skip | skip | direct | quick |
-| Small | 2-3 | inline | lite | inline | brief | execute | verify |
-| Medium | 4-8 | confirm | full | select | full | execute | full |
-| Large | >8 | confirm+PE | full | select+PE | full | phased | full (10 iter) |
 
-Phase descriptors: **skip** = not executed; **inline** = abbreviated in conversation; **confirm** = full intent confirmation; **confirm+PE** = with Principal Engineer check; **lite** = quick scan, no deep research; **brief** = high-level plan without wave decomposition; **direct** = execute without wave orchestration; **verify** = single validation pass; **full** = complete as described; **phased** = multiple sequential phases with progress checkpoints.
+### Families
+
+Each family is a complete workflow definition. The invoking skill specifies the family; this skill loads the matching reference file.
+
+| Family | Shape | Reference File |
+|--------|-------|---------------|
+| **Quick Action** | confirm → execute → verify | `${CLAUDE_SKILL_DIR}/references/quick-action.md` |
+| **Standard Task** | confirm → research → execute → validate | `${CLAUDE_SKILL_DIR}/references/standard-task.md` |
+| **Complex Build** | confirm → research → select approach → plan → execute → validate | `${CLAUDE_SKILL_DIR}/references/complex-build.md` |
+| **Investigative Loop** | confirm → loop(investigate → hypothesize → test → refine) → summarize | `${CLAUDE_SKILL_DIR}/references/investigative-loop.md` |
+
+Load ONLY the single family reference file that matches the `--family` flag.
+
+### Family Selection Guide
+
+| Task Characteristics | Family |
+|---------------------|--------|
+| Clear intent, single execution path, no alternatives to evaluate | Quick Action |
+| Known approach, benefits from context scan, no meaningful choices | Standard Task |
+| Multiple valid approaches, architectural decisions, significant scope | Complex Build |
+| Unknown scope, iterative discovery, loop until root cause found | Investigative Loop |
+
+---
+
+## Output
+
+Helper skills usually return a rule set, a resolved reference list, or a normalized contract back to the calling skill rather than a standalone report.
+
+
+## Additional Reference
+
+### Shared Behavior Across All Families
+
+### `--auto` Mode
+
+When `--auto` is passed to a skill (or the skill passes it to this workflow):
+
+- All confirmation steps state intent but do not wait for user approval — proceed immediately
+- All steps still execute; `--auto` only removes human gates
+- The invoking skill decides when `--auto` is appropriate
+
+### Conditional Helper Loading
+
+Not all shared skills are needed for every task. Load based on complexity:
+
+- **Always**: `/adk:communication`, `/adk:preflight-check`, `/adk:interaction`
+- **Medium and Large only**: `/adk:principal-engineer`, `/adk:agentic-teams`
+- **When producing output**: `/adk:output-format`
 
 ### Complexity Detection
+
+Estimate complexity by evaluating these factors:
 
 | Factor | Trivial | Small | Medium | Large |
 |--------|---------|-------|--------|-------|
@@ -62,29 +96,9 @@ Phase descriptors: **skip** = not executed; **inline** = abbreviated in conversa
 
 When uncertain, default to Medium.
 
-### Conditional Reference Loading
+### Self-Review Principles
 
-The workflow defines when other shared skills are loaded based on complexity:
-
-- **Always**: `workflow`, `communication`, `preflight-check`, `interaction`
-- **Medium and Large only**: `principal-engineer`, `agentic-teams`
-- **When producing output**: `output-format`
-
-### Auto Mode
-
-When `--auto` is passed:
-
-- Phase 0: state intent and complexity, proceed without user confirmation
-- Phase 1: execute research normally
-- Phase 2: select the recommended approach automatically (first-ranked or lowest-risk)
-- Phase 3: generate the plan and proceed without approval pause
-- Phases 4-5: execute and validate normally
-
-All phases still execute — auto mode only removes the human confirmation gates.
-
-### Self-Review Principles (Phase 5)
-
-Applied during the Phase 5 iteration loop as non-negotiable quality gates:
+Applied during validation steps across all families:
 
 - Code must be human-readable, maintainable, and extensible
 - Do only the minimum changes required — no gold-plating
@@ -92,36 +106,30 @@ Applied during the Phase 5 iteration loop as non-negotiable quality gates:
 - Three similar lines of code is better than a premature abstraction
 - If it works and reads clearly, it is done
 
-## What It Provides
+### Output Rules
 
-- Consistent phase structure for all task skills to follow
-- Complexity detection criteria and adaptive phase skipping rules
-- Rules for when to load other shared skills
-- Self-review principles for validation
-- Auto-mode behavior for CI and scripted invocations
-- Output rules: concise by default, markdown format, lead with conclusions, offer to elaborate
+- **Concise by default** — show the compact result first, then offer "Need a detailed breakdown?" at the end
+- All output is **markdown by default** unless the user requests otherwise
+- Follow `/adk:communication` for tone and structure
+- Lead with the conclusion or result, then supporting detail
+- After task completion, always offer to elaborate — do not dump detailed output unless the user asks for it or passes `--verbosity detailed`
 
-## Invoked By
+## Examples
 
-All full-tier task skills invoke this skill, including:
+The examples below start with a minimal invocation and then show the most common ways developers override detection or change the resulting artifact.
 
-| Skill | Load Condition |
-|-------|---------------|
-| `code-review-pr` | always |
-| `code-review-repo` | always |
-| `code-review-fix` | always |
-| `audit` | always |
-| `dev-build` | always |
-| `dev-refactor` | always |
-| `dev-migrate` | always |
-| `docs-write` | always |
-| `docs-review` | always |
-| `docs-repo` | always |
-| `docs-crud` | always |
-| `docs-confluence` | always |
-| `design` | always |
-| `plan` | always |
-| `spec` | always |
-| `research` | always |
-| `handoff` | always |
-| `interactivity` | always |
+### Start With The Default Path
+
+Start with the smallest useful invocation. If the skill supports auto-detection, this is the fastest way to see which path it chooses before you pin it down with extra flags.
+
+```text
+/adk:workflow --family quick-action
+/adk:workflow --family complex-build --auto
+```
+### Change Output Or Execution Style
+
+These examples change the returned artifact, detail level, rendering, or approval behavior without changing what the skill fundamentally does.
+
+```text
+/adk:workflow --family complex-build --auto
+```

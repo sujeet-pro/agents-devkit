@@ -13,7 +13,7 @@ claude --plugin-dir .
 ```
 agents-devkit/
 ├── .claude-plugin/plugin.json   Plugin manifest
-├── .mcp.json                    MCP server configurations
+├── mcp-config.json              MCP server configurations
 ├── hooks/hooks.json             Hook configurations
 ├── settings.json                Default settings
 ├── templates/skill/             Common files and propagation

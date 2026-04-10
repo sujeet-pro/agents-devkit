@@ -7,6 +7,7 @@ allowed-tools: [Glob, Grep, Read, Edit, Write, Bash, WebSearch, WebFetch, Agent]
 dependencies:
   commands: [git, python3]
 workflow-tier: orchestrator
+workflow-family: complex-build
 maturity: stable
 ---
 

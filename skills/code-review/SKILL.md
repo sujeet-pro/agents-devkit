@@ -1,10 +1,11 @@
 ---
 name: code-review
-description: "adk - [routing] [code-review] Code review router — detects review type and routes to the right sub-skill"
+description: "adk - [orchestrator] [code-review] Code review router — detects review type and routes to the right sub-skill"
 user-invocable: true
 argument-hint: "<target> [--help]"
 allowed-tools: [Glob, Grep, Read]
 workflow-tier: orchestrator
+workflow-family: complex-build
 maturity: stable
 ---
 

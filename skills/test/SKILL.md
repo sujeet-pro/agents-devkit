@@ -13,8 +13,6 @@ workflow-family: quick-action
 
 # User Acceptance Testing
 
-`/adk:agentic-teams` and `/adk:preflight-check`.
-
 UAT verifies that the implementation achieves its goals from the user's perspective. This skill extracts testable deliverables from specs/plans and walks the user through each one interactively.
 
 ## Shared Skills

@@ -1,6 +1,6 @@
 ---
-title: "use"
-description: Orchestrator that expands intent, identifies skills, confirms the plan, and executes the approved workflow
+title: 'use'
+description: 'Use when starting any task to expand intent, identify the right DevKit skills, confirm the plan early with the user, and then execute the approved workflow'
 skill_name: use
 category: routing
 workflow_tier: orchestrator
@@ -9,169 +9,203 @@ user_invocable: true
 
 # use
 
-Default entry point for DevKit. Expands the user's intent, identifies the right skills, confirms the plan early, and then executes the approved workflow. Start here unless the user explicitly names a specific skill and clearly wants to bypass routing.
+Use `use` when you want DevKit to route pipeline work to the right downstream skill. Its job is classification and parameter forwarding, not doing the downstream work itself.
 
-## When to Use
+## Overview
 
-- Starting any DevKit task without knowing which skill to invoke
-- General prompts that need routing to the right skill(s)
-- Multi-skill workflows that require orchestration
-- When you want intent expansion and plan approval before execution
+`use` belongs to the `routing` layer and is declared at the `orchestrator` tier with the `complex-build` workflow family. That metadata is more than labeling: it tells you how much planning happens before execution, how much the skill is allowed to infer, and whether the result should be a final artifact, a routing decision, or a shared contract for another skill.
+
+The design philosophy across these skills is self-sufficiency with shared composition. When the helper skills listed in `SKILL.md` are available, the workflow composes with them for workflow structure, preflight checks, communication style, and output shaping. When they are not available, the inline fallback summaries still make the behavior readable and predictable.
 
 ## Parameters
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
+| Parameter | Values | Default | Description |
+|-----------|--------|---------|-------------|
 | `<task description>` | free-text | required | Describe what you want to accomplish |
-| `--auto` | flag | off | Skip confirmations at intent, approach, and plan gates (for scripted/CI usage) |
-| `--verbosity` | `short` \| `standard` \| `detailed` | `standard` | Output detail level for all downstream skills |
-| `--help` | flag | — | Show parameter reference and exit |
+| `--auto` | flag | off | Skip confirmations (for scripted/CI usage) |
+| `--verbosity` | `short`, `standard`, `detailed` | `standard` | Output detail level for all downstream skills |
 
-## Behavior Variations
+### Parameter Notes
 
-| Context | Behavior |
-|---------|----------|
-| **Trivial tasks** | Inline intent confirmation, abbreviated plan, direct execution, quick validation |
-| **Small tasks** | Inline or lightweight confirmation, light research, brief plan approval, execution, verification |
-| **Medium tasks** | Full intent review, research/options, interactive approach selection, approved implementation plan, tracked execution |
-| **Large tasks** | Same as medium plus Principal Engineer check, stronger questioning, phased execution, and progress dashboard |
-| **Explicit skill invocation** | Keeps that skill in the pipeline, but still runs Phase 0 and plan-before-execute |
-| **`--auto`** | Skips user confirmations at intent, approach, and plan gates — executes directly |
+- The positional argument carries the primary target or prompt. In the examples, placeholder invocations are shown first so you can see the minimum shape before substituting a real URL, path, branch, or task description.
+- `--verbosity` changes presentation depth, not the fundamental workflow. It is safe to increase when you want more evidence or rationale.
+- `--auto` normally removes approval pauses rather than validation. Read the behavior section for skill-specific exceptions.
 
-## Routing Logic
+## How It Works
 
-The orchestrator uses Phase 0 (Intent Expansion) to analyze the user's prompt and route to the appropriate skill(s). It picks the smallest useful pipeline that covers the confirmed intent.
+Routing begins by resolving intent. Explicit override flags take priority; otherwise the detection rules below choose a downstream skill, stage, or engine based on the prompt and repository context.
 
-### Detection Signals
+Once the route is fixed, the router keeps parameter forwarding narrow and predictable so the downstream skill receives the same important selectors the user provided.
 
-| User says... | Route to |
-|---|---|
-| "review this PR" / "review my changes" | `/adk:code-review-pr` |
-| "review this repo" / "audit the codebase" | `/adk:code-review-repo` |
-| "fix the PR comments" / "address review feedback" | `/adk:code-review-fix` |
-| "implement" / "build" / "add feature" / "fix bug" | `/adk:dev-build` |
-| "refactor" / "extract" / "rename across" / "restructure" | `/adk:dev-refactor` |
-| "migrate" / "upgrade from X to Y" / "migration" | `/adk:dev-migrate` |
-| "commit" / "commit message" / "PR description" | `/adk:dev-commit` |
-| "write an ADR" / "write a blog post" / "changelog" | `/adk:docs-write` |
-| "plan" / "brainstorm" / "design a solution" | `/adk:plan` |
-| "spec" / "requirements" / "checklist" | `/adk:spec` |
-| "research" / "compare" / "investigate" | `/adk:research` |
-| "diagram" / "visualize" / "flowchart" | `/adk:diagram` |
-| "mermaid diagram" / "sequence diagram" | `/adk:diagram-mermaid` |
-| "excalidraw" / "architecture overview diagram" | `/adk:diagram-excalidraw` |
-| "graphviz" / "dot graph" | `/adk:diagram-graphviz` |
-| "draw.io" / "network topology" | `/adk:diagram-drawio` |
-| "chart" / "graph data" / "bar chart" / "pie chart" / "line chart" | `/adk:chart` |
-| "design" / "UI" / "mockup" | `/adk:design` |
-| "audit" / "security review" / "performance review" | `/adk:audit` |
-| "review this doc" / "review the RFC" | `/adk:docs-review` |
-| "generate docs" / "document this repo" | `/adk:docs-repo` |
-| "review the docs" / "check documentation" | `/adk:docs-review` |
-| "update the docs" / "fix this doc" / "respond to doc comments" | `/adk:docs-crud` |
-| "create TDD" / "create HLD" / "create LLD" / "create PRD" / "create ERD" | `/adk:docs-crud` |
-| "test" / "acceptance test" / "verify" | `/adk:test` |
-| "new project" / "init" / "milestone" | `/adk:project` |
-| "handoff" / "save session" / "resume" | `/adk:handoff` |
-| "setup" / "configure" / "install tools" | `/adk:setup` |
-| "check upstream" / "sync dependencies" | `/adk:deps-tracker` |
-| "run interactive workflow" / "structured user Q&A" | `/adk:interactivity` |
-| "multi-model" / "team review" / "agent team" | `/adk:team` |
-| "review" / "code review" (no specific target) | `/adk:code-review` |
-| "docs" / "documentation" (no specific target) | `/adk:docs` |
-| "dev" / "develop" (no specific target) | `/adk:dev` |
-| "Confluence page" / "publish to Confluence" | `/adk:docs-confluence` |
+### Shared Skills
 
-### Downstream Skills
+The orchestrator invokes these shared skills and passes their guidance to downstream skills. When a shared skill is not installed, the orchestrator uses the inline summary.
 
-#### Task Skills
+| Skill | Invoked | Inline Fallback |
+|-------|---------|-----------------|
+| `/adk:workflow` | always, routes to target skill's family | Workflow families: Quick Action (confirm → execute → verify), Standard Task (confirm → research → execute → validate), Complex Build (full 6-step with approach selection and planning), Investigative Loop (iterative discovery). Each skill declares its family. `--auto` bypasses confirmations. |
+| `/adk:communication` | always | Lead with conclusion. Bullet points. No preamble. Concrete specifics over abstractions. Verbosity follows context. |
+| `/adk:preflight-check` | before work | Run preflight.py for tool dependencies and MCP validation. |
+| `/adk:output-format` | when producing output | short/standard/detailed verbosity. Markdown default. |
+| `/adk:principal-engineer` | medium/large | Five questions: need? simplest? alternatives? maintenance costs? clarity in 6 months? |
+| `/adk:agentic-teams` | medium/large | Launch 2+ child agents with distinct roles for the task type. |
+| `/adk:interaction` | interactive phases | Inline protocols for intent confirmation, approach selection, plan approval, review findings, progress dashboard. |
 
-| Skill | Area | Description |
-|-------|------|-------------|
-| `code-review-pr` | Review | PR, local, or branch code review + fix/describe/finalize |
-| `code-review-repo` | Review | Whole-repo review with improvement plan |
-| `code-review-fix` | Review | Fix PR comments, reply, mark resolved |
-| `docs-review` | Review | Review documents for accuracy and completeness |
-| `dev-build` | Dev | Implement features, fix bugs, enhance code, TDD |
-| `dev-refactor` | Dev | Extract, rename, restructure, simplify, modernize |
-| `dev-migrate` | Dev | Framework/library migration with breaking change analysis |
-| `dev-commit` | Dev | Smart commit messages and PR descriptions |
-| `docs-write` | Docs | Create/update formal documents (ADR, RFC, blog, changelog) |
-| `docs-repo` | Docs | Generate comprehensive repo documentation |
-| `docs-crud` | Docs | Manage documentation lifecycle |
-| `docs-confluence` | Docs | Confluence-specific read/write with format mapping |
-| `plan` | Plan | Brainstorm, write, execute, and track plans |
-| `spec` | Spec | Write specs, analyze consistency, generate checklists |
-| `research` | Research | Multi-agent research with citations |
-| `diagram-mermaid` | Diagram | Mermaid diagrams with full syntax reference |
-| `diagram-excalidraw` | Diagram | Excalidraw hand-drawn style diagrams |
-| `diagram-graphviz` | Diagram | Graphviz DOT diagrams |
-| `diagram-drawio` | Diagram | Draw.io precise layout diagrams |
-| `chart` | Data Viz | Data charts from CSV/JSON |
-| `design` | Design | UI/UX design direction + visual audit |
-| `audit` | Quality | Codebase, security, performance, dependency audit |
-| `test` | QA | User acceptance testing |
-| `project` | Project | Initialize projects, manage milestones |
-| `handoff` | Session | Pause/resume work sessions |
-| `setup` | Setup | Configure CLI tools and MCP servers |
-| `deps-tracker` | Project | Track upstream dependencies |
-| `interactivity` | Interaction | Structured user interaction orchestration |
+### Workflow
 
-#### Routing Skills
+The orchestrator follows: **prompt → prompt expansion (scoping) → skill identification → multi-skill/agent execution → validation**.
 
-| Skill | Description |
-|-------|-------------|
-| `team` | Multi-model review, agent team dispatch |
-| `code-review` | Code review router: detects type, routes to code-review-pr/repo/fix |
-| `docs` | Documentation router: detects task, routes to docs-write/crud/repo/review/confluence |
-| `dev` | Development router: detects task, routes to dev-build/refactor/migrate/commit |
-| `diagram` | Diagram router: detects engine, routes to diagram-mermaid/excalidraw/drawio/graphviz |
+All skills follow a **human-in-the-loop** and **plan-first** approach:
+- The user approves direction before execution starts
+- Non-trivial work requires an approved plan
+- Auto mode (`--auto`) skips confirmations for scripted or CI usage
 
-#### Guideline Skills (auto-invoked by task skills)
+This skill must make the workflow human-in-the-loop as early as possible:
 
-| Skill | Description |
-|-------|-------------|
-| `workflow` | 6-phase workflow framework with complexity-adaptive skipping |
-| `communication` | Communication style: lead with conclusion, no preamble, concrete specifics |
-| `principal-engineer` | PE questioning: need? simplest? alternatives? maintenance? clarity? |
-| `agentic-teams` | Child-agent contract and standard team shapes |
-| `output-format` | Verbosity modes, PR comment templates, priority labels |
-| `interaction` | Inline protocols for intent confirm, approach select, plan approve |
-| `preflight-check` | Preflight validation for dependencies, MCP, and tools |
-| `review-standards` | Review pipeline, comment template, source routing |
-| `coding` | Detects repo stack, loads coding guidelines |
-| `docs-guidelines` | Detects doc type, loads writing guidelines |
-| `docs-md` | Detects markdown target, loads formatting guidelines |
-| `architecture` | Architecture patterns, principles, and anti-pattern detection |
-| `workspace-conventions` | File placement conventions: temp in `.temp/`, diagrams in `diagrams/` |
+1. expand the user's intent before doing real work
+2. show concise visible reasoning
+3. identify skills, scripts, tools, and MCPs
+4. confirm the approach and plan with the user
+5. use multiple skills and agents to perform the task following the approved plan
+6. validate and summarize
 
-## Core Rules
+### Execution
 
-1. Run Phase 0 (Intent Expansion) before selecting the final pipeline
-2. Make reasoning visible but concise and decision-oriented
-3. For Medium and Large work, challenge the approach with Principal Engineer questions
-4. The user must approve the direction before execution starts (unless `--auto`)
-5. Execution starts only after an approved plan exists for non-trivial work
-6. Every downstream skill invocation must be explainable from the confirmed intent
-7. Concise by default: show compact result first, offer detailed breakdown on request
+Once the user approves the plan (or `--auto` is set):
 
-## Workflow
+1. invoke the selected downstream skills in order
+2. use multiple agents when tasks are parallelizable
+3. keep progress visible at natural checkpoints
+4. avoid asking for more information unless the approved assumptions are broken by reality
+5. for Medium and Large execution, write progress updates and show inline progress per `/adk:interaction`
 
-| Phase | Applies | Notes |
-|-------|---------|-------|
-| 0. Intent Expansion | always | Expand prompt, detect skills, estimate complexity, produce Phase Summary Card |
-| 1. Research & Options | medium+ | Research enough to present 2-3 viable options |
-| 2. Approach Selection | medium+ | Present approaches, let user pick/mix/simplify |
-| 3. Planning | non-trivial | Draft plan, review with `adk-plan-reviewer`, get user approval |
-| 4. Execute | after approval | Invoke downstream skills, use parallel agents when possible |
-| 5. Validate & Learn | always | Compact summary with result, verification, changes, and key insight |
+## Modes & Variations
 
-### Phase Summary Card
+Use this section when you want to force a deterministic path instead of relying on the skill's auto-detection rules.
 
-Every prompt produces a Phase Summary Card as the first thing the user sees:
+
+### Behavior Variations
+
+- **Trivial tasks**: inline intent confirmation, abbreviated plan, direct execution, quick validation
+- **Small tasks**: inline or lightweight confirmation, light research, brief plan approval, execution, verification
+- **Medium tasks**: full intent review, research/options, interactive approach selection, approved implementation plan, tracked execution
+- **Large tasks**: same as medium plus Principal Engineer check, stronger questioning, phased execution, and progress dashboard
+- **Explicit skill invocation by the user**: keep that skill in the pipeline, but still run Phase 0 and plan-before-execute
+- **`--auto`**: skip user confirmations at intent, approach, and plan gates — execute directly
+
+## Output
+
+Output is part of the contract for this skill, not just presentation. This is what callers and end users should expect back after execution.
+
+
+### Output Format
+
+**Concise by default.** Adapt output to `--verbosity`:
+
+- **short**: one-line summary + next action
+- **standard** (default): phase summary card, approved pipeline, compact progress, outcome with "need details?" offer
+- **detailed**: standard output plus decision notes, artifact paths, and full reasoning
+
+When `--verbosity` is not set, use **standard** — show the compact version and offer to elaborate.
+
+## Related Skills
+
+### Adjacent Skills
+
+- `/adk:plan` — use directly when the user explicitly asks to brainstorm, write, execute, or track a plan
+- `/adk:team` — use when the user explicitly wants multi-model or multi-agent orchestration as the primary task
+
+## Additional Reference
+
+### Skill Routing Table
+
+### Task Skills
+
+| Skill | Area | Invocation | Description |
+|-------|------|------------|-------------|
+| code-review-pr | Review | `/adk:code-review-pr` | Code review: PR, local, branch + fix/comment |
+| code-review-repo | Review | `/adk:code-review-repo` | Whole-repo review with improvement plan |
+| code-review-fix | Review | `/adk:code-review-fix` | Fix PR comments, reply, mark resolved |
+| docs-review | Review | `/adk:docs-review` | Review documents (local, Confluence, Google Docs, in-repo) for accuracy and completeness |
+| dev-build | Dev | `/adk:dev-build` | Implement features, fix bugs, enhance code, TDD |
+| dev-refactor | Dev | `/adk:dev-refactor` | Extract, rename, restructure, simplify, modernize code |
+| dev-migrate | Dev | `/adk:dev-migrate` | Framework/library migration with breaking change analysis |
+| dev-commit | Dev | `/adk:dev-commit` | Smart commit messages and PR descriptions |
+| docs-write | Docs | `/adk:docs-write` | Create/update formal documents (ADR, RFC, blog, changelog) |
+| docs-repo | Docs | `/adk:docs-repo` | Generate comprehensive repo documentation |
+| docs-crud | Docs | `/adk:docs-crud` | Manage documentation lifecycle (create/update/improve) |
+| docs-confluence | Docs | `/adk:docs-confluence` | Confluence-specific doc read/write with format mapping |
+| plan | Plan | `/adk:plan` | Brainstorm, write, execute, and track plans |
+| spec | Spec | `/adk:spec` | Write specs, analyze consistency, generate checklists |
+| research | Research | `/adk:research` | Multi-agent research with citations |
+| diagram-mermaid | Diagram | `/adk:diagram-mermaid` | Mermaid diagrams with full syntax reference |
+| diagram-excalidraw | Diagram | `/adk:diagram-excalidraw` | Excalidraw hand-drawn style diagrams |
+| diagram-graphviz | Diagram | `/adk:diagram-graphviz` | Graphviz DOT diagrams |
+| diagram-drawio | Diagram | `/adk:diagram-drawio` | Draw.io precise layout diagrams |
+| design | Design | `/adk:design` | UI/UX design direction + visual audit |
+| audit | Quality | `/adk:audit` | Audit: codebase, security, performance, dependencies |
+| test | QA | `/adk:test` | User acceptance testing |
+| project | Project | `/adk:project` | Initialize projects, manage milestones and ideas |
+| handoff | Session | `/adk:handoff` | Pause/resume work sessions |
+| setup | Setup | `/adk:setup` | Configure CLI tools and MCP servers |
+| deps-tracker | Project | `/adk:deps-tracker` | Track upstream dependencies and sync |
+| interactivity | Interaction | `/adk:interactivity` | Structured user interaction orchestration (inline, agent-first) |
+| chart | Data Viz | `/adk:chart` | Create data charts (bar, line, pie, scatter, area, 30+ types) from CSV/JSON |
+| team | Team | `/adk:team` | Multi-model review, agent team dispatch |
+
+### Routing Skills
+
+| Skill | Invocation | Description |
+|-------|------------|-------------|
+| use | `/adk:use` | Orchestrator: expand intent, confirm route, execute |
+| code-review | `/adk:code-review` | Code review router: detects type, routes to code-review-pr/repo/fix |
+| docs | `/adk:docs` | Documentation router: detects task, routes to docs-write/crud/repo/review/confluence |
+| dev | `/adk:dev` | Development router: detects task, routes to dev-build/refactor/migrate/commit |
+| diagram | `/adk:diagram` | Diagram router: detects engine, routes to diagram-mermaid/excalidraw/drawio/graphviz |
+
+### Guideline Skills (auto-invoked by task skills)
+
+| Skill | Invocation | Description |
+|-------|------------|-------------|
+| workflow | `/adk:workflow` | Workflow families (quick-action, standard-task, complex-build, investigative-loop) with complexity scaling |
+| communication | `/adk:communication` | Communication style: lead with conclusion, no preamble, concrete specifics |
+| principal-engineer | `/adk:principal-engineer` | PE questioning: need? simplest? alternatives? maintenance? clarity? |
+| agentic-teams | `/adk:agentic-teams` | Child-agent contract and standard team shapes |
+| output-format | `/adk:output-format` | Verbosity modes, PR comment templates, priority labels |
+| interaction | `/adk:interaction` | Inline protocols for intent confirm, approach select, plan approve |
+| preflight-check | `/adk:preflight-check` | Preflight validation for dependencies, MCP, and tools |
+| review-standards | `/adk:review-standards` | Review pipeline, comment template, source routing |
+| coding | `/adk:coding` | Detects repo stack, loads coding guidelines |
+| docs-guidelines | `/adk:docs-guidelines` | Detects doc type, loads writing guidelines |
+| docs-md | `/adk:docs-md` | Detects markdown target, loads formatting guidelines |
+| architecture | `/adk:architecture` | Architecture patterns, principles, and anti-pattern detection |
+| workspace-conventions | `/adk:workspace-conventions` | Where to create files: temp in `.temp/`, diagrams in `diagrams/`, respect `diagramkit.config.json`, light+dark output |
+
+### Core Rules
+
+1. Run **Phase 0: Intent Expansion** before selecting the final pipeline.
+2. Make reasoning visible, but concise and decision-oriented.
+   Never dump hidden chain-of-thought or a long internal monologue.
+3. For Medium and Large work, challenge the approach like a Principal Engineer:
+   do we need this, what is the simplest version, what are the alternatives, and what is the maintenance cost?
+4. The user must approve the direction before execution starts (unless `--auto`).
+5. For non-trivial work, execution starts only after an approved plan exists.
+6. Every downstream skill invocation must be explainable from the confirmed intent.
+7. **Concise by default**: show the compact result first. After task completion, offer "Need a detailed breakdown?" — elaborate only when the user says yes.
+
+### Phase 0: Intent Expansion
+
+Start by expanding the prompt using `references/intent-expansion.md`.
+
+For Medium and Large work, invoke the **adk-intent-analyst** agent to pressure-test the prompt expansion before presenting it to the user.
+
+### What to Produce — Phase Summary Card
+
+On **every prompt**, produce a compact phase summary card that the user sees immediately. This is the first thing the user reads before any work happens:
 
 ```text
-## Phase Summary
+
+### Phase Summary
 
 **Goal**: <one-line restatement>
 
@@ -191,30 +225,127 @@ Every prompt produces a Phase Summary Card as the first thing the user sees:
 > approve · edit · simplify · cancel
 ```
 
-## Shared Skills
+The phase summary card must include:
 
-| Skill | Invoked | Fallback |
-|-------|---------|----------|
-| `workflow` | always | 6-phase workflow with complexity-adaptive skipping |
-| `communication` | always | Lead with conclusion, bullet points, no preamble |
-| `preflight-check` | before work | Run preflight.py for tool and MCP validation |
-| `output-format` | producing output | short/standard/detailed verbosity; markdown default |
-| `principal-engineer` | medium/large | Five PE questions: need? simplest? alternatives? maintenance? clarity? |
-| `agentic-teams` | medium/large | Launch 2+ child agents with distinct roles |
-| `interaction` | interactive phases | Inline protocols for confirmations and approvals |
+- one-line goal
+- skills pipeline (this skill pack + any other installed skills detected)
+- which phases will run vs skip (based on complexity)
+- complexity level with rationale
+- PE check for Medium or Large work
 
-## Output Format
+### Confirmation
 
-Concise by default. All output is markdown.
+- **Trivial / Small**: inline phase summary card is enough
+- **Medium / Large**: write `intent.json` to `.temp/<task-slug>/`, then show the phase summary card and wait for approve/edit/simplify/cancel
+- **`--auto`**: skip confirmation, proceed directly
 
-- **short**: one-line summary + next action
-- **standard**: Phase Summary Card, approved pipeline, compact progress, outcome with "need details?" offer
-- **detailed**: standard output plus decision notes, artifact paths, and full reasoning
+If the user simplifies or edits the intent, re-run the expansion and only then continue.
 
-### Done Summary
+### Platform-Specific Tool Mapping
+
+Detect the agent platform and load the appropriate tool mapping:
+
+- **Codex**: load `references/codex-tools.md` — maps Claude tool names to Codex equivalents (`Task` → `spawn_agent`, etc.)
+- **Gemini CLI**: load `references/gemini-tools.md` — maps Claude tool names to Gemini equivalents
+- **Claude Code**: no mapping needed (native)
+
+### Skill Routing
+
+Load `references/routing-patterns.md` for the full routing table and parameter resolution rules.
+
+Pick the smallest useful pipeline that covers the confirmed intent. Resolve parameters by reading each skill's `argument-hint` and `Parameters` section, inferring what the prompt provides, and marking the rest as defaults or needing confirmation.
+
+### Quick Routing Signals
+
+| User says... | Route to |
+|---|---|
+| "review this PR" / "review my changes" | `/adk:code-review-pr` |
+| "review this repo" / "audit the codebase" | `/adk:code-review-repo` |
+| "fix the PR comments" / "address review feedback" | `/adk:code-review-fix` |
+| "implement" / "build" / "add feature" / "fix bug" | `/adk:dev-build` |
+| "refactor" / "extract" / "rename across" / "restructure" | `/adk:dev-refactor` |
+| "migrate" / "upgrade from X to Y" / "migration" | `/adk:dev-migrate` |
+| "commit" / "commit message" / "PR description" | `/adk:dev-commit` |
+| "write an ADR" / "write a blog post" / "changelog" | `/adk:docs-write` |
+| "plan" / "brainstorm" / "design a solution" | `/adk:plan` |
+| "spec" / "requirements" / "checklist" | `/adk:spec` |
+| "research" / "compare" / "investigate" | `/adk:research` |
+| "diagram" / "visualize" / "flowchart" | `/adk:diagram` |
+| "mermaid diagram" / "sequence diagram" | `/adk:diagram-mermaid` |
+| "excalidraw" / "architecture overview diagram" | `/adk:diagram-excalidraw` |
+| "graphviz" / "dot graph" | `/adk:diagram-graphviz` |
+| "draw.io" / "network topology" | `/adk:diagram-drawio` |
+| "chart" / "graph data" / "bar chart" / "pie chart" / "line chart" / "data visualization" | `/adk:chart` |
+| "design" / "UI" / "mockup" | `/adk:design` |
+| "audit" / "security review" / "performance review" | `/adk:audit` |
+| "review this doc" / "review the RFC" | `/adk:docs-review` |
+| "generate docs" / "document this repo" | `/adk:docs-repo` |
+| "review the docs" / "check documentation" | `/adk:docs-review` |
+| "update the docs" / "fix this doc" / "respond to doc comments" | `/adk:docs-crud` |
+| "create TDD" / "create HLD" / "create LLD" / "create PRD" / "create ERD" / "incident report" / "status report" / "API reference" | `/adk:docs-crud` |
+| "test" / "acceptance test" / "verify" | `/adk:test` |
+| "new project" / "init" / "milestone" | `/adk:project` |
+| "handoff" / "save session" / "resume" | `/adk:handoff` |
+| "setup" / "configure" / "install tools" | `/adk:setup` |
+| "check upstream" / "sync dependencies" | `/adk:deps-tracker` |
+| "run interactive workflow" / "collect missing inputs" / "structured user Q&A" / "ask me for parameters" | `/adk:interactivity` |
+| "multi-model" / "team review" / "agent team" | `/adk:team` |
+| "review" / "code review" (no specific target) | `/adk:code-review` |
+| "docs" / "documentation" (no specific target) | `/adk:docs` |
+| "dev" / "develop" (no specific target) | `/adk:dev` |
+| "Confluence page" / "publish to Confluence" | `/adk:docs-confluence` |
+
+### Complexity and Phase Use
+
+Use `/adk:workflow` as the source of truth.
+
+- **Trivial**: inline intent confirm, no separate options phase, direct execution
+- **Small**: inline intent confirm, light research, brief planning, direct execution
+- **Medium**: full Phase 0-5
+- **Large**: full Phase 0-5 plus PE check and phased execution
+
+When uncertain, classify as Medium.
+
+### Approach Selection
+
+For Medium and Large work, do not lock the pipeline silently.
+
+1. research enough to present 2-3 viable options
+2. call out the simplest option explicitly
+3. explain pros, cons, effort, and risk
+4. let the user pick, mix, or simplify
+
+Present approaches using the Approach Selection protocol from `/adk:interaction`.
+
+### Planning Gate
+
+Execution must follow an approved plan (unless `--auto`).
+
+### Plan Expectations
+
+The approved plan must include:
+
+- tasks or waves
+- affected files or deliverables
+- verification steps
+- explicit sequencing when dependencies exist
+
+For Medium and Large work:
+
+1. draft the plan
+2. review it with the **adk-plan-reviewer** agent
+3. let the user approve it
+4. only then execute it
+
+Present the plan using the Plan Approval protocol from `/adk:interaction` for Medium and Large tasks.
+
+### Validation and Learning
+
+End every `/adk:use` run with a compact summary:
 
 ```text
-## Done
+
+### Done
 
 **Result**: <one-line outcome>
 **Verified**: <what was validated>
@@ -224,23 +355,24 @@ Concise by default. All output is markdown.
 Need a detailed breakdown?
 ```
 
-## Adjacent Skills
-
-| Skill | When to use instead |
-|-------|-------------------|
-| `/adk:plan` | User explicitly asks to brainstorm, write, execute, or track a plan |
-| `/adk:team` | User explicitly wants multi-model or multi-agent orchestration as the primary task |
+Only expand into full details if the user asks for it.
 
 ## Examples
 
-```
+The examples below start with a minimal invocation and then show the most common ways developers override detection or change the resulting artifact.
+
+### Start With The Default Path
+
+Start with the smallest useful invocation. If the skill supports auto-detection, this is the fastest way to see which path it chooses before you pin it down with extra flags.
+
+```text
+/adk:use <prompt-text>
 /adk:use review this PR: https://github.com/org/repo/pull/42
-/adk:use implement user authentication with OAuth2
-/adk:use write an ADR for our caching strategy
-/adk:use debug the failing CI pipeline
-/adk:use audit this codebase for security and performance
-/adk:use generate docs for this repo
-/adk:use create a mermaid sequence diagram for the auth flow
-/adk:use review this repo for architecture issues
-/adk:use fix the PR comments on #42
+```
+### Change Output Or Execution Style
+
+These examples change the returned artifact, detail level, rendering, or approval behavior without changing what the skill fundamentally does.
+
+```text
+/adk:use <prompt-text> --verbosity detailed
 ```

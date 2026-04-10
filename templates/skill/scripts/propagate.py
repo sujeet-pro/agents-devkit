@@ -9,10 +9,13 @@ Shared reference content (workflow, communication style, principal-engineer,
 agentic-teams, output-format, interaction, preflight, review standards) is
 now provided by dedicated helper skills instead of copied reference files.
 This script only propagates:
-  - templates/skill/common/ → skills/<skill>/references/  (e.g. help-format, project-guidelines, inline-interaction)
   - templates/skill/scripts/preflight.py → skills/<skill>/scripts/preflight.py
 
 Use --clean-refs to remove the deprecated reference files that are now skills.
+
+Note: help-format.md, project-guidelines.md, and inline-interaction.md were
+previously propagated from templates/skill/common/ but are now removed.
+All shared knowledge is accessed by invoking helper skills at runtime.
 """
 
 import argparse
@@ -29,11 +32,13 @@ DEPRECATED_REFS = {
     "agentic-teams.md",
     "output-formats.md",
     "output-format-modes.md",
-    # inline-interaction.md lives under templates/skill/common/ and is propagated; do not delete.
+    "inline-interaction.md",
     "preflight.md",
     "source-routing.md",
     "review-pipeline.md",
     "review-comment-template.md",
+    "help-format.md",
+    "project-guidelines.md",
 }
 
 
@@ -81,10 +86,10 @@ def propagate(dry_run: bool = False, clean_refs: bool = False) -> None:
     skills_dir = root / "skills"
 
     canonical_scripts = templates_dir / "scripts"
-    canonical_common = templates_dir / "common"
-
-    canonical_common_files = collect_canonical_files(canonical_common)
     preflight_src = canonical_scripts / "preflight.py"
+
+    # Connector skills have custom preflight.py with env var validation — skip overwriting
+    custom_preflight_skills = {"github", "bitbucket", "confluence", "jira"}
 
     stats = {
         "skills_updated": 0,
@@ -105,15 +110,8 @@ def propagate(dry_run: bool = False, clean_refs: bool = False) -> None:
         skill_scripts = skill_dir / "scripts"
         skill_updated = False
 
-        # Copy common files into references/
-        for rel_path, src in canonical_common_files.items():
-            dst = skill_refs / rel_path
-            label = f"{skill_dir.name}/references/{rel_path}"
-            if sync_file(src, dst, dry_run, label, stats):
-                skill_updated = True
-
-        # Update preflight.py
-        if preflight_src.exists():
+        # Update preflight.py (skip skills with custom preflight)
+        if preflight_src.exists() and skill_dir.name not in custom_preflight_skills:
             label = f"{skill_dir.name}/scripts/preflight.py"
             dst = skill_scripts / "preflight.py"
             if sync_file(preflight_src, dst, dry_run, label, stats):

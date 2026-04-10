@@ -1,6 +1,6 @@
 ---
-title: "architecture"
-description: "Software architecture patterns, principles, and review criteria"
+title: 'architecture'
+description: 'Helper skill that provides software architecture patterns, principles, and review criteria. Used by review, audit, and design skills'
 skill_name: architecture
 category: guideline
 workflow_tier: helper
@@ -9,85 +9,332 @@ user_invocable: false
 
 # architecture
 
-Helper skill that scans the repository to determine the architecture type and loads relevant architecture guidelines. Provides core architecture principles, focus-specific patterns (frontend, backend, fullstack, infra), and anti-pattern detection criteria for review, audit, design, and development skills.
+`architecture` is a shared helper that keeps cross-cutting rules and expectations consistent across the skills that invoke it. Most users meet it indirectly when another skill loads it to resolve a shared rule set or a reusable contract.
 
-## Purpose
+## Overview
 
-- Auto-detect the project's architecture type from project structure, dependencies, and config files
-- Load focus-appropriate architecture patterns and principles
-- Provide anti-pattern detection criteria with severity ratings and fix guidance
-- Supply architecture review criteria for code review, audit, and design skills
+`architecture` belongs to the `guideline` layer and is declared at the `helper` tier. That metadata is more than labeling: it tells you how much planning happens before execution, how much the skill is allowed to infer, and whether the result should be a final artifact, a routing decision, or a shared contract for another skill.
+
+The key design trade-off is indirection. This skill rarely owns an interactive workflow on its own, but it keeps cross-cutting behavior consistent so task skills do not each reinvent the same policy, formatting rule, or detection logic.
 
 ## Parameters
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `--focus` | `frontend` \| `backend` \| `fullstack` \| `infra` | auto-detect | Force a specific architecture focus area instead of auto-detection |
+| Parameter | Values | Default | Description |
+|-----------|--------|---------|-------------|
+| `--focus` | `frontend`, `backend`, `fullstack`, `infra` | auto-detect | Force a specific architecture focus area |
 
-## Key Behaviors
+### Parameter Notes
+
+- `--focus` changes what the skill optimizes for and often changes which child agents, checks, or review dimensions are loaded.
+
+## How It Works
+
+Helper skills do not usually own the top-level conversation. The calling skill decides when to load them, passes just enough context to resolve the right rules or references, and then consumes the returned guidance inside its own execution flow.
+
+The important developer contract is therefore: when the helper is loaded, what context it reads, what rules or artifacts it returns, and how that changes the calling skill's behavior.
+
+### Workflow
+
+This is a helper skill invoked by other skills, not directly by users. It does not own the workflow — the invoking skill does.
+
+## Modes & Variations
+
+Most helpers do not have end-user modes in the same sense as task skills, but they still vary by scope, invoking context, selected family, or fallback behavior.
+
+
+### Behavior Variations
+
+- **Auto-detect** (default): scans project structure, dependencies, and config files to determine architecture type
+- **`--focus <area>`**: overrides auto-detection and loads guidelines for the specified area
+- Always loads core architecture principles
+- Conditionally loads area-specific patterns based on detected or specified focus
+- Loads anti-pattern detection criteria for all focus areas
+
+## Output
+
+Helper skills usually return a rule set, a resolved reference list, or a normalized contract back to the calling skill rather than a standalone report.
+
+
+### Output
+
+Produce a summary listing the detected focus and loaded guidelines. The calling skill uses this to apply architecture standards.
+
+```text
+
+## Additional Reference
 
 ### Architecture Detection
 
-Scans the repository to determine the primary architecture type:
+Scan the repository to determine the primary architecture type and focus areas.
+
+### Detection Signals
 
 | Signal | Focus |
 |--------|-------|
 | `package.json` with React/Vue/Svelte/Angular | frontend |
 | `next.config.*`, `nuxt.config.*`, `astro.config.*` | frontend (SSR/SSG) |
+| `src/pages/`, `src/app/`, `src/components/` | frontend |
 | `.storybook/`, design tokens, `tailwind.config.*` | frontend (design system) |
 | `pom.xml`, `build.gradle`, `go.mod`, `Cargo.toml` | backend |
 | `pyproject.toml` with FastAPI/Django/Flask | backend |
+| `src/main/`, `cmd/`, `internal/` | backend |
 | API route handlers, GraphQL schemas, OpenAPI specs | backend (API) |
 | Both frontend and backend signals present | fullstack |
 | `Dockerfile`, `docker-compose.*`, `k8s/`, `helm/` | infra |
 | `terraform/`, `pulumi/`, `.github/workflows/` | infra |
+| `Makefile`, `justfile`, CI config files | infra |
 
-**Precedence**: both frontend + backend → `fullstack`; dominant infra signals with no app code → `infra`; otherwise strongest single signal.
+### Precedence
 
-### Core Architecture Principles (Always Loaded)
+When multiple signals are present, select the broadest applicable focus:
 
-| Principle | Summary |
-|-----------|---------|
-| Separation of Concerns | Each module/layer has a single, well-defined responsibility |
-| Single Responsibility | A class, module, or function has one reason to change |
-| Dependency Inversion | High-level modules depend on abstractions, not low-level modules |
-| Interface Segregation | Narrow, role-specific interfaces over broad ones |
-| CQRS | Separate read/write models when loads differ significantly (not for simple CRUD) |
-| Event-Driven vs Request-Response | Choose based on consistency and latency requirements per operation |
+1. If both frontend and backend signals → `fullstack`
+2. If infra signals are dominant (no application code) → `infra`
+3. Otherwise → the strongest single signal
 
-### Architecture Style Guidance
+---
+
+### Core Architecture Principles
+
+These apply regardless of focus area. Evaluate all code against these principles from a principal engineer perspective.
+
+### Separation of Concerns
+
+Each module, layer, or component should have a single, well-defined responsibility. UI rendering logic should not contain business rules. Data access should not know about HTTP transport.
+
+### Single Responsibility
+
+A class, module, or function should have one reason to change. When a change in business logic requires modifying the same file as a change in persistence logic, the responsibilities are tangled.
+
+### Dependency Inversion
+
+High-level modules should not depend on low-level modules. Both should depend on abstractions. Concretely: business logic imports interfaces, not database drivers. Frameworks are implementation details, not architectural foundations.
+
+### Interface Segregation
+
+No consumer should be forced to depend on methods it does not use. Prefer narrow, role-specific interfaces over broad ones. A `ReadRepository` and `WriteRepository` are better than a single `Repository` with twelve methods.
+
+### CQRS (Where Applicable)
+
+Separate read and write models when:
+- Read and write loads differ significantly
+- Read models benefit from denormalization
+- Event sourcing is in play
+
+Do not apply CQRS to simple CRUD systems — it adds complexity without proportional benefit.
+
+### Event-Driven vs Request-Response
+
+- **Request-response**: synchronous, easier to reason about, appropriate for user-facing operations that need immediate feedback
+- **Event-driven**: asynchronous, better for decoupling, appropriate for cross-service communication, audit trails, and eventual consistency
+
+Choose based on the consistency and latency requirements of the specific operation, not as a blanket architectural decision.
+
+### Architecture Styles
 
 | Style | When to Use | When to Avoid |
 |-------|-------------|---------------|
-| Layered | Small to medium apps with clear request/response flows | Layers become pass-through with no logic |
-| Hexagonal | Domain must be framework-agnostic or testable in isolation | Simple CRUD where indirection adds overhead |
-| Clean Architecture | Complex domains with multiple delivery mechanisms | MVPs or single delivery mechanism apps |
-| Modular monolith | Service boundaries without distributed system complexity | Services genuinely need independent deployment |
-| Microservices | Independent deployment, scaling, and team ownership | Early-stage products, small teams, unclear boundaries |
+| **Layered** (controller → service → repository) | Small to medium apps with clear request/response flows | When layers become pass-through with no logic |
+| **Hexagonal** (ports & adapters) | When the domain must be framework-agnostic or testable in isolation | Simple CRUD apps where the indirection adds overhead |
+| **Clean Architecture** | Complex domains with multiple delivery mechanisms (API, CLI, queue) | MVPs, prototypes, or apps with a single delivery mechanism |
+| **Modular monolith** | Teams that need service boundaries without distributed system complexity | When services genuinely need independent deployment |
+| **Microservices** | Independent deployment, scaling, and team ownership requirements | Early-stage products, small teams, or when boundaries are unclear |
 
-### Focus-Specific Patterns
+---
 
-**Frontend** (loaded when focus is `frontend` or `fullstack`): component hierarchy and composition, state management patterns (local → lifted → context → external store → server state), data fetching strategies, route-based code splitting, design system integration.
+### Frontend Architecture Patterns
 
-**Backend** (loaded when focus is `backend` or `fullstack`): API design (REST, GraphQL, gRPC), service boundaries and DDD, database access patterns (Repository, Active Record, Query Builder, Raw SQL), error handling and resilience, observability (logging, metrics, tracing).
+Loaded when focus is `frontend` or `fullstack`.
 
-**Infrastructure** (loaded when focus is `infra` or infra files detected): container orchestration, CI/CD pipelines, infrastructure as code, environment management.
+### Component Hierarchy and Composition
+
+- Prefer composition over inheritance — use render props, slots, or children
+- Separate **container** components (data fetching, state management) from **presentational** components (rendering, styling)
+- Keep component files under 300 lines — extract sub-components when complexity grows
+- Co-locate related files: component, styles, tests, and types in the same directory
+
+### State Management
+
+| Pattern | When to Use |
+|---------|-------------|
+| **Local state** (useState, ref) | UI-only state: form inputs, toggles, modals |
+| **Lifted state** | State shared between 2-3 sibling components |
+| **Context / provide-inject** | App-wide settings: theme, locale, auth status |
+| **External store** (Redux, Zustand, Pinia) | Complex cross-cutting state with derived data |
+| **Server state** (React Query, SWR, TanStack Query) | API response caching, optimistic updates, background refetch |
+
+Avoid duplicating server state in a client store. If the data comes from an API, use a server state library.
+
+### Data Fetching Strategies
+
+- **Fetch on mount**: simple, but causes waterfalls when nested components each fetch independently
+- **Fetch in route loader**: eliminates waterfalls, enables parallel loading, best for route-level data
+- **Streaming / suspense**: progressive rendering while data loads
+- **Stale-while-revalidate**: show cached data immediately, refresh in background
+
+Prefer route-level data loading over component-level fetching to avoid request waterfalls.
+
+### Route-Based Code Splitting
+
+- Split at route boundaries — each route loads its own chunk
+- Use dynamic imports (`lazy()`, `defineAsyncComponent`) for heavy components
+- Prefetch likely next routes on hover or viewport proximity
+- Keep the initial bundle under 200KB (gzipped) for good Core Web Vitals
+
+### Design System Integration
+
+- Use design tokens (colors, spacing, typography) from the design system — never hardcode values
+- Follow the component API surface defined by the design system
+- Extend through composition and wrapper components, not by modifying the design system source
+- Document deviations from the design system with rationale
+
+---
+
+### Backend Architecture Patterns
+
+Loaded when focus is `backend` or `fullstack`.
+
+### API Design
+
+#### REST
+
+- Use nouns for resources, HTTP verbs for actions (`GET /users`, `POST /orders`)
+- Version APIs in the URL path (`/v1/`) or via Accept header
+- Return consistent error shapes: `{ error: { code, message, details } }`
+- Use appropriate HTTP status codes — 200 for success, 201 for creation, 400 for validation, 404 for not found, 409 for conflict, 500 for server errors
+- Paginate collections with cursor-based or offset-based pagination
+- Support filtering, sorting, and field selection via query parameters
+
+#### GraphQL
+
+- Design schema around domain concepts, not database tables
+- Use DataLoader to batch and deduplicate database queries (N+1 prevention)
+- Limit query depth and complexity to prevent abuse
+- Separate Query and Mutation types clearly
+
+#### gRPC
+
+- Define services in `.proto` files with clear method contracts
+- Use streaming for real-time or large-payload operations
+- Version via package naming (`v1`, `v2`)
+
+### Service Boundaries and Domain-Driven Design
+
+- Identify bounded contexts by looking for natural seams: where different teams work, where language changes, where data ownership differs
+- Each bounded context owns its data — no shared databases between contexts
+- Use anti-corruption layers at context boundaries to translate between domain models
+- Aggregate roots enforce invariants for their cluster of entities
+
+### Database Access Patterns
+
+| Pattern | When to Use |
+|---------|-------------|
+| **Repository** | When the domain layer must be persistence-agnostic |
+| **Active Record** | Simple CRUD with 1:1 mapping between objects and tables |
+| **Query Builder** | Complex queries that don't map to domain operations |
+| **Raw SQL** | Performance-critical queries, reports, or analytics |
+
+Prefer the simplest pattern that serves the use case. A repository wrapping an ORM wrapping SQL is three layers of indirection — use a repository only when domain isolation justifies it.
+
+### Error Handling and Resilience
+
+- Distinguish between **expected errors** (validation, not found, conflict) and **unexpected errors** (infrastructure failures, bugs)
+- Expected errors return structured error responses with actionable messages
+- Unexpected errors log full context, return generic messages, and trigger alerts
+- Apply circuit breakers for external service calls
+- Use retries with exponential backoff and jitter for transient failures
+- Set timeouts on all external calls — never wait indefinitely
+- Design for partial failure: degrade gracefully when a dependency is unavailable
+
+### Observability
+
+| Pillar | Purpose | Implementation |
+|--------|---------|----------------|
+| **Logging** | Discrete events | Structured JSON logs with correlation IDs |
+| **Metrics** | Aggregate measurements | RED metrics (Rate, Errors, Duration) per service |
+| **Tracing** | Request flow across services | Distributed traces with span context propagation |
+
+- Every service should expose health check endpoints (`/health`, `/ready`)
+- Log at appropriate levels: ERROR for failures requiring attention, WARN for degraded state, INFO for significant business events, DEBUG for development
+- Include correlation/request IDs in all log entries for traceability
+
+---
+
+### Infrastructure Patterns
+
+Loaded when focus is `infra` or when infrastructure files are detected.
+
+### Container Orchestration
+
+- Use multi-stage Docker builds to minimize image size
+- Run containers as non-root users
+- Pin base image versions — never use `:latest` in production
+- Define resource requests and limits for every container
+- Use health checks and readiness probes
+
+### CI/CD Pipelines
+
+- Pipeline stages: lint → test → build → security scan → deploy
+- Keep builds fast: parallelize test suites, cache dependencies, use incremental builds
+- Deploy to staging before production — never skip the staging step
+- Use feature flags over long-lived feature branches
+- Automate rollback: detect failure metrics and revert within SLA
+
+### Infrastructure as Code
+
+- All infrastructure must be defined in code — no manual console changes
+- Use modules/functions to encapsulate reusable infrastructure components
+- Store state remotely with locking (Terraform state, Pulumi state)
+- Separate environment configs from infrastructure definitions
+- Review infrastructure changes with the same rigor as application code
+
+### Environment Management
+
+- Use environment variables for runtime configuration — never hardcode secrets
+- Manage secrets via a secrets manager (Vault, AWS Secrets Manager, GCP Secret Manager)
+- Maintain parity between development, staging, and production environments
+- Document any intentional differences between environments
+
+---
 
 ### Anti-Patterns to Detect
 
-| Anti-Pattern | Severity | Detection Signals |
-|-------------|----------|-------------------|
-| God Classes / God Modules | High | Files over 500 lines, classes with 10+ unrelated methods, modules imported by >50% of codebase |
-| Circular Dependencies | High | Import cycles, modules that import each other directly or transitively |
-| Leaky Abstractions | Medium | Consumers working around limitations, catch-and-rethrow adding no context, pass-through wrappers |
-| Over-Engineering | Medium | Abstract base class with one implementation, config for nonexistent features, unnecessary indirection layers |
-| Under-Engineering | High | Missing error handling, no input validation on public APIs, no logging for failures, missing auth checks |
+Flag these when reviewing or auditing code. Each includes detection signals and severity.
 
-## What It Provides
+### God Classes / God Modules
 
-A summary listing the detected focus and loaded guidelines for the calling skill:
+**Severity**: High
+**Signals**: files over 500 lines, classes with 10+ methods spanning unrelated domains, modules imported by >50% of the codebase
+**Fix**: decompose by responsibility into focused modules
 
-```
+### Circular Dependencies
+
+**Severity**: High
+**Signals**: import cycles, modules that import each other directly or transitively
+**Fix**: extract shared abstractions, apply dependency inversion, introduce an event bus or mediator
+
+### Leaky Abstractions
+
+**Severity**: Medium
+**Signals**: consumers working around an abstraction's limitations, catch-and-rethrow patterns that add no context, wrapper functions that pass through every parameter
+**Fix**: redesign the abstraction to match actual usage patterns, or remove it if the underlying API is simpler
+
+### Over-Engineering
+
+**Severity**: Medium
+**Signals**: premature abstraction (abstract base class with one implementation), speculative generality (configuration for features that don't exist), unnecessary indirection (service → adapter → repository → ORM → SQL for simple CRUD)
+**Fix**: remove the abstraction, use the concrete implementation directly, add abstraction only when a second use case actually appears
+
+### Under-Engineering
+
+**Severity**: High
+**Signals**: missing error handling (bare catch-all or no catch at all), no input validation on public APIs, no logging for failures, missing authentication/authorization checks, no rate limiting on public endpoints
+**Fix**: add the missing safety nets — these are not optional in production code
+
+---
+
+### Architecture Guidelines Loaded
+
 Focus: backend (detected via go.mod, cmd/, internal/)
 
 Loaded:
@@ -101,13 +348,22 @@ Detected patterns:
 - Repository pattern (internal/repository/)
 ```
 
-## Invoked By
+## Examples
 
-| Skill | Load Condition |
-|-------|---------------|
-| `code-review-pr` | always (architecture review is one of 10 review dimensions) |
-| `code-review-repo` | always |
-| `audit` | always |
-| `design` | always |
-| `dev-build` | when architectural decisions are needed |
-| `dev-refactor` | always (refactoring requires architecture awareness) |
+The examples below start with a minimal invocation and then show the most common ways developers override detection or change the resulting artifact.
+
+### Start With The Default Path
+
+Start with the smallest useful invocation. If the skill supports auto-detection, this is the fastest way to see which path it chooses before you pin it down with extra flags.
+
+```text
+(invoked automatically by /adk:code-review-pr, /adk:audit, /adk:design, /adk:dev-build)
+```
+### Force Or Narrow Behavior
+
+Use selector flags when you want a deterministic mode, scope, route, or downstream stage instead of relying on automatic detection.
+
+```text
+/adk:architecture --focus backend
+/adk:architecture --focus fullstack
+```

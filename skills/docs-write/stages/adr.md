@@ -61,7 +61,7 @@ Markdown file saved to `docs/adr/NNNN-<slug>.md` where NNNN is the next sequenti
 - At least two options were considered
 - Decision is specific and actionable
 - Consequences include negative items
-- Invoke `/docs-guidelines --type adr` to load ADR writing guidelines for validation
+- Invoke `/adk:docs-guidelines --type adr` to load ADR writing guidelines for validation
 
 ## Adjacent Skills
 

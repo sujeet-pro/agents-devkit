@@ -6,251 +6,113 @@ order: 2
 
 # Development
 
-ADK's development skills cover the full implementation lifecycle — from building features and debugging to refactoring and migrating frameworks. The `dev` router auto-detects the right sub-skill, or invoke each directly.
+Use the `dev` router when you want ADK to decide which development workflow fits the request, or jump directly to the specialized skill when you already know whether the job is implementation, debugging, refactoring, migration, or wrap-up.
 
-> **Quick start:** `/adk:dev <describe what you want to build or fix>` — the router picks the right skill.
+> **Quick start:** `/adk:dev <prompt-text>` routes the request to the right development skill and keeps the workflow small when the task is small.
 
 ## Scenarios
 
-- [Build a new feature](#build-a-new-feature)
-- [Debug an issue](#debug-an-issue)
-- [Test-driven development](#test-driven-development)
-- [Enhance existing code](#enhance-existing-code)
-- [Refactor code](#refactor-code)
-- [Migrate frameworks or libraries](#migrate-frameworks-or-libraries)
-- [Create commits and PR descriptions](#create-commits-and-pr-descriptions)
-- [Quick one-off changes](#quick-one-off-changes)
-- [Isolated experiments with worktrees](#isolated-experiments-with-worktrees)
+- [Build Or Extend Something](#build-or-extend-something)
+- [Debug Or Verify](#debug-or-verify)
+- [Refactor Safely](#refactor-safely)
+- [Migrate Dependencies Or Frameworks](#migrate-dependencies-or-frameworks)
+- [Wrap Up Your Changes](#wrap-up-your-changes)
 
 ---
 
-## Build a New Feature
+## Build Or Extend Something
 
-Use `dev-build` to implement a feature from a description, spec, or plan.
+Start with `dev-build` for new features, extensions to existing behavior, quick fixes, or isolated experiments. The skill can read a spec or plan file when you already have one.
 
 ```text
+/adk:dev-build <prompt-text>
 /adk:dev-build implement user authentication with OAuth2
+/adk:dev-build --mode enhance <prompt-text>
+/adk:dev-build --spec <path> <prompt-text>
+/adk:dev-build --plan <path> <prompt-text>
+/adk:dev-build --scope <path> <prompt-text>
+/adk:dev-build --branch <name> <prompt-text>
+/adk:dev-build --mode quick <prompt-text>
+/adk:dev-build --mode worktree <prompt-text>
 ```
 
-### From a spec or plan
-
-Reference an existing spec or plan file:
-
-```text
-/adk:dev-build --spec ./docs/specs/auth-spec.md implement the authentication module
-/adk:dev-build --plan ./.temp/auth-plan/plan.md execute the auth implementation plan
-```
-
-### Full implementation with tests
-
-Use `--full` to include test generation alongside the implementation:
-
-```text
-/adk:dev-build --full implement the payment processing module
-```
-
-### Scoped implementation
-
-Limit changes to specific files or directories:
-
-```text
-/adk:dev-build --scope src/api/ add rate limiting to all API endpoints
-```
+Use `--mode enhance` when you are extending something that already exists, `--scope` when you want to keep the blast radius tight, and `--mode worktree` when you want the experiment isolated in a separate git worktree.
 
 ---
 
-## Debug an Issue
+## Debug Or Verify
 
-ADK auto-detects debug mode from keywords like "fix", "bug", "error", "broken":
-
-```text
-/adk:dev-build fix the memory leak in the WebSocket connection handler
-/adk:dev-build debug why the login page shows a blank screen after redirect
-```
-
-Or set the mode explicitly:
+Use debug mode when the main job is diagnosis, and verify mode when the implementation is already done and you only want confidence checks.
 
 ```text
-/adk:dev-build --mode debug the API returns 500 on POST /users when email contains unicode
+/adk:dev-build --mode debug <prompt-text>
+/adk:dev-build --mode debug the login form crashes on empty email
+/adk:dev-build --fix <prompt-text>
+/adk:dev-build --mode tdd <prompt-text>
+/adk:dev-build --tdd <prompt-text>
+/adk:dev-build --mode verify <prompt-text>
 ```
 
-The debug workflow: reproduce → diagnose → hypothesize → fix → verify.
+`--fix` keeps you in the debugging workflow but lets the skill implement the fix once the root cause is understood. `--tdd` is just the convenient alias for the TDD mode when you want tests first.
 
 ---
 
-## Test-Driven Development
+## Refactor Safely
 
-Use TDD mode to write tests first, then implement until they pass:
+Reach for `dev-refactor` when the job is a behavior-preserving transformation rather than new product behavior.
 
 ```text
-/adk:dev-build --mode tdd implement a rate limiter with sliding window
-/adk:dev-build --tdd add input validation for the user registration form
+/adk:dev-refactor <prompt-text>
+/adk:dev-refactor --pattern extract <prompt-text>
+/adk:dev-refactor --pattern rename <prompt-text>
+/adk:dev-refactor --pattern restructure <prompt-text>
+/adk:dev-refactor --scope <path> <prompt-text>
 ```
 
-The TDD cycle: write failing tests → implement → green → refactor.
+The pattern flag is the main selector here: use it when you want the skill to skip inference and go directly to extraction, rename, restructure, simplify, or modernization work.
 
 ---
 
-## Enhance Existing Code
+## Migrate Dependencies Or Frameworks
 
-Improve or extend existing functionality:
+Use `dev-migrate` when the core question is “how do we move from one version, package, or framework to another without breaking the system?”
 
 ```text
-/adk:dev-build --mode enhance add pagination to the users list API
-/adk:dev-build enhance the search to support fuzzy matching
+/adk:dev-migrate <source> to <target>
+/adk:dev-migrate react@17 to react@19
+/adk:dev-migrate --scope <path> <source> to <target>
+/adk:dev-migrate --dry-run <source> to <target>
 ```
 
-ADK detects "enhance" mode from signals like "add ... to", "improve", "extend", "optimize".
+Start with `--dry-run` when you want the breakage analysis and migration path before any code changes happen.
 
 ---
 
-## Refactor Code
+## Wrap Up Your Changes
 
-Use `dev-refactor` for safe, tested code transformations.
-
-### Extract
-
-Pull logic into a separate function, class, or module:
-
-```text
-/adk:dev-refactor extract the validation logic from UserController into a ValidationService
-/adk:dev-refactor --pattern extract split the monolithic API handler into route-specific modules
-```
-
-### Rename
-
-Rename symbols across the codebase:
-
-```text
-/adk:dev-refactor --pattern rename rename getUserData to fetchUserProfile across the codebase
-```
-
-### Restructure
-
-Reorganize file and directory structure:
-
-```text
-/adk:dev-refactor --pattern restructure move from flat file structure to feature-based folders
-```
-
-### Simplify
-
-Reduce complexity and remove dead code:
-
-```text
-/adk:dev-refactor --pattern simplify reduce cyclomatic complexity in the payment module
-```
-
-### Modernize
-
-Update patterns to use current language features:
-
-```text
-/adk:dev-refactor --pattern modernize convert callbacks to async/await in the data layer
-```
-
-### Scoped refactoring
-
-```text
-/adk:dev-refactor --scope src/services/ simplify error handling patterns
-```
-
----
-
-## Migrate Frameworks or Libraries
-
-Use `dev-migrate` to upgrade or swap dependencies with breaking-change analysis.
-
-### Version upgrade
-
-```text
-/adk:dev-migrate React 17 to React 18
-/adk:dev-migrate Node 18 to Node 22
-/adk:dev-migrate Python 3.9 to Python 3.12
-```
-
-### Library swap
-
-```text
-/adk:dev-migrate moment.js to dayjs
-/adk:dev-migrate Express to Fastify
-```
-
-### Dry run
-
-Analyze breaking changes without making modifications:
-
-```text
-/adk:dev-migrate React 17 to React 18 --dry-run
-```
-
-### Scoped migration
-
-```text
-/adk:dev-migrate --scope src/frontend/ Vue 2 to Vue 3
-```
-
----
-
-## Create Commits and PR Descriptions
-
-Use `dev-commit` for smart commits that auto-detect your convention.
+After implementation, refactoring, or migration work is done, use `dev-commit` to package the result cleanly.
 
 ```text
 /adk:dev-commit
 ```
 
-This stages changes, generates a commit message (detecting conventional commits, gitmoji, or plain format), and creates the commit. Also generates PR descriptions from branch diffs.
+This is the wrap-up skill for staging, commit-message generation, and PR-description generation when you have finished the development work itself.
 
 ---
 
-## Quick One-Off Changes
-
-For simple changes that don't need the full workflow:
-
-```text
-/adk:dev-build --mode quick add a loading spinner to the dashboard
-```
-
-Quick mode skips planning phases and goes straight to implementation.
-
----
-
-## Isolated Experiments with Worktrees
-
-For experimental changes you might discard:
-
-```text
-/adk:dev-build --mode worktree try implementing auth with Passport.js
-```
-
-Worktree mode creates a git worktree, implements there, and lets you merge or discard.
-
-### Named branch
-
-```text
-/adk:dev-build --mode worktree --branch experiment/new-auth try the new auth approach
-```
-
----
-
-## Which Skill to Use?
+## Which Skill To Use?
 
 | Scenario | Skill | Key Parameters |
 |----------|-------|----------------|
-| Build a feature | `dev-build` | `--mode implement`, `--spec`, `--plan`, `--full` |
-| Fix a bug | `dev-build` | `--mode debug`, `--scope` |
-| Write tests first | `dev-build` | `--mode tdd`, `--tdd` |
-| Improve existing code | `dev-build` | `--mode enhance` |
-| Quick change | `dev-build` | `--mode quick` |
-| Experiment safely | `dev-build` | `--mode worktree`, `--branch` |
-| Extract / rename / restructure | `dev-refactor` | `--pattern`, `--scope` |
-| Upgrade or swap frameworks | `dev-migrate` | `<source> to <target>`, `--dry-run` |
-| Commit with smart message | `dev-commit` | (auto-detects convention) |
+| Let ADK pick the development path | `dev` | `<prompt-text>` |
+| Build or extend behavior | `dev-build` | `<prompt-text>`, `--mode`, `--spec`, `--plan`, `--scope` |
+| Debug or verify | `dev-build` | `--mode debug`, `--fix`, `--mode verify` |
+| Refactor | `dev-refactor` | `<prompt-text>`, `--pattern`, `--scope` |
+| Migrate packages or frameworks | `dev-migrate` | `<source> to <target>`, `--scope`, `--dry-run` |
+| Commit and summarize | `dev-commit` | no required flags |
 
 ## Related Skills
 
-- **[`code-review-pr`](/reference/skill-code-review-pr/)** — self-review before creating a PR
-- **[`plan`](/reference/skill-plan/)** — create an implementation plan before building
-- **[`spec`](/reference/skill-spec/)** — write or analyze specifications
-- **[`test`](/reference/skill-test/)** — user acceptance testing after implementation
+- **[`plan`](/reference/skill-plan/)** when you want the plan first and the code second.
+- **[`spec`](/reference/skill-spec/)** when the missing artifact is a requirements document rather than code.
+- **[`code-review-pr`](/reference/skill-code-review-pr/)** when you want to self-review the result before or after a PR is opened.

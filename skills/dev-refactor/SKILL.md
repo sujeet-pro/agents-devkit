@@ -103,6 +103,8 @@ If any declared dependency is missing, stop and tell the user what to install be
 - Note any pre-existing failures to avoid false attribution
 - If test coverage is low on affected code, suggest adding tests first
 
+> **Gate**: Present safety assessment to user. If tests are missing, get approval to add them first. Skip if `--auto`.
+
 ### 3. Transformation Plan
 
 Generate ordered steps, each independently verifiable:
@@ -121,6 +123,8 @@ Generate ordered steps, each independently verifiable:
 | 3 | Update imports in consumers | 5 files | tests pass |
 | 4 | Remove dead code from UserController | 1 file | tests pass |
 ```
+
+> **Gate**: Present transformation plan to user for approval before execution. Skip if `--auto`.
 
 ### 4. Execution
 

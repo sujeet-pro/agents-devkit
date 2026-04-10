@@ -114,4 +114,4 @@ Accumulates project-specific knowledge across sessions:
 
 ## Used By
 
-- Available as a standalone agent for technical document creation
+- `docs-write` -- document drafting and source material synthesis across writing stages

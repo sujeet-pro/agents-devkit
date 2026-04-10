@@ -1,6 +1,6 @@
 ---
-title: "jira"
-description: Jira REST API operations — issue management, comments, search, projects, boards, and sprints
+title: 'jira'
+description: 'Jira REST API operations — issue management, comments, search, projects, boards, and sprints'
 skill_name: jira
 category: connector
 workflow_tier: helper
@@ -9,30 +9,53 @@ user_invocable: false
 
 # jira
 
-Platform connector for Jira Cloud. Wraps the Jira REST API v3 and Agile REST API v1 via `curl`, providing issue management, JQL search, comments, project administration, board and sprint management to task skills that need Jira integration.
+`jira` centralizes platform-specific operations so higher-level skills do not need to own authentication, transport choice, and fallback logic themselves. The calling skill owns the user-facing workflow; this connector owns authentication checks, transport choice, and operation boundaries.
 
-## Purpose
+## Overview
 
-- Provide Jira Cloud API access to task skills like `docs-crud` for context reading and issue tracking
-- Create, read, update, transition, assign, and link issues through the full issue lifecycle
-- Search issues with JQL queries for filtering, sprint planning, and reporting
-- Manage comments on issues — add, update, delete, and list
-- Access project metadata including versions, components, and statuses
-- Manage agile boards, sprints, backlogs, and issue ranking
+`jira` belongs to the `connector` layer and is declared at the `helper` tier. That metadata is more than labeling: it tells you how much planning happens before execution, how much the skill is allowed to infer, and whether the result should be a final artifact, a routing decision, or a shared contract for another skill.
 
-## Authentication & Setup
+Connector skills deliberately centralize platform-specific behavior. That keeps authentication, fallback order, and operation families in one place so higher-level task skills can focus on review, documentation, or implementation logic instead of API plumbing.
 
-### Requirements
+## Parameters
 
-| Dependency | Check | Install |
-|------------|-------|---------|
-| `curl` | `command -v curl` | Pre-installed on macOS/Linux |
-| `jq` | `command -v jq` | `brew install jq` (macOS) |
-| Jira credentials | `bash scripts/auth.sh` | Set env vars in `~/.zshenv` |
+This connector does not define a standalone user-facing parameter table. The calling skill decides the operation and passes the relevant context through the connector contract.
 
-### Environment Variables
+## How It Works
 
-Add to `~/.zshenv`:
+Connector behavior starts with preflight. The skill validates authentication, tooling, or MCP access first, then routes the requested operation through the preferred transport and fallback path defined in `SKILL.md`.
+
+That split matters for developers because task skills depend on this page to understand what is guaranteed before a networked action happens and what should happen when auth or transport is unavailable.
+
+### Operation References
+
+| Domain | Reference | Script | Common Use Cases |
+|--------|-----------|--------|-----------------|
+| Issues | `${CLAUDE_SKILL_DIR}/references/issue-operations.md` | `scripts/issues.sh` | Get, create, update, transition, assign, link |
+| Comments | `${CLAUDE_SKILL_DIR}/references/comment-operations.md` | `scripts/comments.sh` | Add, update, delete, list comments |
+| Search | `${CLAUDE_SKILL_DIR}/references/search-operations.md` | `scripts/search.sh` | JQL queries, filters |
+| Projects | `${CLAUDE_SKILL_DIR}/references/project-operations.md` | `scripts/projects.sh` | List, get, versions, components |
+| Boards & Sprints | `${CLAUDE_SKILL_DIR}/references/board-operations.md` | `scripts/boards.sh` | Boards, sprints, backlog management |
+
+## Modes & Variations
+
+The important variations here are usually transport choice, operation family, or platform-specific fallback behavior rather than a user-visible workflow mode.
+
+
+### Routing
+
+Load `${CLAUDE_SKILL_DIR}/references/routing.md` to determine which reference and script to use.
+
+## Output
+
+Connectors typically return platform data or perform side effects for the calling skill. They do not usually define the final human-facing narrative on their own.
+
+
+## Additional Reference
+
+### Auth
+
+Requires environment variables in `~/.zshenv`:
 
 ```bash
 export JIRA_URL="https://your-domain.atlassian.net"
@@ -44,124 +67,64 @@ Uses the same API token type as Confluence. Generate at: https://id.atlassian.co
 
 ### Validation
 
-Run `bash scripts/auth.sh` to verify credentials. If auth fails, the skill stops and prompts the user to add or update credentials in `~/.zshenv`, then `source ~/.zshenv`.
+```bash
+bash ${CLAUDE_SKILL_DIR}/scripts/auth.sh
+```
 
-## Available Operations
+If auth fails or token is expired:
+> Add or update your Jira credentials in `~/.zshenv`:
+> ```bash
+> export JIRA_URL="https://your-domain.atlassian.net"
+> export JIRA_USERNAME="your-email@example.com"
+> export JIRA_API_TOKEN="your-api-token"
+> ```
+> Then run `source ~/.zshenv` and retry.
 
-### Issue Management
+### MCP Server Setup
 
-| Operation | Script Command |
-|-----------|----------------|
-| Get issue details | `issues.sh get --key PROJ-123` |
-| Create issue | `issues.sh create --project PROJ --type Task --summary "..."` |
-| Update issue fields | `issues.sh update --key PROJ-123 --fields '{"summary": "..."}'` |
-| Delete issue | `issues.sh delete --key PROJ-123` |
-| List transitions | `issues.sh transitions --key PROJ-123` |
-| Transition issue | `issues.sh transition --key PROJ-123 --transition-id ID` |
-| Assign issue | `issues.sh assign --key PROJ-123 --account-id ACC_ID` |
-| Link issues | `issues.sh link --from PROJ-123 --to PROJ-456 --type "Blocks"` |
-| Get watchers | `issues.sh watchers --key PROJ-123` |
-| Add watcher | `issues.sh add-watcher --key PROJ-123 --account-id ACC_ID` |
-| Get worklogs | `issues.sh worklog --key PROJ-123` |
-| Add worklog | `issues.sh add-worklog --key PROJ-123 --time-spent "2h"` |
+To configure the MCP server for this connector, see `mcp-config.json` in the ADK root directory for the server definition. Copy the relevant entry to your IDE's MCP configuration file (e.g., `~/.claude.json` for Claude Code).
 
-### Comment Operations
+### MCP Connector Detection
 
-| Operation | Script Command |
-|-----------|----------------|
-| List comments | `comments.sh list --key PROJ-123` |
-| Get comment | `comments.sh get --key PROJ-123 --comment-id ID` |
-| Add comment | `comments.sh add --key PROJ-123 --body "..."` |
-| Update comment | `comments.sh update --key PROJ-123 --comment-id ID --body "..."` |
-| Delete comment | `comments.sh delete --key PROJ-123 --comment-id ID` |
+Before using scripts, check if an official Atlassian/Jira MCP connector is available:
 
-### Search (JQL)
+1. Look for tools matching `mcp__atlassian__*`, `mcp__jira__*`, `mcp__plugin-atlassian-atlassian__*`, or `mcp__plugin-adk-atlassian__*` pattern
+2. If available, prefer MCP tools for supported operations
+3. Fall back to scripts for operations not covered by the MCP
 
-| Operation | Script Command |
-|-----------|----------------|
-| Search issues | `search.sh "<JQL query>" [--max-results N] [--fields field1,field2]` |
-
-Common JQL patterns:
-
-| Use Case | JQL Pattern |
-|----------|-------------|
-| My open issues | `assignee = currentUser() AND statusCategory != Done` |
-| Sprint work | `sprint in openSprints() AND project = PROJ` |
-| Recent bugs | `issuetype = Bug AND created >= -7d AND project = PROJ` |
-| Blocked items | `status = Blocked OR status = "On Hold"` |
-| Text search | `text ~ "search term" AND project = PROJ` |
-| Unassigned | `assignee is EMPTY AND project = PROJ AND statusCategory != Done` |
-| High priority | `priority in (Highest, High) AND statusCategory != Done` |
-| Updated recently | `updated >= -1d AND project = PROJ` |
-
-### Project Management
-
-| Operation | Script Command |
-|-----------|----------------|
-| List projects | `projects.sh list` |
-| Get project | `projects.sh get --key PROJ` |
-| List versions | `projects.sh versions --key PROJ` |
-| Create version | `projects.sh create-version --key PROJ --name "v1.0"` |
-| List components | `projects.sh components --key PROJ` |
-| Create component | `projects.sh create-component --key PROJ --name "Backend"` |
-| List statuses | `projects.sh statuses --key PROJ` |
-
-### Boards & Sprints (Agile API)
-
-| Operation | Script Command |
-|-----------|----------------|
-| List boards | `boards.sh list --project PROJ` |
-| Get board | `boards.sh get --board-id ID` |
-| Board config | `boards.sh config --board-id ID` |
-| List sprints | `boards.sh sprints --board-id ID` |
-| Sprint issues | `boards.sh sprint-issues --sprint-id ID` |
-| Move to sprint | `boards.sh move-to-sprint --sprint-id ID --issues PROJ-1,PROJ-2` |
-| Get backlog | `boards.sh backlog --board-id ID` |
-| Move to backlog | `boards.sh move-to-backlog --issues PROJ-1,PROJ-2` |
-| Rank issues | `boards.sh rank --issues PROJ-1 --before PROJ-2` |
-
-## MCP vs API Fallback Behavior
-
-| Priority | Method | When Used |
-|----------|--------|-----------|
-| **Primary** | MCP tools (`mcp__atlassian__*`, `mcp__jira__*`, `mcp__plugin-atlassian-atlassian__*`) | Checked first; preferred for supported operations |
-| **Secondary** | REST API via `curl` (bundled scripts) | For operations not covered by MCP, or when MCP unavailable |
-| **Fallback** | Direct `curl` commands | When scripts are not accessible via `${CLAUDE_SKILL_DIR}` |
-
-### MCP-Eligible Operations
+### Known MCP Connector Capabilities
 
 The official Atlassian MCP connector typically supports:
+- Get issue details — use MCP
+- Create issues — use MCP
+- Update issues — use MCP
+- Search via JQL — use MCP
+- Add comments — use MCP
 
-- Get issue details
-- Create issues
-- Update issues
-- Search via JQL
-- Add comments
+Operations that typically require scripts:
+- Board/sprint management — use `scripts/boards.sh`
+- Bulk operations — use `scripts/issues.sh`
+- Transition with custom fields — use `scripts/issues.sh`
+- Worklog management — use `scripts/issues.sh`
+- Component/version management — use `scripts/projects.sh`
 
-### Script-Only Operations
+### API Base
 
-These **always require direct API calls** via scripts:
+- REST API v3: `${JIRA_URL}/rest/api/3`
+- Agile API v1: `${JIRA_URL}/rest/agile/1.0`
 
-| Operation | Reason |
-|-----------|--------|
-| Board/sprint management | MCP connectors don't expose Agile API |
-| Bulk operations | MCP connectors lack batch endpoints |
-| Transition with custom fields | MCP connectors may not support field payloads on transition |
-| Worklog management | MCP connectors typically lack worklog support |
-| Component/version management | MCP connectors may not expose project admin |
+### Script Usage
 
-## Key Behaviors
+```bash
+bash ${CLAUDE_SKILL_DIR}/scripts/issues.sh <action> [args...]
+bash ${CLAUDE_SKILL_DIR}/scripts/comments.sh <action> --key <issue-key> [args...]
+bash ${CLAUDE_SKILL_DIR}/scripts/search.sh <jql-query> [--max-results N] [--fields field1,field2]
+bash ${CLAUDE_SKILL_DIR}/scripts/projects.sh <action> [args...]
+bash ${CLAUDE_SKILL_DIR}/scripts/boards.sh <action> [args...]
+```
 
-- **MCP-first when available**: unlike other connectors, Jira checks for MCP connector availability first and prefers MCP for supported operations
-- **Dual API surfaces**: uses REST API v3 for core operations and Agile REST API v1 for boards, sprints, and backlog management
-- **Shared Atlassian token**: uses the same API token type as Confluence — one token generation at https://id.atlassian.com covers both
-- **Routing-based dispatch**: uses internal routing table to map workflows (story details, project management, search, issue lifecycle) to the correct scripts and actions
-- **JSON output**: scripts output JSON to stdout, errors to stderr, non-zero exit on failure
-- **API base**: REST API v3 at `${JIRA_URL}/rest/api/3`, Agile API v1 at `${JIRA_URL}/rest/agile/1.0`
+Scripts output JSON to stdout. Errors go to stderr. Non-zero exit on failure.
 
-## Invoked By
+## Examples
 
-| Skill | When |
-|-------|------|
-| `/adk:docs-crud` | Context references Jira — reads issue details and comments for document context |
-| `/adk:code-review-pr` | Context reading — reads linked Jira tickets for review context (via `--context` parameter) |
+The examples below start with a minimal invocation and then show the most common ways developers override detection or change the resulting artifact.

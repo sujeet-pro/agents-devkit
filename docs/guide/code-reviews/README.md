@@ -6,236 +6,113 @@ order: 1
 
 # Code Reviews
 
-ADK provides a complete code review workflow — from reviewing someone else's PR to fixing review comments on your own. The `code-review` router auto-detects the right sub-skill, or you can invoke each one directly.
+ADK gives you two ways to start a review: use the `code-review` router when you want it to pick the right path, or jump straight to the specific review skill when you already know the target.
 
-> **Quick start:** `/adk:code-review <PR URL or description>` — the router picks the right skill automatically.
+> **Quick start:** `/adk:code-review <prompt-text>` lets the router decide whether you need a PR review, a local review, or a repository-wide pass.
 
 ## Scenarios
 
-- [Review someone else's PR](#review-someone-elses-pr)
-- [Self-review your own changes](#self-review-your-own-changes)
-- [Generate a PR description](#generate-a-pr-description)
-- [Fix PR review comments](#fix-pr-review-comments)
-- [Review an entire repository](#review-an-entire-repository)
-- [Multi-model cross-review](#multi-model-cross-review)
-- [Finalize and merge a PR](#finalize-and-merge-a-pr)
+- [Review A Pull Request](#review-a-pull-request)
+- [Review Local Changes](#review-local-changes)
+- [Fix Review Comments](#fix-review-comments)
+- [Review An Entire Repository](#review-an-entire-repository)
+- [Describe Or Finalize A PR](#describe-or-finalize-a-pr)
 
 ---
 
-## Review Someone Else's PR
+## Review A Pull Request
 
-Use `code-review-pr` with a PR URL. ADK fetches the diff, loads coding guidelines for the detected stack, and produces a structured review.
+Use `code-review-pr` when you already have a GitHub or Bitbucket PR URL. Start with the plain URL, then add flags only when you want to narrow the review or change how the findings are handled.
 
 ```text
+/adk:code-review-pr <pr-url>
 /adk:code-review-pr https://github.com/org/repo/pull/42
+/adk:code-review-pr <pr-url> --focus security
+/adk:code-review-pr <pr-url> --mode interactive
+/adk:code-review-pr <pr-url> --publish
+/adk:code-review-pr <pr-url> --skip-repo
+/adk:code-review-pr <pr-url> --context <url>
 ```
 
-### Focusing the review
-
-By default, the review covers all dimensions (correctness, security, performance, maintainability). Use `--focus` to narrow:
-
-```text
-/adk:code-review-pr https://github.com/org/repo/pull/42 --focus security
-/adk:code-review-pr https://github.com/org/repo/pull/42 --focus performance
-```
-
-### Publishing comments to the PR
-
-Add `--publish` to post review comments directly on the PR (requires GitHub or Bitbucket MCP):
-
-```text
-/adk:code-review-pr https://github.com/org/repo/pull/42 --publish
-```
-
-### Interactive review mode
-
-Use `--mode interactive` for a guided review where you can accept, reject, or edit each finding:
-
-```text
-/adk:code-review-pr https://github.com/org/repo/pull/42 --mode interactive
-```
-
-### Diff-only remote review
-
-When you don't have the repo cloned locally, use `--skip-repo` to review only the PR diff:
-
-```text
-/adk:code-review-pr https://github.com/org/repo/pull/42 --skip-repo
-```
-
-### Bitbucket PRs
-
-Works identically with Bitbucket URLs (requires Bitbucket MCP):
-
-```text
-/adk:code-review-pr https://bitbucket.org/workspace/repo/pull-requests/42
-```
+Use `--focus` when you want the review weighted toward one concern, `--mode interactive` when you want to triage findings before posting them, and `--publish` when the comments should go back to the PR instead of staying local.
 
 ---
 
-## Self-Review Your Own Changes
+## Review Local Changes
 
-Review local uncommitted changes or a branch diff before creating a PR.
-
-### Review unstaged/staged changes
+You can use the same skill before a PR exists. With no target it reviews your staged and unstaged work; with a branch name it compares that branch against its base.
 
 ```text
 /adk:code-review-pr
-```
-
-When invoked without a URL, `code-review-pr` reviews your local changes (staged + unstaged).
-
-### Review a branch
-
-```text
-/adk:code-review-pr --branch feature/auth
-```
-
-Reviews the diff between the current branch and the base branch.
-
-### Auto-fix issues found
-
-Combine review with automatic fixes for any issues found:
-
-```text
+/adk:code-review-pr <branch-name>
+/adk:code-review-pr feature/auth-v2
 /adk:code-review-pr --fix
+/adk:code-review-pr <pr-url> --cross
 ```
+
+Use `--fix` for self-review when you want the skill to apply straightforward fixes locally. Use `--cross` on high-stakes changes when you want the multi-model peer-review path before you ship.
 
 ---
 
-## Generate a PR Description
+## Fix Review Comments
 
-Auto-generate a PR title and description from your changes:
-
-```text
-/adk:code-review-pr --action describe
-```
-
-This analyzes the diff, summarizes the changes, and generates a structured PR description. Pair with `--publish` to push the description directly to the PR.
+When reviewers have already left feedback on a PR, switch to `code-review-fix`. It reads unresolved comments, categorizes them, and helps you apply fixes or push back with evidence.
 
 ```text
-/adk:code-review-pr https://github.com/org/repo/pull/42 --action describe --publish
-```
-
----
-
-## Fix PR Review Comments
-
-When reviewers leave comments on your PR, use `code-review-fix` to read, categorize, and fix them:
-
-```text
+/adk:code-review-fix <pr-url>
 /adk:code-review-fix https://github.com/org/repo/pull/42
+/adk:code-review-fix <pr-url> --filter blocker
+/adk:code-review-fix <pr-url> --dry-run
+/adk:code-review-fix <pr-url> --auto
 ```
 
-This will:
-
-1. Fetch all unresolved review comments
-2. Categorize by severity (blocker, critical, suggestion)
-3. Present a fix plan for approval
-4. Apply code changes, reply to reviewers, and resolve threads
-
-### Filter by severity
-
-Only address blockers and critical issues:
-
-```text
-/adk:code-review-fix https://github.com/org/repo/pull/42 --filter blocker
-/adk:code-review-fix https://github.com/org/repo/pull/42 --filter critical
-```
-
-### Dry run
-
-See what would be fixed without making changes:
-
-```text
-/adk:code-review-fix https://github.com/org/repo/pull/42 --dry-run
-```
-
-### Automatic mode
-
-Skip confirmations and fix everything:
-
-```text
-/adk:code-review-fix https://github.com/org/repo/pull/42 --auto
-```
+`--filter` is the quickest way to narrow the queue. `--dry-run` is useful when you want a plan before touching code, and `--auto` is for cases where you want the workflow to process everything it can without extra approvals.
 
 ---
 
-## Review an Entire Repository
+## Review An Entire Repository
 
-Use `code-review-repo` for a full codebase audit. This is read-only — it produces a prioritized improvement plan without modifying files.
+Use `code-review-repo` when the target is the codebase itself rather than a diff. This is the right entry point for architecture, consistency, testing, documentation, or technical-debt reviews.
 
 ```text
 /adk:code-review-repo
-```
-
-### Focus on specific dimensions
-
-```text
+/adk:code-review-repo <path>
+/adk:code-review-repo src/backend/
 /adk:code-review-repo --focus architecture
-/adk:code-review-repo --focus security
-/adk:code-review-repo --focus all
-```
-
-Available focus areas: `architecture`, `quality`, `patterns`, `debt`, `security`, `performance`, `all`.
-
-### Review a specific path
-
-```text
-/adk:code-review-repo ./src/api
-```
-
-### Output format
-
-```text
 /adk:code-review-repo --output json
 ```
 
----
-
-## Multi-Model Cross-Review
-
-For high-stakes PRs, use `--cross` to run a multi-model review where multiple AI models review independently and findings are merged:
-
-```text
-/adk:code-review-pr https://github.com/org/repo/pull/42 --cross
-```
-
-This produces a consensus review with higher confidence ratings.
+Point it at a directory when you only want one package or subsystem, and use `--focus` when you want the report weighted toward one review dimension.
 
 ---
 
-## Finalize and Merge a PR
+## Describe Or Finalize A PR
 
-Check that all review comments are addressed and the PR is merge-ready:
-
-```text
-/adk:code-review-pr https://github.com/org/repo/pull/42 --action finalize
-```
-
-Check PR status (CI, approvals, conflicts):
+`code-review-pr` also owns the PR-management actions that happen after the review itself: writing a description, checking merge readiness, and reporting current status.
 
 ```text
-/adk:code-review-pr https://github.com/org/repo/pull/42 --action status
+/adk:code-review-pr <pr-url> --action describe
+/adk:code-review-pr <pr-url> --action finalize
+/adk:code-review-pr <pr-url> --action status
 ```
+
+Use `--action describe` when the diff needs a clean title and summary, `--action finalize` before merge, and `--action status` when you want a quick readiness read without changing anything.
 
 ---
 
-## Which Skill to Use?
+## Which Skill To Use?
 
 | Scenario | Skill | Key Parameters |
 |----------|-------|----------------|
-| Review a PR (GitHub/Bitbucket) | `code-review-pr` | `<url>`, `--focus`, `--publish` |
-| Review local changes | `code-review-pr` | (no args), `--branch` |
-| Self-review before PR | `code-review-pr` | `--fix` |
-| Generate PR description | `code-review-pr` | `--action describe` |
-| Fix reviewer comments | `code-review-fix` | `<url>`, `--filter`, `--dry-run` |
-| Review entire repo | `code-review-repo` | `--focus`, `--output` |
-| Multi-model review | `code-review-pr` | `--cross` |
-| Check merge readiness | `code-review-pr` | `--action finalize` |
+| Let ADK choose the review path | `code-review` | `<prompt-text>` |
+| Review a PR | `code-review-pr` | `<pr-url>`, `--focus`, `--publish` |
+| Review local changes | `code-review-pr` | no target, `<branch-name>`, `--fix` |
+| Fix reviewer comments | `code-review-fix` | `<pr-url>`, `--filter`, `--dry-run` |
+| Review a repository | `code-review-repo` | `<path>`, `--focus`, `--output` |
+| Generate a PR description or finalize | `code-review-pr` | `<pr-url>`, `--action` |
 
 ## Related Skills
 
-- **[`audit`](/reference/skill-audit/)** — deeper codebase audits with security/performance/dependency focus
-- **[`dev-build`](/reference/skill-dev-build/)** — implement fixes after review
-- **[`dev-commit`](/reference/skill-dev-commit/)** — commit changes and generate PR descriptions
+- **[`audit`](/reference/skill-audit/)** for deeper security, performance, dependency, or codebase audits.
+- **[`dev-build`](/reference/skill-dev-build/)** when a review finding turns into real implementation work.
+- **[`dev-commit`](/reference/skill-dev-commit/)** when you are ready to package the result into a commit or PR description.

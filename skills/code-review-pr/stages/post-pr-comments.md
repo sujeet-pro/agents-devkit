@@ -28,22 +28,20 @@ This prevents comment clutter and makes reviews easier for authors to follow.
 
 ### Step 2: Format Comments
 
-Format each finding (or merged finding group) using the canonical comment template from `references/review-comment-template.md`. Use the icon-prefixed format with summary tables for visual scannability:
+Format each finding (or merged finding group) as an inline PR comment. Every comment is posted at the specific file and line — never as a top-level PR comment.
+
+**Comment type and aspect tags** must appear in the header:
 
 ```md
-<icon> **[<PRIORITY>][<PRINCIPLE>]** <Short, specific title>
+<icon> **[<Type>][<aspects>]** <Short, specific title>
 
 | | |
 |---|---|
-| **Location** | `<file-path>:<line-range>` |
 | **Confidence** | <score>/100 |
 | **Guideline** | <which standard or best practice is violated> |
 
 #### Issue
 <description>
-
-#### Where it fails
-<cases>
 
 #### Why it matters
 <impact>
@@ -58,10 +56,30 @@ Format each finding (or merged finding group) using the canonical comment templa
 </details>
 ```
 
+**Type** is one of: `Blocker` | `Critical` | `Suggestion` | `Nit-pick` | `Question` | `Praise`
+
+**Icon mapping:**
+
+| Type | Icon |
+|------|------|
+| Blocker | :no_entry: |
+| Critical | :rotating_light: |
+| Suggestion | :large_orange_diamond: |
+| Nit-pick | :pushpin: |
+| Question | :grey_question: |
+| Praise | :star2: |
+
+**Aspects** are comma-separated tags describing what the comment touches:
+`bug` · `security` · `logic-error` · `code-quality` · `performance` · `design` · `reliability` · `testing` · `documentation` · `naming` · `error-handling` · `type-safety` · `accessibility` · `spec-compliance`
+
+Example header: `:rotating_light: **[Critical][bug, error-handling]** Unhandled null return from findUser`
+
+**Location row** is omitted from the posted body — the inline comment placement provides file+line context. Include it only in markdown-fallback output.
+
 Format praise using the lightweight praise template:
 
 ```md
-:star2: **[Praise][<PRINCIPLE>]** <Short, specific title>
+:star2: **[Praise][<aspects>]** <Short, specific title>
 
 > <1-3 sentences explaining what's well done and why it matters.>
 ```

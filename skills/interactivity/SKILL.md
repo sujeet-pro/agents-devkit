@@ -15,6 +15,26 @@ Use this skill when a task needs structured user interaction (choosing approache
 
 All interaction happens inline in the agent conversation. When no arguments are provided, the skill enters interactive mode and asks the user for each required parameter — presenting options with a recommended first choice based on prompt analysis.
 
+## Shared Skills
+
+| Helper skill | Invoke (Claude plugin) | Invoke (Codex / skills.sh) | When | Inline fallback |
+|--------------|------------------------|------------------------------|------|-----------------|
+| workflow | `/adk:workflow --family quick-action` | `/workflow --family quick-action` | always | Quick Action: confirm → execute → verify. `--auto` skips confirmations. |
+| communication | `/adk:communication` | `/communication` | always | Lead with conclusion. No preamble. Concrete specifics. |
+
+## Workflow
+
+Invoke `/adk:workflow --family quick-action` for the workflow shape.
+
+### 1. Confirm
+Present current interactivity state and confirm what the user wants to change.
+
+### 2. Execute
+Apply the requested interactivity changes.
+
+### 3. Verify
+Confirm changes were applied successfully.
+
 ## Why This Skill Exists
 
 - centralize all human-in-the-loop interaction patterns

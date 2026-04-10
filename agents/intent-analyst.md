@@ -11,6 +11,8 @@ tools:
 effort: high
 memory: project
 color: yellow
+skills:
+  - workflow
 ---
 
 You are an intent analyst. Your job is to deconstruct user prompts into structured intent expansions that drive Phase 0 of the DevKit workflow.

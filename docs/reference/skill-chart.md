@@ -1,6 +1,6 @@
 ---
-title: "chart"
-description: Create data charts — bar, line, pie, scatter, area, and 30+ chart types from CSV/JSON data with CLI-based SVG/PNG rendering
+title: 'chart'
+description: 'Create data charts — bar, line, pie, scatter, area, and 30+ chart types from CSV/JSON data. CLI-based SVG/PNG rendering'
 skill_name: chart
 category: task
 workflow_tier: full
@@ -9,45 +9,179 @@ user_invocable: true
 
 # chart
 
-Create data-driven charts from CSV, JSON, or inline data. Supports 30+ chart types including bar, line, pie, scatter, area, heatmap, waterfall, treemap, funnel, radar, gauge, and more. CLI-based rendering via `chartts` — no browser required.
+Use `chart` to create data charts — bar, line, pie, scatter, area, and 30+ chart types from CSV/JSON data. CLI-based SVG/PNG rendering. In normal use, explicit selector flags win over inference, but the skill can still auto-detect the right path when the prompt is short.
 
-## When to Use
+## Overview
 
-- Visualize data comparisons, trends, or distributions in a chart
-- Generate charts for embedding in documentation
-- Create performance, revenue, or sprint velocity visualizations
-- Render charts in both light and dark themes
-- Generate SVG or PNG charts from CSV/JSON data files
+`chart` belongs to the `task` layer and is declared at the `full` tier with the `quick-action` workflow family. That metadata is more than labeling: it tells you how much planning happens before execution, how much the skill is allowed to infer, and whether the result should be a final artifact, a routing decision, or a shared contract for another skill.
+
+The design philosophy across these skills is self-sufficiency with shared composition. When the helper skills listed in `SKILL.md` are available, the workflow composes with them for workflow structure, preflight checks, communication style, and output shaping. When they are not available, the inline fallback summaries still make the behavior readable and predictable.
 
 ## Parameters
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
+| Parameter | Values | Default | Description |
+|-----------|--------|---------|-------------|
 | `<description>` | text | required | What the chart should show |
 | `--type` | see Chart Types | auto-detect | Chart type |
 | `--data` | file path | none | Input data file (CSV, TSV, or JSON) |
 | `--render` | flag | off | Render to image after generating data file |
-| `--format` | `svg` \| `png` | `svg` | Output image format |
-| `--theme` | `light` \| `dark` \| `both` | `both` | Theme variant(s) to render |
+| `--format` | `svg`, `png` | `svg` | Output image format |
+| `--theme` | `light`, `dark`, `both` | `both` | Theme variant(s) to render |
 | `--width` | integer | 600 | Chart width in pixels |
 | `--height` | integer | 400 | Chart height in pixels |
 | `--title` | text | none | Chart title (also used as aria-label) |
 | `--output` | file path | `./charts/<name>.<format>` | Output file path |
-| `--auto` | flag | off | Skip confirmations |
-| `--help` | flag | — | Show parameter reference and exit |
+| `--help` | flag | off | Show help |
 
-## Behavior Variations
+### Parameter Notes
 
-| Context | Behavior |
-|---------|----------|
-| **`--data` provided** | Reads and analyzes the existing data file, auto-detects columns for the chart type |
-| **No `--data`** | Creates a data file from the user's description or research |
-| **`--type` omitted** | Auto-detects chart type from data patterns (time series → line, categories → bar, part-of-whole → pie) |
-| **`--render` set** | Generates data file and renders chart image |
-| **`--theme both`** | Renders two variants: `<name>-light.<format>` and `<name>-dark.<format>` |
-| **Invoked by doc skill** | Chart data derived from document content; output placed in `charts/` subdirectory relative to the document |
+- The positional argument carries the primary target or prompt. In the examples, placeholder invocations are shown first so you can see the minimum shape before substituting a real URL, path, branch, or task description.
+- `--type` usually selects a template, content family, or diagram/document shape. It is the most important override when structure matters.
+- `--render` changes the deliverable from source-only generation to source plus rendered assets.
+- `--format` controls the artifact shape, which can also change embedding rules or publishing behavior.
+- `--help` prints the embedded reference and exits without running the workflow.
 
-## Chart Types
+## How It Works
+
+Execution starts by resolving intent from explicit selector flags first and inference rules second. After that, the workflow family and shared helper skills shape how much confirmation, research, planning, and validation happen around the core action.
+
+The sections below come directly from the current `SKILL.md` so developers can see the live contract the implementation is supposed to follow.
+
+### Shared Skills
+
+This skill uses shared helper skills. Load each skill's reference file ONLY when the condition in "Load When" is met. If a shared skill is not installed, use the inline summary as a fallback.
+
+| Skill | Load When | Inline Fallback |
+|-------|-----------|-----------------|
+| `/adk:workflow --family quick-action` | always | Quick Action workflow: confirm → execute → verify. For narrow tasks with single execution path. `--auto` skips confirmations. |
+| `/adk:communication` | always | Lead with conclusion. Bullet points. No preamble. Concrete specifics over abstractions. |
+| `/adk:preflight-check` | before rendering | Run preflight.py for chartts CLI validation. |
+| `/adk:output-format` | when producing output | short/standard/detailed verbosity. Keep both data file and rendered chart. |
+| `/adk:principal-engineer` | complexity >= medium | Five questions: need? simplest? alternatives? maintenance costs? clarity in 6 months? |
+| `/adk:agentic-teams` | complexity >= medium AND parallel work needed | Launch 2+ child agents with distinct roles. |
+| `/adk:interaction` | NOT --auto | Inline protocols for intent confirmation, approach selection, plan approval. |
+
+### Helper Skill Resolution
+
+Resolve shared behavior through **helper skills**, not by loading reference markdown files. Invoke the needed skill using either form: `/adk:<skill>` (Claude plugin) or `/<skill>` (skills.sh). The usual helpers are **workflow** (phase structure), **communication** (tone and structure), **preflight-check** (tool and MCP validation), **output-format** (verbosity and deliverable shape), **principal-engineer** (engineering bar), **agentic-teams** (child agents), and **interaction** (prompting and confirmations).
+
+If a required helper skill is unavailable, print a warning and continue using the inline fallback summary in the Shared Skills table.
+
+### Preflight
+
+`python3 ${CLAUDE_SKILL_DIR}/scripts/preflight.py ${CLAUDE_SKILL_DIR}`
+
+### Workflow
+
+### 1. Confirm
+
+Confirm: chart type, data source (existing file or data to generate), output format, dimensions, and theme.
+
+### 2. Execute
+
+If `--data` is provided, read the file and analyze its structure. If no data file exists, create one from the user's description or research.
+
+Determine the best chart type if not specified:
+
+| Data Pattern | Recommended Chart Type |
+|-------------|----------------------|
+| Categories with values | `bar` or `horizontal-bar` |
+| Time series | `line` or `area` |
+| Part-of-whole composition | `pie` or `donut` |
+| Two-variable correlation | `scatter` or `bubble` |
+| Multiple series comparison | `stacked-bar` or `grouped-bar` |
+| Distribution | `histogram` or `box` (if supported) |
+| Hierarchical data | `treemap` or `sunburst` |
+| Flow/conversion | `funnel` |
+| Multi-dimensional comparison | `radar` |
+| Single metric with target | `gauge` |
+| Price/financial data | `candlestick` |
+| Heat patterns | `heatmap` |
+| Progress over time | `waterfall` |
+
+#### Step 1: Prepare Data File
+
+Create a data file in the `./charts/` directory (or user-specified location).
+
+**CSV format** (preferred for simple data):
+
+```csv
+Category,Value,Series
+Q1,120000,Revenue
+Q2,145000,Revenue
+Q1,95000,Costs
+Q2,105000,Costs
+```
+
+**JSON format** (for complex or nested data):
+
+```json
+[
+  {"category": "Q1", "revenue": 120000, "costs": 95000},
+  {"category": "Q2", "revenue": 145000, "costs": 105000}
+]
+```
+
+#### Step 2: Render
+
+```bash
+chartts render --type <chart-type> --data <file> -o <output-path> [options]
+```
+
+Full render command:
+
+```bash
+# SVG output (default)
+chartts render --type bar --data ./charts/data.csv -o ./charts/revenue.svg --width 600 --height 400 --theme light
+
+# PNG output
+chartts render --type bar --data ./charts/data.csv -o ./charts/revenue.png --width 600 --height 400 --theme light --scale 2
+
+# Both themes
+chartts render --type bar --data ./charts/data.csv -o ./charts/revenue-light.svg --theme light
+chartts render --type bar --data ./charts/data.csv -o ./charts/revenue-dark.svg --theme dark
+```
+
+#### Step 3: Dark Mode
+
+For `--theme both`, render two variants:
+- `<name>-light.svg` with `--theme light`
+- `<name>-dark.svg` with `--theme dark`
+
+### 3. Verify
+
+```
+Chart rendered:
+  Data: ./charts/revenue-data.csv
+  Light: ./charts/revenue-light.svg
+  Dark: ./charts/revenue-dark.svg
+
+Render with: chartts render --type bar --data ./charts/revenue-data.csv -o ./charts/revenue.svg
+```
+
+## Output
+
+Output is part of the contract for this skill, not just presentation. This is what callers and end users should expect back after execution.
+
+
+## Related Skills
+
+### Adjacent Skills
+
+- `/adk:diagram` — structural and relational diagrams (architecture, flows, ER)
+- `/adk:docs-crud` — document creation that may embed charts
+- `/adk:docs-write` — formal document writing that may embed charts
+- `/adk:diagram-mermaid` — Mermaid-based diagrams (some chart types overlap: pie, xy, gantt)
+- `/adk:diagram-graphviz` — Graphviz DOT diagrams for dependency graphs
+
+## Additional Reference
+
+### Human in the Loop
+
+- **Plan first (Phase 0)**: Confirm intent — data source, chart type, dimensions, and theme — before generating.
+- **Auto mode**: When invoked with `--auto` or by a parent skill, skip confirmations and proceed directly.
+
+### Chart Types
 
 ### Basic Charts
 
@@ -93,74 +227,79 @@ Create data-driven charts from CSV, JSON, or inline data. Supports 30+ chart typ
 | `gauge` | value | target, min, max |
 | `candlestick` | date, open, high, low, close | volume |
 
-## Auto-Detection Table
+### Data Preparation Guidelines
 
-When `--type` is omitted, the skill selects a chart type based on data patterns:
+### From Raw Numbers in Documents
 
-| Data Pattern | Recommended Chart Type |
-|-------------|----------------------|
-| Categories with values | `bar` or `horizontal-bar` |
-| Time series | `line` or `area` |
-| Part-of-whole composition | `pie` or `donut` |
-| Two-variable correlation | `scatter` or `bubble` |
-| Multiple series comparison | `stacked-bar` or `grouped-bar` |
-| Distribution | `histogram` or `box` |
-| Hierarchical data | `treemap` or `sunburst` |
-| Flow/conversion | `funnel` |
-| Multi-dimensional comparison | `radar` |
-| Single metric with target | `gauge` |
-| Price/financial data | `candlestick` |
-| Heat patterns | `heatmap` |
-| Progress over time | `waterfall` |
+When a document contains metrics, performance data, or comparisons described in prose, extract the data into a structured format:
 
-## Key Behaviors
+1. Identify the data points from the text
+2. Determine the appropriate chart type
+3. Create a CSV/JSON file with the structured data
+4. Render the chart
 
-- **Auto-detection**: infers chart type from data patterns when `--type` is not set
-- **Dual theming**: renders both light and dark variants by default for documentation compatibility
-- **Accessibility**: uses a CVD-accessible default palette; enforces WCAG AA contrast ratios
-- **Data-first**: keeps the data file alongside the chart for reproducibility
-- **Quality standards**: requires descriptive title, labeled axes, readable scale, appropriate type, and alt text
+### From Existing Data Files
 
-## Workflow
+When `--data` points to an existing file:
+1. Read and validate the file format (CSV, TSV, JSON)
+2. Auto-detect columns suitable for the chart type
+3. Use `--x` and `--y` flags to specify columns if auto-detection fails
 
-| Phase | Applies | Notes |
-|-------|---------|-------|
-| 0. Intent Expansion | yes | Confirm goal, data source, chart type, and output format |
-| 1. Research & Options | yes | Analyze data, determine chart type and data structure |
-| 2. Approach Selection | skip | Direct execution after early confirmation |
-| 3. Planning | skip | Direct execution |
-| 4. Execute | yes | Generate data file and render chart |
-| 5. Validate & Learn | yes | Verify rendering, check data accuracy, confirm readability |
+### Generating Sample/Projected Data
 
-## Shared Skills
+When the chart shows projections or estimates:
+1. Clearly label projected data points
+2. Use different visual styling (dashed lines for projections)
+3. Include data source notes
 
-| Skill | Load When | Fallback |
-|-------|-----------|----------|
-| `workflow` | always | 6-phase: intent → research → approach → plan → execute → validate |
-| `communication` | always | Lead with conclusion, bullet points, no preamble |
-| `preflight-check` | before rendering | Run preflight.py for chartts CLI validation |
-| `output-format` | producing output | short/standard/detailed verbosity |
-| `principal-engineer` | complexity >= medium | Five PE questions: need? simplest? alternatives? maintenance? clarity? |
-| `agentic-teams` | parallel work needed | Launch child agents with distinct roles |
-| `interaction` | NOT --auto | Inline protocols for confirmations and approvals |
+### Theming
 
-## Output Format
+### Light Theme (Default)
 
-After rendering, prints a summary:
+Clean white background with standard chart colors. Suitable for documents, presentations, and print.
 
-```
-Chart rendered:
-  Data: ./charts/revenue-data.csv
-  Light: ./charts/revenue-light.svg
-  Dark: ./charts/revenue-dark.svg
+### Dark Theme
 
-Render with: chartts render --type bar --data ./charts/revenue-data.csv -o ./charts/revenue.svg
-```
+Dark background with adjusted colors for visibility. Suitable for dark-mode documentation and dashboards.
 
-## Charts vs Diagrams
+### Color Accessibility
 
-| Scenario | Use Chart | Use Diagram |
-|----------|-----------|-------------|
+- Chart.ts uses a default palette designed for color vision deficiency (CVD) accessibility
+- For custom colors, ensure WCAG AA contrast ratio against the background
+- Use patterns or textures in addition to color when distinguishing more than 4 series
+
+### Quality Standards
+
+1. **Descriptive title** — every chart must have a title via `--title` that describes what the chart shows
+2. **Labeled axes** — use `--x` and `--y` flags or column headers that serve as axis labels
+3. **Readable scale** — choose dimensions that prevent label overlap
+4. **Data source** — keep the data file alongside the chart for reproducibility
+5. **Both themes** — render both light and dark variants unless the target medium is fixed
+6. **Appropriate type** — match the chart type to the data pattern (see recommendation table)
+7. **Accessible** — include alt text when embedding in documents
+
+### Integration with Other Skills
+
+### Document Skills (`docs-crud`, `docs-write`)
+
+When invoked from a document skill:
+- The chart data is derived from the document content (metrics, comparisons, projections)
+- Output is placed in a `charts/` subdirectory relative to the document
+- Both the data file and rendered chart are kept
+- The document embeds the chart with markdown image syntax
+
+### Diagram Skills
+
+Charts and diagrams serve different purposes:
+- **Charts**: quantitative data visualization (numbers, metrics, trends)
+- **Diagrams**: structural and relational visualization (architecture, flows, sequences)
+
+Use charts for data, diagrams for structure. Some documents need both.
+
+### When to Use This Skill
+
+| Scenario | Use Chart Skill | Use Diagram Skill |
+|----------|----------------|-------------------|
 | Performance comparison | Yes | No |
 | Architecture overview | No | Yes (Mermaid/Excalidraw) |
 | Sprint velocity | Yes | No |
@@ -172,24 +311,35 @@ Render with: chartts render --type bar --data ./charts/revenue-data.csv -o ./cha
 | A/B test results | Yes | No |
 | State machine | No | Yes (Graphviz/Mermaid) |
 
-## Adjacent Skills
-
-| Skill | When to use instead |
-|-------|---------------------|
-| `/adk:diagram` | Structural and relational diagrams (architecture, flows, ER) |
-| `/adk:docs-crud` | Document creation that may embed charts |
-| `/adk:docs-write` | Formal document writing that may embed charts |
-| `/adk:diagram-mermaid` | Mermaid-based diagrams (some chart types overlap: pie, xy, gantt) |
-| `/adk:diagram-graphviz` | Graphviz DOT diagrams for dependency graphs |
-
 ## Examples
 
+The examples below start with a minimal invocation and then show the most common ways developers override detection or change the resulting artifact.
+
+### Start With The Default Path
+
+Start with the smallest useful invocation. If the skill supports auto-detection, this is the fastest way to see which path it chooses before you pin it down with extra flags.
+
+```text
+/adk:chart <prompt-text>
+/adk:chart --help
 ```
+### Force Or Narrow Behavior
+
+Use selector flags when you want a deterministic mode, scope, route, or downstream stage instead of relying on automatic detection.
+
+```text
 /adk:chart "Monthly revenue comparison Q1 vs Q2" --type bar --data revenue.csv
 /adk:chart "User growth over time" --type line --render
 /adk:chart "Traffic distribution by region" --type pie --data traffic.json --render --format png
 /adk:chart "API latency percentiles" --type bar --render --theme both
+```
+### Change Output Or Execution Style
+
+These examples change the returned artifact, detail level, rendering, or approval behavior without changing what the skill fundamentally does.
+
+```text
+/adk:chart "User growth over time" --type line --render
+/adk:chart "Traffic distribution by region" --type pie --data traffic.json --render --format png
+/adk:chart "API latency percentiles" --type bar --render --theme both
 /adk:chart "Sprint velocity" --type bar --data sprints.csv --render
-/adk:chart "Cost projections" --type area --render --format png
-/adk:chart --help
 ```

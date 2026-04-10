@@ -6,166 +6,74 @@ order: 6
 
 # Audits & Quality
 
-ADK provides specialized audit capabilities for security, performance, dependency, and codebase quality. All audit skills are **read-only** — they produce findings and recommendations without modifying code.
+Use `audit` when you want findings and prioritization without modifying code. Use `test` when the job is walking through acceptance checks against a plan, spec, or deliverable.
+
+> **Quick start:** `/adk:audit <prompt-text>` is the easiest way to ask for a quality pass without deciding the focus up front.
 
 ## Scenarios
 
-- [Run a security audit](#run-a-security-audit)
-- [Run a performance audit](#run-a-performance-audit)
-- [Audit dependencies](#audit-dependencies)
-- [Full codebase audit](#full-codebase-audit)
-- [Scoped audits](#scoped-audits)
-- [User acceptance testing](#user-acceptance-testing)
+- [Run A Focused Audit](#run-a-focused-audit)
+- [Scope Or Publish The Result](#scope-or-publish-the-result)
+- [Run User Acceptance Testing](#run-user-acceptance-testing)
 
 ---
 
-## Run a Security Audit
+## Run A Focused Audit
 
-Focus the audit on security vulnerabilities, injection points, authentication flaws, and data exposure:
+`audit` can stay broad or narrow itself to one dimension. Start broad when you are not sure what matters most, then switch to a focus flag once you know the lens you want.
 
 ```text
+/adk:audit <prompt-text>
+/adk:audit review this service for quality and security issues
 /adk:audit --focus security
-```
-
-The security audit checks for:
-
-- SQL injection, XSS, CSRF vulnerabilities
-- Authentication and authorization flaws
-- Secrets and credentials in code
-- Insecure dependencies
-- Data exposure and privacy issues
-
-### Scoped security audit
-
-```text
-/adk:audit --focus security --scope src/api/
-```
-
----
-
-## Run a Performance Audit
-
-Identify performance bottlenecks, inefficient queries, memory leaks, and optimization opportunities:
-
-```text
 /adk:audit --focus performance
-```
-
-### Scoped performance audit
-
-```text
-/adk:audit --focus performance --scope src/services/
-```
-
----
-
-## Audit Dependencies
-
-Check for outdated, vulnerable, or unused dependencies:
-
-```text
 /adk:audit --focus dependency
+/adk:audit --focus codebase --scope <path>
 ```
 
-This analyzes:
-
-- Known vulnerabilities (CVEs) in dependencies
-- Outdated packages with available updates
-- Unused dependencies that can be removed
-- License compatibility issues
+Use `--focus security` for auth and data-handling risk, `--focus performance` for latency or memory concerns, `--focus dependency` for package risk, and `--focus codebase` for broader structural quality.
 
 ---
 
-## Full Codebase Audit
+## Scope Or Publish The Result
 
-Run all audit dimensions at once:
-
-```text
-/adk:audit --focus all
-```
-
-Or let ADK auto-detect the most relevant focus from your request:
+The same audit can be packaged differently depending on what the output needs to do next.
 
 ```text
-/adk:audit review this codebase for quality and security issues
+/adk:audit --format pr
+/adk:audit --publish
 ```
+
+Use `--format pr` when the findings should read like a remediation checklist and `--publish` when the audit needs to land in a document destination instead of staying in the conversation.
 
 ---
 
-## Scoped Audits
+## Run User Acceptance Testing
 
-Limit the audit to specific directories:
-
-```text
-/adk:audit --focus codebase --scope src/
-/adk:audit --focus security --scope src/auth/
-```
-
-### Output format
+Use `test` when you want ADK to turn a spec, plan, or other source document into guided acceptance testing.
 
 ```text
-/adk:audit --focus all --format markdown   # Default: structured markdown report
-/adk:audit --focus all --format pr         # PR comment format for posting findings
-```
-
-### Publishing findings
-
-```text
-/adk:audit --focus security --publish
-```
-
-### Verbosity
-
-```text
-/adk:audit --focus all --verbosity short     # Executive summary only
-/adk:audit --focus all --verbosity detailed  # Full findings with code snippets
-```
-
----
-
-## User Acceptance Testing
-
-Use `test` for interactive user acceptance testing (UAT) based on specs, plans, or deliverables:
-
-```text
+/adk:test <path>
 /adk:test ./docs/specs/auth-spec.md
+/adk:test <path> --scope <path>
+/adk:test <path> --mode auto-approve
 ```
 
-### How it works
-
-1. Extracts testable deliverables from the source document
-2. Generates test scenarios and acceptance criteria
-3. Walks you through each test interactively
-4. On failure: runs automated diagnosis patterns
-5. Produces a test report
-
-### Scoped testing
-
-```text
-/adk:test ./docs/specs/auth-spec.md --scope "login flow"
-```
-
-### Auto-approve mode
-
-```text
-/adk:test ./docs/specs/auth-spec.md --mode auto-approve
-```
+This is the right path when you want a structured walkthrough of expectations rather than a code audit.
 
 ---
 
-## Which Skill to Use?
+## Which Skill To Use?
 
 | Scenario | Skill | Key Parameters |
 |----------|-------|----------------|
-| Security audit | `audit` | `--focus security`, `--scope` |
-| Performance audit | `audit` | `--focus performance`, `--scope` |
-| Dependency audit | `audit` | `--focus dependency` |
-| Full codebase audit | `audit` | `--focus all`, `--format` |
-| Auto-detect audit focus | `audit` | (keywords auto-detected) |
-| User acceptance testing | `test` | `<source>`, `--scope`, `--mode` |
+| Broad or focused audit | `audit` | `<prompt-text>`, `--focus`, `--scope` |
+| PR-style remediation checklist | `audit` | `--format pr` |
+| Publish the audit artifact | `audit` | `--publish` |
+| Acceptance testing from a spec or plan | `test` | `<path>`, `--scope`, `--mode` |
 
 ## Related Skills
 
-- **[`code-review-repo`](/reference/skill-code-review-repo/)** — whole-repo code review (overlaps with codebase audit)
-- **[`dev-build --mode debug`](/reference/skill-dev-build/)** — fix issues found during audits
-- **[`code-review-fix`](/reference/skill-code-review-fix/)** — fix review comments
+- **[`code-review-repo`](/reference/skill-code-review-repo/)** when you want a holistic repository review with improvement planning.
+- **[`dev-build`](/reference/skill-dev-build/)** when an audit finding turns into implementation work.
+- **[`plan`](/reference/skill-plan/)** when the audit results need to become sequenced remediation work.

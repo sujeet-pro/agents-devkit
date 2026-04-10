@@ -63,17 +63,49 @@ Wave 2:
 
 ## Review Findings
 
-For review-style triage:
+For review-style triage, present all findings numbered and then prompt for batch disposition:
 
 ```text
 ## Review Findings
 
-> Actions: a accept | r reject | e edit | s skip
-> Example: a-1,4 r-2 e-3 s-5
-> Also: a-all | details <N> | done
+> Actions: **a** accept | **r** reject | **e** edit | **s** skip — by number
+> Separate action groups with semicolons.
+> Example: `a-1,4;r-2,6;e-3,5`
+> Also: `a-all` | `details <N>` | `done`
+> Note: Praise comments are auto-accepted — no action needed.
 ```
 
-Process edit actions one by one, regenerate, reconfirm, and continue until all items are resolved.
+### Batch Action Processing Order
+
+1. **Accept** items first — post each accepted comment to the PR immediately as an inline comment (do not batch; post as soon as accepted so the author sees feedback incrementally).
+2. **Reject** items — discard silently.
+3. **Skip** items — defer to `.temp/` for future sessions.
+4. **Edit** items — enter the **Edit Loop** (see below).
+
+### Edit Loop
+
+Process edit-marked items **one at a time**, in the order given:
+
+```text
+## Edit Finding <N>
+
+**Current:**
+> <full finding body>
+
+**Edit instructions?** (describe changes, or `skip` to defer)
+```
+
+After the user provides instructions:
+1. Regenerate the comment based on the user's instructions.
+2. Re-run auto-validation on the regenerated comment.
+3. Show the regenerated finding in the same card format.
+4. Prompt: `[a] approve | [r] reject | [e] edit again`
+5. If **approve** — post the comment immediately as an inline PR comment, then move to the next edit item.
+6. If **reject** — discard, move to the next edit item.
+7. If **edit again** — repeat from step 1.
+8. This loop continues until the comment is either approved or rejected.
+
+After all edit items are resolved, display the final Review Summary.
 
 ## Progress Dashboard
 

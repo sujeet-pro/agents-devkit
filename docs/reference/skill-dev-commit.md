@@ -1,6 +1,6 @@
 ---
-title: "dev-commit"
-description: Create commits or PR descriptions — analyzes changes, generates conventional commit messages
+title: 'dev-commit'
+description: 'Create commits or PR descriptions — analyzes changes, generates conventional commit messages'
 skill_name: dev-commit
 category: task
 workflow_tier: full
@@ -9,44 +9,91 @@ user_invocable: true
 
 # dev-commit
 
-Generate meaningful commit messages, PR descriptions, and changelogs from analyzed code changes. Understands the semantic intent of changes beyond just the diff.
+Use `dev-commit` to create commits or PR descriptions — analyzes changes, generates conventional commit messages. In normal use, explicit selector flags win over inference, but the skill can still auto-detect the right path when the prompt is short.
 
-## When to Use
+## Overview
 
-- Create a well-structured commit message from staged or unstaged changes
-- Generate a PR description summarizing all branch commits
-- Produce changelog entries from recent commits
-- Amend the last commit with an improved message
-- Commit with a specific convention (conventional, gitmoji, plain)
+`dev-commit` belongs to the `task` layer and is declared at the `full` tier with the `quick-action` workflow family. That metadata is more than labeling: it tells you how much planning happens before execution, how much the skill is allowed to infer, and whether the result should be a final artifact, a routing decision, or a shared contract for another skill.
+
+The design philosophy across these skills is self-sufficiency with shared composition. When the helper skills listed in `SKILL.md` are available, the workflow composes with them for workflow structure, preflight checks, communication style, and output shaping. When they are not available, the inline fallback summaries still make the behavior readable and predictable.
 
 ## Parameters
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `--action` | `commit` \| `pr-describe` \| `changelog` | `commit` | What to generate |
-| `--convention` | `conventional` \| `gitmoji` \| `plain` | auto-detect from repo | Commit message format |
+| Parameter | Values | Default | Description |
+|-----------|--------|---------|-------------|
+| `--action` | `commit`, `pr-describe`, `changelog` | `commit` | What to generate |
+| `--convention` | `conventional`, `gitmoji`, `plain` | auto-detect from repo | Commit message format |
 | `--scope` | `<module>` | auto-detect | Scope tag for conventional commits |
 | `--auto` | flag | off | Skip confirmation, commit directly |
 | `--amend` | flag | off | Amend the last commit instead of creating a new one |
 | `--staged` | flag | off | Only consider staged changes |
-| `--help` | flag | — | Show parameter reference and exit |
 
-## Behavior Variations
+### Parameter Notes
 
-| Action | Behavior |
-|--------|----------|
-| `commit` (default) | Analyze changes, generate commit message, confirm, commit |
-| `pr-describe` | Analyze all commits on the branch, generate a structured PR description |
-| `changelog` | Generate changelog entries from recent commits |
+- `--action` is usually narrower than `--mode`: it keeps the broader workflow but forces one concrete operation inside it.
+- `--scope` is the main blast-radius control. Use it when you want the skill to stay inside a specific path, package, or subset of the repository.
+- `--auto` normally removes approval pauses rather than validation. Read the behavior section for skill-specific exceptions.
 
-| Context | Behavior |
-|---------|----------|
-| Auto-detect convention | Scans recent git log for existing patterns (conventional, gitmoji, plain) and matches |
-| `--amend` | Amends the last commit instead of creating a new one |
-| `--staged` | Only considers staged changes, ignoring unstaged modifications |
-| `--auto` | Skips confirmation prompt and commits directly |
+## How It Works
 
-## Commit Message Generation
+Execution starts by resolving intent from explicit selector flags first and inference rules second. After that, the workflow family and shared helper skills shape how much confirmation, research, planning, and validation happen around the core action.
+
+The sections below come directly from the current `SKILL.md` so developers can see the live contract the implementation is supposed to follow.
+
+### Shared Skills
+
+This skill uses shared helper skills. Load each skill's reference file ONLY when the condition in "Load When" is met. If a shared skill is not installed, use the inline summary as a fallback.
+
+| Skill | Load When | Inline Fallback |
+|-------|-----------|-----------------|
+| `/adk:workflow --family quick-action` | always | Quick Action workflow: confirm → execute → verify. For narrow tasks with single execution path. `--auto` skips confirmations. |
+| `/adk:communication` | always | Lead with conclusion. Concrete specifics. No preamble. |
+| `/adk:preflight-check` | before work | Run preflight.py for tool dependencies and MCP validation. |
+| `/adk:output-format` | when producing output | short/standard/detailed verbosity. |
+| `/adk:principal-engineer` | complexity >= medium | Five questions: need? simplest? alternatives? maintenance costs? clarity in 6 months? |
+| `/adk:agentic-teams` | complexity >= medium AND parallel work needed | Launch 2+ child agents with distinct roles. |
+| `/adk:interaction` | NOT --auto | Inline protocols for intent confirmation, plan approval. |
+
+### Helper Skill Resolution
+
+Resolve shared behavior through **helper skills**, not by loading reference markdown files. Invoke the needed skill using either form: `/adk:<skill>` (Claude plugin) or `/<skill>` (skills.sh). The usual helpers are **workflow** (phase structure), **communication** (tone and structure), **preflight-check** (tool and MCP validation), **output-format** (verbosity and deliverable shape), **principal-engineer** (engineering bar), **agentic-teams** (child agents), and **interaction** (prompting and confirmations).
+
+If a required helper skill is unavailable, print a warning and continue using the inline fallback summary in the Shared Skills table.
+
+### Preflight
+
+`python3 ${CLAUDE_SKILL_DIR}/scripts/preflight.py ${CLAUDE_SKILL_DIR}`
+
+If any declared dependency is missing, stop and tell the user what to install before proceeding.
+
+## Modes & Variations
+
+Use this section when you want to force a deterministic path instead of relying on the skill's auto-detection rules.
+
+
+### Behavior Variations
+
+- **`commit`** (default): analyze changes, generate commit message, confirm, commit
+- **`pr-describe`**: analyze all commits on the branch, generate a structured PR description
+- **`changelog`**: generate changelog entries from recent commits
+- **Auto-detect convention**: scan recent git log for existing patterns (conventional, gitmoji, plain)
+
+## Output
+
+Output is part of the contract for this skill, not just presentation. This is what callers and end users should expect back after execution.
+
+
+## Related Skills
+
+### Adjacent Skills
+
+- `/adk:dev-build` for implementing the changes before committing
+- `/adk:code-review-pr` for reviewing the PR after creating it
+- `/adk:docs-write --type changelog` for detailed changelog generation
+
+## Additional Reference
+
+### Commit Message Generation
 
 ### 1. Analyze Changes
 
@@ -57,9 +104,8 @@ Generate meaningful commit messages, PR descriptions, and changelogs from analyz
 
 ### 2. Generate Message
 
-Supports three formats:
+#### Conventional Commit Format
 
-**Conventional Commit** (`--convention conventional`):
 ```
 <type>(<scope>): <description>
 
@@ -68,16 +114,34 @@ Supports three formats:
 [optional footer(s)]
 ```
 
-Type mapping: `feat`, `fix`, `refactor`, `docs`, `test`, `chore`, `perf`, `style`, `build`, `ci`. Description is imperative mood, lowercase, no period. Body explains *why*, not *what*. Footer includes `BREAKING CHANGE:` when applicable.
+**Type mapping:**
+- `feat`: new feature or capability
+- `fix`: bug fix
+- `refactor`: code restructuring without behavior change
+- `docs`: documentation changes
+- `test`: adding or updating tests
+- `chore`: maintenance, dependencies, configs
+- `perf`: performance improvement
+- `style`: formatting, linting (no logic change)
+- `build`: build system or dependency changes
+- `ci`: CI/CD configuration changes
 
-**Gitmoji** (`--convention gitmoji`):
+**Rules:**
+- Description is imperative mood, lowercase, no period: "add user authentication"
+- Body explains *why*, not *what* (the diff shows what)
+- Footer includes `BREAKING CHANGE:` when applicable
+- Scope is optional but recommended
+
+#### Gitmoji Format
+
 ```
 :emoji: <description>
 ```
 
-Common mappings: `:sparkles:` feat, `:bug:` fix, `:recycle:` refactor, `:memo:` docs, `:white_check_mark:` test.
+Common mappings: `:sparkles:` feat, `:bug:` fix, `:recycle:` refactor, `:memo:` docs, `:white_check_mark:` test
 
-**Plain** (`--convention plain`):
+#### Plain Format
+
 ```
 <Description>
 
@@ -86,13 +150,29 @@ Common mappings: `:sparkles:` feat, `:bug:` fix, `:recycle:` refactor, `:memo:` 
 
 ### 3. Confirm
 
-Presents the generated message and asks for confirmation: **approve**, **edit: \<changes\>**, or **cancel**.
+Present the generated message and ask for confirmation:
 
-### 4. Execute
+```
 
-Runs `git commit` with the approved message.
+### Commit Message
 
-## PR Description Generation
+```
+feat(auth): add OAuth2 login with Google provider
+
+Implements the OAuth2 authorization code flow with PKCE.
+Adds Google as the first social login provider with profile sync.
+```
+
+> **approve**, **edit: <changes>**, or **cancel**
+```
+
+### 4. Commit
+
+Execute `git commit` with the approved message.
+
+---
+
+### PR Description Generation
 
 ### 1. Analyze Branch
 
@@ -103,63 +183,70 @@ Runs `git commit` with the approved message.
 
 ### 2. Generate Description
 
-Produces a structured PR description with Summary, Changes (grouped by category), Testing checklist, and Breaking Changes sections.
+```markdown
 
-## Key Behaviors
+### Summary
 
-- **Semantic analysis**: understands the intent of changes beyond raw diff content
-- **Convention auto-detection**: scans recent git log to match the project's existing commit style
-- **Change categorization**: automatically classifies changes into type (feat, fix, refactor, etc.) and scope
-- **Breaking change detection**: identifies and flags breaking changes in commit footers
-- **Interactive confirmation**: presents the generated message for approval before committing
+<1-3 sentences explaining what this PR does and why>
 
-## Workflow
+### Changes
 
-Uses the 6-phase workflow at trivial complexity — direct execution for commits, fuller workflow for PR descriptions and changelogs.
+### <Category 1>
+- Change description with file references
 
-| Phase | Applies | Notes |
-|-------|---------|-------|
-| 0. Intent Expansion | yes | Confirm action, detect convention |
-| 1. Research & Options | yes | Analyze diff, scan git log for conventions |
-| 2. Approach Selection | commit: no; pr-describe/changelog: if needed | Present format options for complex PRs |
-| 3. Planning | no | Direct generation |
-| 4. Execute | yes | Generate message, confirm, commit |
-| 5. Validate & Learn | yes | Verify commit succeeded |
+### <Category 2>
+- Change description with file references
 
-## Shared Skills
+### Testing
 
-| Skill | Load When | Fallback |
-|-------|-----------|----------|
-| `workflow` | always | 6-phase workflow. For commits, trivial complexity — direct execution. |
-| `communication` | always | Lead with conclusion. Concrete specifics. No preamble. |
-| `preflight-check` | before work | Run preflight.py for tool dependencies and MCP validation. |
-| `output-format` | producing output | short/standard/detailed verbosity. |
-| `principal-engineer` | complexity >= medium | Five PE questions: need? simplest? alternatives? maintenance costs? clarity in 6 months? |
-| `agentic-teams` | complexity >= medium AND parallel work needed | Launch 2+ child agents with distinct roles. |
-| `interaction` | NOT --auto | Inline protocols for intent confirmation, plan approval. |
+- [ ] Unit tests added/updated
+- [ ] Integration tests passing
+- [ ] Manual testing completed
 
-## Output Format
+### Breaking Changes
 
-**Commit**: the generated commit message displayed for confirmation, then the git commit output.
+<None, or description of breaking changes>
+```
 
-**PR Description**: structured markdown with Summary, Changes (grouped by category), Testing checklist, and Breaking Changes sections.
+### 3. Confirm
 
-**Changelog**: grouped entries by type with descriptions.
+Present the generated PR description and ask for confirmation:
 
-## Adjacent Skills
+```
 
-| Skill | When to use instead |
-|-------|-------------------|
-| `/adk:dev-build` | Implementing the changes before committing |
-| `/adk:code-review-pr` | Reviewing the PR after creating it |
-| `/adk:docs-write --type changelog` | Detailed changelog generation |
+### PR Description
+
+<rendered description>
+
+> **approve**, **edit: <changes>**, or **cancel**
+```
+
+---
 
 ## Examples
 
-```
+The examples below start with a minimal invocation and then show the most common ways developers override detection or change the resulting artifact.
+
+### Start With The Default Path
+
+Start with the smallest useful invocation. If the skill supports auto-detection, this is the fastest way to see which path it chooses before you pin it down with extra flags.
+
+```text
 /adk:dev-commit
+```
+### Force Or Narrow Behavior
+
+Use selector flags when you want a deterministic mode, scope, route, or downstream stage instead of relying on automatic detection.
+
+```text
 /adk:dev-commit --convention conventional --scope auth
 /adk:dev-commit --action pr-describe
 /adk:dev-commit --action changelog
+```
+### Change Output Or Execution Style
+
+These examples change the returned artifact, detail level, rendering, or approval behavior without changing what the skill fundamentally does.
+
+```text
 /adk:dev-commit --auto --amend
 ```

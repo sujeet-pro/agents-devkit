@@ -1,6 +1,6 @@
 ---
-title: "output-format"
-description: "Output format standards with verbosity modes, comment templates, and cross-platform markdown rules"
+title: 'output-format'
+description: 'Output format standards: verbosity modes (short/standard/detailed), PR comment templates, document templates, priority labels, and cross-platform markdown rules'
 skill_name: output-format
 category: guideline
 workflow_tier: helper
@@ -9,47 +9,174 @@ user_invocable: false
 
 # output-format
 
-Output format standards for all DevKit skills. Defines three verbosity modes (`short`/`standard`/`detailed`), PR comment templates per severity, document verbosity rules, cross-platform markdown constraints, and priority/principle labels.
+`output-format` is a shared helper that keeps cross-cutting rules and expectations consistent across the skills that invoke it. Most users meet it indirectly when another skill loads it to resolve a shared rule set or a reusable contract.
 
-## Purpose
+## Overview
 
-- Standardize output structure across all skills that produce deliverables
-- Provide severity-adaptive verbosity so critical findings get detail and nitpicks stay compact
-- Define PR comment templates that render cleanly on both GitHub and Bitbucket
-- Establish priority and principle labels used consistently across all review output
+`output-format` belongs to the `guideline` layer and is declared at the `helper` tier. That metadata is more than labeling: it tells you how much planning happens before execution, how much the skill is allowed to infer, and whether the result should be a final artifact, a routing decision, or a shared contract for another skill.
 
-## Key Behaviors
+The key design trade-off is indirection. This skill rarely owns an interactive workflow on its own, but it keeps cross-cutting behavior consistent so task skills do not each reinvent the same policy, formatting rule, or detection logic.
+
+## Parameters
+
+This helper does not expose a broad user-facing parameter surface beyond the narrow controls in `SKILL.md`. In practice, task skills load it indirectly and supply the context it needs.
+
+## Output
+
+Helper skills usually return a rule set, a resolved reference list, or a normalized contract back to the calling skill rather than a standalone report.
+
+
+## Additional Reference
+
+### Output Targets
+
+DevKit skills should support these output targets whenever the source material allows it.
+
+### Documents
+
+- **Markdown**: default source of truth.
+- **Google Docs**: publish or update through Google Drive MCP.
+- **Confluence**: publish or update through the Confluence MCP.
+- **PDF**: export from markdown or HTML with local free tooling when available.
+
+### Diagrams
+
+- **Mermaid**: `.mermaid`, `.mmd`
+- **Excalidraw**: `.excalidraw`
+- **draw.io**: `.drawio`, `.drawio.xml`
+
+For each generated diagram, keep both:
+
+- the editable source file
+- at least one rendered artifact, preferably SVG
+
+Use PNG or JPEG only when the destination does not handle SVG well.
+
+### Review Deliverables
+
+Every review should be able to produce:
+
+- a markdown report
+- source comments when supported
+- an executive summary section for handoff or reposting
+
+---
 
 ### Verbosity Modes
 
 | Mode | Target | Characteristics |
-|------|--------|-----------------|
+|---|---|---|
 | `short` | Quick feedback, Slack-like | 1-3 lines. Title + suggestion. No boilerplate. Senior dev tone. |
 | `standard` | PR comments, review docs | Full structured format. All sections present, no unnecessary verbosity. Default. |
 | `detailed` | Documentation, audits, onboarding | Every section expanded. Rationale included. Teaching tone with examples. |
 
-Target audience: SD2/SD3 (mid-level engineers). Assume language and framework knowledge.
+**Target audience:** SD2/SD3 (mid-level engineers). Assume language and framework knowledge. Do not explain basic concepts.
+
+---
 
 ### Mode Selection
 
-- **Explicit**: user specifies `--verbosity short|standard|detailed`. Default is `standard`.
-- **Auto-selection for PR comments** (severity-based): Blocker/Critical → `detailed`; Should Have/May Have → `standard`; Nitpick/Question → `short`.
-- **Severity override floors**: Blocker and Critical findings never render as `short`, even when `--verbosity short` is explicitly passed.
+### Explicit selection
+
+The user can specify `--verbosity short|standard|detailed`. Default is `standard`.
+
+### Auto-selection for PR comments (severity-based)
+
+When `--verbosity auto` or unspecified for PR review, select mode per finding:
+
+| Severity | Auto Mode |
+|---|---|
+| Blocker | detailed |
+| Critical | detailed |
+| Should Have | standard |
+| May Have | standard |
+| Nitpick | short |
+| Question | short |
+
+### Severity override floors
+
+Even when the user explicitly requests a mode, severity can override downward:
+
+| Severity | Minimum Mode |
+|---|---|
+| Blocker | standard |
+| Critical | standard |
+| Should Have | short |
+| May Have | short |
+| Nitpick | short |
+| Question | short |
+
+A Blocker finding will never render as `short`, even if `--verbosity short` is passed.
+
+---
 
 ### PR Comment Templates
 
-Three template tiers aligned to verbosity:
+### Short Mode (Nitpick / Question)
 
-| Template | Used For | Sections |
-|----------|----------|----------|
-| **Short** | Nitpick, Question | Priority+principle tag, title, 1-2 sentence description |
-| **Standard** | Should Have, May Have | Summary (location, confidence, guideline), Issue, Why it matters, Suggested fix |
-| **Detailed** | Blocker, Critical | Summary, Issue, Where it fails (with cases), Why it matters, Suggested fix, Suggested tests |
+```md
+[<PRIORITY>][<PRINCIPLE>] <Short, specific title>
+
+<1-2 sentence description with file:line reference.> <Optional inline suggestion.>
+```
+
+### Standard Mode (Should Have / May Have)
+
+```md
+[<PRIORITY>][<PRINCIPLE>] <Short, specific title>
+
+**Summary**
+- Location: `<file>:<line>`
+- Confidence: <score>/100
+- Guideline: <which standard or best practice is violated>
+
+**Issue**
+<1-3 sentences: what is wrong, which code path, under what condition.>
+
+**Why it matters**
+<1-2 sentences on practical consequence.>
+
+**Suggested fix**
+<1-2 sentences + code snippet.>
+```
+
+### Detailed Mode (Blocker / Critical)
+
+```md
+[<PRIORITY>][<PRINCIPLE>] <Short, specific title>
+
+**Summary**
+- Location: `<file>:<line-range>`
+- Confidence: <score>/100
+- Guideline: <which standard or best practice is violated>
+
+**Issue**
+<What is wrong, in which code path, and under what condition.>
+
+**Where it fails**
+- **Case 1:** <scenario>
+  - Current behavior: <actual>
+  - Expected behavior: <expected>
+
+**Why it matters**
+<Impact in practical terms.>
+
+**Suggested fix**
+<Concrete recommendation.>
+
+**Suggested tests**
+- <test>
+- <test>
+```
+
+---
 
 ### Document Verbosity
 
+For technical documents (ADRs, RFCs, system designs, etc.):
+
 | Aspect | Short | Standard | Detailed |
-|--------|-------|----------|----------|
+|---|---|---|---|
 | Structure | Key sections only | Full structure per guidelines | Full structure + appendix |
 | Executive summary | This IS the output | 3-5 sentences | Full paragraph |
 | Sections | Bullet points | Structured paragraphs | Expanded with rationale |
@@ -57,30 +184,45 @@ Three template tiers aligned to verbosity:
 | Alternatives | Top pick only | All, briefly | All, with comparison table |
 | Appendix | No | No | Yes |
 
+---
+
 ### Cross-Platform Markdown Rules
 
-**Safe for PR comments** (GitHub + Bitbucket intersection): bold, italic, inline code, fenced code blocks, lists, blockquotes, links, GFM tables, blank-line paragraph breaks.
+### Safe for PR comments (GitHub + Bitbucket intersection)
 
-**Avoid in PR comments**: `<details>`/`<summary>` (Bitbucket strips HTML), nested blockquotes, task lists, footnotes, emoji shortcodes, HTML tags.
+Use freely:
+- Bold (`**text**`), italic (`*text*`), inline code (`` `code` ``)
+- Fenced code blocks with language hints
+- Unordered and ordered lists
+- Blockquotes (`>`)
+- Links (`[text](url)`)
+- GFM tables (`| col | col |`)
+- Blank-line paragraph breaks
 
-**Local markdown** (review reports, documents): all GFM features are safe.
+### Avoid in PR comments
 
-### Output Targets
+These are not reliably supported on both platforms:
+- `<details>` / `<summary>` (Bitbucket strips HTML)
+- Nested blockquotes
+- Task lists (`- [ ]`)
+- Footnotes
+- Emoji shortcodes (`:emoji:`)
+- HTML tags in general
 
-| Target | Format |
-|--------|--------|
-| Documents | Markdown (default), Google Docs, Confluence, PDF |
-| Diagrams | Mermaid, Excalidraw, draw.io (source + rendered) |
-| Review deliverables | Markdown report, source comments, executive summary |
+### Local markdown (review reports, documents)
 
-## What It Provides
+All GFM features are safe since these are not posted as platform comments.
+
+---
 
 ### Priority Labels
 
-| Priority | When to Use |
-|----------|-------------|
-| `Blocker` | Must fix before merge — correctness, security, or data loss risk |
-| `Critical` | Should fix before merge — significant reliability or performance concern |
+Use exactly one:
+
+| Priority | When to use |
+|---|---|
+| `Blocker` | Must be fixed before merge — correctness, security, or data loss risk |
+| `Critical` | Should be fixed before merge — significant reliability or performance concern |
 | `Should Have` | Improves quality materially — maintainability, consistency, or moderate risk |
 | `May Have` | Nice to have — minor improvement, style, or future-proofing |
 | `Nitpick` | Cosmetic or stylistic preference — safe to ignore |
@@ -88,26 +230,10 @@ Three template tiers aligned to verbosity:
 
 ### Principle Labels
 
+Use one or more:
+
 `Correctness` · `Reliability` · `Security` · `Performance` · `Maintainability` · `Consistency` · `Testability` · `Observability` · `Accessibility` · `Documentation`
 
-## Invoked By
+## Examples
 
-| Skill | Load Condition |
-|-------|---------------|
-| `code-review-pr` | when producing output |
-| `code-review-repo` | when producing output |
-| `code-review-fix` | when producing output |
-| `audit` | when producing output |
-| `docs-write` | when producing output |
-| `docs-review` | when producing output |
-| `docs-repo` | when producing output |
-| `docs-crud` | when producing output |
-| `docs-confluence` | when producing output |
-| `design` | when producing output |
-| `dev-build` | when producing output |
-| `dev-refactor` | when producing output |
-| `dev-migrate` | when producing output |
-| `plan` | when producing output |
-| `spec` | when producing output |
-| `research` | when producing output |
-| `handoff` | when producing output |
+The examples below start with a minimal invocation and then show the most common ways developers override detection or change the resulting artifact.

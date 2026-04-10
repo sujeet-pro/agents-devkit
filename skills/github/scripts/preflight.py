@@ -193,8 +193,8 @@ def detect_git_provider() -> str | None:
 
 
 def check_mcp_server(name: str) -> bool:
-    """Check if an MCP server is configured in ~/.claude.json or .mcp.json."""
-    for config_path in [Path.home() / ".claude.json", Path(".mcp.json")]:
+    """Check if an MCP server is configured in ~/.claude.json or mcp-config.json."""
+    for config_path in [Path.home() / ".claude.json", Path("mcp-config.json")]:
         if config_path.exists():
             try:
                 data = json.loads(config_path.read_text(encoding="utf-8"))
@@ -216,6 +216,23 @@ def check_npm_package(package: str) -> bool:
         return result.returncode == 0
     except (subprocess.TimeoutExpired, FileNotFoundError):
         return False
+
+
+def check_gh_auth() -> list[str]:
+    """Check that gh CLI is authenticated."""
+    warnings = []
+    try:
+        result = subprocess.run(
+            ["gh", "auth", "status"],
+            capture_output=True, text=True, timeout=10
+        )
+        if result.returncode != 0:
+            warnings.append("  ⚠ gh auth status failed — run `gh auth login` to authenticate")
+    except FileNotFoundError:
+        warnings.append("  ⚠ gh CLI not found — cannot verify authentication")
+    except subprocess.TimeoutExpired:
+        warnings.append("  ⚠ gh auth status timed out")
+    return warnings
 
 
 def main():
@@ -306,6 +323,12 @@ def main():
             else:
                 print(f"  ✗ MCP: {server} not configured — See settings/mcp-setup.md")
                 errors += 1
+
+    # Check gh authentication
+    gh_warnings = check_gh_auth()
+    for w in gh_warnings:
+        print(w)
+    warnings += len(gh_warnings)
 
     # Check format-specific MCP (confluence, google-doc)
     fmt = context.get("format", context.get("output", "")).lower()

@@ -50,6 +50,12 @@ Does NOT use random blog posts as authoritative sources.
 
 Glob, Grep, Read, WebSearch, WebFetch
 
+## Preloaded Skills
+
+| Skill | Purpose |
+|-------|---------|
+| `review-standards` | Review pipeline, comment templates, and source routing |
+
 ## Output Format
 
 ```

@@ -193,8 +193,8 @@ def detect_git_provider() -> str | None:
 
 
 def check_mcp_server(name: str) -> bool:
-    """Check if an MCP server is configured in ~/.claude.json or .mcp.json."""
-    for config_path in [Path.home() / ".claude.json", Path(".mcp.json")]:
+    """Check if an MCP server is configured in ~/.claude.json or mcp-config.json."""
+    for config_path in [Path.home() / ".claude.json", Path("mcp-config.json")]:
         if config_path.exists():
             try:
                 data = json.loads(config_path.read_text(encoding="utf-8"))

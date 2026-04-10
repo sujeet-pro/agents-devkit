@@ -31,6 +31,8 @@ This skill uses shared helper skills. Load each skill's reference file ONLY when
 | `/adk:agentic-teams` | complexity >= medium AND parallel work needed | Launch 2+ child agents with distinct roles. Standard team shapes: review, research, docs, diagram, security, migration, planning. |
 | `/adk:interaction` | NOT --auto | Inline protocols for intent confirmation, approach selection, plan approval, review findings, progress dashboard. |
 | `/adk:confluence` | when target is Confluence | Confluence REST API via `curl` — page CRUD, comments, attachments. Uses `CONFLUENCE_*` from `~/.zshenv`. Supplements MCP connector for unsupported operations. |
+| `/adk:docs-guidelines` | when reviewing doc content | Load doc-type-specific writing guidelines (ADR, RFC, API ref, etc.). |
+| `/adk:docs-md` | when reviewing markdown | Markdown formatting standards and Pagesmith extensions. |
 
 This skill is review-only — it does not modify the source documents. Use `/adk:docs-crud` to apply fixes, or `/adk:docs-repo` to regenerate missing documentation.
 

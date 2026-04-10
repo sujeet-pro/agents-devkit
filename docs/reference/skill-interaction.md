@@ -1,6 +1,6 @@
 ---
-title: "interaction"
-description: "Inline interaction protocols for intent confirmation, approach selection, plan approval, and review findings"
+title: 'interaction'
+description: 'Inline interaction protocols for intent confirmation, approach selection, plan approval, review findings, and progress dashboards'
 skill_name: interaction
 category: guideline
 workflow_tier: helper
@@ -9,96 +9,179 @@ user_invocable: false
 
 # interaction
 
-Inline interaction protocols that define how DevKit skills render structured prompts and process user replies. Since Claude Code's Bash tool does not provide an interactive TTY, all interactivity happens via the agent itself — rendering structured prompts and parsing compact user replies.
+`interaction` is a shared helper that keeps cross-cutting rules and expectations consistent across the skills that invoke it. Most users meet it indirectly when another skill loads it to resolve a shared rule set or a reusable contract.
 
-## Purpose
+## Overview
 
-- Define reusable interaction patterns for human-in-the-loop workflows
-- Standardize how skills confirm intent, present options, approve plans, and triage review findings
-- Provide compact action grammars so users can respond efficiently
-- Ensure consistent UX across all interactive DevKit skills
+`interaction` belongs to the `guideline` layer and is declared at the `helper` tier. That metadata is more than labeling: it tells you how much planning happens before execution, how much the skill is allowed to infer, and whether the result should be a final artifact, a routing decision, or a shared contract for another skill.
+
+The key design trade-off is indirection. This skill rarely owns an interactive workflow on its own, but it keeps cross-cutting behavior consistent so task skills do not each reinvent the same policy, formatting rule, or detection logic.
 
 ## Parameters
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `-i` | flag | on | Inline interactivity — render interactions directly in the conversation |
-| `--auto` | flag | off | Skip human confirmations and proceed with recommended defaults |
+This helper does not expose a broad user-facing parameter surface beyond the narrow controls in `SKILL.md`. In practice, task skills load it indirectly and supply the context it needs.
 
-When neither flag is provided, default to `-i` (inline).
+## Output
 
-## Key Behaviors
+Helper skills usually return a rule set, a resolved reference list, or a normalized contract back to the calling skill rather than a standalone report.
 
-### Five Interaction Protocols
 
-#### 1. Intent Confirmation
+## Additional Reference
 
-Rendered during Phase 0 of the workflow. Presents the restated goal, reasoning, skills needed, tools/MCPs with availability, and complexity estimate.
+### Interaction Flags
 
-User replies: `approve`, `edit: <changes>`, `simplify`, or `cancel`.
+Skills that support interactive workflows accept this flag:
 
-#### 2. Approach Selection
+| Flag | Description |
+| ------ | ----------------------------------------------------------------------------------------- |
+| `--auto` | **Automatic** — skip human confirmations and proceed with recommended defaults |
 
-Rendered during Phase 1-2. Presents 2-3 numbered approaches with summary, risk level, effort estimate, pros, and cons. One approach is marked `[recommended]`.
+When `--auto` is not set, all interaction is rendered inline in the conversation (the default). When no arguments are provided, the skill enters interactive mode — asking the user for each required parameter with options to pick from, where the first option is the recommended choice based on prompt analysis.
 
-User replies: `1`, `2`, `3`, `mix: <instructions>`, or `discuss`.
+---
 
-#### 3. Plan Approval
+### Intent Confirmation
 
-Rendered during Phase 3. Presents tasks grouped into parallel waves with effort estimates and affected files.
+Render:
 
-User replies: `approve`, `add: <task description>`, `remove: <number>`, or `cancel`. If the user modifies the plan, it re-renders and asks again.
+```
 
-#### 4. Review Findings
+### Confirm Intent
 
-The most complex protocol. Renders a summary header with finding counts by severity, then each finding as a structured card with priority, title, file/line, principle, guideline, confidence score, issue explanation, and suggested fix.
+**Goal**: <one-line restatement>
 
-User action grammar:
+**Reasoning**:
+- <bullet 1>
+- <bullet 2>
+
+**Skills**: <skill list with rationale>
+**Tools/MCPs**: <list with availability>
+**Complexity**: <level> — <justification>
+
+> Reply: **approve**, **edit: <changes>**, **simplify**, or **cancel**
+```
+
+Process the user's reply and continue.
+
+### Approach Selection
+
+Render:
+
+```
+
+### Select Approach
+
+1. **<Name>** — <summary> (Risk: <level>, Effort: <estimate>) [recommended]
+   Pros: <pros> | Cons: <cons>
+
+2. **<Name>** — <summary> (Risk: <level>, Effort: <estimate>)
+   Pros: <pros> | Cons: <cons>
+
+3. **<Name>** — <summary> (Risk: <level>, Effort: <estimate>)
+   Pros: <pros> | Cons: <cons>
+
+> Reply: **1**, **2**, **3**, **mix: <instructions>**, or **discuss**
+```
+
+### Plan Approval
+
+Render:
+
+```
+
+### Approve Plan
+
+**Wave 1** (parallel):
+  1. <task> (~effort) [files: ...]
+  2. <task> (~effort) [files: ...]
+
+**Wave 2** (after wave 1):
+  3. <task> (~effort) [files: ...]
+
+> Reply: **approve**, **add: <task description>**, **remove: <number>**, or **cancel**
+```
+
+If the user adds/removes tasks, re-render the updated plan and ask again.
+
+### Review Findings
+
+**<N> findings** | <blocker-count> Blocker | <critical-count> Critical | <should-count> Should Have | <may-count> May Have | <nitpick-count> Nitpick
+
+---
+
+**1.** [<Priority>] <Short, specific title>
+*<file>:<line>* | *<Principle>* | *<Guideline name>* | Confidence: **<score>%**
+> <1-2 sentence issue explanation>
+> *Fix:* <1 sentence suggested fix>
+
+---
+
+> **Actions:** **a** accept | **r** reject | **e** edit | **s** skip — by number
+> Example: `a-1,4,5 r-2 e-3 s-6`
+> Also: `a-all` | `details <N>` | `done`
+```
+
+### User Input Syntax
+
 - `a-1,4,5` — accept findings 1, 4, 5
 - `r-2,6` — reject findings 2, 6
-- `e-3` — mark finding 3 for edit (triggers edit loop)
+- `e-3` — mark finding 3 for edit (prompt for edit instructions next)
 - `s-7` — skip/defer finding 7
-- `a-all` — accept all remaining
-- `details N` — show full body of finding N
+- `a-all` — accept all remaining pending items
+- `details N` — show the full body of finding N, then re-prompt
 - `done` — finalize (only if no pending items remain)
 
-Edit loop: shows current finding body, asks for edit instructions, regenerates the finding, asks `accept` or `edit again`.
+### Edit Loop
 
-#### 5. Progress Dashboard
+When the user marks items for edit (`e-N`), handle them one at a time:
 
-Display-only protocol for execution progress. Rendered inline at wave boundaries showing completion status per wave. No user interaction needed.
+```
 
-### Conditional Behavior
+### Edit Finding <N>
 
-- When `--auto` is passed, all protocols are skipped — skills proceed with recommended defaults
-- Review Findings only shows findings with confidence >= 80%
-- Plan Approval re-renders after any user modification
+**Current:**
+> <full finding body — all sections>
 
-## What It Provides
+**Edit instructions?** (type your changes, or `skip` to defer)
+```
 
-- Rendering templates for each of the five interaction protocols
-- Compact action grammar that skills parse from user replies
-- Edit loop workflow for iterating on individual review findings
-- Post-review summary table (accepted/rejected/edited/skipped counts)
-- Progress dashboard format for wave-based execution tracking
+After the user provides instructions:
 
-## Invoked By
+1. Regenerate the finding based on the edit prompt
+2. Show the regenerated finding in the same card format
+3. Ask: **accept** or **edit again**
 
-| Skill | Load Condition |
-|-------|---------------|
-| `code-review-pr` | NOT `--auto` |
-| `code-review-repo` | NOT `--auto` |
-| `code-review-fix` | NOT `--auto` |
-| `audit` | NOT `--auto` |
-| `dev-build` | NOT `--auto` |
-| `dev-refactor` | NOT `--auto` |
-| `dev-migrate` | NOT `--auto` |
-| `docs-write` | NOT `--auto` |
-| `docs-review` | NOT `--auto` |
-| `docs-repo` | NOT `--auto` |
-| `docs-crud` | NOT `--auto` |
-| `design` | NOT `--auto` |
-| `plan` | NOT `--auto` |
-| `spec` | NOT `--auto` |
-| `research` | NOT `--auto` |
-| `workflow` (Phases 0-3) | NOT `--auto` |
+### Summary After All Items Resolved
+
+```
+
+### Review Complete
+
+| Action | Count |
+|--------|-------|
+| Accepted | N |
+| Rejected | N |
+| Edited | N |
+| Skipped | N |
+```
+
+Then proceed with posting/processing accepted items per the skill's instructions.
+
+### Progress Dashboard
+
+For execution progress, render inline updates at wave boundaries:
+
+```
+
+### Progress
+
+Wave 1: [completed] 2/2 tasks done
+Wave 2: [running] 1/3 tasks done, 2 pending
+Wave 3: [pending]
+```
+
+No user interaction needed — this is display-only. Update by re-rendering after each wave completes.
+
+## Examples
+
+The examples below start with a minimal invocation and then show the most common ways developers override detection or change the resulting artifact.
