@@ -17,6 +17,8 @@ import textwrap
 from collections import OrderedDict
 from pathlib import Path
 
+from skill_catalog import infer_area_from_name, iter_published_skill_dirs
+
 
 ROOT = Path(__file__).resolve().parent.parent
 SKILLS_DIR = ROOT / "skills"
@@ -33,76 +35,61 @@ FRONTMATTER_RE = re.compile(r"^---\s*\n(.*?)\n---\s*\n?", re.DOTALL)
 GUIDE_FRONTMATTER = {
     "code-reviews": {
         "title": "Code Reviews",
-        "description": "Review PRs, fix comments, self-review local changes, and audit entire repositories",
+        "description": "Review PRs, fix comments, and self-review local changes before merge",
         "order": 1,
     },
     "development": {
         "title": "Development",
-        "description": "Build features, debug issues, run TDD, refactor code, and migrate frameworks",
+        "description": "Build features, refactor code, migrate frameworks, and package completed work cleanly",
         "order": 2,
     },
     "documentation": {
         "title": "Documentation",
-        "description": "Create, update, review, and publish engineering documentation",
+        "description": "Create, update, review, template, and publish engineering documentation",
         "order": 3,
     },
     "diagrams": {
-        "title": "Diagrams",
-        "description": "Create architecture, flow, sequence, and dependency diagrams with the right engine",
+        "title": "Visuals & Design",
+        "description": "Create diagrams, charts, and interface design direction with the right artifact type",
         "order": 4,
     },
     "research-planning": {
         "title": "Research & Planning",
-        "description": "Research topics, create implementation plans, and write specifications",
+        "description": "Research topics, close ambiguity, create implementation plans, and write specifications",
         "order": 5,
     },
     "audits-quality": {
         "title": "Audits & Quality",
-        "description": "Run security, performance, dependency, and codebase audits with automated testing",
+        "description": "Run repository audits, live site audits, and explicit testing workflows",
         "order": 6,
-    },
-    "project-management": {
-        "title": "Project Management",
-        "description": "Initialize projects, manage milestones, hand off sessions, and coordinate agent teams",
-        "order": 7,
-    },
-    "setup-config": {
-        "title": "Setup & Configuration",
-        "description": "Install tools, configure MCP servers, and verify your ADK installation",
-        "order": 8,
     },
 }
 
 
 REFERENCE_GROUPS = [
-    ("Orchestrator", ["use"]),
-    ("Review Skills", ["code-review", "code-review-pr", "code-review-repo", "code-review-fix"]),
-    ("Development Skills", ["dev", "dev-build", "dev-refactor", "dev-migrate", "dev-commit"]),
-    ("Documentation Skills", ["docs", "docs-write", "docs-crud", "docs-review", "docs-repo", "docs-confluence"]),
-    ("Diagram Skills", ["diagram", "diagram-mermaid", "diagram-excalidraw", "diagram-drawio", "diagram-graphviz"]),
-    ("Planning & Research Skills", ["plan", "research", "spec"]),
-    ("Quality & Design Skills", ["audit", "design", "test", "chart"]),
-    ("Project & Session Skills", ["project", "handoff", "team", "setup", "deps-tracker", "interactivity", "create-skill"]),
-    (
-        "Guideline Skills",
-        [
-            "workflow",
-            "communication",
-            "principal-engineer",
-            "agentic-teams",
-            "output-format",
-            "interaction",
-            "preflight-check",
-            "review-standards",
-            "coding",
-            "docs-guidelines",
-            "docs-md",
-            "architecture",
-            "workspace-conventions",
-        ],
-    ),
-    ("Connector Skills", ["github", "bitbucket", "confluence", "jira"]),
+    ("Planning & Research", ["adk-brainstorm", "adk-plan", "adk-research"]),
+    ("Development & Delivery", ["adk-build", "adk-refactor", "adk-migrate", "adk-commit"]),
+    ("Review", ["adk-review-pr", "adk-review-local-changes", "adk-address-review-feedback", "adk-review-docs"]),
+    ("Documentation", ["adk-write-docs"]),
+    ("Visuals & Design", ["adk-diagram", "adk-chart", "adk-design"]),
+    ("Audits & Testing", ["adk-audit-repo", "adk-audit-site", "adk-test"]),
 ]
+
+GUIDE_SKILL_GROUPS = {
+    "code-reviews": ["adk-review-pr", "adk-review-local-changes", "adk-address-review-feedback"],
+    "development": ["adk-build", "adk-refactor", "adk-migrate", "adk-commit"],
+    "documentation": ["adk-write-docs", "adk-review-docs"],
+    "diagrams": ["adk-diagram", "adk-chart", "adk-design"],
+    "research-planning": ["adk-brainstorm", "adk-plan", "adk-research", "adk-spec"],
+    "audits-quality": ["adk-audit-repo", "adk-audit-site", "adk-test"],
+}
+
+STATIC_REFERENCE_PAGES = {
+    "skill-INSPIRATION-MAP.md",
+    "skill-LANDSCAPE.md",
+    "skill-CATEGORY-ROUTING.md",
+    "skill-MIGRATION-MAP.md",
+}
 
 
 HOW_IT_WORKS_SECTIONS = [
@@ -285,7 +272,9 @@ def extract_example_lines(text: str) -> list[str]:
     for block in re.findall(r"```(?:\w+)?\n(.*?)```", text, flags=re.DOTALL):
         for line in block.splitlines():
             stripped = line.strip()
-            if not stripped or "/adk:" not in stripped:
+            if not stripped:
+                continue
+            if "/adk:" not in stripped and not re.match(r"adk-[a-z0-9-]+(?:\s|$)", stripped):
                 continue
             if stripped not in lines:
                 lines.append(stripped)
@@ -367,7 +356,7 @@ def base_placeholder_command(skill: dict) -> str:
             break
     if not positionals:
         positionals = placeholders_from_argument_hint(skill.get("argument_hint", ""))
-    command = f"/adk:{skill['slug']}"
+    command = skill["slug"]
     if positionals:
         command += " " + " ".join(positionals)
     return command
@@ -425,7 +414,7 @@ def build_examples_section(skill: dict) -> str:
     flags = flag_names(skill)
 
     start_lines: list[str] = []
-    if skill["user_invocable"] or base != f"/adk:{skill['slug']}":
+    if skill["user_invocable"] or base != skill["slug"]:
         start_lines.append(base)
     for line in lines:
         if not any(flag in line for flag in selector_flags() + output_flags()):
@@ -435,9 +424,9 @@ def build_examples_section(skill: dict) -> str:
             break
     if len(start_lines) == 1:
         if "--mode" in flags:
-            start_lines.append(f"{base} --mode debug" if "<prompt-text>" in base else f"/adk:{skill['slug']} --mode debug")
+            start_lines.append(f"{base} --mode debug" if "<prompt-text>" in base else f"{skill['slug']} --mode debug")
         elif "--engine" in flags:
-            start_lines.append(f"{base} --engine mermaid" if "<prompt-text>" in base else f"/adk:{skill['slug']} --engine mermaid <prompt-text>")
+            start_lines.append(f"{base} --engine mermaid" if "<prompt-text>" in base else f"{skill['slug']} --engine mermaid <prompt-text>")
     if not start_lines and lines:
         start_lines = lines[:2]
     groups.append(
@@ -451,7 +440,7 @@ def build_examples_section(skill: dict) -> str:
     selector_lines = [line for line in lines if any(flag in line for flag in selector_flags())][:4]
     if not selector_lines:
         if "--engine" in flags:
-            selector_lines.append(f"/adk:{skill['slug']} --engine mermaid <prompt-text>")
+            selector_lines.append(f"{skill['slug']} --engine mermaid <prompt-text>")
         elif "--mode" in flags and "<prompt-text>" in base:
             selector_lines.append(base.replace("<prompt-text>", "--mode debug <prompt-text>"))
         elif "--scope" in flags and "<prompt-text>" in base:
@@ -468,7 +457,7 @@ def build_examples_section(skill: dict) -> str:
     output_lines_list = [line for line in lines if any(flag in line for flag in output_flags())][:4]
     if not output_lines_list:
         if "--render" in flags and "--format" in flags:
-            output_lines_list.append(f"/adk:{skill['slug']} --render --format png <prompt-text>")
+            output_lines_list.append(f"{skill['slug']} --render --format png <prompt-text>")
         elif "--verbosity" in flags and base:
             output_lines_list.append(f"{base} --verbosity detailed")
         elif "--auto" in flags and base:
@@ -773,6 +762,7 @@ def build_skill_index(skills: dict[str, dict]) -> str:
         "- [Skill Landscape and Gap Analysis](../skill-LANDSCAPE.md)",
         "- [Skill Inspiration Map](../skill-INSPIRATION-MAP.md)",
         "- [Category Routing Map](../skill-CATEGORY-ROUTING.md)",
+        "- [Skill Migration Map](../skill-MIGRATION-MAP.md)",
         "",
         "## Common Parameters",
         "",
@@ -781,8 +771,9 @@ def build_skill_index(skills: dict[str, dict]) -> str:
         "| Parameter | What it usually does |",
         "|-----------|----------------------|",
         "| `--help` | Print the embedded skill reference and stop |",
-        "| `--verbosity` | Change how much detail the result includes without changing the core task |",
-        "| `--auto` | Skip approval pauses while keeping the skill's validation behavior |",
+        "| `--scope` | Limit analysis or execution to one path, surface, or target area |",
+        "| `--focus` | Keep the primary review, audit, or design lens explicit |",
+        "| `--action` | Choose a lifecycle action such as create, update, review, or publish |",
         "",
     ]
 
@@ -816,7 +807,7 @@ def build_skill_index(skills: dict[str, dict]) -> str:
 
 
 def find_skill_command(command: str) -> str:
-    match = re.search(r"/adk:([a-z0-9-]+)", command)
+    match = re.search(r"(?:/adk:)?([a-z0-9-]+)", command)
     if not match:
         raise ValueError(f"Could not determine skill for command: {command}")
     return match.group(1)
@@ -839,17 +830,56 @@ def code_block(lines: list[str]) -> str:
 
 def render_guide(slug: str, skills: dict[str, dict]) -> str:
     fm = GUIDE_FRONTMATTER[slug]
-    renderers = {
-        "code-reviews": render_code_reviews_guide,
-        "development": render_development_guide,
-        "documentation": render_documentation_guide,
-        "diagrams": render_diagrams_guide,
-        "research-planning": render_research_planning_guide,
-        "audits-quality": render_audits_quality_guide,
-        "project-management": render_project_management_guide,
-        "setup-config": render_setup_config_guide,
-    }
-    body = renderers[slug](skills)
+    guide_skills = [skills[name] for name in GUIDE_SKILL_GROUPS.get(slug, []) if name in skills]
+    quick_start = ""
+    examples: list[str] = []
+    if guide_skills:
+        first_skill = guide_skills[0]
+        quick_start = f"> **Quick start:** `/{first_skill['name']}` is the simplest entrypoint for this category."
+        for skill in guide_skills[:4]:
+            invocation = f"/{skill['name']}"
+            if skill["argument_hint"]:
+                invocation += f" {skill['argument_hint']}"
+            examples.append(invocation)
+
+    table_lines = [
+        "| Skill | Purpose | Reference |",
+        "| --- | --- | --- |",
+    ]
+    for skill in guide_skills:
+        table_lines.append(
+            f"| `/{skill['name']}` | {skill['clean_description']} | [Details](../../reference/skill-{skill['slug']}.md) |"
+        )
+
+    body_parts = [
+        f"# {fm['title']}",
+        "",
+        fm["description"] + ".",
+        "",
+        quick_start,
+        "",
+        "## Included Skills",
+        "",
+        "\n".join(table_lines),
+    ]
+    if examples:
+        body_parts.extend(
+            [
+                "",
+                "## Example Invocations",
+                "",
+                code_block(examples),
+            ]
+        )
+    body_parts.extend(
+        [
+            "",
+            "## How To Use This Guide",
+            "",
+            "Start with the skill whose primary job matches the outcome you want. Use the linked reference page for the exact flag surface, workflow contract, and validation expectations.",
+        ]
+    )
+    body = "\n".join(part for part in body_parts if part is not None)
     frontmatter = "\n".join(
         [
             "---",
@@ -1888,7 +1918,7 @@ def build_skill_object(skill_dir: Path) -> dict:
         "maturity": str(frontmatter.get("maturity", "stable")),
         "user_invocable": boolish(frontmatter.get("user-invocable")),
         "tags": tags,
-        "area": extract_area(raw_description),
+        "area": extract_area(raw_description) or infer_area_from_name(str(frontmatter.get("name", skill_dir.name))),
         "category": derive_category(tier, tags),
         "intro": first_paragraph_after_h1(body),
         "h2_sections": h2_sections,
@@ -1900,22 +1930,48 @@ def build_skill_object(skill_dir: Path) -> dict:
     }
 
 
+def cleanup_stale_reference_pages(skills: dict[str, dict]) -> None:
+    keep = {f"skill-{skill['slug']}.md" for skill in skills.values()} | STATIC_REFERENCE_PAGES
+    for path in REFERENCE_DIR.glob("skill-*.md"):
+        if path.name not in keep:
+            path.unlink()
+
+
+def cleanup_stale_guide_pages() -> None:
+    keep = set(GUIDE_FRONTMATTER)
+    if not GUIDE_DIR.exists():
+        return
+    for path in GUIDE_DIR.iterdir():
+        if not path.is_dir():
+            continue
+        readme = path / "README.md"
+        if readme.exists() and path.name not in keep:
+            readme.unlink()
+
+
 def main() -> None:
+    skill_dirs = iter_published_skill_dirs()
+    if not skill_dirs:
+        raise SystemExit("No published adk-* skills found.")
     skills = {
         skill_dir.name: build_skill_object(skill_dir)
-        for skill_dir in sorted(SKILLS_DIR.iterdir())
-        if skill_dir.is_dir() and (skill_dir / "SKILL.md").exists()
+        for skill_dir in skill_dirs
     }
 
     for skill in skills.values():
         reference_path = REFERENCE_DIR / f"skill-{skill['slug']}.md"
+        reference_path.parent.mkdir(parents=True, exist_ok=True)
         reference_path.write_text(build_reference_page(skill), encoding="utf-8")
 
     (REFERENCE_DIR / "skills" / "README.md").write_text(build_skill_index(skills), encoding="utf-8")
 
     for slug in GUIDE_FRONTMATTER:
         guide_path = GUIDE_DIR / slug / "README.md"
+        guide_path.parent.mkdir(parents=True, exist_ok=True)
         guide_path.write_text(render_guide(slug, skills), encoding="utf-8")
+
+    cleanup_stale_reference_pages(skills)
+    cleanup_stale_guide_pages()
 
     print(f"Updated {len(skills)} skill reference pages")
     print("Updated docs/reference/skills/README.md")

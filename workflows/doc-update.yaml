@@ -2,15 +2,15 @@ name: doc-update
 description: Documentation refresh — review existing docs, update, and publish
 
 steps:
-  - skill: docs-review
-    args: "${DOC_PATH} --mode standard"
+  - skill: adk-review-docs
+    args: "${DOC_PATH}"
     description: Review existing documentation for quality and accuracy
 
-  - skill: docs-crud
+  - skill: adk-write-docs
     args: "${DOC_PATH} --action update"
     description: Apply improvements based on review findings
 
-  - skill: docs-repo
-    args: "--auto"
-    description: Regenerate repo-level documentation
+  - skill: adk-write-docs
+    args: "${DOC_PATH} --action improve --scope docs --auto"
+    description: Refresh surrounding repo docs when the documentation change has broader impact
     condition: "complexity >= medium"

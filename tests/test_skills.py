@@ -227,9 +227,10 @@ def test_propagation(r: TestResult):
 
         src = TEMPLATES_DIR / "scripts" / "preflight.py"
         dst = skill_dir / "scripts" / "preflight.py"
-        if name in CUSTOM_PREFLIGHT_SKILLS:
+        has_custom_preflight = name in CUSTOM_PREFLIGHT_SKILLS or name.startswith("adk-")
+        if has_custom_preflight:
             if dst.exists():
-                r.ok(f"{name}/scripts/preflight.py has custom preflight (connector)")
+                r.ok(f"{name}/scripts/preflight.py has allowed custom preflight")
         elif dst.exists() and not filecmp.cmp(src, dst, shallow=False):
             r.fail(f"{name}/scripts/preflight.py DIFFERS from template")
         elif dst.exists():

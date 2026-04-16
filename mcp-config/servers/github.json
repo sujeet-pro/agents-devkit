@@ -1,0 +1,11 @@
+{
+  "command": "sh",
+  "args": [
+    "-c",
+    "GITHUB_PERSONAL_ACCESS_TOKEN=$GITHUB_PAT docker run -i --rm -e GITHUB_PERSONAL_ACCESS_TOKEN ghcr.io/github/github-mcp-server"
+  ],
+  "env": {
+    "GITHUB_PAT": "${GITHUB_PAT}"
+  },
+  "description": "GitHub MCP server via Docker. Requires GITHUB_PAT env var."
+}

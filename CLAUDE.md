@@ -1,75 +1,37 @@
-# DevKit
+# ADK Repository Guidance
 
-Use skills from `skills/` directory. Route general prompts through `/adk:use` first. Invoke a specific skill directly only when the user explicitly names that skill or clearly wants that exact workflow.
+Read `AGENTS.md` first.
 
-Every skill supports `--help` to see parameters and behavior variations.
+Claude-specific notes:
+- repo-maintenance skills live in `.claude/skills/prj-*`
+- canonical shared guidance lives in `ai-guidelines/`
+- public installable skills live in `skills/adk-*`
+- reusable agent personas live in `agent-personas/adk-*`
+- Claude installable agent source files live in `agents-claude/*.md` and are generated from `agent-personas/adk-*/AGENT.md`
+- Claude installable hook source lives in `hooks/settings.json`
+- file-to-skill mapping lives in `ai-guidelines/shared-files-map.json`
 
-Shared templates live in `templates/skill/`. After editing templates, run `python3 templates/skill/scripts/propagate.py` to push changes to all skills.
+When shared guidance changes (constitution, brainstorming-workflow, output-format, research-protocol, or personas):
+1. read `ai-guidelines/update-scope-policy.md`
+2. run `python3 ai-guidelines/scripts/refresh_adk_skills.py scope --changed-path <path>`
+3. run `python3 ai-guidelines/scripts/refresh_adk_skills.py copy-shared`
+4. run `python3 scripts/generate-skills-manifest.py`
+5. run `python3 tests/test_skills.py`
 
-See [CONTRIBUTING.md](./CONTRIBUTING.md) for how to add skills, guidelines, agents, and test locally.
+Symlink management:
+- run `./scripts/sync-links.sh` after adding or removing skills
+- run `python3 scripts/generate_agent_projections.py` after changing canonical agent personas
+- run `python3 scripts/generate_hook_projections.py` after changing runtime hook behavior
+- run `./scripts/install-mcp.sh --agent claude-code` to install MCP configs
 
-## Skill Categories
+Suggested user-level prompt snippet:
 
-Skills are organized into four categories:
+```md
+When a task involves design, trade-offs, ambiguity, or meaningful risk, start with the ADK brainstorming workflow.
 
-| Category | Purpose | Example |
-|----------|---------|---------|
-| **Guideline** (helper) | Reusable knowledge and standards, auto-invoked by task skills | `workflow`, `communication`, `coding` |
-| **Connector** (helper) | Platform API wrappers with MCP fallback, auto-invoked by task skills | `github`, `bitbucket`, `confluence`, `jira` |
-| **Task** (user-facing) | Specific engineering tasks with self-sufficient inline fallbacks | `code-review-pr`, `dev-build`, `docs-write` |
-| **Routing** (orchestrator) | Coordinate and route work across other skills | `use`, `team`, `code-review`, `docs`, `dev`, `diagram` |
-
-## Skill Architecture Rules
-
-- **Self-sufficient**: Each task skill includes inline fallback summaries for all shared knowledge. Works even if guideline skills are not installed.
-- **Delegation, not file sharing**: When a skill needs another skill's capability, it invokes that skill (e.g., "invoke `/adk:coding`"), never references its sub-files. The invoking skill specifies the output format it needs, not how to do the work.
-- **All reference material lives under `references/`**, with subfolders when grouping aids readability.
-- **Consistent structure**: Every skill has `SKILL.md`, `references/`, and `scripts/`. Multi-mode skills also have `stages/` for conditional stage files.
-- **No interactive scripts**: All interactivity is via the agent itself.
-- **Human-in-the-loop**: All non-trivial skills confirm intent, present options, and get plan approval before executing.
-- **Workflow families**: Each skill declares a `workflow-family` in frontmatter (`quick-action`, `standard-task`, `complex-build`, `investigative-loop`). Multi-mode skills declare overrides per mode.
-- **Maturity tracking**: Each skill declares `maturity` in frontmatter (`experimental`, `stable`, `battle-tested`). New skills start as `experimental`.
-- **Plan first**: Complex Build skills require an approved plan before executing. Pass `--auto` to skip confirmations.
-- **Workspace context**: Skills check for `.adk/context.yaml` in the workspace root for project-specific defaults (stack, conventions, preferences).
-- **Composable workflows**: Multi-skill pipelines defined as YAML in `workflows/`. Reusable across projects.
-- **Skills manifest**: `skills-manifest.json` provides a machine-readable index. Regenerate with `python3 scripts/generate-skills-manifest.py`.
-
-## Skill Naming
-
-- **Claude plugin** (recommended): Skills use the namespace `adk:` — invoked as `/adk:<skill-name>`
-- **skills.sh / npx skills**: Skills use the `name` field — invoked as `/<skill-name>`
-- **`name` field**: Set to `<skill-name>` in SKILL.md frontmatter (matches the directory name). The plugin provides the `adk:` namespace; the name itself has no prefix.
-- **`description` field**: Starts with `adk -` followed by bracket tags and the description (retained for identification when skills are installed outside the plugin)
-
-## Agent Naming
-
-- **`name` field**: Set to `adk-<agent-name>` (e.g., `adk-code-reviewer`). The `adk-` prefix prevents collisions with user custom agents.
-- **Plugin typeahead**: Plugin users see agents as `adk:adk-<agent-name>`
-- **Agent teams**: Require `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` in `.claude/settings.json` env. Skills check and prompt the user to enable if not set.
-
-## Cross-Skill Update Dependencies
-
-When updating shared concepts, these skills need coordinated updates:
-
-| What Changed | Skills to Update |
-|---|---|
-| **Workflow families** (`skills/workflow/`) | All task skills invoke `/adk:workflow --family <family>`. Family definitions: `references/quick-action.md`, `standard-task.md`, `complex-build.md`, `investigative-loop.md` |
-| **Communication style** (`skills/communication/`) | All task skills invoke `/adk:communication` |
-| **Principal Engineer lens** (`skills/principal-engineer/`) | All full-tier task skills invoke `/adk:principal-engineer` |
-| **Agentic teams contract** (`skills/agentic-teams/`) | All skills that spawn child agents invoke `/adk:agentic-teams` |
-| **Output format standards** (`skills/output-format/`) | All skills that produce output invoke `/adk:output-format` |
-| **Interaction protocols** (`skills/interaction/`) | All interactive skills invoke `/adk:interaction` |
-| **Preflight validations** (`skills/preflight-check/`) | All skills with tool/MCP dependencies invoke `/adk:preflight-check` |
-| **Review standards** (`skills/review-standards/`) | `code-review-pr`, `code-review-repo`, `code-review-fix`, `docs-review`, `audit` |
-| **Coding guidelines** (`skills/coding/references/coding-guidelines/`) | `code-review-pr`, `code-review-repo`, `code-review-fix`, `dev-build`, `dev-refactor`, `dev-migrate`, `audit` |
-| **Doc-writing guidelines** (`skills/docs-guidelines/references/doc-guidelines/`) | `docs-write`, `docs-review`, `docs-repo`, `docs-crud`, `spec` |
-| **Markdown guidelines** (`skills/docs-md/`) | `docs-write`, `docs-repo`, `docs-review`, `docs-crud` |
-| **Architecture guidelines** (`skills/architecture/`) | `code-review-pr`, `code-review-repo`, `audit`, `design`, `dev-build`, `dev-refactor` |
-| **GitHub connector** (`skills/github/`) | `code-review-pr`, `code-review-fix` |
-| **Bitbucket connector** (`skills/bitbucket/`) | `code-review-pr`, `code-review-fix` |
-| **Confluence connector** (`skills/confluence/`) | `docs-review`, `docs-crud`, `docs-write`, `docs-confluence` |
-| **Jira connector** (`skills/jira/`) | `docs-crud`, `code-review-pr` (context reading) |
-| **Workspace conventions** (`skills/workspace-conventions/`) | All diagram skills (`diagram-*`), `docs-write`, `docs-repo`, `docs-crud`, `plan`, `spec`, `research`, `handoff` |
-| **Chart skill** (`skills/chart/`) | `docs-crud`, `docs-write` (data visualization in documents) |
-| **Doc templates** (`skills/docs-crud/references/doc-templates/`) | `docs-crud` (document type skeletons) |
-| **Agent definitions** (`agents/`) | All skills that spawn child agents reference agents by `adk-` prefixed name |
+1. Prefer the brainstorming MCP if available.
+2. If it is missing, warn once with install guidance and continue using the fallback workflow.
+3. Capture current state, target state, acceptable blast radius, desired confidence, and preferred artifact output.
+4. Research unknowns, present options, and ask follow-up questions until confidence is high enough for the task.
+5. Route into the right skill: brainstorm, spec, plan, write-docs, build, refactor, migrate, or design.
+```

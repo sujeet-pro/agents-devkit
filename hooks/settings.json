@@ -1,0 +1,47 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "prompt",
+            "prompt": "Check if the bash command involves any of these dangerous git operations: 'git push --force' or 'git push -f' to main/master, 'git reset --hard' on main/master, 'git clean -fd' at repo root, or 'git branch -D main' / 'git branch -D master'. Also block 'rm -rf /' or any recursive delete of the project root. Return {\"decision\": \"block\", \"reason\": \"...\"} to block, or {\"decision\": \"allow\"} to allow. Only block genuinely dangerous commands, not normal git operations."
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "prompt",
+            "prompt": "Check if the edited file is a SKILL.md. If it is under skills/adk-*, verify the frontmatter has: name (starts with 'adk-'), description, compatibility, and maturity (experimental, stable, battle-tested). If it is under .claude/skills, .cursor/skills, or .agents/skills, require name to start with 'prj-' and require metadata.internal: true. Return {\"ok\": true} if valid or not a SKILL.md, {\"ok\": false, \"reason\": \"...\"} if invalid."
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "prompt",
+            "prompt": "Check if the user's original request has been fully addressed. If the agent was following an adk skill workflow, verify the final validation phase was completed. Return {\"ok\": true} if done, {\"ok\": false, \"reason\": \"what remains\"} if not."
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo \"ADK repo loaded. Read AGENTS.md and ai-guidelines/ before repo-maintenance work. Public skills live in skills/adk-*.\""
+          }
+        ]
+      }
+    ]
+  }
+}

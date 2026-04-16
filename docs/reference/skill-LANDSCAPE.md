@@ -1,113 +1,54 @@
 ---
 title: Skill Landscape and Gap Analysis
-description: Popular software-engineering agent skills benchmarked against ADK
+description: Current public ADK skill coverage after the legacy-to-public catalog refactor
 order: 2
 ---
 
 # Skill Landscape and Gap Analysis
 
-This document benchmarks ADK skills against commonly used software-engineering agent workflows and recommends gaps to close.
+This page summarizes what the current public `adk-*` catalog covers and which legacy-era gaps were intentionally closed during the refactor.
 
-## External Sources Used
+## Current Public Coverage
 
-Primary (official):
-- [Anthropic Claude Code - How it works](https://code.claude.com/docs/en/how-claude-code-works.md)
-- [GitHub Copilot cloud agent - overview](https://docs.github.com/en/copilot/concepts/about-copilot-coding-agent)
-- [GitHub Copilot cloud agent - MCP extension](https://docs.github.com/en/copilot/using-github-copilot/coding-agent/extending-copilot-coding-agent-with-mcp)
+| Area | Public Skills | Notes |
+| --- | --- | --- |
+| Planning and research | `adk-plan`, `adk-research` | plan-first and evidence-first entrypoints |
+| Development and delivery | `adk-build`, `adk-refactor`, `adk-migrate`, `adk-commit` | implementation, structural cleanup, migrations, and change packaging |
+| Review | `adk-review-pr`, `adk-review-local-changes`, `adk-address-review-feedback`, `adk-review-docs` | code and docs review surfaces |
+| Documentation | `adk-write-docs` | named templates, custom templates, and publishing contract |
+| Visual artifacts | `adk-diagram`, `adk-chart`, `adk-design` | system diagrams, data charts, and UI/UX design work |
+| Audits and validation | `adk-audit-repo`, `adk-audit-site`, `adk-test` | repo audits, live-site audits, and explicit testing workflows |
 
-Open-source ecosystem signal:
-- [VoltAgent awesome-agent-skills](https://github.com/VoltAgent/awesome-agent-skills)
-- [OpenHands](https://github.com/All-Hands-AI/OpenHands)
-- [SWE-agent](https://github.com/SWE-agent/SWE-agent)
+## Gaps Closed In This Refactor
 
-## What ADK Already Covers Well
+The refactor intentionally closed the main capability gaps that were still only present in `legacy-skills/` or external reference repos:
 
-ADK already has strong coverage for the highest-frequency software engineering workflows:
+- documentation review is now a public skill via `adk-review-docs`
+- named doc templates and custom template loading moved into `adk-write-docs`
+- live site and SEO-style audit work moved into `adk-audit-site`
+- explicit validation and UAT-style work moved into `adk-test`
+- UI and UX direction moved into `adk-design`
+- data chart generation moved into `adk-chart`
+- commit, PR-summary, and changelog packaging moved into `adk-commit`
 
-- implementation and debugging (`dev-build`)
-- refactoring (`dev-refactor`)
-- migration (`dev-migrate`)
-- code review (`code-review-pr`, `code-review-repo`, `code-review-fix`)
-- planning/specification (`plan`, `spec`)
-- documentation (`docs-write`, `docs-review`, `docs-repo`, `docs-crud`, `docs-confluence`)
-- research (`research`)
-- testing/UAT (`test`)
-- design and diagrams (`design`, `diagram-*`)
-- setup, handoff, project lifecycle (`setup`, `handoff`, `project`)
-- orchestration and routing (`use`, `dev`, `docs`, `code-review`, `diagram`, `team`)
+## Intentional Simplifications
 
-## Coverage Matrix (Popular vs Current ADK)
+The public catalog does not keep standalone router, helper, or compatibility-era workflow skills:
 
-| Skill area | Industry prevalence | ADK status | Notes |
-|---|---|---|---|
-| Implement/fix/debug code | Core | Strong | Covered by `dev-build` |
-| Repo research and context gathering | Core | Strong | Covered by `research`, `use` |
-| Plan-first execution | Core | Strong | Covered by `use`, `plan`, `workflow` |
-| Code review | Core | Strong | Covered by review skill family |
-| Refactor/tech debt | Core | Strong | Covered by `dev-refactor` |
-| Migration/upgrade | Core | Strong | Covered by `dev-migrate` |
-| Docs authoring/review | Core | Strong | Covered by docs skill family |
-| PR/git automation | Core | Strong | Covered by `dev-commit` |
-| Security audit and remediation | Core | Partial | `audit` is strong; dedicated fix flow can be stronger |
-| CI/CD and release automation | Core | Partial | Setup exists; no dedicated CI/release task skill |
-| Observability/incident triage | Emerging-core | Gap | No dedicated incident workflow skill |
-| Dependency update/remediation | Emerging-core | Partial | `deps-tracker` is source-tracking, not package remediation |
-| Performance optimization workflow | Emerging-core | Partial | In `audit`; no dedicated implement-optimization skill |
-| Data/DB migration and query tuning | Specialized but common | Gap | No DB-focused task skill |
-| Cloud/IaC operations | Specialized but common | Gap | No dedicated infra/deploy task skill |
+- helper behavior now lives in `ai-guidelines/` and copied references
+- repo-maintenance wrappers live under `.claude/skills/prj-*`, `.cursor/skills/prj-*`, and `.agents/skills/prj-*`
+- legacy connectors and router-era skills remain migration history, not public install surface
 
-## Philosophy Compliance Review
+## Remaining Intentional Omissions
 
-Assessment against the required philosophy:
+ADK still does not publish dedicated public skills for every niche workflow. The main missing specialist areas remain:
 
-1. **Self-contained skills with fallback guidance**  
-   Status: **Mostly compliant**. Most full task skills include `Shared Skills` + `Inline Fallback`.
+- CI-specific failure handling
+- incident triage and postmortem automation as a standalone task skill
+- DB- and infra-specific migration or operations skills
 
-2. **One skill, one responsibility**  
-   Status: **Mostly compliant**. Routing vs task split is clear for major categories.
+Those are deliberate omissions for now rather than accidental gaps.
 
-3. **Human-in-the-loop + re-validation workflow**  
-   Status: **Strong**. This is explicit in `use`, `plan`, and helper guidelines.
+## Migration Reference
 
-4. **Principal Engineer option-first approach**  
-   Status: **Strong at framework level**, **mixed at execution consistency**. The pattern exists in shared guidance and many full skills, but should be uniformly enforced by policy checks.
-
-## Recommended Skill Additions (High Priority)
-
-To align with popular engineering usage and automation goals:
-
-1. `ci` (task)  
-   Focus: CI failures, flaky tests, lint/build breakages, pipeline hardening.
-
-2. `release` (task)  
-   Focus: release notes, version bump strategy, changelog generation, release validation checklist.
-
-3. `incident` (task)  
-   Focus: incident triage, log/signal correlation, mitigation plan, postmortem draft.
-
-4. `deps-remediate` (task)  
-   Focus: dependency update planning, breakage risk scoring, automated fix+verify loop.
-
-5. `db` (task)  
-   Focus: schema migration planning, query optimization, data backfill and rollback safety.
-
-## Recommended Router Expansions
-
-Current router categories are strong for `dev`, `docs`, `code-review`, and `diagram`.
-For consistency, add:
-
-- `quality` router -> `audit`, `test`, `incident`, `deps-remediate`
-- `delivery` router -> `ci`, `release`
-- `platform` router -> `setup`, future `db`, future `infra`
-
-## Tool/Connector Preference Policy (Proposed Standard)
-
-For external systems, use this order:
-
-1. standard connectors in this repo (`github`, `bitbucket`, `confluence`, `jira`)
-2. first-party CLI
-3. first-party MCP
-4. first-party API
-5. third-party MCP/CLI/API fallback
-
-This policy should be centralized in one shared routing reference and propagated to all task skills.
+For the legacy-to-public parity table and deletion criteria, see [Skill Migration Map](./skill-MIGRATION-MAP.md).

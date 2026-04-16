@@ -1,0 +1,11 @@
+{
+  "command": "sh",
+  "args": [
+    "-c",
+    "if [ -z \"$BRAINSTORMING_MCP_ROOT\" ]; then echo \"Set BRAINSTORMING_MCP_ROOT to your local mcp-brainstorming checkout before using the brainstorming MCP.\" >&2; exit 1; fi; node \"$BRAINSTORMING_MCP_ROOT/src/index.js\""
+  ],
+  "env": {
+    "BRAINSTORMING_MCP_ROOT": "${BRAINSTORMING_MCP_ROOT}"
+  },
+  "description": "Local brainstorming MCP server. Requires BRAINSTORMING_MCP_ROOT to point at a checkout of the mcp-brainstorming repo."
+}

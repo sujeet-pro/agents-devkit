@@ -6,69 +6,60 @@ order: 4
 
 # Guidelines Reference
 
-Skills automatically load relevant guidelines based on repository type and task context. Guidelines are lazy-loaded — only the files matching the detected stack or document type are read.
+ADK no longer ships separate guideline skills. Shared guidance now lives in `ai-guidelines/`, and published skills copy the shared documents they need into `references/_shared/`.
 
-## Coding Guidelines
+## Canonical Shared Guidance
 
-**Location:** `skills/coding/references/coding-guidelines/`
+**Location:** `ai-guidelines/`
 
-16 guideline files covering different aspects of software development. The `/adk:coding` skill detects the repo's tech stack and loads only the relevant files.
+These files define the repo's shared source of truth:
 
-| Guideline | Focus |
+| File | Focus |
 |-----------|-------|
-| `general.md` | Universal coding principles |
-| `architecture.md` | Architecture patterns and boundaries |
-| `frontend.md` | Frontend-specific patterns (React, Vue, etc.) |
-| `backend-java.md` | Java backend patterns |
-| `backend-kotlin.md` | Kotlin backend patterns |
-| `backend-nodejs.md` | Node.js backend patterns |
-| `backend-python.md` | Python backend patterns |
-| `design-system.md` | Design system and component library patterns |
-| `js-ts-library.md` | JavaScript/TypeScript library patterns |
-| `scripts.md` | Script and automation patterns |
-| `api-design.md` | API design and REST/GraphQL conventions |
-| `testing.md` | Testing strategy and patterns |
-| `observability.md` | Logging, metrics, and tracing |
-| `security.md` | Security practices and vulnerability prevention |
-| `expressive-code.md` | Code readability and expressiveness |
+| `README.md` | overview of the shared guidance model |
+| `constitution.md` | non-negotiable operating rules |
+| `brainstorming-workflow.md` | ambiguity-reduction and design-closure flow |
+| `research-protocol.md` | repo-first, evidence-first research method |
+| `output-format.md` | shared response shape and severity rules |
+| `skill-architecture.md` | public skill, persona, hook, and workflow layout |
+| `update-scope-policy.md` | how to decide refresh scope after shared changes |
+| `sources/registry.json` | provenance for externally informed behavior |
 
-## Document Guidelines
+## Copied Into Public Skills
 
-**Location:** `skills/docs-guidelines/references/doc-guidelines/`
+**Location:** `skills/adk-*/references/_shared/`
 
-24 guideline files for different document types. The `/adk:docs-guidelines` skill detects the document type and loads the matching guidelines.
+Published skills stay self-contained by copying the shared documents they need into each skill directory.
 
-| Guideline | Focus |
-|-----------|-------|
-| `general.md` | Universal documentation principles |
-| `rfc.md` | Request for Comments format |
-| `adr.md` | Architecture Decision Records |
-| `article.md` | Technical articles |
-| `blog.md` | Blog post writing |
-| `changelog.md` | Changelog and release notes |
-| `runbook.md` | Operational runbooks |
-| `system-design.md` | System design documents |
-| `tool-evaluation.md` | Tool/technology evaluations |
-| `research.md` | Research documents |
-| `deep-dive.md` | Deep-dive technical analysis |
-| ... and 13 more specialized formats |
+Common copied files:
 
-## Architecture Guidelines
+- `references/_shared/ai-guidelines-overview.md`
+- `references/_shared/constitution.md`
+- `references/_shared/brainstorming-workflow.md`
+- `references/_shared/research-protocol.md`
+- `references/_shared/output-format.md`
 
-**Location:** `skills/architecture/`
+The mapping is defined in `ai-guidelines/shared-files-map.json`, and refreshed with:
 
-The `/adk:architecture` skill provides patterns, principles, and anti-pattern detection for different architecture types:
+```bash
+python3 ai-guidelines/scripts/refresh_adk_skills.py copy-shared
+```
 
-- **Frontend architecture** — component hierarchy, state management, routing, rendering strategies
-- **Backend architecture** — service boundaries, data flow, API design, scaling patterns
-- **Fullstack architecture** — end-to-end patterns, BFF, shared types, deployment
-- **Infrastructure architecture** — cloud patterns, containerization, CI/CD, observability
+## Skill-Local Guidance
+
+**Location:** `skills/adk-*/references/`
+
+Each published skill also owns local references that are specific to that skill's job:
+
+- `references/workflow.md` for the task-specific process
+- `references/persona.md` for the task-specific voice and evidence bar
+- optional extra references such as templates, review formats, or spec helpers
 
 ## How Guidelines Are Used
 
-1. **Task skills** (e.g., `code-review-pr`, `dev-build`) invoke guideline skills during execution
-2. The guideline skill **detects context** (repo stack, doc type, architecture pattern)
-3. Only the **matching guideline files** are loaded (e.g., Python backend + testing, not all 16)
-4. If the guideline skill is **not installed**, the task skill falls back to its one-line inline summary
+1. Shared guidance is authored once in `ai-guidelines/`.
+2. Public skills copy the shared files they need into `references/_shared/`.
+3. Project-only maintenance skills under `.claude/skills/`, `.cursor/skills/`, and `.agents/skills/` reference `ai-guidelines/` directly instead of duplicating long text.
+4. Canonical agent personas live in `agent-personas/`, and runtime-specific agent installs are generated from them into `agents-claude/`, `agents-cursor/`, and `agents-codex/`.
 
-This lazy-loading approach keeps token usage low while providing deep, relevant guidance for each task.
+This model keeps published skills self-contained while preserving one canonical source of truth for shared behavior.

@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "hooks": {
+    "beforeShellExecution": [
+      {
+        "type": "prompt",
+        "model": "fast",
+        "timeout": 10,
+        "prompt": "Check whether the shell command is a dangerous operation such as force-pushing to main/master, resetting or cleaning the repo root, deleting the project root, or removing the main/master branch. Return {\"ok\": false, \"reason\": \"...\"} to block, or {\"ok\": true} to allow. Only block genuinely dangerous commands."
+      }
+    ],
+    "afterFileEdit": [
+      {
+        "type": "prompt",
+        "model": "fast",
+        "timeout": 10,
+        "prompt": "Check whether the edited file is a SKILL.md with invalid ADK frontmatter. Published skills under skills/adk-* must keep an adk-* name plus description, compatibility, and maturity. Repo maintenance skills under .claude/skills, .cursor/skills, or .agents/skills must use a prj-* name and metadata.internal: true. Return {\"ok\": true} if valid or irrelevant, or {\"ok\": false, \"reason\": \"...\"} if the edit needs correction."
+      }
+    ],
+    "stop": [
+      {
+        "type": "prompt",
+        "model": "fast",
+        "timeout": 10,
+        "prompt": "Check if the user's original request has been fully addressed. If the agent was following an adk skill workflow, verify the final validation phase was completed. Return {\"ok\": true} if done, {\"ok\": false, \"reason\": \"what remains\"} if not."
+      }
+    ],
+    "sessionStart": [
+      {
+        "command": "echo \"ADK repo loaded. Read AGENTS.md and ai-guidelines/ before repo-maintenance work. Public skills live in skills/adk-*.\""
+      }
+    ]
+  }
+}

@@ -1,59 +1,53 @@
 ---
 title: Category Routing Map
-description: Category-first routing model and current ADK category coverage
+description: Current public ADK category coverage without legacy router-era duplication
 order: 4
 ---
 
 # Category Routing Map
 
-This file defines category-level routing so users can invoke either:
-- a **specific skill** directly, or
-- a **category router** that selects the right skill.
+The public ADK catalog now prefers direct, specialist task skills over a second layer of public routers.
 
-## Current Categories and Routers
+## Current Public Categories
 
-| Category | Router skill | Direct skills |
-|---|---|---|
-| code-review | `code-review` | `code-review-pr`, `code-review-repo`, `code-review-fix` |
-| dev | `dev` | `dev-build`, `dev-refactor`, `dev-migrate`, `dev-commit` |
-| docs | `docs` | `docs-write`, `docs-review`, `docs-repo`, `docs-crud`, `docs-confluence` |
-| diagram | `diagram` | `diagram-mermaid`, `diagram-excalidraw`, `diagram-drawio`, `diagram-graphviz` |
+| Category | Public Skills |
+| --- | --- |
+| planning-and-research | `adk-plan`, `adk-research` |
+| development-and-delivery | `adk-build`, `adk-refactor`, `adk-migrate`, `adk-commit` |
+| review | `adk-review-pr`, `adk-review-local-changes`, `adk-address-review-feedback`, `adk-review-docs` |
+| documentation | `adk-write-docs` |
+| visuals-and-design | `adk-diagram`, `adk-chart`, `adk-design` |
+| audits-and-testing | `adk-audit-repo`, `adk-audit-site`, `adk-test` |
 
-## Single-Skill or Mixed Categories (No Dedicated Router Yet)
+## Why There Are No Public Routers
 
-| Category | Current direct skills | Recommendation |
-|---|---|---|
-| quality | `audit`, `test`, `research` | Add `quality` router |
-| project | `project`, `setup`, `handoff`, `deps-tracker` | Keep as-is or add `platform` router |
-| design | `design` | Keep direct unless more design variants are added |
-| planning/spec | `plan`, `spec` | Optionally add `solutioning` router |
+Router-era skills were removed from the default public surface because they created duplication without owning a distinct expert job.
 
-## Proposed New Categories (Based on Current Industry Usage)
+The refactor keeps these rules:
 
-| Category | Proposed router | Proposed task skills |
-|---|---|---|
-| delivery | `delivery` | `ci`, `release` |
-| quality | `quality` | `audit`, `test`, `incident`, `deps-remediate` |
-| platform | `platform` | `setup`, `db`, `infra` |
+1. one public skill should correspond to one specialist job
+2. helper behavior belongs in shared guidance, not as a user-facing public skill
+3. repo-maintenance wrappers belong in repo-only surfaces, not in the installable pack
 
-## Routing Decision Contract
+## Choosing A Skill
 
-Every category router should:
+Use the direct skill whose main deliverable matches the work:
 
-1. run intent expansion first
-2. present 2-3 options and call out the simplest path
-3. ask user to pick one or a mix
-4. produce an execution plan
-5. execute only after approval (unless `--auto`)
+- need a plan first: `adk-plan`
+- need evidence first: `adk-research`
+- need code changed: `adk-build`, `adk-refactor`, or `adk-migrate`
+- need review findings: one of the `adk-review-*` skills
+- need docs authored or published: `adk-write-docs`
+- need docs reviewed: `adk-review-docs`
+- need visuals: `adk-diagram`, `adk-chart`, or `adk-design`
+- need audits or validation: `adk-audit-repo`, `adk-audit-site`, or `adk-test`
 
-## Connector and Tool Priority Contract
+## Shared Routing Policy
 
-For any task involving external systems, category routers should choose integrations in this order:
+When a skill needs an external system or a runtime-specific capability, use this priority order:
 
-1. standard in-repo connectors (`github`, `bitbucket`, `confluence`, `jira`)
+1. runtime MCP server or native runtime tool directly
 2. first-party CLI
-3. first-party MCP
-4. first-party API
-5. third-party MCP/CLI/API
-
-This should be treated as a shared policy and propagated to all skills that load `source-routing`.
+3. first-party API
+4. repo-specific wrapper only when it adds real task logic beyond basic connectivity
+5. third-party fallback

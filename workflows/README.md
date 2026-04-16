@@ -23,20 +23,14 @@ Reference a workflow file when prompting:
 Run the workflow in workflows/full-feature.yaml for user authentication
 ```
 
-Or invoke via `/adk:use`:
-
-```
-/adk:use --workflow workflows/full-feature.yaml implement OAuth2 login
-```
-
 ## Parameters
 
 Workflows support parameter substitution with `${PARAM}` syntax:
 
 ```yaml
 steps:
-  - skill: dev-build
-    args: "${TASK} --mode implement"
+  - skill: adk-build
+    args: "${TASK}"
 ```
 
 Pass parameters when invoking: `Run workflows/full-feature.yaml with TASK="add OAuth2 login"`.
@@ -54,3 +48,5 @@ Steps can declare conditions that are evaluated before execution:
 ## Examples
 
 See the YAML files in this directory for ready-to-use pipelines.
+
+The canonical end-to-end feature flow now starts with `adk-brainstorm`, then routes into `adk-spec`, `adk-plan`, `adk-build`, and follow-up review or docs steps as needed.

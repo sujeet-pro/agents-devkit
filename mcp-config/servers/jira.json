@@ -1,0 +1,13 @@
+{
+  "command": "sh",
+  "args": [
+    "-c",
+    "uvx --with 'fakeredis<2.35' mcp-atlassian --jira-url $JIRA_URL --jira-username $JIRA_USERNAME --jira-token $JIRA_API_TOKEN"
+  ],
+  "env": {
+    "JIRA_URL": "${JIRA_URL}",
+    "JIRA_USERNAME": "${JIRA_USERNAME}",
+    "JIRA_API_TOKEN": "${JIRA_API_TOKEN}"
+  },
+  "description": "Atlassian Jira MCP server. Requires Jira URL and API credentials."
+}

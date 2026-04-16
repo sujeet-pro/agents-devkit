@@ -1,6 +1,7 @@
 {
   "name": "agents-devkit",
   "private": true,
+  "version": "2.3.0",
   "description": "Root package.json is for docs tooling only; the Claude plugin is not published to npm.",
   "type": "module",
   "engines": {
@@ -11,7 +12,10 @@
     "preview": "npm run docs:preview",
     "docs:dev": "pagesmith dev",
     "docs:build": "pagesmith build",
-    "docs:preview": "pagesmith preview"
+    "docs:preview": "pagesmith preview",
+    "skills:manifest": "python3 scripts/generate-skills-manifest.py",
+    "skills:docs": "python3 scripts/sync-skill-docs.py",
+    "skills:refresh": "python3 ai-guidelines/scripts/refresh_adk_skills.py status"
   },
   "devDependencies": {
     "@pagesmith/docs": "^0.5.0"

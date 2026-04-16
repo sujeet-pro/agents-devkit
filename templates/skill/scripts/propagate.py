@@ -88,7 +88,7 @@ def propagate(dry_run: bool = False, clean_refs: bool = False) -> None:
     canonical_scripts = templates_dir / "scripts"
     preflight_src = canonical_scripts / "preflight.py"
 
-    # Connector skills have custom preflight.py with env var validation — skip overwriting
+    # Connector skills and new self-contained published adk-* skills own their preflight.
     custom_preflight_skills = {"github", "bitbucket", "confluence", "jira"}
 
     stats = {
@@ -111,7 +111,8 @@ def propagate(dry_run: bool = False, clean_refs: bool = False) -> None:
         skill_updated = False
 
         # Update preflight.py (skip skills with custom preflight)
-        if preflight_src.exists() and skill_dir.name not in custom_preflight_skills:
+        has_custom_preflight = skill_dir.name in custom_preflight_skills or skill_dir.name.startswith("adk-")
+        if preflight_src.exists() and not has_custom_preflight:
             label = f"{skill_dir.name}/scripts/preflight.py"
             dst = skill_scripts / "preflight.py"
             if sync_file(preflight_src, dst, dry_run, label, stats):

@@ -1,28 +1,29 @@
 name: full-feature
-description: End-to-end feature implementation — from spec analysis through code review
+description: End-to-end feature implementation from brainstorming through implementation, review, and docs
 
 steps:
-  - skill: spec
-    args: "${TASK} --mode analyze"
-    description: Analyze requirements and identify edge cases
+  - skill: adk-brainstorm
+    args: "${TASK} --skill-context plan --artifact plan"
+    description: Settle direction, blast radius, and artifact routing before execution
 
-  - skill: plan
-    args: "${TASK} --mode write"
+  - skill: adk-spec
+    args: "${TASK} --type technical"
+    description: Capture the selected direction in a technical spec when needed
+    condition: "complexity >= medium"
+
+  - skill: adk-plan
+    args: "${TASK}"
     description: Create implementation plan with file list and sequencing
 
-  - skill: dev-build
-    args: "${TASK} --mode implement"
+  - skill: adk-build
+    args: "${TASK}"
     description: Implement the feature following the approved plan
 
-  - skill: dev-commit
-    args: "--action commit"
-    description: Create a conventional commit for the changes
-
-  - skill: code-review-pr
-    args: "--mode review --source local"
+  - skill: adk-review-local-changes
+    args: "--focus correctness --auto"
     description: Self-review the implementation before PR
     condition: "has-tests"
 
-  - skill: docs-write
-    args: "--type changelog --auto"
+  - skill: adk-write-docs
+    args: "${TASK} --type changelog --auto"
     description: Update changelog with the new feature

@@ -1,60 +1,56 @@
 # Agent Development Kit (ADK)
 
-> Principal-engineer-grade skills for software development agents. 52 skills, 18 agents, ~42,000 lines of instructions with lazy loading (~200-500 lines per task).
-
 ## Overview
 
-ADK is a Claude Code plugin providing structured workflows for code review, documentation, research, codebase audits, diagrams, planning, migrations, refactoring, and MCP-native publishing. Designed for Claude Code; individual skills installable via `npx skills` for Cursor, Codex, Gemini CLI, and other SKILL.md-compatible agents.
+ADK is a skills-first repository for coding agents. It provides self-contained `adk-*` skills, canonical agent personas for parallel subagent work, runtime-specific custom agent sources for Claude/Cursor/Codex, lifecycle hooks, MCP configs, and composable workflows.
 
 ## Install
 
-Plugin: `/plugin marketplace add sujeet-pro/agents-devkit && /plugin install adk@adk-marketplace`
-skills.sh: `npx skills add sujeet-pro/agents-devkit`
-Local: `git clone https://github.com/sujeet-pro/agents-devkit.git ~/.devkit && claude --plugin-dir ~/.devkit`
-
-## Skill Categories
-
-- Guideline (17): Reusable knowledge auto-invoked by task skills (workflow, communication, coding, architecture, etc.)
-- Task (30): User-facing engineering tasks (code-review-pr, dev-build, docs-write, plan, audit, team, etc.)
-- Routing (5): Orchestrators that detect task type and route to sub-skills (use, dev, docs, code-review, diagram)
+- `npx skills add sujeet-pro/agents-devkit --all`
+- `git clone https://github.com/sujeet-pro/agents-devkit.git ~/.agents-devkit`
+- `cd ~/.agents-devkit && ./scripts/install.sh --agents claude,cursor,codex --global`
 
 ## Key Skills
 
-- code-review-pr: PR, local, or branch code review with fix/describe/finalize stages
-- dev-build: Implement features, debug, enhance, TDD — auto-detects mode
-- docs-write: Create/update formal documents (ADR, RFC, blog, changelog)
-- plan: Brainstorm, write, execute, track implementation plans
-- research: Multi-agent research with citations
-- audit: Codebase, security, performance, dependency audit
-- diagram-mermaid: Mermaid diagrams (21 types) with full syntax reference
-- use: Default orchestrator — expand intent, identify skills, confirm, execute
+- `adk-brainstorm`
+- `adk-plan`
+- `adk-research`
+- `adk-build`
+- `adk-refactor`
+- `adk-migrate`
+- `adk-review-pr`
+- `adk-review-local-changes`
+- `adk-review-docs`
+- `adk-write-docs`
+- `adk-spec`
+- `adk-audit-repo`
+- `adk-audit-site`
+- `adk-test`
+- `adk-design`
+- `adk-diagram`
+- `adk-chart`
+- `adk-commit`
 
 ## Architecture
 
-- 6-phase workflow: Intent → Research → Selection → Planning → Execute → Validate
-- 4 workflow families: Quick Action, Standard Task, Complex Build, Investigative Loop
-- Complexity-adaptive: trivial (1 file) skips to execute; large (>8 files) uses all phases with PE check
-- Self-sufficient: each skill has inline fallbacks if helper skills are missing
-- Lazy loading: only ~200-500 lines load per task from ~42,000 total
-- Human-in-the-loop: confirm intent, present options, approve plan before executing
-- Auto mode: --auto skips confirmations
-
-## Agents (18)
-
-Reusable child-agent definitions for parallel work: code-reviewer, repo-auditor, security-reviewer, pr-fixer, doc-reviewer, doc-writer, research-agent, migration-analyst, frontend-designer, intent-analyst, plan-reviewer, progress-tracker, consensus-agent, source-publisher, guideline-auditor, test-agent, debugger, code-snippet-agent.
+- Skills are the primary task invocation surface.
+- Canonical agent personas live in `agent-personas/adk-*/AGENT.md`.
+- Runtime-specific custom agent sources live in `agents-claude/`, `agents-cursor/`, and `agents-codex/`.
+- Runtime-specific hooks live in `hooks/settings.json`, `hooks/hooks-cursor/hooks.json`, and `hooks/hooks-codex/hooks.json`.
+- Shared guidance lives in `ai-guidelines/`.
 
 ## File Structure
 
-- skills/: 52 skill directories, each with SKILL.md, references/, scripts/
-- agents/: 18 agent definitions (.md files)
-- templates/skill/: Shared templates and propagation scripts
-- hooks/hooks.json: Lifecycle hooks (PostToolUse, Stop, SessionStart)
-- docs/: Pagesmith documentation site (guide + reference)
-- manifest.json: Upstream source tracking
-- skills-manifest.json: Programmatic skill discovery index
+- `skills/`: published installable skills
+- `agent-personas/`: canonical reusable agent personas
+- `agents-claude/`, `agents-cursor/`, `agents-codex/`: generated runtime-specific agent sources
+- `hooks/`: generated runtime-specific lifecycle hook sources
+- `mcp-config/`: MCP server configurations
+- `workflows/`: composable multi-skill pipelines
+- `docs/`: documentation site
+- `skills-manifest.json`: generated public skill index
 
 ## Links
 
 - Repository: https://github.com/sujeet-pro/agents-devkit
-- Plugin install: /plugin marketplace add sujeet-pro/agents-devkit
 - License: MIT
