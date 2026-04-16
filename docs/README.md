@@ -1,7 +1,7 @@
 ---
 title: Agent Development Kit
 description: Public ADK skills for npx skills plus repo-maintenance guidance for this repository
-layout: DocHome
+layout: home
 tagline: Small public skill pack. Strong source-of-truth docs.
 actions:
   - text: Public Skills
