@@ -1,31 +1,33 @@
 # ADK Hooks
 
-Runtime-specific hook source files live here and are installed into tool-specific
-config locations via symlink.
+Flat layout — one file per runtime. Each file is generated from
+`scripts/generate_hook_projections.py` and installed via `scripts/install.sh`.
 
 ## Layout
 
-- `settings.json` -- Claude Code hook source
-- `hooks-cursor/hooks.json` -- Cursor native hook source
-- `hooks-codex/hooks.json` -- Codex native hook source
+| File | Runtime | Install target |
+| --- | --- | --- |
+| `claude.json` | Claude Code | `~/.claude/settings.json` or `.claude/settings.json` |
+| `cursor.json` | Cursor | `~/.cursor/hooks.json` or `.cursor/hooks.json` |
+| `codex.json` | Codex | `~/.codex/hooks.json` or `.codex/hooks.json` |
 
-These files are generated from `scripts/generate_hook_projections.py`.
-
-## Install Targets
-
-- Claude Code: `~/.claude/settings.json` or `.claude/settings.json`
-- Cursor: `~/.cursor/hooks.json` or `.cursor/hooks.json`
-- Codex: `~/.codex/hooks.json` or `.codex/hooks.json`
-
-Codex hooks are experimental and also require:
+Codex hooks are experimental and additionally require the feature flag in
+`~/.codex/config.toml` or `.codex/config.toml`:
 
 ```toml
 [features]
 codex_hooks = true
 ```
 
-Regenerate hook sources with:
+## Regenerate
 
 ```bash
 python3 scripts/generate_hook_projections.py
+```
+
+## Validate
+
+```bash
+python3 scripts/generate_hook_projections.py --check
+python3 tests/test_hooks.py
 ```

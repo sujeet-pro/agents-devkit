@@ -1,180 +1,87 @@
 ---
 name: adk-frontend
-description: Auto-loading frontend coding guidelines. Detects the project stack from package.json and loads technology-specific references for HTML, CSS, JavaScript, React, and Next.js. Use on any frontend codebase for comprehensive, up-to-date coding standards.
-compatibility: Self-contained published skill for npx skills. Requires python3 for stack detection. Designed to auto-load when a frontend project is detected.
-user-invocable: true
-argument-hint: [--scope <path>] [--stack auto|html|css|js|react|nextjs] [--verbose] [--help]
-workflow-tier: helper
-maturity: experimental
-workflow-family: standards-reference
-tools: [Read, Glob, Grep, Bash]
-metadata:
-  area: development
-dependencies:
-  commands: [python3]
+description: Category router for frontend and UI work - UI/UX design, building or extending frontend components and pages, and bootstrapping React 19 client-side sample apps on a fixed Vite + TanStack + Radix + GitHub Pages stack. Use when the deliverable is a UI artifact, a frontend code change, or a new frontend project. Picks one of adk-frontend-design, adk-frontend-feature, adk-frontend-react-csr.
 ---
 
-# ADK Frontend
+# ADK Frontend (Category Router)
 
-## Read In This Order
-- `references/_shared/ai-guidelines-overview.md`
-- `references/_shared/constitution.md`
-- `references/persona.md`
-- `references/workflow.md`
+Routes any "frontend / UI" intent to the right frontend task. Activate one of the listed task skills below; do not implement directly from this router.
 
-Then, **conditionally load references based on detected stack** (run the preflight script first):
+## When to use this category
 
-### Always load (any frontend project)
-- `references/html-guidelines.md`
-- `references/css-guidelines.md`
+- Designing a UI surface (mockup, layout, interaction, component spec) before code.
+- Implementing or extending a frontend component, page, route, or interaction.
+- Bootstrapping a new React 19 client-side sample app on the locked ADK stack.
 
-### Load when JavaScript/TypeScript is detected
-- `references/javascript-guidelines.md`
+## When NOT to use this category
 
-### Load when React is detected
-- `references/react-guidelines.md`
+- Backend / non-UI code -> `adk-build`
+- Pure visualization (single diagram, chart) -> `adk-visualize`
+- Marketing copy / docs site content -> `adk-docs-write`
+- Reviewing existing UI code -> `adk-review-local` / `adk-review-pr`
 
-### Load when Next.js is detected
-- `references/nextjs-guidelines.md`
+## Shared workflow
 
-## Constitution
-- **Auto-Loading** -- this skill activates automatically when a frontend project is detected. No explicit invocation is required, but it can be invoked manually.
-- **Stack-Aware** -- the preflight script analyzes `package.json` to detect the technology stack. Only relevant references are loaded. Do not load references for technologies not in use.
-- **Concise by Default** -- guidelines are loaded as context. Do not recite them. Apply them silently during implementation. Surface a guideline only when the user's code violates it or when explaining a recommendation.
-- **Prescriptive, Not Descriptive** -- every guideline includes concrete DO/DON'T examples. Prefer these over abstract principles.
-- **No External Lookups Needed** -- references are comprehensive. Do not search the web for coding guidelines that are already covered in the loaded references.
+Every task in this category honors the same six steps. The task skills tailor the content of each step.
 
-## Persona
-**Frontend Standards Advisor.** Mission: ensure every line of frontend code follows modern best practices for performance, accessibility, maintainability, and developer experience. Operates as a silent guardrail -- enforcing standards during implementation without interrupting flow. Surfaces violations with specific fixes, not lectures.
+1. **Confirm intent** - identify the surface (page / component / app), the user goal, the design system in play, and the device targets.
+2. **Gather** - read the existing component library, design tokens, routing layout, and accessibility constraints. Pull repo evidence first.
+3. **Plan** - lay out the structure (component tree, state, data shape, routes, interactions). Approval gate unless `--auto`.
+4. **Execute** - design (mockup + spec) or implement (typed React 19 components, accessible by default, responsive by default).
+5. **Validate** - run repo-native checks: type-check, lint, unit tests, axe / a11y check, lighthouse / web-vitals if perf is in scope.
+6. **Report** - changed files / mockup paths; validation evidence; remaining UX risk; offer depth on request.
 
-Hard rules:
-- Apply guidelines contextually. Do not force a pattern where it does not fit.
-- When a guideline conflicts with project conventions (detected from existing code), prefer project conventions and note the divergence.
-- Accessibility is non-negotiable. WCAG 2.1 AA is the minimum bar.
-- Performance patterns matter most in hot paths and critical rendering. Do not micro-optimize cold paths.
-- Prefer modern APIs over legacy workarounds. Target evergreen browsers unless the project specifies otherwise.
+## Task selection
 
-## When To Use
-- **Auto-load trigger:** Detected when the working directory contains a `package.json` with frontend dependencies (react, next, vue, angular, svelte, astro, vite, webpack, or when `index.html` exists)
-- Building or modifying frontend components
-- Reviewing frontend code for quality
-- Starting a new frontend project
-- Debugging frontend performance issues
-- Any task involving HTML, CSS, JavaScript, React, or Next.js
-
-## When NOT To Use
-- Pure backend projects with no frontend
-- Mobile-native projects (React Native has different patterns)
-- Projects using non-web UI frameworks (Qt, Electron main process, etc.)
-
-## Parameters
-| Parameter | Values | Default | Description |
-| --- | --- | --- | --- |
-| `--scope` | path | `.` | Directory to scan for package.json |
-| `--stack` | `auto`, `html`, `css`, `js`, `react`, `nextjs`, comma-separated | `auto` | Force specific technology references instead of auto-detection |
-| `--verbose` | flag | off | Show which references were loaded and why |
-| `--help` | flag | off | Show this skill description and stop |
-
-## Pre-flight
-The preflight script (`scripts/preflight.py`) performs stack detection:
-
-1. Locates `package.json` in the scope directory (walks up to 3 levels)
-2. Reads `dependencies` and `devDependencies`
-3. Detects technologies:
-   - **HTML/CSS**: Always enabled for frontend projects
-   - **JavaScript**: Always enabled (core language)
-   - **TypeScript**: Detected via `typescript` dependency or `tsconfig.json`
-   - **React**: Detected via `react` dependency
-   - **Next.js**: Detected via `next` dependency
-   - **Vue**: Detected via `vue` dependency (future reference)
-   - **Vite**: Detected via `vite` dependency (loads JS performance patterns)
-   - **Tailwind CSS**: Detected via `tailwindcss` dependency (adjusts CSS guidelines)
-4. Outputs a JSON object: `{ "stack": ["html", "css", "js", "react", "nextjs"], "framework": "nextjs", "bundler": "vite", "cssFramework": "tailwind", "typescript": true }`
-
-If `--stack` is provided and is not `auto`, skip detection and load the specified references.
-
-## Workflow
-1. **Detect** -- run `scripts/preflight.py` to identify the project stack from `package.json`.
-2. **Load** -- read the technology-specific reference files matching the detected stack.
-3. **Apply** -- use loaded guidelines as context for all subsequent coding tasks. Do not output the guidelines -- apply them silently.
-4. **Surface** -- when writing or reviewing code, flag violations with the specific guideline, a DO/DON'T example, and the fix. Keep it to 1-2 lines unless the user asks for more.
-
-## Stack Detection Logic
-
-```
-package.json found?
-├── YES → Read dependencies + devDependencies
-│   ├── Has "next" → Load: html, css, js, react, nextjs
-│   ├── Has "react" (no "next") → Load: html, css, js, react
-│   ├── Has "vue" → Load: html, css, js (vue references TBD)
-│   ├── Has "svelte" → Load: html, css, js (svelte references TBD)
-│   ├── Has "angular" → Load: html, css, js (angular references TBD)
-│   ├── Has frontend tooling (vite, webpack, parcel) → Load: html, css, js
-│   └── Has none of the above → Load: html, css, js (baseline)
-├── NO, but index.html exists → Load: html, css, js
-└── NO frontend signals → Do not auto-load
-```
-
-## Interaction Protocol
-
-### Silent Mode (default)
-Guidelines are loaded as context. The agent applies them during implementation without announcing them. This is the normal operating mode.
-
-### Verbose Mode (`--verbose`)
-Reports which references were loaded and the detected stack. Useful for debugging auto-detection.
-
-### Violation Surfacing
-When code violates a loaded guideline:
-```
-> Guideline: [category] Use semantic HTML elements instead of div soup
-> Issue: `<div class="nav">` should be `<nav>`
-> Fix: Replace `<div class="nav">` with `<nav aria-label="Primary">`
-```
-
-## Reference Coverage
-
-| Reference File | Topics Covered | Lines |
+| Task skill | Use when | Do NOT use when |
 | --- | --- | --- |
-| `html-guidelines.md` | Semantic elements, accessibility, forms, document structure, meta/SEO, performance, modern HTML features, anti-patterns | ~400 |
-| `css-guidelines.md` | Grid/Flexbox, custom properties, modern CSS features, responsive design, architecture, performance, animation, typography, color, dark mode, anti-patterns | ~500 |
-| `javascript-guidelines.md` | Design patterns (11), performance micro-patterns (12), loading/import patterns (12), bundle optimization, tree shaking | ~600 |
-| `react-guidelines.md` | Component patterns (7), rendering strategies (8), performance optimization (15+), data fetching (10+), modern React 2026 stack | ~700 |
-| `nextjs-guidelines.md` | App Router, Server Components, SSR/SSG/ISR, streaming, Server Actions, middleware, caching, deployment | ~400 |
+| `adk-frontend-design` | Mockup, layout, interaction, or component spec is the deliverable - before code | Code is the deliverable - use feature |
+| `adk-frontend-feature` | Implement or extend a frontend component, page, route, or interaction | A whole new app from scratch - use react-csr |
+| `adk-frontend-react-csr` | Bootstrap a new React 19 + Vite/Rolldown + TanStack + Radix + GitHub Pages client-side app | Existing app - use feature |
 
-## Examples
+## Stack defaults (when ADK chooses for you)
 
-### Auto-load on a Next.js project
-```
-# No explicit invocation needed. When working in a Next.js project:
-/adk-build "Add a product listing page" --scope src/app/products/
-# adk-frontend auto-loads and provides html, css, js, react, nextjs guidelines as context
-```
+| Layer | Default |
+| --- | --- |
+| Bundler | Vite (with Rolldown when stable) |
+| Framework | React 19 |
+| Routing | TanStack Router (file-based) |
+| Data | TanStack Query for async, Zustand for local app state |
+| UI primitives | Radix UI |
+| Styling | Tailwind v4 |
+| Forms | React Hook Form + Zod |
+| Tests | Vitest + React Testing Library + Playwright |
+| Hosting | GitHub Pages (CSR) |
 
-### Manual invocation with specific stack
-```
-/adk-frontend --stack html,css,js
-```
+Override only when the project's existing code already uses something else; never mix stacks in one app.
 
-### Verbose mode to check detection
-```
-/adk-frontend --verbose
-# Output: Detected stack: [html, css, js, react, nextjs]
-#         Framework: nextjs | Bundler: vite | CSS: tailwind | TypeScript: true
-#         Loaded references: html-guidelines.md, css-guidelines.md, javascript-guidelines.md, react-guidelines.md, nextjs-guidelines.md
-```
+## Accessibility / responsive defaults
 
-## Anti-Patterns / Red Flags
-- Loading all references when only HTML/CSS is needed (wastes context)
-- Reciting guidelines to the user instead of applying them silently
-- Overriding project conventions with guideline defaults without flagging the conflict
-- Applying performance micro-optimizations to cold code paths
-- Using legacy patterns (var, float layouts, class components) when modern alternatives exist
-- Ignoring accessibility requirements
-- Not detecting TypeScript and generating `.js` files in a `.ts` project
+- All interactive elements use Radix primitives or have explicit ARIA roles.
+- All images and icons have alt text or `aria-hidden` when decorative.
+- Focus states are visible.
+- Layouts work at 360px, 768px, and 1280px widths by default.
 
-## Related Skills
-- `adk-build` -- implement features using frontend guidelines as context
-- `adk-design` -- design and audit UI/UX with accessibility focus
-- `adk-review-local-changes` -- review frontend code against loaded guidelines
-- `adk-audit-site` -- site-wide performance and SEO audit
-- `adk-refactor` -- refactor frontend code following modern patterns
+## Activation
+
+Once you have picked a task, load `adk-frontend-<task>` and follow it. Each task skill is fully standalone - everything it needs is in its own folder.
+
+## Anti-patterns
+
+- Implementing inside this router. Always hand off to a task skill.
+- Mixing two design systems in one component tree.
+- Ignoring keyboard / screen-reader accessibility because "we'll add it later".
+- Hard-coding colors instead of using the design tokens.
+
+<!-- adk:references:start -->
+
+## References shipped with this skill
+
+These files live in `references/` next to this `SKILL.md`. Read them when the skill activates; they are inlined here so the skill is fully self-contained (no cross-skill or shared sources).
+
+| File | Purpose |
+| --- | --- |
+| `references/anti-patterns.md` | Things to avoid when running this skill. |
+| `references/constitution.md` | Non-negotiable rules and working/communication discipline. |
+
+<!-- adk:references:end -->

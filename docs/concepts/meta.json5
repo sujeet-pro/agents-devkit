@@ -1,0 +1,11 @@
+{
+  displayName: "Concepts",
+  collapsed: false,
+  items: [
+    "philosophy",
+    "skill-anatomy",
+    "agents",
+    "hooks",
+    "mcp",
+  ],
+}

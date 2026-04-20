@@ -14,18 +14,12 @@ Build features, refactor code, migrate frameworks, and package completed work cl
 
 | Skill | Purpose | Reference |
 | --- | --- | --- |
-| `/adk-build` | Implement or enhance code with a plan, focused research, and validation. Use when building a feature, fixing a bug, or improving behavior in an existing codebase | [Details](../../reference/skill-adk-build.md) |
-| `/adk-refactor` | Improve code structure without changing intent. Use when behavior should stay the same but readability, boundaries, or maintainability should improve | [Details](../../reference/skill-adk-refactor.md) |
-| `/adk-migrate` | Upgrade frameworks, libraries, or patterns with breaking-change analysis and staged validation. Use when a dependency, framework, or architecture migration is the main task | [Details](../../reference/skill-adk-migrate.md) |
-| `/adk-commit` | Generate accurate commit messages, PR descriptions, or changelog summaries from real repository changes. Use when release communication is the main task | [Details](../../reference/skill-adk-commit.md) |
+| `/adk-build` | Category router for implementing, refactoring, migrating, testing, or analyzing dependencies. Use when the next step is to change code (new feature, bug fix, refactor, framework migration, test authoring, or dependency hygiene). Picks one of adk-build-feature, adk-build-refactor, adk-build-migrate, adk-build-test, adk-build-deps | [Details](../../reference/skill-adk-build.md) |
 
 ## Example Invocations
 
 ```text
-/adk-build <prompt-text>
-/adk-refactor <prompt-text>
-/adk-migrate <prompt-text>
-/adk-commit
+/adk-build
 ```
 
 ## How To Use This Guide

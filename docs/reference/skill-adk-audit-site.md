@@ -1,340 +1,184 @@
 ---
 title: 'adk-audit-site'
-description: 'Audit a live site or webapp for SEO, performance, accessibility, security signals, metadata, and broken-user-flow issues. Use when the job is site health rather than repo health'
+description: 'Audit a publicly reachable website or web app across performance, accessibility, SEO, UX, and basic security headers - producing a single severity-tiered report with URL/selector evidence per finding. Use when the deliverable is a multi-dimensional health report on a deployed site, not a code repo. Do not use to audit a checked-out repo (use adk-audit-repo) or to fix the issues found (use adk-build-* / adk-frontend-* skills).'
 skill_name: adk-audit-site
 category: task
-workflow_tier: full
-user_invocable: true
 ---
 
 # adk-audit-site
 
-Use `adk-audit-site` to audit a live site or webapp for SEO, performance, accessibility, security signals, metadata, and broken-user-flow issues. Use when the job is site health rather than repo health. In normal use, explicit selector flags win over inference, but the skill can still auto-detect the right path when the prompt is short.
+Audit a publicly reachable website or web app across performance, accessibility, SEO, UX, and basic security headers - producing a single severity-tiered report with URL/selector evidence per finding. Use when the deliverable is a multi-dimensional health report on a deployed site, not a code repo. Do not use to audit a checked-out repo (use adk-audit-repo) or to fix the issues found (use adk-build-* / adk-frontend-* skills).
 
-## Overview
+## Skill body
 
-`adk-audit-site` belongs to the `task` layer and is declared at the `full` tier with the `standard-task` workflow family. That metadata is more than labeling: it tells you how much planning happens before execution, how much the skill is allowed to infer, and whether the result should be a final artifact, a routing decision, or a shared contract for another skill.
+# ADK Audit / Site
 
-The design philosophy across these skills is self-sufficiency with shared composition. When the helper skills listed in `SKILL.md` are available, the workflow composes with them for workflow structure, preflight checks, communication style, and output shaping. When they are not available, the inline fallback summaries still make the behavior readable and predictable.
+Standalone task skill under the `adk-audit` category router. Inspects a deployed website across multiple dimensions and produces one consolidated report with severity-tiered findings, each anchored to a URL or DOM selector.
 
-## Parameters
+## When to use
 
-| Parameter | Values | Default | Description |
-| --- | --- | --- | --- |
-| `<url>` | live URL | required | Site or webapp to audit |
-| `--focus` | `seo`, `performance`, `accessibility`, `security`, `content`, `all` | `all` | Primary audit lens |
-| `--scope` | path, route group, or page hint | none | Limit the audit to one surface |
-| `--auto` | flag | off | Skip confirmations and execute with defaults |
-| `--help` | flag | off | Show the skill and stop |
+- Pre-launch or post-launch audit of a public website or web app.
+- Periodic accessibility / performance / SEO check.
+- Comparison audit (this URL vs. a target URL).
+- Deliverable is a markdown report at `.temp/reports/<slug>.md`.
 
-### Parameter Notes
+## When NOT to use
 
-- The positional argument carries the primary target or prompt. In the examples, placeholder invocations are shown first so you can see the minimum shape before substituting a real URL, path, branch, or task description.
-- `--focus` changes what the skill optimizes for and often changes which child agents, checks, or review dimensions are loaded.
-- `--scope` is the main blast-radius control. Use it when you want the skill to stay inside a specific path, package, or subset of the repository.
-- `--auto` normally removes approval pauses rather than validation. Read the behavior section for skill-specific exceptions.
-- `--help` prints the embedded reference and exits without running the workflow.
+- Code-repo audit -> `adk-audit-repo`
+- Single PR review -> `adk-review-pr`
+- Doc-only review -> `adk-docs-review`
+- Building or fixing UI issues -> `adk-frontend-feature` / `adk-frontend-design`
 
-## How It Works
+## Inputs
 
-Execution starts by resolving intent from explicit selector flags first and inference rules second. After that, the workflow family and shared helper skills shape how much confirmation, research, planning, and validation happen around the core action.
-
-The sections below come directly from the current `SKILL.md` so developers can see the live contract the implementation is supposed to follow.
-
-### Workflow
-
-See `references/workflow.md` for full phase details.
-
-### Phase 1 -- Scope (gate: approval unless `--auto`)
-Confirm the target URL, audit dimensions, and whether the user wants audit-only or audit-plus-fix proposals. Clarify scope narrowing (specific routes or pages).
-
-### Phase 2 -- Scan
-Run comprehensive checks across 5 dimensions. Score each dimension 0-4 using the criteria below.
-
-#### 1. Performance
-**Check for**:
-- Core Web Vitals: LCP > 2.5s, CLS > 0.1, INP > 200ms
-- Render-blocking resources: undeferred CSS/JS in `<head>`, large synchronous scripts
-- Image optimization: missing lazy loading, uncompressed images, no WebP/AVIF fallback, missing width/height causing layout shift
-- Bundle size: unminified JS/CSS, unused code shipped, no code splitting
-- Caching: missing or short Cache-Control headers, no CDN usage
-- Network waterfall: excessive sequential requests, no preconnect/preload hints
-
-**Score 0-4**: 0=Unusable (LCP > 8s, layout thrash, unoptimized everything), 1=Major problems (LCP > 4s, no lazy loading, render-blocking resources), 2=Partial (some optimization, Core Web Vitals partially met), 3=Good (Core Web Vitals mostly green, minor improvements possible), 4=Excellent (all vitals green, lean assets, proper caching)
-
-#### 2. Accessibility
-**Check for**:
-- Color contrast: text contrast ratios < 4.5:1 normal text, < 3:1 large text (WCAG AA)
-- Missing ARIA: interactive elements without proper roles, labels, or states
-- Keyboard navigation: missing focus indicators, illogical tab order, keyboard traps
-- Semantic HTML: improper heading hierarchy (h1 → h3 skip), missing landmarks, divs as buttons
-- Alt text: missing or decorative descriptions on informational images
-- Form issues: inputs without associated labels, missing error messaging, no required indicators
-- Touch targets: interactive elements < 44x44px on mobile
-
-**Score 0-4**: 0=Inaccessible (fails WCAG A, no keyboard nav, no alt text), 1=Major gaps (few ARIA labels, broken keyboard nav, poor contrast), 2=Partial (some a11y effort, significant gaps in forms or navigation), 3=Good (WCAG AA mostly met, minor gaps), 4=Excellent (WCAG AA fully met, approaches AAA)
-
-#### 3. SEO
-**Check for**:
-- Meta tags: missing or duplicate title/description, missing og:tags and twitter:cards
-- Structured data: missing JSON-LD/microdata, schema.org validation errors
-- Canonical URLs: missing canonical tags, conflicting canonicals, self-referencing errors
-- Crawlability: pages blocked by robots.txt, missing sitemap.xml, noindex on important pages
-- URL structure: non-descriptive URLs, missing trailing-slash consistency
-- Mobile signals: missing viewport meta, content wider than screen, no mobile-friendly indicators
-
-**Score 0-4**: 0=Invisible (no meta tags, blocked by robots.txt, no sitemap), 1=Major gaps (missing titles/descriptions on key pages, no structured data), 2=Partial (basic meta present, gaps in structured data or canonicals), 3=Good (meta complete, structured data present, minor canonical issues), 4=Excellent (full meta coverage, valid structured data, clean sitemap, proper canonicals)
-
-#### 4. Security
-**Check for**:
-- HTTPS: missing redirect from HTTP, expired or misconfigured certificate
-- Security headers: missing CSP, HSTS (min 1-year max-age), X-Frame-Options, X-Content-Type-Options, Referrer-Policy
-- Mixed content: HTTP resources loaded on HTTPS pages (scripts, images, stylesheets)
-- Exposed paths: accessible debug endpoints, stack traces in error pages, directory listing enabled
-- Cookie security: missing Secure/HttpOnly/SameSite flags on session cookies
-- Subresource integrity: third-party scripts without SRI hashes
-
-**Score 0-4**: 0=Critical exposure (no HTTPS, credentials in plaintext, accessible debug endpoints), 1=Major gaps (HTTPS present but missing key headers, mixed content), 2=Partial (HTTPS + some headers, notable gaps in CSP or cookie flags), 3=Good (solid HTTPS, most headers present, minor gaps), 4=Excellent (full header suite, no mixed content, SRI on third-party, clean cookies)
-
-#### 5. Content/UX
-**Check for**:
-- Broken links: internal 404s, external dead links, redirect chains > 2 hops
-- Image issues: oversized images, missing responsive srcset, broken image references
-- Responsive design: content overflow on mobile, fixed widths that break on narrow viewports
-- Duplicate content: same content on multiple URLs without canonicals
-- User flow integrity: broken forms, non-functional CTAs, dead-end pages
-- Loading states: no feedback during async operations, flash of unstyled content
-
-**Score 0-4**: 0=Broken (multiple dead links, forms non-functional, layout breaks on mobile), 1=Major issues (broken user flows, significant responsive failures), 2=Partial (mostly functional, broken links or responsive gaps), 3=Good (functional flows, minor broken links or image optimization gaps), 4=Excellent (clean links, responsive everywhere, optimized images, smooth flows)
-
-### Phase 3 -- Browser Check
-Dispatch the browser agent (via `cursor-ide-browser` MCP or equivalent browser automation tool) for visual verification:
-- Screenshot key pages at mobile (375px), tablet (768px), and desktop (1440px) widths
-- Verify render behavior: layout shifts, missing assets, JS errors in console
-- Check interactive elements: forms, navigation, modals, dropdowns
-- Validate responsive breakpoints and overflow detection
-- Record console errors and network failures as evidence
-
-**Browser agent dispatch**: Use `browser_navigate` to load each page, `browser_snapshot` for structure, `browser_take_screenshot` for visual evidence, and `browser_console_messages` for JS errors. All browser observations become findings evidence.
-
-### Phase 4 -- Score
-Score each dimension 0-4 using the criteria defined in Phase 2.
-
-| Score | Label | Meaning |
+| Input | Required | Notes |
 | --- | --- | --- |
-| 4 | Excellent | No significant issues |
-| 3 | Good | Minor issues only |
-| 2 | Fair | Notable issues requiring attention |
-| 1 | Poor | Serious issues affecting users |
-| 0 | Critical | Immediate action required |
+| `<url>` | yes | Public starting URL (or list of URLs) |
+| `<dimensions>` | optional | Subset of: `performance`, `accessibility`, `seo`, `ux`, `security-headers` (default: all) |
+| `<depth>` | optional | `quick` (1 page) / `standard` (default; up to 5 pages) / `deep` (crawl + Core Web Vitals across templates) |
+| `<viewport>` | optional | `mobile` / `desktop` / `both` (default `both`) |
+| `<output path>` | optional | Defaults to `.temp/reports/audit-site-<slug>-<date>.md` |
+| `--auto` | optional | Skip approval gates |
 
-**Rating bands** (sum of 5 dimensions):
-- 18-20 Excellent -- minor polish only
-- 14-17 Good -- address weak dimensions
-- 10-13 Acceptable -- significant work needed
-- 6-9 Poor -- major overhaul required
-- 0-5 Critical -- fundamental issues across the board
+## Workflow
 
-Dimensions scored: **performance**, **accessibility**, **SEO**, **security**, **content/UX**.
+1. **Confirm intent** - restate URL(s), dimensions, depth, viewports, output. Approval gate unless `--auto`.
+2. **Inventory** - capture: site type (marketing / app / docs), framework hints (from headers / source), key user flows, third-party scripts, page tree to depth.
+3. **Run dimensions in parallel** - each dimension produces its own findings list:
+   - **Performance**: Core Web Vitals (LCP, INP, CLS), TTFB, transfer size, render-blocking resources, image strategy.
+   - **Accessibility**: WCAG 2.2 AA - landmarks, headings hierarchy, alt text, color contrast, focus management, ARIA misuse, keyboard traps.
+   - **SEO**: title/meta, canonical, robots, sitemap, OG/Twitter cards, structured data, internal linking, crawlability.
+   - **UX**: layout at 360 / 768 / 1280 viewports, primary CTA visibility, form usability, error states, copy clarity.
+   - **Security headers**: HSTS, CSP, X-Content-Type-Options, X-Frame-Options, Referrer-Policy, Permissions-Policy.
+4. **Aggregate** - merge findings; deduplicate; group by dimension under each severity.
+5. **Validate** - re-fetch the URL or re-run the analyzer to confirm each finding reproduces.
+6. **Report** - findings-first markdown using the template below.
 
-If a dimension could not be fully assessed (auth-gated pages, no browser access), cap its max score at 2 and note the gap.
+## Severity ladder
 
-### Phase 5 -- Findings
-Severity-ordered with P0-P3 ratings, organized by dimension:
-- **P0** -- Critical: broken functionality, security vulnerabilities, total accessibility failures
-- **P1** -- High: significant UX degradation, major SEO blockers, performance bottlenecks
-- **P2** -- Medium: improvement opportunities with clear user impact
-- **P3** -- Low: polish items, minor optimization opportunities
+| Label | Site meaning |
+| --- | --- |
+| `Blocker` | Broken core flow, security header missing entirely, accessibility failure that blocks use, page does not load |
+| `Critical` | Significant CWV failure, severe a11y / SEO regression, missing meta on the home page |
+| `Should Have` | Notable improvement (image optimization, missing alt text in non-critical regions) |
+| `May Have` | Minor polish |
+| `Nitpick` | Style only |
+| `Question` | Auditor unsure (e.g. intentional A/B test variant) |
 
-### Phase 6 -- Report
-Deliver:
-1. Health score card (dimension scores table)
-2. Detailed findings (severity-ordered, grouped by dimension)
-3. Recommended fix commands or actions (effort-tagged)
-4. Before/after targets (what scores should be after fixes)
-5. Blind spots and areas needing manual verification
-
-## Output
-
-Output is part of the contract for this skill, not just presentation. This is what callers and end users should expect back after execution.
-
-
-### Output Format
+## Finding template
 
 ```markdown
-
-## Additional Reference
-
-### Read In This Order
-
-- `references/_shared/ai-guidelines-overview.md`
-- `references/_shared/constitution.md`
-- `references/_shared/brainstorming-workflow.md`
-- `references/_shared/output-format.md`
-- `references/_shared/research-protocol.md`
-- `references/persona.md`
-- `references/review-comment-format.md`
-- `references/workflow.md`
-
-### Constitution
-
-- **Human-in-the-Loop** -- Decisions interactive, execution automatic. Confirm the target URL and audit dimensions before scanning. `--auto` skips confirmations but still reports everything.
-- **Plan First** -- Show the audit plan (URL, dimensions, scope) and get approval before executing any checks.
-- **Brainstorm After Findings, Not Before Scanning** -- use only a light brainstorming handoff when the user wants remediation planning or route selection after the audit.
-- **Concise by Default** -- Health score card and top findings first. Offer to elaborate per dimension.
-- **Parallel Agentic Teams** -- Dispatch a browser agent for visual verification and render checks. Run performance, accessibility, and SEO scans in parallel where possible.
-- **Principal Engineer Lens** -- Run the smallest useful audit pass first, then deepen only where evidence says it matters. Prioritize high-traffic pages over exhaustive crawls.
-
-### Persona
-
-See `references/persona.md` for the full Web Quality Auditor persona.
-
-- **Mission**: Audit live sites and webapps for discoverability, quality, performance, accessibility, and user-facing defects, producing a scored health report with actionable fixes.
-- **Voice**: Evidence-first, dimension-organized, severity-ordered. Leads with scores, follows with proof.
-- **Hard rules**: Live-site evidence over source-only guesses. Separate site findings from code-fix proposals. Re-audit after approved fixes.
-- **Evidence expectations**: Every finding cites a URL, tool output, browser observation, or screenshot. Runtime claims from static source inspection are labeled as unverified.
-
-### When To Use
-
-- Auditing a production or staging site for quality
-- Checking technical SEO, crawlability, metadata, or structured content issues
-- Finding accessibility, performance, or broken-link problems
-- Comparing before/after site health after deployments or changes
-- Visual verification of render behavior across viewports
-
-### When NOT To Use
-
-- Source-only repository audits with no live target -- use `adk-audit-repo`
-- Writing or fixing code -- use `adk-build`
-- PR or diff review -- use `adk-review-pr`
-- Test execution -- use `adk-test`
-
-### Pre-flight
-
-Run `python3 scripts/preflight.py` before any audit work.
-If the script reports a missing dependency, stop and tell the user.
-
-### Interaction Protocol
-
-### Intent Confirmation
-Unless `--auto` is set, confirm before starting:
-- Target URL and whether audit-only or audit-plus-fix planning
-- Focus area(s) to audit
-- Scope narrowing (specific routes or pages)
-
-### Findings Presentation
-Each finding uses the format:
-
-```
-F<n> [Type][Severity]: Title
-Confidence: High|Medium|Low | Dimension: <dim> | Scope: <URL, route, or page>
-
-**Issue Summary** -- What is wrong.
-**Why This Matters** -- Impact on users, SEO, or compliance.
-**Suggested Fix** -- Actionable remediation with commands where applicable.
-**Verify** -- How to confirm the fix (optional).
+### [<Severity>] <One-line summary> (<dimension>)
+- **URL**: <url>
+- **Anchor**: <DOM selector / region / response header>
+- **Issue**: <2-3 sentence explanation>
+- **Evidence**: <measurement / quoted source / screenshot description>
+- **Suggested fix**: <concrete recommendation; route to `adk-frontend-*` / `adk-build-*` if implementation needed>
+- **Why this severity**: <one sentence>
 ```
 
-Types: **Bug**, **Risk**, **Improvement**, **Nitpick**, **Question**
-Severity: **P0** (Critical) > **P1** (High) > **P2** (Medium) > **P3** (Low)
-Dimensions: **performance**, **accessibility**, **seo**, **security**, **content**
+## Report template
 
-### Post-Fix Re-audit
-When fixes are applied, offer to re-audit affected pages. State what improved and what still fails.
+```markdown
+# Site Audit: <site>
 
-### Parallel Agents
+## Summary
+- URLs audited: <list>
+- Viewports: <list>
+- Dimensions: <list>
+- Findings: <N> Blocker, <N> Critical, <N> Should Have, <N> May Have, <N> Nitpick, <N> Question
 
-| Agent | Role | Dispatched When |
-| --- | --- | --- |
-| Browser agent (`cursor-ide-browser` MCP) | Visual verification via `browser_navigate`, `browser_snapshot`, `browser_take_screenshot`, `browser_console_messages` | Always (Phase 3) -- screenshots at 375px, 768px, 1440px |
-| Performance scanner | Core Web Vitals measurement, resource analysis, waterfall inspection | `--focus performance` or `--focus all` |
+## Top Risks
+1. <one-line top risk>
+2. <one-line top risk>
 
-Each agent receives the target URL, scope, and focus. Returns structured findings with evidence (screenshots, console output, network data). The orchestrator merges, deduplicates, and scores.
+## Core Web Vitals (per page)
+| URL | LCP | INP | CLS | TTFB | Transfer |
+| --- | --- | --- | --- | --- | --- |
 
-### Validation
+## Findings
 
-- Findings cite URLs, audit output, browser evidence, or direct page observations
-- Static-source claims about runtime behavior are labeled when not fully verified
-- Before/after comparisons are explicit when fixes were applied
-- Browser screenshots or observations back visual findings
-- Scores are justified by the findings within each dimension
+### Blockers
+<finding blocks>
 
-### Health Score Card
+### Critical
+<finding blocks>
 
-| # | Dimension | Score | Label | Key Finding |
-| --- | --- | --- | --- | --- |
-| 1 | Performance | 2 | Fair | 4.2s LCP on mobile, 3 render-blocking scripts |
-| 2 | Accessibility | 1 | Poor | 23 images missing alt text, h1 → h3 skip |
-| 3 | SEO | 3 | Good | Minor meta description gaps on 2 pages |
-| 4 | Security | 3 | Good | Missing CSP header, no SRI on 3rd-party scripts |
-| 5 | Content/UX | 2 | Fair | 12 broken links, form submit fails on mobile |
-| **Total** | | **11/20** | **Acceptable** | |
+### Should Have
+<finding blocks>
 
-### Findings (N total: X P0, Y P1, Z P2, W P3)
+### May Have
+<finding blocks>
 
-### P0 -- Critical
-<findings using F<n> format from review-comment-format.md>
+### Nitpicks
+<finding blocks>
 
-### P1 -- High
-<findings by dimension>
+### Questions
+<finding blocks>
 
-### P2 -- Medium / P3 -- Low
-<findings>
+## Per-Dimension Notes
+<short per-dimension narrative for context the findings cannot carry>
 
-### Recommended Actions
+## Out of Scope
+- <items not audited and why (e.g. authenticated flows, third-party iframes)>
 
-| Priority | Action | Effort | Dimension | Target Score |
-| --- | --- | --- | --- | --- |
-| 1 | Add alt text to hero images | quick-win | accessibility | 1 → 3 |
-
-### Before/After Targets
-
-| Dimension | Current | Target | Key Action |
-| --- | --- | --- | --- |
-| Accessibility | 1 | 3 | Alt text + heading structure |
-
-### Blind Spots
-
-- <areas not covered or needing manual verification>
-
-### Next Steps
-
-- <re-audit after fixes, deeper dive, related skills>
-- Re-run audit after fixes to see score improve
+## Recommended Next Steps
+1. <fix Blockers via `adk-frontend-feature` / `adk-build-feature`>
+2. <follow-up audit in <area> after fixes>
 ```
 
-### Anti-Patterns / Red Flags
+## Tooling notes
 
-- **Source-only guessing**: Saying "LCP is likely slow" from looking at HTML source without loading the page. Use `browser_navigate` + measurement, not static inference.
-- **Exhaustive crawl**: Spidering 200 pages when the user asked about `/contact`. Confirm scope first; default to the target URL and its linked pages only.
-- **Fix without ask**: Editing server config or HTML during the audit. The audit skill reports findings; it does not apply fixes unless explicitly asked.
-- **Stale screenshots**: Reusing a screenshot from a previous audit or cached browser state. Every screenshot must come from a fresh `browser_navigate` + `browser_take_screenshot` in this session.
-- **Hidden dimensions**: Scoring accessibility at 3/4 when the browser agent could not load the page (auth-gated). Unassessed dimensions must appear in Blind Spots with their max capped score.
-- **Score inflation**: Giving performance 4/4 when Core Web Vitals were not measured because no browser was available. No measurement = max score of 2.
-- **Generic findings**: Saying "improve SEO" instead of "page `/about` has no `<title>` tag, og:description is missing, and JSON-LD structured data is absent." Be specific with URLs and elements.
+This skill calls whatever site-audit tooling the environment provides (browser MCP for DOM / a11y inspection, Lighthouse-like perf checks, header probes via `curl -I`). When a tool is unavailable, the skill explicitly marks the dimension as `not-measured` rather than guessing.
 
-### Related Skills
+Tools the skill may use when present:
 
-- `adk-audit-repo` -- source-code repository audit
-- `adk-test` -- test execution and verification
-- `adk-design` -- design review and UX feedback
-- `adk-review-docs` -- documentation review
+- Headless browser MCP (page load, DOM snapshot, axe-core, screenshots).
+- HTTP probe (`curl -I`, `httpx`) for headers.
+- HTML parser for meta, link, structured data.
+- Public Lighthouse / PageSpeed API for perf metrics.
+
+## Anti-patterns
+
+- Findings without URL + selector / header anchor.
+- Reporting Lighthouse scores without per-metric values - scores hide root cause.
+- Mixing fixes into the audit; the audit reports.
+- Auditing only one viewport when the site is responsive.
+- Calling something a Blocker that is intentional (e.g. a maintenance page).
+- Relying on cached results from a previous run; always re-fetch.
 
 ## Examples
 
-The examples below start with a minimal invocation and then show the most common ways developers override detection or change the resulting artifact.
-
-### Start With The Default Path
-
-Start with the smallest useful invocation. If the skill supports auto-detection, this is the fastest way to see which path it chooses before you pin it down with extra flags.
-
-```text
-adk-audit-site <url>
 ```
-### Change Output Or Execution Style
-
-These examples change the returned artifact, detail level, rendering, or approval behavior without changing what the skill fundamentally does.
-
-```text
-adk-audit-site <url> --auto
+adk-audit-site https://example.com --dimensions performance,accessibility --viewport mobile
 ```
+
+```
+adk-audit-site https://shop.example.com --depth deep --output .temp/reports/audit-site-shop-2026-04.md
+```
+
+<!-- adk:references:start -->
+
+## References shipped with this skill
+
+These files live in `references/` next to this `SKILL.md`. Read them when the skill activates; they are inlined here so the skill is fully self-contained (no cross-skill or shared sources).
+
+| File | Purpose |
+| --- | --- |
+| `references/anti-patterns.md` | Things to avoid when running this skill. |
+| `references/constitution.md` | Non-negotiable rules and working/communication discipline. |
+| `references/output-format.md` | Verbosity modes, result shape, severity labels. |
+| `references/persona.md` | The agent persona that drives this skill. |
+| `references/review-comment-format.md` | Standard finding format with stable IDs and severities. |
+| `references/working-artifacts.md` | The .temp/ rule for intermediate artifacts. |
+
+<!-- adk:references:end -->
+
+## References shipped with this skill
+
+- `references/anti-patterns.md`
+- `references/constitution.md`
+- `references/output-format.md`
+- `references/persona.md`
+- `references/review-comment-format.md`
+- `references/working-artifacts.md`

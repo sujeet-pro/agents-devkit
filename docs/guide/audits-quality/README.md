@@ -14,16 +14,14 @@ Run repository audits, live site audits, and explicit testing workflows.
 
 | Skill | Purpose | Reference |
 | --- | --- | --- |
-| `/adk-audit-repo` | Audit a repository for correctness risks, maintainability issues, and validation gaps. Use when you need a prioritized improvement list instead of a line-by-line PR review | [Details](../../reference/skill-adk-audit-repo.md) |
-| `/adk-audit-site` | Audit a live site or webapp for SEO, performance, accessibility, security signals, metadata, and broken-user-flow issues. Use when the job is site health rather than repo health | [Details](../../reference/skill-adk-audit-site.md) |
-| `/adk-test` | Verify behavior through acceptance, regression, or webapp-focused testing with explicit pass criteria and fresh evidence. Use when validation itself is the main task | [Details](../../reference/skill-adk-test.md) |
+| `/adk-audit-repo` | Audit a code repository across security, performance, code quality, dependencies, test coverage, and architecture - producing a single severity-tiered report with file-anchored evidence per finding. Use when the deliverable is a multi-dimensional health report on a checked-out repo, not a single-PR review or a doc review. Do not use to audit a deployed website (use adk-audit-site) or to fix the issues found (use adk-build-* skills) | [Details](../../reference/skill-adk-audit-repo.md) |
+| `/adk-audit-site` | Audit a publicly reachable website or web app across performance, accessibility, SEO, UX, and basic security headers - producing a single severity-tiered report with URL/selector evidence per finding. Use when the deliverable is a multi-dimensional health report on a deployed site, not a code repo. Do not use to audit a checked-out repo (use adk-audit-repo) or to fix the issues found (use adk-build-* / adk-frontend-* skills) | [Details](../../reference/skill-adk-audit-site.md) |
 
 ## Example Invocations
 
 ```text
 /adk-audit-repo
-/adk-audit-site <url>
-/adk-test <target>
+/adk-audit-site
 ```
 
 ## How To Use This Guide

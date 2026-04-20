@@ -1,16 +1,16 @@
 name: quick-review
-description: Fast code review pipeline — review, fix issues, finalize
+description: Fast PR review pipeline — review, fix issues raised, then update the PR description.
 
 steps:
   - skill: adk-review-pr
     args: "${PR_URL}"
-    description: Review the PR with multi-perspective analysis
+    description: Review the PR with severity-ordered findings.
 
-  - skill: adk-address-review-feedback
+  - skill: adk-review-feedback
     args: "${PR_URL}"
-    description: Fix any issues found during review
+    description: Apply the fixes for the findings raised in the review.
     condition: "review-has-findings"
 
-  - skill: adk-commit
-    args: "${PR_URL} --mode pr"
-    description: Generate or update the PR description
+  - skill: adk-publish-github
+    args: "${PR_URL} --mode update-pr"
+    description: Generate or update the PR description on GitHub.

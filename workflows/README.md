@@ -29,7 +29,7 @@ Workflows support parameter substitution with `${PARAM}` syntax:
 
 ```yaml
 steps:
-  - skill: adk-build
+  - skill: adk-build-feature
     args: "${TASK}"
 ```
 
@@ -49,4 +49,4 @@ Steps can declare conditions that are evaluated before execution:
 
 See the YAML files in this directory for ready-to-use pipelines.
 
-The canonical end-to-end feature flow now starts with `adk-brainstorm`, then routes into `adk-spec`, `adk-plan`, `adk-build`, and follow-up review or docs steps as needed.
+The canonical end-to-end feature flow now starts with `adk-plan-brainstorm`, then routes into `adk-plan-spec`, `adk-plan-roadmap`, `adk-build-feature`, and follow-up review or docs steps as needed.

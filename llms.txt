@@ -2,55 +2,53 @@
 
 ## Overview
 
-ADK is a skills-first repository for coding agents. It provides self-contained `adk-*` skills, canonical agent personas for parallel subagent work, runtime-specific custom agent sources for Claude/Cursor/Codex, lifecycle hooks, MCP configs, and composable workflows.
+ADK is a self-contained skill toolkit for coding agents. It ships 37 standalone `adk-*` skills, runtime-specific custom subagents for Claude / Cursor / Codex, lifecycle hooks, MCP server configurations, and a Node CLI installer that wires everything into Claude Code, Claude Desktop, Cursor (App + CLI), Codex CLI, Codex Desktop, Gemini CLI, Antigravity, and Junie.
+
+Every skill is fully self-contained — one folder with `SKILL.md` and a flat `references/` (no `_shared/`, no shared sources, no cross-skill file references).
 
 ## Install
 
-- `npx skills add sujeet-pro/agents-devkit --all`
-- `git clone https://github.com/sujeet-pro/agents-devkit.git ~/.agents-devkit`
-- `cd ~/.agents-devkit && ./scripts/install.sh --agents claude,cursor,codex --global`
+- `npm install -g agents-devkit && adk-install`                        # global, writes into $HOME
+- `npm install --save-dev agents-devkit && npx adk-install`            # per-project
+- `git clone https://github.com/sujeet-pro/agents-devkit.git && npm install && npm run setup`   # clone
 
-## Key Skills
+User config: `~/.config/adk/settings.json5`. Project config: `<project>/.adk/settings.json5`.
 
-- `adk-brainstorm`
-- `adk-plan`
-- `adk-research`
-- `adk-build`
-- `adk-refactor`
-- `adk-migrate`
-- `adk-review-pr`
-- `adk-review-local-changes`
-- `adk-review-docs`
-- `adk-write-docs`
-- `adk-spec`
-- `adk-audit-repo`
-- `adk-audit-site`
-- `adk-test`
-- `adk-design`
-- `adk-diagram`
-- `adk-chart`
-- `adk-commit`
+## Top-level router
 
-## Architecture
+- `adk` — activate first for any non-trivial task; routes to a category and a task.
 
-- Skills are the primary task invocation surface.
-- Canonical agent personas live in `agent-personas/adk-*/AGENT.md`.
-- Runtime-specific custom agent sources live in `agents-claude/`, `agents-cursor/`, and `agents-codex/`.
-- Runtime-specific hooks live in `hooks/settings.json`, `hooks/hooks-cursor/hooks.json`, and `hooks/hooks-codex/hooks.json`.
-- Shared guidance lives in `ai-guidelines/`.
+## Category routers
 
-## File Structure
+- `adk-plan`, `adk-build`, `adk-review`, `adk-docs`, `adk-audit`, `adk-publish`, `adk-visualize`, `adk-frontend`
 
-- `skills/`: published installable skills
-- `agent-personas/`: canonical reusable agent personas
-- `agents-claude/`, `agents-cursor/`, `agents-codex/`: generated runtime-specific agent sources
-- `hooks/`: generated runtime-specific lifecycle hook sources
-- `mcp-config/`: MCP server configurations
-- `workflows/`: composable multi-skill pipelines
-- `docs/`: documentation site
-- `skills-manifest.json`: generated public skill index
+## Task skills
 
-## Links
+Plan: `adk-plan-brainstorm`, `adk-plan-research`, `adk-plan-spec`, `adk-plan-design`, `adk-plan-roadmap`
+Build: `adk-build-feature`, `adk-build-refactor`, `adk-build-migrate`, `adk-build-test`, `adk-build-deps`
+Review: `adk-review-pr`, `adk-review-local`, `adk-review-feedback`, `adk-review-handoff`
+Docs: `adk-docs-write`, `adk-docs-review`
+Audit: `adk-audit-repo`, `adk-audit-site`
+Publish: `adk-publish-commit`, `adk-publish-github`, `adk-publish-bitbucket`, `adk-publish-confluence`, `adk-publish-gdrive`
+Visualize: `adk-visualize-diagram`, `adk-visualize-chart`
+Frontend: `adk-frontend-design`, `adk-frontend-feature`, `adk-frontend-react-csr`
 
-- Repository: https://github.com/sujeet-pro/agents-devkit
-- License: MIT
+## MCP servers
+
+- `github`, `bitbucket`, `confluence`, `jira`, `google-drive`, `brainstorming`
+
+Each server JSON declares `${ENV_VAR}` placeholders. The installer reads/writes them via `~/.zshenv` and merges the resolved config into each runtime's `mcp.json`.
+
+## Working artifact contract
+
+All intermediate output goes under `.temp/` in the host repo (gitignored). Never write scratch outside `.temp/`.
+
+## Maintenance
+
+- `npm run validate` — validate skills, agents, hooks.
+- `npm run skills:manifest` — regenerate `skills-manifest.json`.
+- `npm run docs:build` — build `gh-pages/` from `docs/`.
+
+## License
+
+MIT.

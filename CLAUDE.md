@@ -1,37 +1,24 @@
-# ADK Repository Guidance
+# ADK — Claude Code delta
 
-Read `AGENTS.md` first.
+Read [AGENTS.md](AGENTS.md) first; it is the canonical contract for any agent working **on** this repository. Everything below is Claude-specific.
 
-Claude-specific notes:
-- repo-maintenance skills live in `.claude/skills/prj-*`
-- canonical shared guidance lives in `ai-guidelines/`
-- public installable skills live in `skills/adk-*`
-- reusable agent personas live in `agent-personas/adk-*`
-- Claude installable agent source files live in `agents-claude/*.md` and are generated from `agent-personas/adk-*/AGENT.md`
-- Claude installable hook source lives in `hooks/settings.json`
-- file-to-skill mapping lives in `ai-guidelines/shared-files-map.json`
+## Claude specifics
 
-When shared guidance changes (constitution, brainstorming-workflow, output-format, research-protocol, or personas):
-1. read `ai-guidelines/update-scope-policy.md`
-2. run `python3 ai-guidelines/scripts/refresh_adk_skills.py scope --changed-path <path>`
-3. run `python3 ai-guidelines/scripts/refresh_adk_skills.py copy-shared`
-4. run `python3 scripts/generate-skills-manifest.py`
-5. run `python3 tests/test_skills.py`
+- Custom subagents: `.claude/agents/<name>.md` (installed from [agents-claude/](agents-claude/) by `adk-install`).
+- Hook config: `.claude/settings.json` (installed from [hooks/claude.json](hooks/claude.json) — symlink in this repo).
+- Skill discovery: `.claude/skills/<name>` symlinks into the hub at `.agents/skills/<name>`.
+- Optional local Claude env flags: `.claude/settings.local.json`.
 
-Symlink management:
-- run `./scripts/sync-links.sh` after adding or removing skills
-- run `python3 scripts/generate_agent_projections.py` after changing canonical agent personas
-- run `python3 scripts/generate_hook_projections.py` after changing runtime hook behavior
-- run `./scripts/install-mcp.sh --agent claude-code` to install MCP configs
+## Working artifacts
 
-Suggested user-level prompt snippet:
+All intermediate output goes under `.temp/` (gitignored). See `AGENTS.md` for the full path table.
 
-```md
-When a task involves design, trade-offs, ambiguity, or meaningful risk, start with the ADK brainstorming workflow.
+## Installation
 
-1. Prefer the brainstorming MCP if available.
-2. If it is missing, warn once with install guidance and continue using the fallback workflow.
-3. Capture current state, target state, acceptable blast radius, desired confidence, and preferred artifact output.
-4. Research unknowns, present options, and ask follow-up questions until confidence is high enough for the task.
-5. Route into the right skill: brainstorm, spec, plan, write-docs, build, refactor, migrate, or design.
-```
+This package is published on npm and the CLI auto-detects how it was launched:
+
+- `npm install -g agents-devkit` then `adk-install` → writes into `$HOME`.
+- `npm install --save-dev agents-devkit` then `npx adk-install` → writes into the project's dot-dirs.
+- `git clone …` then `npm install && npm run setup` → writes wherever you choose; symlinks point at the clone.
+
+User config lives at `~/.config/adk/settings.json5`. Project config (when `--mode project`) lives at `<project>/.adk/settings.json5`.

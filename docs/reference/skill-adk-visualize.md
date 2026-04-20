@@ -1,0 +1,85 @@
+---
+title: 'adk-visualize'
+description: 'Category router for producing diagrams and charts from text descriptions or data - sequence/flow/architecture diagrams via mermaid/drawio/excalidraw/graphviz, and bar/line/pie/scatter charts from CSV/JSON/inline data. Use when the deliverable is a visual (image, SVG, or markdown-embedded diagram), not prose. Picks one of adk-visualize-diagram, adk-visualize-chart.'
+skill_name: adk-visualize
+category: router
+---
+
+# adk-visualize
+
+Category router for producing diagrams and charts from text descriptions or data - sequence/flow/architecture diagrams via mermaid/drawio/excalidraw/graphviz, and bar/line/pie/scatter charts from CSV/JSON/inline data. Use when the deliverable is a visual (image, SVG, or markdown-embedded diagram), not prose. Picks one of adk-visualize-diagram, adk-visualize-chart.
+
+## Skill body
+
+# ADK Visualize (Category Router)
+
+Routes any "make a picture from this" intent to the right visualization task. Activate one of the listed task skills below; do not draft directly from this router.
+
+## When to use this category
+
+- A diagram is needed: sequence, flow, state, ER, architecture, dependency, class, deployment.
+- A data chart is needed: bar, line, pie, scatter, histogram, stacked area, heatmap.
+- An existing diagram or chart needs to be regenerated, restyled, or converted to a different format (PNG, SVG, embeddable mermaid).
+
+## When NOT to use this category
+
+- UI mockup or component design -> `adk-frontend-design`
+- Architectural design write-up (text-heavy) -> `adk-plan-design` (which may then call this category for one diagram)
+- Audit visualizations as part of a report -> let the audit task call this category for specific charts
+
+## Shared workflow
+
+Every task in this category honors the same five steps. The task skills tailor the content of each step.
+
+1. **Confirm intent** - identify visual type, source data or domain, destination format (markdown-embedded mermaid is the default), and whether an editable source must be kept.
+2. **Gather** - pull the source-of-truth: data file, schema, code paths to diagram, or interview questions if the picture is conceptual.
+3. **Draft** - produce the editable source first (mermaid / drawio XML / excalidraw JSON / graphviz dot / chart spec). Render only after the source is approved.
+4. **Validate** - render to the destination format and visually sanity check (no overlapping nodes, axes labeled, legend present, colors readable).
+5. **Report** - show the rendered output and the editable source path; offer to tweak.
+
+## Task selection
+
+| Task skill | Use when | Do NOT use when |
+| --- | --- | --- |
+| `adk-visualize-diagram` | Sequence, flow, state, ER, architecture, dependency, class, deployment, or any structural picture | Numeric / categorical data plot - use chart |
+| `adk-visualize-chart` | Bar, line, pie, scatter, histogram, stacked area, heatmap from numeric or categorical data | Structural / relationship picture - use diagram |
+
+## Format defaults
+
+| Destination | Diagram default | Chart default |
+| --- | --- | --- |
+| Markdown (README, PR, issue) | Embedded mermaid block | SVG file linked from markdown |
+| Confluence / GitHub wiki | Embedded mermaid (both support) | PNG attached + linked |
+| Slide deck | Exported SVG | Exported SVG |
+| Print / handoff PDF | PNG (300 dpi) | PNG (300 dpi) |
+
+Always keep the editable source alongside the rendered output (e.g. `architecture.mmd` next to `architecture.svg`).
+
+## Activation
+
+Once you have picked a task, load `adk-visualize-<task>` and follow it. Each task skill is fully standalone - everything it needs is in its own folder.
+
+## Anti-patterns
+
+- Drawing inside this router. Always hand off to a task skill.
+- Rendering a binary without keeping the editable source.
+- Charts without labeled axes or units.
+- Diagrams with more than ~12 nodes per view; split into layered diagrams instead.
+
+<!-- adk:references:start -->
+
+## References shipped with this skill
+
+These files live in `references/` next to this `SKILL.md`. Read them when the skill activates; they are inlined here so the skill is fully self-contained (no cross-skill or shared sources).
+
+| File | Purpose |
+| --- | --- |
+| `references/anti-patterns.md` | Things to avoid when running this skill. |
+| `references/constitution.md` | Non-negotiable rules and working/communication discipline. |
+
+<!-- adk:references:end -->
+
+## References shipped with this skill
+
+- `references/anti-patterns.md`
+- `references/constitution.md`

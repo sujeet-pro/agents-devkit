@@ -1,29 +1,33 @@
 name: full-feature
-description: End-to-end feature implementation from brainstorming through implementation, review, and docs
+description: End-to-end feature delivery — brainstorm direction, write a plan, implement, self-review, then refresh docs.
 
 steps:
-  - skill: adk-brainstorm
-    args: "${TASK} --skill-context plan --artifact plan"
-    description: Settle direction, blast radius, and artifact routing before execution
+  - skill: adk-plan-brainstorm
+    args: "${TASK} --artifact plan"
+    description: Settle direction, blast radius, and artifact routing before execution.
 
-  - skill: adk-spec
-    args: "${TASK} --type technical"
-    description: Capture the selected direction in a technical spec when needed
+  - skill: adk-plan-spec
+    args: "${TASK}"
+    description: Capture the chosen direction in a technical spec when complexity warrants it.
     condition: "complexity >= medium"
 
-  - skill: adk-plan
+  - skill: adk-plan-roadmap
     args: "${TASK}"
-    description: Create implementation plan with file list and sequencing
+    description: Produce an ordered, file-aware implementation plan.
 
-  - skill: adk-build
+  - skill: adk-build-feature
     args: "${TASK}"
-    description: Implement the feature following the approved plan
+    description: Implement the feature following the approved roadmap.
 
-  - skill: adk-review-local-changes
-    args: "--focus correctness --auto"
-    description: Self-review the implementation before PR
+  - skill: adk-build-test
+    args: "${TASK} --auto"
+    description: Author or extend tests covering the new behavior.
     condition: "has-tests"
 
-  - skill: adk-write-docs
+  - skill: adk-review-local
+    args: "--focus correctness --auto"
+    description: Self-review the implementation before opening a PR.
+
+  - skill: adk-docs-write
     args: "${TASK} --type changelog --auto"
-    description: Update changelog with the new feature
+    description: Refresh changelog / docs touched by the feature.

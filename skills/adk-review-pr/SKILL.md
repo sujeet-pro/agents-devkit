@@ -1,240 +1,162 @@
 ---
 name: adk-review-pr
-description: Review a pull request for correctness, regression risk, and missing validation. Use when reviewing a branch or hosted pull request before merge.
-compatibility: Self-contained published skill for npx skills. Works best when git and python3 are available. Supports hosted PR review when the runtime exposes the relevant connector tools.
-user-invocable: true
-argument-hint: <pr-or-branch> [--focus correctness|risk|tests|security|performance] [--help]
-workflow-tier: full
-maturity: experimental
-workflow-family: standard-task
-tools: [Read, Glob, Grep, Bash, Agent, WebSearch, WebFetch]
-metadata:
-  area: review
-dependencies:
-  commands: [git, python3]
+description: Review a remote pull request with severity-tiered findings, evidence per finding, and posted-back comments via the appropriate provider (GitHub, Bitbucket). Use when a PR URL is the target and the deliverable is a structured review (findings + optional posted comments). Do not use for local uncommitted changes (use adk-review-local), addressing existing reviewer feedback (use adk-review-feedback), or auditing the whole repo (use adk-audit-repo).
 ---
 
-# ADK Review PR
+# ADK Review / PR
 
+Standalone task skill under the `adk-review` category router. Produces a findings-first review of a remote PR with explicit severity per finding and clear evidence.
 
-## Read In This Order
-- `references/_shared/ai-guidelines-overview.md`
-- `references/_shared/constitution.md`
-- `references/_shared/brainstorming-workflow.md`
-- `references/_shared/output-format.md`
-- `references/_shared/research-protocol.md`
-- `references/persona.md`
-- `references/review-comment-format.md`
-- `references/workflow.md`
+## When to use
 
-## Constitution
+- A PR URL on GitHub or Bitbucket is the target.
+- Deliverable is a structured review report and (optionally) posted PR comments.
+- The reviewer wants severity-tiered, evidence-backed findings, not freeform prose.
 
-- **Human-in-the-Loop** -- confirm diff scope and focus lens before starting; present findings for accept/reject/expand before any action. `--auto` skips confirmations but still reports everything.
-- **Plan First** -- phased workflow with gates after scope confirmation, after triage, and after findings presentation. No deep review begins without confirmed scope.
-- **Brainstorm Only For Follow-up** -- the review still leads with findings; use a light brainstorming pass only when accepted findings imply multiple remediation paths or rerouting work.
-- **Concise by Default** -- findings lead; summaries follow. Offer to elaborate on any finding with `e-N`.
-- **Principal Engineer Lens** -- challenge whether the change is the simplest correct approach. Surface alternatives when the diff reveals unnecessary complexity.
-- **Parallel Agentic Teams** -- dispatch `adk-security-reviewer` for security-focused passes; dispatch `adk-test-reviewer` for test coverage analysis when available.
+## When NOT to use
 
-## Persona
+- Changes are local and not yet pushed -> `adk-review-local`
+- Reviewer comments already exist and need to be addressed in code -> `adk-review-feedback`
+- Multi-dimensional repo-wide audit -> `adk-audit-repo`
+- Doc-only review -> `adk-docs-review`
 
-**Principal Code Reviewer.** You are a seasoned principal engineer whose job is to protect the codebase from defects, regressions, and hidden risk. You read diffs like a forensic analyst -- every line is a claim that must be verified. You are direct, evidence-driven, and allergic to hand-waving. You never approve by default. You never rubber-stamp. You care about the team shipping confidently, not quickly.
+## Inputs
 
-- **Mission**: Find correctness issues, regression risk, validation gaps, and hidden coupling before they reach production.
-- **Voice**: Direct, technical, evidence-first. No flattery, no filler. State the problem, cite the evidence, suggest the fix.
-- **Hard rules**: Every finding cites file:line or diff hunk. Severity is never inflated. Speculation is labeled. Missing tests are always flagged.
-- **Evidence expectations**: Reproduce from code or tool output. If you cannot verify, label the confidence and say what would verify it.
-
-## When To Use
-
-- Reviewing a pull request before merge (URL or branch name)
-- Reviewing a feature branch diff against its base
-- Checking whether tests and validation match the change surface
-- Security-focused review of a PR with `--focus security`
-- Performance audit of a diff with `--focus performance`
-
-## When NOT To Use
-
-- Whole-repo audits without a focused diff -- use `adk-audit-repo`
-- Reviewing uncommitted local changes -- use `adk-review-local-changes`
-- Writing or editing code to fix findings -- use `adk-address-review-feedback`
-- Reviewing documentation quality -- use `adk-review-docs`
-
-## Parameters
-
-| Parameter | Values | Default | Description |
-| --- | --- | --- | --- |
-| `<pr-or-branch>` | PR URL, branch name, or diff target | required | What to review |
-| `--focus` | `correctness`, `risk`, `tests`, `security`, `performance` | `correctness` | Primary review lens |
-| `--auto` | flag | off | Skip confirmations; run end-to-end and present findings directly |
-| `--help` | flag | off | Show the skill description and stop |
-
-## Pre-flight
-
-Run `python3 scripts/preflight.py` before any review work.
-If the script reports a missing dependency, stop and tell the user.
+| Input | Required | Notes |
+| --- | --- | --- |
+| `<pr-url>` | yes | Full PR URL (provider auto-detected) |
+| `<focus>` | optional | `correctness` / `security` / `performance` / `style` / `all` (default) |
+| `<post-mode>` | optional | `dry-run` (default - report only) / `post` (post inline + summary) |
+| `<scope>` | optional | Path filter inside the PR diff |
+| `--auto` | optional | Skip approval gates (still validates) |
 
 ## Workflow
 
-### Phase 1: Fetch & Confirm `[gate: user approval unless --auto]`
+1. **Confirm intent** - restate PR, focus, post-mode, scope. Approval gate unless `--auto`.
+2. **Fetch context** - retrieve PR diff, description, related issue, branch, base, and any existing comments. Use `gh pr view`, `gh pr diff`, or the relevant MCP. Confirm the diff matches the URL.
+3. **Read code** - read the changed files in their post-PR state, plus immediate dependencies and tests. Repo evidence over guessing.
+4. **Run dimension passes** - depending on focus, run each dimension as a parallel pass and collect findings:
+   - Correctness: logic, edge cases, error handling, types.
+   - Security: input validation, secrets, authz/n, injection.
+   - Performance: complexity, allocations, network round-trips.
+   - Style: naming, structure, repo conventions.
+   - Tests: coverage of changed behavior, regression for any bug fixed.
+5. **Tier findings** - assign each finding a severity label (Blocker / Critical / Should Have / May Have / Nitpick / Question).
+6. **Validate** - reread each finding against the diff to ensure it is real and reproducible. Drop low-evidence findings.
+7. **Decide post-mode** - if `post`, draft inline comments (one finding per comment, anchored to a file/line) plus a summary; ask for approval before posting unless `--auto`.
+8. **Report** - findings-first markdown with severity ordering, evidence per finding, suggested change, and (if posted) links to inline comments.
 
-1. Resolve the PR URL or branch to a concrete diff target.
-2. Fetch the diff and list changed files with line counts.
-3. Present scope summary: files changed, lines added/removed, focus lens.
-4. **Gate**: Wait for user approval of scope and focus. `--auto` skips this gate.
+## Severity ladder
 
-### Phase 2: Triage
+| Label | Meaning |
+| --- | --- |
+| `Blocker` | Must fix before merge - bug, security hole, broken contract |
+| `Critical` | Strongly recommended fix; would normally block release |
+| `Should Have` | Improvement that meaningfully raises quality |
+| `May Have` | Optional polish |
+| `Nitpick` | Style or taste only |
+| `Question` | Reviewer uncertain; needs clarification |
 
-1. Quick scan of the full diff for severity distribution.
-2. Identify hotspot files (highest risk based on change size, complexity, or sensitivity).
-3. Flag any files that touch auth, payments, data migrations, or public APIs.
-4. Produce a 3-5 bullet triage summary.
+Lead with the highest. Never mix levels in one bullet.
 
-### Phase 3: Deep Review
+## Finding template
 
-1. Systematic pass through each changed file, ordered by risk from Phase 2.
-2. For each file: read the diff hunks, read surrounding context, check related tests.
-3. Apply the focus lens as primary filter but never ignore Blocker/Critical issues outside the lens.
-4. If `--focus security`: dispatch `adk-security-reviewer` subagent with the diff.
-5. Record each finding with a stable F-ID.
-
-### Phase 4: Findings
-
-1. Present all findings severity-ordered using the finding format below.
-2. Group by file when multiple findings hit the same file.
-3. End with a triage summary: N blockers, N critical, N should-have, N suggestions.
-
-### Phase 5: User Response
-
-1. Wait for user response using `a-N`, `r-N`, `e-N`, or `all`.
-2. For `e-N`: expand the finding with deeper evidence, code context, or reproduction steps.
-3. For `r-N`: acknowledge rejection and remove from active findings.
-4. For `a-N`: mark as accepted for follow-up.
-
-### Phase 6: Follow-up
-
-1. Summarize accepted findings and their suggested fixes.
-2. State residual risk from rejected findings.
-3. Recommend next actions: file issues, fix in-place, or defer.
-4. Offer to hand off accepted findings to `adk-address-review-feedback`.
-
-## Interaction Protocol
-
-### Intent Confirmation
-
-Unless `--auto` is set, confirm with the user before starting:
-- The PR URL, branch name, or diff target
-- The review focus lens
-- Any scope narrowing (specific files or directories)
-
-### Finding Format
-
-```
-F1 [Bug][Blocker]: Missing null check in parseConfig causes crash on empty input
-Confidence: High | Dimension: code-quality | Scope: src/config.ts:42
-
-**Issue Summary** -- `parseConfig` dereferences `options` without a null guard; empty input triggers an unhandled TypeError.
-
-**Why This Matters** -- Any caller passing undefined config crashes the process; this path is hit during startup.
-
-**Suggested Fix** -- Add an early return or default: `const opts = options ?? {};`
-
-**Verify** -- Confirm whether callers ever intentionally pass null.
-```
-
-- Format: `F<n> [Type][Severity]: Title`
-- Metadata: `Confidence: High|Medium|Low | Dimension: <dim> | Scope: <file:line or area>`
-- Sections: **Issue Summary**, **Why This Matters**, **Suggested Fix**, **Verify/Clarify** (optional)
-- Types: **Bug**, **Risk**, **Improvement**, **Nitpick**, **Question**
-- Severity levels: **Blocker** > **Critical** > **Should Have** > **May Have** > **Nitpick** > **Question**
-- Dimensions: **security**, **architecture**, **patterns**, **code-quality**, **performance**, **readability**
-
-### User Response
-
-After presenting findings, the user responds with any combination of:
-- `a-N` -- accept finding N (agree it should be fixed)
-- `r-N` -- reject finding N (disagree; skip it)
-- `e-N` -- expand finding N (show more detail or evidence)
-- `all` -- accept all findings
-
-Example: `a-1, a-2, r-4, e-6`
-
-## Parallel Agents
-
-| Condition | Agent | Purpose |
-| --- | --- | --- |
-| `--focus security` or auth/crypto files in diff | `adk-security-reviewer` | Deep security analysis of the diff |
-| Test files missing or sparse | `adk-test-reviewer` | Test coverage gap analysis |
-| Large diff (>500 lines) | Split by file group | Parallel file-group review for speed |
-
-Dispatch agents with focused persona, scoped context (relevant diff hunks only), and clear success criteria. The orchestrating agent merges results and deduplicates findings.
-
-## Validation
-
-- Every finding cites evidence from the diff or surrounding code
-- Severity ordering is internally consistent
-- Missing validation and test gaps are explicitly called out
-- Speculative findings carry a confidence label
-- No finding is duplicated across parallel agent results
-
-## Output Format
+Each finding follows this exact shape:
 
 ```markdown
-## Review: <PR title or branch>
-
-**Scope**: N files changed, +M/-K lines
-**Focus**: <lens>
-**Triage**: N blockers, N critical, N should-have, N suggestions
-
----
-
-### Findings
-
-<F-ID findings in severity order>
-
----
-
-### Residual Risk
-<Bullet list of remaining concerns>
-
-### Next Actions
-<Recommended follow-ups>
+### [<Severity>] <One-line summary>
+- **File**: `path/to/file.ts:LINE-LINE`
+- **Issue**: <2-3 sentence explanation>
+- **Evidence**: <quoted snippet or repro>
+- **Suggested change**: <concrete recommendation, code if useful>
+- **Why this severity**: <one sentence>
 ```
+
+## Output format
+
+```
+## PR Review: <PR title> (#<number>)
+- URL: <pr-url>
+- Diff: <files> files, +<additions> / -<deletions>
+- Focus: <focus>
+- Post mode: <dry-run | posted>
+
+## Verdict
+<approve | request-changes | comment>
+
+## Findings
+
+### Blockers
+<finding blocks>
+
+### Critical
+<finding blocks>
+
+### Should Have
+<finding blocks>
+
+### May Have
+<finding blocks>
+
+### Nitpicks
+<finding blocks>
+
+### Questions
+<finding blocks>
+
+## Out of Scope
+- <items explicitly not reviewed and why>
+
+## Validation
+- Diff fetched: YES
+- Code read in context: YES
+- Inline comments posted: <count or N/A>
+- Summary comment posted: <YES | N/A>
+
+Need more detail on any finding?
+```
+
+## Posting rules
+
+- Inline comments anchor to a precise line range from the PR diff.
+- Each inline comment = one finding. Do not staple multiple findings into one comment.
+- Summary comment lists Blockers and Critical only; everything else stays inline.
+- Never auto-approve unless the user explicitly says so.
+- Never request changes for nitpicks alone.
+
+## Anti-patterns
+
+- Mixing severities in a single bullet ("nit / blocker?"). Pick one.
+- Findings without evidence. If you cannot quote it, do not file it.
+- Reviewing the description instead of the code.
+- Stating "looks good" without enumerating what was inspected.
+- Posting before the user approves (unless `--auto`).
+- Letting nitpicks dominate the summary; reorder by severity.
 
 ## Examples
 
-### Review a PR by URL
 ```
-/review-pr https://github.com/acme/api/pull/87
+adk-review-pr https://github.com/org/repo/pull/842 --focus correctness,security
 ```
-Confirms the PR target, fetches the diff, presents findings with F-IDs.
 
-### Review a branch with security focus
 ```
-/review-pr feature/auth-refactor --focus security
+adk-review-pr https://bitbucket.org/org/repo/pull-requests/17 --post-mode post --auto
 ```
-Compares the branch against the default base. Dispatches `adk-security-reviewer` for deep security analysis. Presents merged findings.
 
-### Review with performance focus in auto mode
-```
-/review-pr staging --focus performance --auto
-```
-Skips confirmation, reviews the staging branch diff with performance lens, presents findings directly.
+<!-- adk:references:start -->
 
-## Anti-Patterns / Red Flags
+## References shipped with this skill
 
-| Anti-Pattern | Why It's Harmful | What To Do Instead |
-| --- | --- | --- |
-| Rubber-stamping with "LGTM" | Missed defects reach production | Always do at least a triage pass |
-| Inflating severity to get attention | Erodes trust in the review process | Use honest severity; Blocker means blocks merge |
-| Reviewing without reading surrounding context | Misunderstanding intent leads to false positives | Always read the unchanged code around each hunk |
-| Nitpick avalanche | Buries real issues in noise | Limit nitpicks; lead with blockers and criticals |
-| Speculating without labeling confidence | Reader cannot distinguish verified from guessed | Always label confidence on uncertain findings |
-| Reviewing the whole repo instead of the diff | Scope creep wastes time | Stay within the diff surface unless a finding demands context |
+These files live in `references/` next to this `SKILL.md`. Read them when the skill activates; they are inlined here so the skill is fully self-contained (no cross-skill or shared sources).
 
-## Related Skills
+| File | Purpose |
+| --- | --- |
+| `references/anti-patterns.md` | Things to avoid when running this skill. |
+| `references/constitution.md` | Non-negotiable rules and working/communication discipline. |
+| `references/examples.md` | Example trigger phrases, invocation, and report shape. |
+| `references/mcp-fallback.md` | Preferred MCP server and the manual fallback when it is missing. |
+| `references/output-format.md` | Verbosity modes, result shape, severity labels. |
+| `references/persona.md` | The agent persona that drives this skill. |
+| `references/review-comment-format.md` | Standard finding format with stable IDs and severities. |
 
-- `adk-review-local-changes` -- pre-commit review of local work
-- `adk-address-review-feedback` -- fix accepted findings
-- `adk-audit-repo` -- whole-repo audit (not diff-scoped)
-- `adk-review-docs` -- documentation-focused review
+<!-- adk:references:end -->

@@ -1,0 +1,187 @@
+---
+title: 'adk-publish-confluence'
+description: 'Publish a markdown document as a Confluence page (create or update) via the atlassian-confluence MCP server, with parent-page placement, label management, and post-publish verification. Use when the destination is Confluence and the source is markdown produced by adk-docs-write or by hand. Do not use to author the markdown source (use adk-docs-write) or to publish to Google Drive (use adk-publish-gdrive).'
+skill_name: adk-publish-confluence
+category: task
+---
+
+# adk-publish-confluence
+
+Publish a markdown document as a Confluence page (create or update) via the atlassian-confluence MCP server, with parent-page placement, label management, and post-publish verification. Use when the destination is Confluence and the source is markdown produced by adk-docs-write or by hand. Do not use to author the markdown source (use adk-docs-write) or to publish to Google Drive (use adk-publish-gdrive).
+
+## Skill body
+
+# ADK Publish / Confluence
+
+Standalone task skill under the `adk-publish` category router. Publishes markdown to Confluence via the `atlassian-confluence` MCP server (preferred) or REST API, then verifies the page landed correctly.
+
+## When to use
+
+- Publishing a markdown doc as a new Confluence page.
+- Updating an existing Confluence page from a markdown source.
+- Adding or replacing labels on a Confluence page.
+- Moving a page under a different parent in the same space.
+
+## When NOT to use
+
+- Authoring the markdown source -> `adk-docs-write`
+- Publishing to Google Drive -> `adk-publish-gdrive`
+- Internal repo doc only -> just `adk-docs-write` to a tracked path
+- Confluence Server / Data Center (different API surface) - this skill targets Confluence Cloud
+
+## Inputs
+
+| Input | Required | Notes |
+| --- | --- | --- |
+| `<action>` | yes | `page-create` / `page-update` / `page-move` / `label-set` |
+| `<source>` | yes for page actions | Path to markdown file |
+| `<space>` | yes for `page-create` | Confluence space key |
+| `<parent>` | optional | Parent page id or title for `page-create` / `page-move` |
+| `<page-id>` | yes for `page-update` / `page-move` / `label-set` | Existing Confluence page id |
+| `<title>` | optional | Override the page title (default: first H1 in markdown) |
+| `<labels>` | optional | Comma-separated labels |
+| `--auto` | optional | Skip confirmations on non-destructive actions |
+
+## Workflow
+
+1. **Confirm intent** - restate action, source path, target space/parent/page id, title, labels. Approval gate unless `--auto`.
+2. **Check tooling** - verify `atlassian-confluence` MCP is configured. If not, fall back to REST with `CONFLUENCE_BASE_URL`, `CONFLUENCE_EMAIL`, `CONFLUENCE_API_TOKEN` from env. Stop with a clear install/config message if neither is available.
+3. **Read source** - load the markdown. Extract title from the first `# H1` if none was supplied.
+4. **Convert** - convert markdown -> Confluence storage format (or ADF, depending on MCP). Preserve:
+   - headings (mapped 1:1)
+   - lists (ordered + unordered, nested)
+   - tables (with header row)
+   - fenced code blocks (with language tag)
+   - links (absolute URLs preserved; intra-doc anchors mapped where possible)
+   - inline code, emphasis, strong
+   - images (uploaded as attachments and referenced - flag if the source path is missing)
+5. **Apply action** - create or update the page; place under parent if specified; set labels.
+6. **Verify** - re-fetch the page and confirm: title matches, body content present, parent matches, labels present, version incremented.
+7. **Report** - lead with the page URL; include action, version, verification status.
+
+## Action playbooks
+
+### page-create
+
+```
+POST /wiki/api/v2/pages
+{
+  "spaceId": "<numeric space id>",
+  "title": "<title>",
+  "parentId": "<parent id, optional>",
+  "body": { "representation": "storage", "value": "<storage format>" }
+}
+```
+
+### page-update
+
+Always pass the current `version.number + 1`:
+
+```
+PUT /wiki/api/v2/pages/{id}
+{
+  "id": "<page-id>",
+  "status": "current",
+  "title": "<title>",
+  "version": { "number": <current+1> },
+  "body": { "representation": "storage", "value": "<storage format>" }
+}
+```
+
+### page-move
+
+```
+PUT /wiki/api/v2/pages/{id}/move
+{ "parentId": "<new parent id>", "position": "append" }
+```
+
+### label-set
+
+```
+PUT /wiki/api/v1/content/{id}/label   # add
+{ "prefix": "global", "name": "<label>" }
+
+DELETE /wiki/api/v1/content/{id}/label/{name}   # remove
+```
+
+## Output format
+
+```
+## Confluence action: <action>
+- Page URL: <url>
+- Page id: <id>
+- Space: <space key>
+- Parent: <parent title or id>
+- Version: <new version>
+- Tool used: <atlassian-confluence MCP | REST>
+
+## Verification
+- Title matches: <YES>
+- Body landed: <YES> (length: <chars>)
+- Labels: <list>
+
+## Follow-up
+- <e.g. "share with @alice", "update related runbook">
+```
+
+## Hard rules
+
+- Always increment `version.number` for `page-update`. Stale versions cause silent failures.
+- Never delete a page from this skill. Page deletion is an explicit, separate action.
+- Always verify after publishing - Confluence accepts malformed storage format and renders blanks.
+- Title comes from the H1 unless overridden; never silently re-title an existing page.
+- Image attachments must be uploaded before the page references them; otherwise the page renders broken images.
+
+## Markdown -> Confluence quirks
+
+- Confluence storage format does not support nested code fences inside list items in some renderers. If a list item must contain code, prefer a code-block macro.
+- Mermaid diagrams render via the Mermaid macro on Confluence Cloud; fall back to embedded SVG if the macro is unavailable.
+- Anchor links are page-scoped; cross-page anchors require absolute URLs.
+
+## Anti-patterns
+
+- Updating without re-fetching the current version - causes 409s and silent overwrites.
+- Pasting raw markdown when the API expects storage format / ADF.
+- Publishing without verifying the rendered output.
+- Re-titling an existing page without coordinating with watchers (it changes the URL slug).
+- Hard-coding a parent page title; ids are stable, titles are not.
+
+## Examples
+
+```
+adk-publish-confluence page-create \
+  --source .temp/drafts/runbook-deploy.md \
+  --space ENG --parent "Runbooks" --labels runbook,deploy
+```
+
+```
+adk-publish-confluence page-update \
+  --source .temp/drafts/runbook-deploy.md \
+  --page-id 123456789
+```
+
+<!-- adk:references:start -->
+
+## References shipped with this skill
+
+These files live in `references/` next to this `SKILL.md`. Read them when the skill activates; they are inlined here so the skill is fully self-contained (no cross-skill or shared sources).
+
+| File | Purpose |
+| --- | --- |
+| `references/anti-patterns.md` | Things to avoid when running this skill. |
+| `references/constitution.md` | Non-negotiable rules and working/communication discipline. |
+| `references/examples.md` | Example trigger phrases, invocation, and report shape. |
+| `references/mcp-fallback.md` | Preferred MCP server and the manual fallback when it is missing. |
+| `references/output-format.md` | Verbosity modes, result shape, severity labels. |
+| `references/persona.md` | The agent persona that drives this skill. |
+
+<!-- adk:references:end -->
+
+## References shipped with this skill
+
+- `references/anti-patterns.md`
+- `references/constitution.md`
+- `references/examples.md`
+- `references/mcp-fallback.md`
+- `references/output-format.md`
+- `references/persona.md`

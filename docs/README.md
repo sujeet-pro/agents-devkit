@@ -1,52 +1,85 @@
 ---
 title: Agent Development Kit
-description: Public ADK skills for npx skills plus repo-maintenance guidance for this repository
+description: Self-contained ADK skills, runtime-specific custom subagents, hooks, and MCP configs for Claude / Cursor / Codex / Gemini and other coding agents.
 layout: home
-tagline: Small public skill pack. Strong source-of-truth docs.
+tagline: One opinionated playbook. Installed into every major coding agent.
 actions:
+  - text: Concepts
+    link: /concepts/
+    theme: brand
   - text: Public Skills
     link: /reference/skills/
-    theme: brand
-  - text: Attribution
-    link: /reference/skill-INSPIRATION-MAP/
     theme: alt
 features:
-  - title: 17 Public Skills
-    details: "The public install surface is now a focused `adk-*` catalog covering planning, build work, reviews, docs, visuals, audits, testing, and change packaging."
-  - title: AI Guidelines Source of Truth
-    details: "Shared philosophy, personas, research rules, and update policy live in `ai-guidelines/`."
-  - title: Repo Maintenance Skills
-    details: "`.claude/skills`, `.cursor/skills`, and `.agents/skills` are for maintaining this repo, not for the public pack."
-  - title: Explicit Provenance
-    details: "Inspiration and derivative influences are tracked in `NOTICE.md`, `ai-guidelines/sources/registry.json`, and the docs reference pages."
+  - title: Self-Contained Skills
+    details: "Every skill is one folder: SKILL.md plus a flat references/ that ships its own persona, workflow, output format, and constitution. No _shared/, no auto-propagation, no cross-skill references."
+  - title: One Installer, Every Harness
+    details: "The Node CLI lays down skills, hooks, custom subagents, and MCP configs into Claude Code, Claude Desktop, Cursor, Codex CLI / Desktop, Gemini CLI, Antigravity, and Junie. Re-runs are idempotent."
+  - title: Define Once, Symlink Where Identical
+    details: "A single .agents/skills/ hub holds every skill once. Each runtime's skills/ folder is a symlink farm into the hub. Custom subagents stay independent per provider since their formats and capabilities differ."
+  - title: Env Vars Through ~/.zshenv
+    details: "MCP env vars (GITHUB_PAT, BITBUCKET_APP_PASSWORD, etc.) are read from and written to ~/.zshenv. The CLI prompts only for what is missing and persists with confirmation."
 ---
 
 ## Install
 
+The Node CLI is the only installer. Pick one of three install paths:
+
 ```bash
-npx skills add sujeet-pro/agents-devkit
+# Global (writes into $HOME)
+npm install -g agents-devkit
+adk-install
+
+# Per-project (writes into <project>'s dot-dirs)
+cd <your-project>
+npm install --save-dev agents-devkit
+npx adk-install
+
+# Clone (writes wherever you choose; symlinks point at the clone)
+git clone https://github.com/sujeet-pro/agents-devkit.git ~/code/agents-devkit
+cd ~/code/agents-devkit && npm install
+npm run setup
 ```
 
-## Public Catalog
+User config: `~/.config/adk/settings.json5`. Project config: `<project>/.adk/settings.json5`.
 
-- `adk-plan`
-- `adk-research`
-- `adk-build`
-- `adk-refactor`
-- `adk-migrate`
-- `adk-diagram`
-- `adk-review-pr`
-- `adk-review-local-changes`
-- `adk-address-review-feedback`
-- `adk-review-docs`
-- `adk-write-docs`
-- `adk-audit-repo`
-- `adk-audit-site`
-- `adk-test`
-- `adk-design`
-- `adk-chart`
-- `adk-commit`
+## What you get
 
-## Repo Maintenance
+- **37 self-contained `adk-*` skills**: 1 top router (`adk`) + 8 category routers + 28 task skills covering planning, building, reviewing, documenting, auditing, publishing, visualization, and frontend work.
+- **9 custom subagents per provider** for Claude, Cursor, and Codex (each authored independently for its runtime).
+- **Per-runtime hook configs** for Claude, Cursor, and Codex.
+- **Pre-wired MCP server configs** for GitHub, Bitbucket, Confluence, Jira, Google Drive, and a local `brainstorming` server. Env vars resolved from `~/.zshenv`.
 
-Read `AGENTS.md` and `ai-guidelines/README.md` before changing ADK itself.
+## New here? Read in this order
+
+1. **[Philosophy](./concepts/philosophy.md)** — the principles every skill follows.
+2. **[Skill Anatomy](./concepts/skill-anatomy.md)** — what one skill looks like and how its references work.
+3. **[Agent Personas](./concepts/agents.md)** — the per-provider custom subagents ADK ships.
+4. **[Hooks](./concepts/hooks.md)** — the safety layer below `--auto`.
+5. **[MCP Servers](./concepts/mcp.md)** — when skills prefer MCP and how they fall back.
+
+## Public skill catalog (37)
+
+**Routers:** `adk` · `adk-plan` · `adk-build` · `adk-review` · `adk-docs` · `adk-audit` · `adk-publish` · `adk-visualize` · `adk-frontend`
+
+**Plan tasks:** `adk-plan-brainstorm` · `adk-plan-research` · `adk-plan-spec` · `adk-plan-design` · `adk-plan-roadmap`
+
+**Build tasks:** `adk-build-feature` · `adk-build-refactor` · `adk-build-migrate` · `adk-build-test` · `adk-build-deps`
+
+**Review tasks:** `adk-review-pr` · `adk-review-local` · `adk-review-feedback` · `adk-review-handoff`
+
+**Docs tasks:** `adk-docs-write` · `adk-docs-review`
+
+**Audit tasks:** `adk-audit-repo` · `adk-audit-site`
+
+**Publish tasks:** `adk-publish-commit` · `adk-publish-github` · `adk-publish-bitbucket` · `adk-publish-confluence` · `adk-publish-gdrive`
+
+**Visualize tasks:** `adk-visualize-diagram` · `adk-visualize-chart`
+
+**Frontend tasks:** `adk-frontend-design` · `adk-frontend-feature` · `adk-frontend-react-csr`
+
+See the [full reference](./reference/skills/) for each skill's contract and references list.
+
+## Repo maintenance
+
+If you are contributing to ADK itself, read [`AGENTS.md`](https://github.com/sujeet-pro/agents-devkit/blob/main/AGENTS.md) before any non-trivial change. Validate with `npm run validate`. Regenerate the manifest with `npm run skills:manifest`.

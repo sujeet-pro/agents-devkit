@@ -14,16 +14,12 @@ Review PRs, fix comments, and self-review local changes before merge.
 
 | Skill | Purpose | Reference |
 | --- | --- | --- |
-| `/adk-review-pr` | Review a pull request for correctness, regression risk, and missing validation. Use when reviewing a branch or hosted pull request before merge | [Details](../../reference/skill-adk-review-pr.md) |
-| `/adk-review-local-changes` | Review local uncommitted or local branch changes before commit or PR. Use when the work exists locally and needs a pre-submit review | [Details](../../reference/skill-adk-review-local-changes.md) |
-| `/adk-address-review-feedback` | Fix review feedback, update the code, and confirm the comments are addressed. Use when a PR or local review already produced actionable feedback | [Details](../../reference/skill-adk-address-review-feedback.md) |
+| `/adk-review-pr` | Review a remote pull request with severity-tiered findings, evidence per finding, and posted-back comments via the appropriate provider (GitHub, Bitbucket). Use when a PR URL is the target and the deliverable is a structured review (findings + optional posted comments). Do not use for local uncommitted changes (use adk-review-local), addressing existing reviewer feedback (use adk-review-feedback), or auditing the whole repo (use adk-audit-repo) | [Details](../../reference/skill-adk-review-pr.md) |
 
 ## Example Invocations
 
 ```text
-/adk-review-pr <branch-name>
-/adk-review-local-changes
-/adk-address-review-feedback <source>
+/adk-review-pr
 ```
 
 ## How To Use This Guide

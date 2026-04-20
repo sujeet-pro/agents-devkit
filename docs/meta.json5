@@ -1,6 +1,7 @@
 {
   displayName: "ADK Docs",
   items: [
+    { displayName: "Concepts", slug: "concepts" },
     { displayName: "Guide", slug: "guide" },
     { displayName: "Reference", slug: "reference" },
   ],

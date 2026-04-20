@@ -7,28 +7,60 @@
     "config",
     "guidelines",
 
+    // Top + category routers
+    "skill-adk",
     "skill-adk-plan",
-    "skill-adk-research",
     "skill-adk-build",
-    "skill-adk-refactor",
-    "skill-adk-migrate",
-    "skill-adk-commit",
+    "skill-adk-review",
+    "skill-adk-docs",
+    "skill-adk-audit",
+    "skill-adk-publish",
+    "skill-adk-visualize",
+    "skill-adk-frontend",
+
+    // Plan tasks
+    "skill-adk-plan-brainstorm",
+    "skill-adk-plan-research",
+    "skill-adk-plan-spec",
+    "skill-adk-plan-design",
+    "skill-adk-plan-roadmap",
+
+    // Build tasks
+    "skill-adk-build-feature",
+    "skill-adk-build-refactor",
+    "skill-adk-build-migrate",
+    "skill-adk-build-test",
+    "skill-adk-build-deps",
+
+    // Review tasks
     "skill-adk-review-pr",
-    "skill-adk-review-local-changes",
-    "skill-adk-address-review-feedback",
-    "skill-adk-review-docs",
-    "skill-adk-write-docs",
-    "skill-adk-diagram",
-    "skill-adk-chart",
-    "skill-adk-design",
+    "skill-adk-review-local",
+    "skill-adk-review-feedback",
+    "skill-adk-review-handoff",
+
+    // Docs tasks
+    "skill-adk-docs-write",
+    "skill-adk-docs-review",
+
+    // Audit tasks
     "skill-adk-audit-repo",
     "skill-adk-audit-site",
-    "skill-adk-test",
 
-    "skill-LANDSCAPE",
-    "skill-INSPIRATION-MAP",
-    "skill-CATEGORY-ROUTING",
-    "skill-MIGRATION-MAP",
+    // Publish tasks
+    "skill-adk-publish-commit",
+    "skill-adk-publish-github",
+    "skill-adk-publish-bitbucket",
+    "skill-adk-publish-confluence",
+    "skill-adk-publish-gdrive",
+
+    // Visualize tasks
+    "skill-adk-visualize-diagram",
+    "skill-adk-visualize-chart",
+
+    // Frontend tasks
+    "skill-adk-frontend-design",
+    "skill-adk-frontend-feature",
+    "skill-adk-frontend-react-csr",
   ],
   series: [
     {
@@ -37,21 +69,30 @@
       articles: ["skills", "agents", "config", "guidelines"],
     },
     {
-      displayName: "Public Skills",
-      slug: "public-skills",
+      displayName: "Routers",
+      slug: "routers",
       articles: [
-        "skill-adk-plan", "skill-adk-research",
-        "skill-adk-build", "skill-adk-refactor", "skill-adk-migrate", "skill-adk-commit",
-        "skill-adk-review-pr", "skill-adk-review-local-changes", "skill-adk-address-review-feedback", "skill-adk-review-docs",
-        "skill-adk-write-docs",
-        "skill-adk-diagram", "skill-adk-chart", "skill-adk-design",
-        "skill-adk-audit-repo", "skill-adk-audit-site", "skill-adk-test",
+        "skill-adk",
+        "skill-adk-plan", "skill-adk-build", "skill-adk-review", "skill-adk-docs",
+        "skill-adk-audit", "skill-adk-publish", "skill-adk-visualize", "skill-adk-frontend",
       ],
     },
     {
-      displayName: "Strategy",
-      slug: "strategy",
-      articles: ["skill-LANDSCAPE", "skill-INSPIRATION-MAP", "skill-CATEGORY-ROUTING", "skill-MIGRATION-MAP"],
+      displayName: "Task Skills",
+      slug: "task-skills",
+      articles: [
+        "skill-adk-plan-brainstorm", "skill-adk-plan-research", "skill-adk-plan-spec",
+        "skill-adk-plan-design", "skill-adk-plan-roadmap",
+        "skill-adk-build-feature", "skill-adk-build-refactor", "skill-adk-build-migrate",
+        "skill-adk-build-test", "skill-adk-build-deps",
+        "skill-adk-review-pr", "skill-adk-review-local", "skill-adk-review-feedback", "skill-adk-review-handoff",
+        "skill-adk-docs-write", "skill-adk-docs-review",
+        "skill-adk-audit-repo", "skill-adk-audit-site",
+        "skill-adk-publish-commit", "skill-adk-publish-github", "skill-adk-publish-bitbucket",
+        "skill-adk-publish-confluence", "skill-adk-publish-gdrive",
+        "skill-adk-visualize-diagram", "skill-adk-visualize-chart",
+        "skill-adk-frontend-design", "skill-adk-frontend-feature", "skill-adk-frontend-react-csr",
+      ],
     },
   ],
 }

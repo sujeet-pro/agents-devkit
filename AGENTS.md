@@ -1,137 +1,111 @@
 # ADK Repository Guidance
 
-## Read First
-- `ai-guidelines/README.md`
-- `ai-guidelines/constitution.md`
-- `ai-guidelines/brainstorming-workflow.md`
-- `ai-guidelines/skill-architecture.md`
-- `ai-guidelines/update-scope-policy.md`
-- `ai-guidelines/sources/registry.json`
+Canonical entry point for any agent working **on** this repository (`agents-devkit` itself, not the ADK skills installed elsewhere). `CLAUDE.md` is a thin Claude-specific delta that points back here.
 
-## Repository Structure
+## What this repo is
 
-| Directory | Purpose | Naming |
+A toolkit you install via `npm` or `git clone` that lays down self-contained `adk-*` skills, runtime-specific custom subagents, hooks, and MCP server configs into:
+
+- Claude Code (CLI) and Claude Desktop
+- Codex CLI and Codex Desktop
+- Cursor (App + CLI)
+- Gemini CLI
+- Antigravity, Junie, and any generic harness that reads `.agents/skills/`
+
+The Node CLI under [cli/](cli/) is the only installer. It is fully idempotent — re-running converges every target to the current state.
+
+## Directory map
+
+| Path | Purpose | Notes |
 | --- | --- | --- |
-| `skills/adk-*` | Published installable skills | `adk-` prefix |
-| `agent-personas/adk-*` | Canonical reusable agent personas for parallel teams | `adk-` prefix |
-| `agents-claude/` | Claude-specific generated agent sources | Markdown |
-| `agents-cursor/` | Cursor-specific generated agent sources | Markdown |
-| `agents-codex/` | Codex-specific generated agent sources | TOML |
-| `hooks/settings.json` | Claude hook source | generated JSON |
-| `hooks/hooks-cursor/` | Cursor hook source | generated JSON |
-| `hooks/hooks-codex/` | Codex hook source | generated JSON |
-| `mcp-config/` | MCP server configurations | per-server JSON |
-| `workflows/` | Composable multi-skill pipelines | YAML files |
-| `ai-guidelines/` | Shared source of truth | canonical guidance |
-| `.claude/skills/prj-*` | Repo-only Claude maintenance skills | `prj-` prefix |
-| `.cursor/skills/prj-*` | Repo-only Cursor maintenance skills | `prj-` prefix |
-| `.agents/skills/prj-*` | Repo-only Codex/OpenCode maintenance skills | `prj-` prefix |
+| [skills/](skills/) | 37 public `adk-*` skills, each one self-contained | `SKILL.md` + flat `references/` |
+| [agents-claude/](agents-claude/) | Self-contained Claude custom subagents (Markdown + YAML) | One file per agent |
+| [agents-cursor/](agents-cursor/) | Self-contained Cursor custom subagents (Markdown + YAML) | One file per agent |
+| [agents-codex/](agents-codex/) | Self-contained Codex custom agents (TOML) | One file per agent |
+| [hooks/](hooks/) | Runtime-specific hook configs | `claude.json`, `cursor.json`, `codex.json` |
+| [mcp-config/servers/](mcp-config/servers/) | Per-server MCP configs with `${ENV_VAR}` placeholders | Merged into runtime mcp.json |
+| [global-prompts/](global-prompts/) | Always-on instructions injected into runtime memory files | Managed `<!-- adk:global-prompts:start/end -->` block |
+| [workflows/](workflows/) | Composable multi-skill YAML pipelines | Optional |
+| [cli/](cli/) | Node installer (`adk-install`) | Only install path |
+| [docs/](docs/), [gh-pages/](gh-pages/) | Pagesmith docs source + built site | `npm run docs:build` |
 
-## Intent to Skill Mapping
+There is no `ai-guidelines/`, no `agent-personas/`, no `prj-*` skill folder, no projection script, no Python anywhere. Each skill carries the persona / constitution / output-format text it needs, inline.
 
-| User Intent | Skill |
+## Self-containment rules
+
+- Every skill in `skills/<name>/` must work as-is when copied out of this repo. Nothing inside it may reference shared content elsewhere.
+- `references/` is flat. No subdirectories. No `_shared/`. Cross-skill references in `SKILL.md` are by name only — never relative file paths into another skill folder.
+- Every file in `agents-claude/`, `agents-cursor/`, `agents-codex/` is a complete, runnable agent definition for that runtime. The lists per provider may differ; one file per provider per agent. There is no shared persona source.
+- Every hook file under `hooks/` is the full config for its runtime.
+- Every MCP server config under `mcp-config/servers/<name>.json` is complete on its own.
+
+## Working artifacts (`.temp/`)
+
+All intermediate agent output goes under `.temp/`. Never write plans, drafts, reports, scratch markdown, or cloned reference material anywhere else.
+
+| Path | Purpose |
 | --- | --- |
-| Close ambiguity before planning or implementation | `adk-brainstorm` |
-| Plan a feature or task | `adk-plan` |
-| Research a technical question | `adk-research` |
-| Build, fix, or enhance code | `adk-build` |
-| Refactor code structure | `adk-refactor` |
-| Migrate frameworks or libraries | `adk-migrate` |
-| Review a pull request | `adk-review-pr` |
-| Review local changes | `adk-review-local-changes` |
-| Address review feedback | `adk-address-review-feedback` |
-| Review documentation | `adk-review-docs` |
-| Write documentation | `adk-write-docs` |
-| Write a spec | `adk-spec` |
-| Audit a repository | `adk-audit-repo` |
-| Audit a website | `adk-audit-site` |
-| Test and verify | `adk-test` |
-| Design UI/frontend | `adk-design` |
-| Create diagrams | `adk-diagram` |
-| Create charts | `adk-chart` |
-| Commit, PR, changelog | `adk-commit` |
-| GitHub operations | `adk-github` |
-| Bitbucket operations | `adk-bitbucket` |
-| Confluence publishing | `adk-confluence` |
-| Google Drive operations | `adk-google-drive` |
-| Session handoff | `adk-handoff` |
-| Dependency analysis | `adk-deps` |
-| Create a new skill | `adk-create-skill` |
+| `.temp/plans/<slug>.md` | Implementation and restructure plans |
+| `.temp/drafts/<slug>.md` | Prose drafts before promotion |
+| `.temp/reports/<slug>.md` | Review findings, audits, investigations |
+| `.temp/reference-repos/<owner>__<repo>/` | Cloned external repos |
+| `.temp/notes/<slug>.md` | Short-lived working notes |
 
-## Core Rules
-- Accuracy over speed
-- Plan before implementation
-- Validate every meaningful change
-- Keep output concise and bullet-first
-- Do not present inference as fact
-- Use the update-scope rules before bulk skill edits
+`.temp/` is gitignored. Promote content to a tracked path only when it is the deliverable.
 
-## Installation
-
-### Method 1: npx skills (skills only)
-```bash
-npx skills add sujeet-pro/agents-devkit --all
-```
-
-### Method 2: Clone + Symlink (full platform)
-```bash
-git clone https://github.com/sujeet-pro/agents-devkit.git ~/.agents-devkit
-cd ~/.agents-devkit
-./scripts/install.sh --agents claude,cursor,codex --global
-./scripts/install-mcp.sh --agent claude-code,cursor
-
-# Optional: enable the structured brainstorming MCP
-export BRAINSTORMING_MCP_ROOT="$HOME/path/to/mcp-brainstorming"
-./scripts/install-mcp.sh --agent claude-code,cursor --servers brainstorming
-```
-
-## Suggested User-Level Prompt
-
-Add a snippet like this to user-level `AGENTS.md` or `CLAUDE.md` when you want design-first behavior:
-
-```md
-When a task involves design, trade-offs, ambiguity, or meaningful risk, start with the ADK brainstorming workflow.
-
-1. Prefer the brainstorming MCP if available.
-2. If it is missing, warn once with install guidance and continue using the fallback workflow.
-3. Capture current state, target state, acceptable blast radius, desired confidence, and preferred artifact output.
-4. Research unknowns, present options, and ask follow-up questions until confidence is high enough for the task.
-5. Route into the right skill: brainstorm, spec, plan, write-docs, build, refactor, migrate, or design.
-```
-
-## Repo Maintenance Commands
+## Maintenance commands
 
 ```bash
-python3 ai-guidelines/scripts/refresh_adk_skills.py status
-python3 ai-guidelines/scripts/refresh_adk_skills.py scope --changed-path <path>
-python3 ai-guidelines/scripts/refresh_adk_skills.py copy-shared --dry-run
-python3 ai-guidelines/scripts/refresh_adk_skills.py copy-shared
-python3 scripts/generate_agent_projections.py --check
-python3 scripts/generate_hook_projections.py --check
-python3 scripts/generate-skills-manifest.py --check
-python3 tests/test_skills.py
-python3 tests/test_agents.py
-python3 tests/test_hooks.py
-npm run docs:build
-npx skills add . --list
-./scripts/sync-links.sh --dry-run
+npm run validate          # validates skills, agents, hooks (replaces old Python tests)
+npm run skills:manifest   # regenerate skills-manifest.json from skills/
+npm run setup             # interactive installer (alias: adk-install)
+npm run setup:dry         # preview, write nothing
+npm run docs:build        # build gh-pages/ from docs/
 ```
 
-## Provider-Specific Guidance
+## Settings
 
-| Provider | Entry Point | Skills Dir | Agents Dir |
+| Scope | Path | Format |
+| --- | --- | --- |
+| User | `~/.config/adk/settings.json5` | json5 (comments allowed) |
+| Project | `<project>/.adk/settings.json5` | json5; overrides user file field-by-field |
+
+Both files are managed by `adk-install`. The user file also stores `knownPackagePaths` so that re-runs from a different install location prune cleanly.
+
+## Skill catalog
+
+37 public skills: 1 top router (`adk`) + 8 category routers + 28 task skills. See [skills-manifest.json](skills-manifest.json) for the full list and `skills/<name>/SKILL.md` for each skill's contract.
+
+| Lifecycle stage | Category router | Task skills |
+| --- | --- | --- |
+| Plan, research, spec, design | `adk-plan` | `adk-plan-brainstorm`, `adk-plan-research`, `adk-plan-spec`, `adk-plan-design`, `adk-plan-roadmap` |
+| Implement code | `adk-build` | `adk-build-feature`, `adk-build-refactor`, `adk-build-migrate`, `adk-build-test`, `adk-build-deps` |
+| Review existing changes | `adk-review` | `adk-review-pr`, `adk-review-local`, `adk-review-feedback`, `adk-review-handoff` |
+| Author or check docs | `adk-docs` | `adk-docs-write`, `adk-docs-review` |
+| Audit a repo or site | `adk-audit` | `adk-audit-repo`, `adk-audit-site` |
+| Ship to a destination | `adk-publish` | `adk-publish-commit`, `adk-publish-github`, `adk-publish-bitbucket`, `adk-publish-confluence`, `adk-publish-gdrive` |
+| Make a picture | `adk-visualize` | `adk-visualize-diagram`, `adk-visualize-chart` |
+| Frontend / UI work | `adk-frontend` | `adk-frontend-design`, `adk-frontend-feature`, `adk-frontend-react-csr` |
+
+## Provider-specific notes
+
+| Provider | Entry point | Skills discovery | Custom agent format |
 | --- | --- | --- | --- |
-| Claude Code | `CLAUDE.md` | `.claude/skills/` | `.claude/agents/` |
-| Cursor | `AGENTS.md` | `.cursor/skills/` | `.cursor/agents/` |
-| Codex/OpenCode | `AGENTS.md` | `.agents/skills/` and `.codex/skills/` | `.codex/agents/` |
-| Gemini CLI | `GEMINI.md` | -- | -- |
-| Antigravity | `AGENTS.md` | `.antigravity/skills/` | -- |
-| Junie | `AGENTS.md` | `.junie/skills/` | -- |
+| Claude Code | `CLAUDE.md` | `.claude/skills/` | Markdown + YAML frontmatter, one file per agent |
+| Claude Desktop | `claude_desktop_config.json` | n/a | n/a (only MCP) |
+| Cursor (App + CLI) | `AGENTS.md` | `.cursor/skills/` | Markdown + Cursor-shaped frontmatter |
+| Codex CLI | `AGENTS.md` | `.codex/skills/`, `.agents/skills/` | TOML (one file per agent) |
+| Codex Desktop | `~/Library/Application Support/Codex/...` | n/a | n/a (only MCP) |
+| Gemini CLI | `GEMINI.md` | `.agents/skills/` | n/a |
+| Antigravity | `AGENTS.md` | `.antigravity/skills/` | n/a |
+| Junie | `AGENTS.md` | `.junie/skills/` | n/a |
 
-Notes:
-- `agent-personas/adk-*/AGENT.md` remains the canonical persona source.
-- Claude, Cursor, and Codex install sources live in `agents-claude/`, `agents-cursor/`, and `agents-codex/`.
-- Runtime-specific custom agent files are generated with `python3 scripts/generate_agent_projections.py`.
-- Runtime-specific hook files are generated with `python3 scripts/generate_hook_projections.py` into `hooks/`.
-- Claude, Cursor, and Codex each support custom agents, but their file formats and supported fields differ.
-- ADK no longer ships slash-command wrappers; skills are the only task invocation surface in this repo.
+## Core rules for editors of this repo
+
+- Accuracy over speed.
+- Plan before non-trivial change.
+- Write intermediate artifacts to `.temp/` only.
+- Validate every meaningful change with `npm run validate`.
+- Keep output concise and bullet-first.
+- Do not present inference as fact.
+- Do not reintroduce shared sources (`ai-guidelines/`, `agent-personas/`, `_shared/`). Each skill stands alone; each agent file stands alone.

@@ -1,5 +1,9 @@
-# Intermediary artifacts (plans, drafts, research notes)
+# Agent working artifacts (plans, drafts, reports, reference-repos)
+# Contract: see ai-guidelines/working-artifacts.md
 .temp/
+
+# Legacy temp path (kept ignored for safety; folder itself has been removed)
+temp/
 
 # Python bytecode
 __pycache__/

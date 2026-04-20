@@ -1,23 +1,69 @@
 {
   "name": "agents-devkit",
-  "private": true,
-  "version": "2.3.0",
-  "description": "Root package.json is for docs tooling only; the Claude plugin is not published to npm.",
+  "version": "3.0.0",
+  "description": "Agent Development Kit: 37 self-contained adk-* skills (each with its own flat references/), independent per-provider custom subagents (Claude / Cursor / Codex), per-runtime hooks, and MCP server configs. The Node CLI installs everything into Claude Code, Claude Desktop, Cursor, Codex CLI / Desktop, Gemini CLI, Antigravity, and Junie via a single .agents/skills hub.",
   "type": "module",
   "engines": {
-    "node": ">=24"
+    "node": ">=18"
   },
+  "bin": {
+    "adk-install": "cli/index.mjs",
+    "adk": "cli/index.mjs"
+  },
+  "files": [
+    "cli/",
+    "skills/",
+    "agents-claude/",
+    "agents-cursor/",
+    "agents-codex/",
+    "hooks/",
+    "mcp-config/",
+    "global-prompts/",
+    "workflows/",
+    "skills-manifest.json",
+    "REFERENCE.md",
+    "AGENTS.md",
+    "CLAUDE.md",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
+    "setup": "node cli/index.mjs",
+    "setup:dry": "node cli/index.mjs --dry-run",
+    "postinstall": "node cli/postinstall.mjs",
+    "validate": "node cli/lib/validate.mjs",
     "build": "npm run docs:build",
     "preview": "npm run docs:preview",
     "docs:dev": "pagesmith-docs dev",
     "docs:build": "pagesmith-docs build",
     "docs:preview": "pagesmith-docs preview",
-    "skills:manifest": "python3 scripts/generate-skills-manifest.py",
-    "skills:docs": "python3 scripts/sync-skill-docs.py",
-    "skills:refresh": "python3 ai-guidelines/scripts/refresh_adk_skills.py status"
+    "skills:manifest": "node cli/lib/manifest.mjs"
+  },
+  "dependencies": {
+    "@clack/prompts": "^0.7.0",
+    "json5": "^2.2.3"
   },
   "devDependencies": {
     "@pagesmith/docs": "^0.9.4"
-  }
+  },
+  "keywords": [
+    "agents",
+    "skills",
+    "claude",
+    "cursor",
+    "codex",
+    "ai",
+    "mcp",
+    "developer-tools",
+    "cli"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sujeet-pro/agents-devkit.git"
+  },
+  "homepage": "https://github.com/sujeet-pro/agents-devkit#readme",
+  "bugs": {
+    "url": "https://github.com/sujeet-pro/agents-devkit/issues"
+  },
+  "license": "MIT"
 }

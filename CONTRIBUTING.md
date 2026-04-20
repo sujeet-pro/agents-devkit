@@ -17,9 +17,10 @@ npm run docs:build
 - `agents-claude/*.md`: Claude installable agent sources
 - `agents-cursor/*.md`: Cursor installable agent sources
 - `agents-codex/*.toml`: Codex installable agent sources
-- `hooks/settings.json`, `hooks/hooks-cursor/hooks.json`, `hooks/hooks-codex/hooks.json`: runtime-specific hook sources
+- `hooks/claude.json`, `hooks/cursor.json`, `hooks/codex.json`: runtime-specific hook sources (flat layout)
 - `ai-guidelines/`: source-of-truth philosophy, research protocol, personas, update policy, and provenance
-- `.claude/skills/prj-*`, `.cursor/skills/prj-*`, `.agents/skills/prj-*`: repo-only maintenance skills
+- `.agents/skills/prj-*`: **canonical** contributor maintenance skills
+- `.claude/skills/prj-`*, `.cursor/skills/prj-`*: relative symlinks to the canonical `.agents/skills/prj-*` sources (managed by `scripts/sync-links.sh`)
 - `.codex/`: compatibility-only shim
 
 ## Public Skill Rules
@@ -31,13 +32,14 @@ npm run docs:build
 - copy shared guidance into `references/_shared/` instead of relying on separately installed helper skills
 - keep task-specific workflow and persona guidance in the skill's own local files
 
-## Project Skill Rules
+## Contributor Skill Rules
 
-- project maintenance skills live in `.claude/skills/prj-*`, `.cursor/skills/prj-*`, and `.agents/skills/prj-*`
-- project maintenance skill names must start with `prj-`
-- mark repo-only skills with `metadata.internal: true`
-- project maintenance skills may point directly to `ai-guidelines/`
-- do not expose repo-only maintenance skills as part of the default public catalog
+- edit contributor skills at their canonical path: `.agents/skills/prj-*/SKILL.md`
+- `.claude/skills/prj-*` and `.cursor/skills/prj-*` are relative symlinks; do not edit the mirrors
+- contributor skill names must start with `prj-` and frontmatter must declare `metadata.internal: true`
+- contributor skills may point directly to `ai-guidelines/` files
+- do not expose contributor skills as part of the default public catalog
+- run `./scripts/sync-links.sh` after adding or removing a contributor skill to refresh the Claude and Cursor mirrors
 
 ## Shared Guidance Workflow
 
@@ -50,11 +52,13 @@ npm run docs:build
 
 ## Adding a Public Skill
 
-1. Start from `templates/skill/SKILL-TEMPLATE.md`.
-2. Create `skills/adk-<name>/`.
-3. Add `SKILL.md`, `references/workflow.md`, `references/persona.md`, and `scripts/preflight.py`.
+Use the contributor skill `prj-create-skill` (lives at `.agents/skills/prj-create-skill/`):
+
+1. Run `python3 .agents/skills/prj-create-skill/scripts/scaffold.py <name>`.
+2. The scaffold seeds `skills/adk-<name>/` from `.agents/skills/prj-create-skill/references/template/`.
+3. Author `SKILL.md`, `references/workflow.md`, `references/persona.md`, and `scripts/preflight.py`.
 4. Keep the skill self-contained.
-5. Run the shared-copy refresh.
+5. Run `python3 ai-guidelines/scripts/refresh_adk_skills.py copy-shared`.
 6. Run `python3 scripts/generate-skills-manifest.py`.
 7. Run `python3 tests/test_skills.py`.
 8. Run `npm run docs:build`.
@@ -63,6 +67,7 @@ npm run docs:build
 ## Adding or Updating Shared Guidance
 
 Update these first when relevant:
+
 - `ai-guidelines/constitution.md`
 - `ai-guidelines/skill-architecture.md`
 - `ai-guidelines/research-protocol.md`
@@ -103,3 +108,4 @@ python3 tests/test_hooks.py
 npm run docs:build
 npx skills add . --list
 ```
+
