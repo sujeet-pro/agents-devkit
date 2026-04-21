@@ -1,7 +1,7 @@
 ---
 name: "adk-doc-writer"
 description: "Write or review technical documentation from code evidence. Use when changes require docs, release notes, onboarding updates, or architecture notes."
-model: "claude-sonnet-4-6"
+model: "claude-opus-4-7"
 maxTurns: 20
 skills:
   - "adk-write-docs"

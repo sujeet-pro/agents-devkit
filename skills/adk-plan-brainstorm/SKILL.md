@@ -124,6 +124,42 @@ If a `brainstorming` MCP server is configured, prefer it as the session store - 
 | "Should we use TanStack Router or React Router?" | currentState = today's router setup; targetState = chosen router with rationale; options A/B; route to `adk-plan-design` if architectural impact is high, else `adk-plan-roadmap`. |
 | "Refactor the auth module" | Real question is *what* about auth. Capture pain points, target invariants, blast radius; surface 2-3 refactor scopes; route to `adk-build-refactor`. |
 
+## Clarifying questions (default-ask)
+
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/clarifying-questions.md`) and reports the choices.
+
+1. **What is the current state today, with one piece of evidence?** — _How to pick:_ Cite a file path, URL, command output, or screenshot. Without evidence the brainstorm is speculative.
+2. **What change tolerance is acceptable: surgical, bounded, or transformative?** — _How to pick:_ Surgical = touch only what must change; reversible in <1h. Bounded = touch one subsystem; reversible in <1d. Transformative = touch many subsystems; reversibility hard. Pick the smallest that still meets the goal.
+3. **What confidence threshold do you want before locking the direction (80/90/95)?** — _How to pick:_ Production-safe surgical = 95. Standard feature/refactor = 90. Exploratory or personal = 85.
+4. **What artifact should this brainstorm produce: none, proposal, PRD, RFC, HLD, LLD, TDD, or plan?** — _How to pick:_ None = continue inside the calling skill. Proposal/RFC/HLD/LLD/TDD = adk-docs-write. PRD = adk-plan-spec. Plan = adk-plan-roadmap.
+
+**Default report:** Recommended direction + 2-3 option blocks (Pros/Cons/BlastRadius/Reversibility), confidence status, recommended next skill.
+
+**Detailed report (on request or `--verbose`):** Add: full currentState/targetState narratives, list of unknowns each option resolves, decision matrix scoring options against constraints, dropped options with reason.
+
+**Artifact:** `brainstorm-summary` — Markdown report. Sections: Direction, Current State, Target State, Options (A/B/C with the standard option block), Confidence, Open Questions, Recommended Route.
+
+**Artifact path:** .temp/plans/brainstorm-<slug>.md (also keep raw notes in .temp/notes/brainstorm-<slug>-notes.md)
+
+## Clarifying questions (default-ask)
+
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/clarifying-questions.md`) and reports the choices.
+
+1. **What is the current state today, with one piece of evidence?** — _How to pick:_ Cite a file path, URL, command output, or screenshot. Without evidence the brainstorm is speculative.
+2. **What change tolerance is acceptable: surgical, bounded, or transformative?** — _How to pick:_ Surgical = touch only what must change; reversible in <1h. Bounded = touch one subsystem; reversible in <1d. Transformative = touch many subsystems; reversibility hard. Pick the smallest that still meets the goal.
+3. **What confidence threshold do you want before locking the direction (80/90/95)?** — _How to pick:_ Production-safe surgical = 95. Standard feature/refactor = 90. Exploratory or personal = 85.
+4. **What artifact should this brainstorm produce: none, proposal, PRD, RFC, HLD, LLD, TDD, or plan?** — _How to pick:_ None = continue inside the calling skill. Proposal/RFC/HLD/LLD/TDD = adk-docs-write. PRD = adk-plan-spec. Plan = adk-plan-roadmap.
+
+## Default vs detailed output
+
+**Default report:** Recommended direction + 2-3 option blocks (Pros/Cons/BlastRadius/Reversibility), confidence status, recommended next skill.
+
+**Detailed report (on request or `--verbose`):** Add: full currentState/targetState narratives, list of unknowns each option resolves, decision matrix scoring options against constraints, dropped options with reason.
+
+**Artifact:** `brainstorm-summary` — Markdown report. Sections: Direction, Current State, Target State, Options (A/B/C with the standard option block), Confidence, Open Questions, Recommended Route.
+
+**Artifact path:** .temp/plans/brainstorm-<slug>.md (also keep raw notes in .temp/notes/brainstorm-<slug>-notes.md)
+
 <!-- adk:references:start -->
 
 ## References shipped with this skill
@@ -133,13 +169,16 @@ These files live in `references/` next to this `SKILL.md`. Read them when the sk
 | File | Purpose |
 | --- | --- |
 | `references/anti-patterns.md` | Things to avoid when running this skill. |
+| `references/artifact-format.md` | The deliverable's format and where it lives (.temp/ contract). |
 | `references/brainstorming-workflow.md` | Required inputs, confidence defaults, iteration loop, artifact routing. |
+| `references/clarifying-questions.md` | The default-ask questions for this skill, with how-to-pick rubrics. |
 | `references/constitution.md` | Non-negotiable rules and working/communication discipline. |
 | `references/examples.md` | Example trigger phrases, invocation, and report shape. |
+| `references/interaction-contract.md` | Default-ask, explained-options, --auto contract every skill must follow. |
 | `references/mcp-fallback.md` | Preferred MCP server and the manual fallback when it is missing. |
-| `references/output-format.md` | Verbosity modes, result shape, severity labels. |
+| `references/output-format.md` | Default vs detailed report shapes; severity labels; verbosity rules. |
 | `references/persona.md` | The agent persona that drives this skill. |
-| `references/research-protocol.md` | Default research order and evidence buckets. |
-| `references/working-artifacts.md` | The .temp/ rule for intermediate artifacts. |
+| `references/research-protocol.md` | Source ordering, stop conditions, evidence buckets, citation discipline. |
+| `references/working-artifacts.md` | Legacy: superseded by artifact-format.md; kept for back-compat. |
 
 <!-- adk:references:end -->

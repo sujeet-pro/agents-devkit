@@ -1,7 +1,7 @@
 ---
 name: "adk-test-engineer"
 description: "Run tests, add focused coverage, and report fresh pass or fail evidence. Use proactively after code changes or before marking work complete."
-model: "claude-sonnet-4-6"
+model: "claude-opus-4-7"
 maxTurns: 25
 skills:
   - "adk-test"

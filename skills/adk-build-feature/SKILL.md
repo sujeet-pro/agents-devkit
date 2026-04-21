@@ -139,6 +139,40 @@ adk-build-feature "Users report 500s on /api/health" --mode debug
 adk-build-feature "Confirm the pagination fix works" --mode verify --scope src/api/pagination.ts
 ```
 
+## Clarifying questions (default-ask)
+
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/clarifying-questions.md`) and reports the choices.
+
+1. **Is this an implement, debug, or verify task?** — _How to pick:_ Implement = building from spec/roadmap. Debug = a failure exists and we need root cause + fix. Verify = no code change, prove a prior change is correct.
+2. **What is the validation target (tests to pass, behavior to demonstrate, metric to hit)?** — _How to pick:_ Pick the smallest signal that proves correctness. Prefer existing tests > new test > manual repro.
+3. **Can the work be split into thin vertical slices, or must it land atomically?** — _How to pick:_ Split unless the change is trivially atomic (one function, one config). Slicing reduces blast radius and gives faster validation.
+
+**Default report:** Result + changed-files table (path + one-line diff summary) + validation evidence + remaining risk.
+
+**Detailed report (on request or `--verbose`):** Add: per-slice plan with validation each slice, hypothesis log if debug mode, ruled-out approaches with reason.
+
+**Artifact:** `code-change-set` — Diff (committed or staged) + test output + lint output + type-check output. Plan/notes mirrored in .temp/.
+
+**Artifact path:** .temp/plans/feature-<slug>.md (plan), .temp/notes/feature-<slug>-debug.md (hypothesis log if debug). Code lands in the repo proper, validated commit-by-commit.
+
+## Clarifying questions (default-ask)
+
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/clarifying-questions.md`) and reports the choices.
+
+1. **Is this an implement, debug, or verify task?** — _How to pick:_ Implement = building from spec/roadmap. Debug = a failure exists and we need root cause + fix. Verify = no code change, prove a prior change is correct.
+2. **What is the validation target (tests to pass, behavior to demonstrate, metric to hit)?** — _How to pick:_ Pick the smallest signal that proves correctness. Prefer existing tests > new test > manual repro.
+3. **Can the work be split into thin vertical slices, or must it land atomically?** — _How to pick:_ Split unless the change is trivially atomic (one function, one config). Slicing reduces blast radius and gives faster validation.
+
+## Default vs detailed output
+
+**Default report:** Result + changed-files table (path + one-line diff summary) + validation evidence + remaining risk.
+
+**Detailed report (on request or `--verbose`):** Add: per-slice plan with validation each slice, hypothesis log if debug mode, ruled-out approaches with reason.
+
+**Artifact:** `code-change-set` — Diff (committed or staged) + test output + lint output + type-check output. Plan/notes mirrored in .temp/.
+
+**Artifact path:** .temp/plans/feature-<slug>.md (plan), .temp/notes/feature-<slug>-debug.md (hypothesis log if debug). Code lands in the repo proper, validated commit-by-commit.
+
 <!-- adk:references:start -->
 
 ## References shipped with this skill
@@ -148,10 +182,14 @@ These files live in `references/` next to this `SKILL.md`. Read them when the sk
 | File | Purpose |
 | --- | --- |
 | `references/anti-patterns.md` | Things to avoid when running this skill. |
+| `references/artifact-format.md` | The deliverable's format and where it lives (.temp/ contract). |
+| `references/clarifying-questions.md` | The default-ask questions for this skill, with how-to-pick rubrics. |
 | `references/constitution.md` | Non-negotiable rules and working/communication discipline. |
 | `references/examples.md` | Example trigger phrases, invocation, and report shape. |
-| `references/output-format.md` | Verbosity modes, result shape, severity labels. |
+| `references/interaction-contract.md` | Default-ask, explained-options, --auto contract every skill must follow. |
+| `references/output-format.md` | Default vs detailed report shapes; severity labels; verbosity rules. |
 | `references/persona.md` | The agent persona that drives this skill. |
-| `references/working-artifacts.md` | The .temp/ rule for intermediate artifacts. |
+| `references/research-protocol.md` | Source ordering, stop conditions, evidence buckets, citation discipline. |
+| `references/working-artifacts.md` | Legacy: superseded by artifact-format.md; kept for back-compat. |
 
 <!-- adk:references:end -->

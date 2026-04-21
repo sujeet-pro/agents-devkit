@@ -123,6 +123,46 @@ Need more detail on any finding?
 - Findings without doc location anchors.
 - Verdict of "looks good" with zero validation runs against the source.
 
+## Clarifying questions (default-ask)
+
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/clarifying-questions.md`) and reports the choices.
+
+1. **Where is the doc (path or URL)?** — _How to pick:_ Required. URLs are fetched if reachable.
+2. **Where is the source-of-truth (path, URL, or 'inferred from doc')?** — _How to pick:_ Explicit > inferred. State the file/dir that the doc claims to describe.
+3. **Focus: accuracy / freshness / structure / readability / all?** — _How to pick:_ All for first review. Narrow when iterating after a fix pass.
+
+**Default report:** Severity-grouped findings + verification block (what was inspected) + recommended next skill (usually adk-docs-write to fix).
+
+**Detailed report (on request or `--verbose`):** Add: drift map (doc claim → actual code state), readability metrics (Flesch, sentence length), missing sections by doc-type template.
+
+**Artifact:** `doc-review-report` — Markdown report. The doc itself is unchanged.
+
+**Artifact path:** .temp/reports/doc-review-<slug>.md
+
+Pass extra repos via `--repo <url-or-path>` (repeatable). URLs are cloned into `.temp/reference-repos/<owner>__<repo>/`; paths are read in place. Each repo is processed independently and findings/citations are tagged with the repo of origin. See `references/multi-repo.md` for full handling.
+
+## Clarifying questions (default-ask)
+
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/clarifying-questions.md`) and reports the choices.
+
+1. **Where is the doc (path or URL)?** — _How to pick:_ Required. URLs are fetched if reachable.
+2. **Where is the source-of-truth (path, URL, or 'inferred from doc')?** — _How to pick:_ Explicit > inferred. State the file/dir that the doc claims to describe.
+3. **Focus: accuracy / freshness / structure / readability / all?** — _How to pick:_ All for first review. Narrow when iterating after a fix pass.
+
+## Default vs detailed output
+
+**Default report:** Severity-grouped findings + verification block (what was inspected) + recommended next skill (usually adk-docs-write to fix).
+
+**Detailed report (on request or `--verbose`):** Add: drift map (doc claim → actual code state), readability metrics (Flesch, sentence length), missing sections by doc-type template.
+
+**Artifact:** `doc-review-report` — Markdown report. The doc itself is unchanged.
+
+**Artifact path:** .temp/reports/doc-review-<slug>.md
+
+## Multi-repo context
+
+Pass extra repos via `--repo <url-or-path>` (repeatable). URLs are cloned into `.temp/reference-repos/<owner>__<repo>/`; paths are read in place. Each repo is processed independently and findings/citations are tagged with the repo of origin. See `references/multi-repo.md` for full handling.
+
 <!-- adk:references:start -->
 
 ## References shipped with this skill
@@ -132,10 +172,15 @@ These files live in `references/` next to this `SKILL.md`. Read them when the sk
 | File | Purpose |
 | --- | --- |
 | `references/anti-patterns.md` | Things to avoid when running this skill. |
+| `references/artifact-format.md` | The deliverable's format and where it lives (.temp/ contract). |
+| `references/clarifying-questions.md` | The default-ask questions for this skill, with how-to-pick rubrics. |
 | `references/constitution.md` | Non-negotiable rules and working/communication discipline. |
 | `references/examples.md` | Example trigger phrases, invocation, and report shape. |
-| `references/output-format.md` | Verbosity modes, result shape, severity labels. |
+| `references/interaction-contract.md` | Default-ask, explained-options, --auto contract every skill must follow. |
+| `references/multi-repo.md` | How to consume context from extra cloned or local-path repos. |
+| `references/output-format.md` | Default vs detailed report shapes; severity labels; verbosity rules. |
 | `references/persona.md` | The agent persona that drives this skill. |
+| `references/research-protocol.md` | Source ordering, stop conditions, evidence buckets, citation discipline. |
 | `references/review-comment-format.md` | Standard finding format with stable IDs and severities. |
 
 <!-- adk:references:end -->

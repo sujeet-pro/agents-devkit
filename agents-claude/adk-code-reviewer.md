@@ -1,7 +1,7 @@
 ---
 name: "adk-code-reviewer"
 description: "Review code for correctness, regressions, and missing validation. Use proactively after implementation, before commit, and before merge."
-model: "claude-sonnet-4-6"
+model: "claude-opus-4-7"
 disallowedTools:
   - "Write"
   - "Edit"

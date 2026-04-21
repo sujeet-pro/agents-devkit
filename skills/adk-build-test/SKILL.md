@@ -107,6 +107,40 @@ adk-build-test "Cover the rate limiter edge cases" --target src/middleware/rate-
 adk-build-test "Lock in fix for issue #842 (auth header dropped on retry)" --level integration
 ```
 
+## Clarifying questions (default-ask)
+
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/clarifying-questions.md`) and reports the choices.
+
+1. **What test type: unit, integration, end-to-end, contract, regression?** — _How to pick:_ Unit = pure functions / isolated modules. Integration = collaborating modules + real adapters. E2E = full user flow through deployed surface. Contract = API consumer/provider agreement. Regression = locks down a fixed bug.
+2. **Is the work test-only, or are tests part of a larger feature/fix?** — _How to pick:_ Test-only → this skill. Tests-with-feature → adk-build-feature, with tests written in the same change.
+3. **What coverage target — by line, by branch, by behavior?** — _How to pick:_ Behavior > branch > line. State the behaviors that must be covered, not a percent.
+
+**Default report:** Scenario table (TC<n>: name / type / status / evidence) + coverage delta + blocked items.
+
+**Detailed report (on request or `--verbose`):** Add: per-scenario setup/action/expected/actual, mock topology, fixture data sources, flake history if known.
+
+**Artifact:** `test-suite` — Test files committed to the repo (matching project conventions) + scenario log in .temp/notes/.
+
+**Artifact path:** .temp/notes/tests-<slug>-scenarios.md (scenario plan + evidence). Tests themselves land in tests/, src/__tests__/, etc., as repo conventions dictate.
+
+## Clarifying questions (default-ask)
+
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/clarifying-questions.md`) and reports the choices.
+
+1. **What test type: unit, integration, end-to-end, contract, regression?** — _How to pick:_ Unit = pure functions / isolated modules. Integration = collaborating modules + real adapters. E2E = full user flow through deployed surface. Contract = API consumer/provider agreement. Regression = locks down a fixed bug.
+2. **Is the work test-only, or are tests part of a larger feature/fix?** — _How to pick:_ Test-only → this skill. Tests-with-feature → adk-build-feature, with tests written in the same change.
+3. **What coverage target — by line, by branch, by behavior?** — _How to pick:_ Behavior > branch > line. State the behaviors that must be covered, not a percent.
+
+## Default vs detailed output
+
+**Default report:** Scenario table (TC<n>: name / type / status / evidence) + coverage delta + blocked items.
+
+**Detailed report (on request or `--verbose`):** Add: per-scenario setup/action/expected/actual, mock topology, fixture data sources, flake history if known.
+
+**Artifact:** `test-suite` — Test files committed to the repo (matching project conventions) + scenario log in .temp/notes/.
+
+**Artifact path:** .temp/notes/tests-<slug>-scenarios.md (scenario plan + evidence). Tests themselves land in tests/, src/__tests__/, etc., as repo conventions dictate.
+
 <!-- adk:references:start -->
 
 ## References shipped with this skill
@@ -116,10 +150,14 @@ These files live in `references/` next to this `SKILL.md`. Read them when the sk
 | File | Purpose |
 | --- | --- |
 | `references/anti-patterns.md` | Things to avoid when running this skill. |
+| `references/artifact-format.md` | The deliverable's format and where it lives (.temp/ contract). |
+| `references/clarifying-questions.md` | The default-ask questions for this skill, with how-to-pick rubrics. |
 | `references/constitution.md` | Non-negotiable rules and working/communication discipline. |
 | `references/examples.md` | Example trigger phrases, invocation, and report shape. |
-| `references/output-format.md` | Verbosity modes, result shape, severity labels. |
+| `references/interaction-contract.md` | Default-ask, explained-options, --auto contract every skill must follow. |
+| `references/output-format.md` | Default vs detailed report shapes; severity labels; verbosity rules. |
 | `references/persona.md` | The agent persona that drives this skill. |
-| `references/working-artifacts.md` | The .temp/ rule for intermediate artifacts. |
+| `references/research-protocol.md` | Source ordering, stop conditions, evidence buckets, citation discipline. |
+| `references/working-artifacts.md` | Legacy: superseded by artifact-format.md; kept for back-compat. |
 
 <!-- adk:references:end -->

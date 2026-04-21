@@ -128,6 +128,40 @@ adk-frontend-feature "Add the Settings page from .temp/drafts/design-settings.md
 adk-frontend-feature "Fix mobile dropdown trapping focus after Esc" --scope src/components/Dropdown/
 ```
 
+## Clarifying questions (default-ask)
+
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/clarifying-questions.md`) and reports the choices.
+
+1. **What framework and meta-framework (React/Next, Vue/Nuxt, Svelte/SvelteKit, Astro, Solid, Angular, ...)?** — _How to pick:_ Detect from package.json. State explicitly so the agent uses the right idioms.
+2. **Is this a new component, a feature on an existing component, or a screen/route?** — _How to pick:_ New component → in components/ with story + test. Feature on existing → minimal diff, preserve API. Screen/route → in routes/ + data hooks.
+3. **Design source-of-truth (Figma, design spec, sibling component)?** — _How to pick:_ Figma → reference frame URL. Spec → adk-frontend-design output path. Sibling → call out the pattern being matched.
+
+**Default report:** Result + changed-files + tests added + a11y notes + bundle delta.
+
+**Detailed report (on request or `--verbose`):** Add: per-component prop table, story coverage, e2e test plan, design-spec deviations with reason.
+
+**Artifact:** `frontend-code-change` — Code committed to the repo + tests + (optional) story files. Working notes in .temp/.
+
+**Artifact path:** .temp/plans/fe-feature-<slug>.md (plan). Code lands in src/ matching repo conventions.
+
+## Clarifying questions (default-ask)
+
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/clarifying-questions.md`) and reports the choices.
+
+1. **What framework and meta-framework (React/Next, Vue/Nuxt, Svelte/SvelteKit, Astro, Solid, Angular, ...)?** — _How to pick:_ Detect from package.json. State explicitly so the agent uses the right idioms.
+2. **Is this a new component, a feature on an existing component, or a screen/route?** — _How to pick:_ New component → in components/ with story + test. Feature on existing → minimal diff, preserve API. Screen/route → in routes/ + data hooks.
+3. **Design source-of-truth (Figma, design spec, sibling component)?** — _How to pick:_ Figma → reference frame URL. Spec → adk-frontend-design output path. Sibling → call out the pattern being matched.
+
+## Default vs detailed output
+
+**Default report:** Result + changed-files + tests added + a11y notes + bundle delta.
+
+**Detailed report (on request or `--verbose`):** Add: per-component prop table, story coverage, e2e test plan, design-spec deviations with reason.
+
+**Artifact:** `frontend-code-change` — Code committed to the repo + tests + (optional) story files. Working notes in .temp/.
+
+**Artifact path:** .temp/plans/fe-feature-<slug>.md (plan). Code lands in src/ matching repo conventions.
+
 <!-- adk:references:start -->
 
 ## References shipped with this skill
@@ -137,10 +171,14 @@ These files live in `references/` next to this `SKILL.md`. Read them when the sk
 | File | Purpose |
 | --- | --- |
 | `references/anti-patterns.md` | Things to avoid when running this skill. |
+| `references/artifact-format.md` | The deliverable's format and where it lives (.temp/ contract). |
+| `references/clarifying-questions.md` | The default-ask questions for this skill, with how-to-pick rubrics. |
 | `references/constitution.md` | Non-negotiable rules and working/communication discipline. |
 | `references/examples.md` | Example trigger phrases, invocation, and report shape. |
-| `references/output-format.md` | Verbosity modes, result shape, severity labels. |
+| `references/interaction-contract.md` | Default-ask, explained-options, --auto contract every skill must follow. |
+| `references/output-format.md` | Default vs detailed report shapes; severity labels; verbosity rules. |
 | `references/persona.md` | The agent persona that drives this skill. |
-| `references/working-artifacts.md` | The .temp/ rule for intermediate artifacts. |
+| `references/research-protocol.md` | Source ordering, stop conditions, evidence buckets, citation discipline. |
+| `references/working-artifacts.md` | Legacy: superseded by artifact-format.md; kept for back-compat. |
 
 <!-- adk:references:end -->

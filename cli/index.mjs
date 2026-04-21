@@ -74,6 +74,7 @@ import {
   userSettingsPath,
 } from "./lib/settings.mjs";
 import { describeInstall, detectInstall, resolveRoot } from "./lib/install-mode.mjs";
+import { touchFile, writeInstallManifest } from "./lib/install-manifest.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const PACKAGE_DIR = resolve(dirname(__filename), "..");
@@ -81,13 +82,43 @@ const PACKAGE_DIR = resolve(dirname(__filename), "..");
 const args = parseArgs(process.argv.slice(2));
 
 function parseArgs(argv) {
-  const out = { dryRun: false, mode: null, root: null, yes: false };
+  const out = {
+    command: "install",
+    dryRun: false,
+    mode: null,
+    root: null,
+    yes: false,
+    nonInteractive: false,
+    force: false,
+    noHooks: false,
+    noMcp: false,
+  };
+  // Optional subcommand as the first positional arg. We keep `install` as the
+  // implicit default so `adk-install`, `adk` (no args), and `npm run setup`
+  // continue to launch the interactive installer like before.
+  if (argv[0] && !argv[0].startsWith("-")) {
+    const sub = argv.shift();
+    if (sub === "doctor" || sub === "validate-install") out.command = "doctor";
+    else if (sub === "install" || sub === "setup") out.command = "install";
+    else {
+      console.error(`Unknown subcommand: ${sub}`);
+      printHelp();
+      process.exit(1);
+    }
+  }
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === "--dry-run") out.dryRun = true;
     else if (a === "--mode") out.mode = argv[++i];
     else if (a === "--root") out.root = argv[++i];
-    else if (a === "--yes" || a === "-y") out.yes = true;
+    else if (a === "--yes" || a === "-y") {
+      // -y now implies non-interactive: pick all defaults, no prompts.
+      out.yes = true;
+      out.nonInteractive = true;
+    } else if (a === "--non-interactive") out.nonInteractive = true;
+    else if (a === "--force" || a === "--refresh") out.force = true;
+    else if (a === "--no-hooks") out.noHooks = true;
+    else if (a === "--no-mcp") out.noMcp = true;
     else if (a === "--help" || a === "-h") {
       printHelp();
       process.exit(0);
@@ -109,16 +140,34 @@ function printHelp() {
 
 Usage:
   adk-install [flags]              once installed (npm i -g agents-devkit)
+  adk [subcommand] [flags]         alias of adk-install with subcommands
   npx adk-install [flags]          one-shot, from a clone or after install
   npm run setup -- [flags]         from a clone of the repo
 
+Subcommands:
+  install (default)                Run the (interactive or non-interactive) installer.
+  doctor                           Check that the install on disk is consistent with this
+                                   package: hub symlinks resolve, runtime mirrors are in
+                                   sync with the hub, memory files contain the managed
+                                   prompt block, and MANIFEST.json is current.
+
 Flags:
-  --dry-run        Preview the plan; write nothing.
-  --mode <m>       Force install scope: 'global' ($HOME) or 'project' (cwd / detected project root).
-                   Default: auto-detected from how the CLI was launched.
-  --root <path>    Override the install root path. Rarely needed.
-  -y, --yes        Skip the final confirmation prompt.
-  -h, --help       Show this help.
+  --dry-run            Preview the plan; write nothing.
+  --mode <m>           Force install scope: 'global' ($HOME) or 'project' (cwd / detected project root).
+                       Default: auto-detected from how the CLI was launched.
+  --root <path>        Override the install root path. Rarely needed.
+  -y, --yes            Non-interactive: skip every prompt, accept all defaults
+                       (all detected runtimes, all package skills, all global
+                       prompts; hooks/MCP only when explicitly enabled below).
+  --non-interactive    Same as -y but does not change the hooks/MCP defaults.
+  --force, --refresh   Re-create symlinks even when they already point at the
+                       correct target. Bumps each link's ctime/mtime to bust
+                       caches in agent runtimes that index skills once per
+                       session (e.g. Claude Code, Cursor). Always safe to use.
+  --no-hooks           Skip installing runtime hook configs.
+  --no-mcp             Skip configuring MCP servers (useful for non-interactive
+                       runs that should never prompt for env vars).
+  -h, --help           Show this help.
 
 What it does:
   1. Syncs <root>/.agents/skills/adk-* against this package's skills/
@@ -152,6 +201,12 @@ async function main() {
   if (args.dryRun) {
     note("Running in --dry-run mode. Nothing will be written.", "Heads up");
   }
+  if (args.nonInteractive) {
+    note(
+      `Running in --non-interactive mode. All prompts will be answered with sensible defaults.${args.force ? " (--force: links will be re-created to bust caches)" : ""}`,
+      "Heads up",
+    );
+  }
 
   let settings = loadUserSettings();
   settings = rememberPackagePath(settings, PACKAGE_DIR);
@@ -162,7 +217,7 @@ async function main() {
   }
 
   // ---- Mode + root ----
-  const mode = args.mode ?? (await pickMode(install));
+  const mode = args.mode ?? (args.nonInteractive ? install.defaultMode : await pickMode(install));
   if (mode !== "global" && mode !== "project") bail(`invalid mode: ${mode}`);
   const root = args.root ? resolve(args.root) : resolveRoot({ mode, install, cwd: process.cwd() });
   note(`Install root: ${root}`, "Scope");
@@ -175,7 +230,13 @@ async function main() {
   });
 
   // ---- Runtimes ----
-  const selectedRuntimes = await pickRuntimes(detected, defaults.runtimes);
+  const selectedRuntimes = args.nonInteractive
+    ? (defaults.runtimes && defaults.runtimes.length > 0
+        ? defaults.runtimes
+            .map((id) => RUNTIMES.find((rt) => rt.id === id))
+            .filter(Boolean)
+        : detected)
+    : await pickRuntimes(detected, defaults.runtimes);
   if (selectedRuntimes.length === 0) {
     note("No runtime mirrors selected. The .agents/skills hub will still be synced.", "Heads up");
   }
@@ -195,12 +256,33 @@ async function main() {
     "Inventory",
   );
 
-  const surfaces = await pickSurfaces(defaults.surfaces);
+  // Surface defaults in non-interactive mode: skills+agents+global-prompts
+  // always; hooks/mcp opt-in via flags (or by being in defaults).
+  let surfaceDefault = defaults.surfaces ?? ["skills", "agents", "hooks", "mcp", "global-prompts"];
+  if (args.nonInteractive) {
+    surfaceDefault = surfaceDefault.filter((s) => {
+      if (s === "hooks" && args.noHooks) return false;
+      if (s === "mcp" && args.noMcp) return false;
+      return true;
+    });
+    // For a brand-new run with no persisted settings, default surfaces to a
+    // safe set: skills + agents + global-prompts. Hooks need careful review
+    // (they may clobber a dot-files-managed settings.json) and MCP requires
+    // env-var input we can't collect non-interactively.
+    if (!defaults.surfaces || defaults.surfaces.length === 0) {
+      surfaceDefault = ["skills", "agents", "global-prompts"];
+    }
+  }
+  const surfaces = args.nonInteractive ? surfaceDefault : await pickSurfaces(defaults.surfaces);
 
   // ---- Skills ----
   let selectedSkills = [];
   if (surfaces.includes("skills") && packageSkills.length > 0) {
-    selectedSkills = await pickSkills(packageSkills, defaults.skills);
+    selectedSkills = args.nonInteractive
+      ? (defaults.skills === "all" || !defaults.skills
+          ? packageSkills
+          : packageSkills.filter((s) => defaults.skills.includes(s.name)))
+      : await pickSkills(packageSkills, defaults.skills);
   }
 
   // ---- Custom agents (per runtime that supports them) ----
@@ -211,7 +293,7 @@ async function main() {
       if (!rt.agentSourceDir) continue;
       const agentFiles = discoverAgentFiles(PACKAGE_DIR, rt);
       if (agentFiles.length === 0) continue;
-      const picked = await pickAgents(rt, agentFiles);
+      const picked = args.nonInteractive ? agentFiles : await pickAgents(rt, agentFiles);
       selectedAgentsByRuntime[rt.id] = picked.map((a) => a.name);
     }
   }
@@ -219,15 +301,25 @@ async function main() {
   // ---- Hooks ----
   let installHooks = false;
   if (surfaces.includes("hooks")) {
-    installHooks = await confirmStep("Install runtime hook configs (claude/cursor/codex)?", true);
+    if (args.nonInteractive) {
+      installHooks = !args.noHooks;
+    } else {
+      installHooks = await confirmStep("Install runtime hook configs (claude/cursor/codex)?", true);
+    }
   }
 
   // ---- MCP ----
   let selectedServers = [];
   let envValues = {};
-  if (surfaces.includes("mcp") && allServers.length > 0) {
-    selectedServers = await pickMcpServers(allServers, defaults.mcpServers);
-    if (selectedServers.length > 0) {
+  if (surfaces.includes("mcp") && allServers.length > 0 && !args.noMcp) {
+    if (args.nonInteractive) {
+      selectedServers = (defaults.mcpServers ?? [])
+        .map((n) => allServers.find((s) => s.name === n))
+        .filter(Boolean);
+    } else {
+      selectedServers = await pickMcpServers(allServers, defaults.mcpServers);
+    }
+    if (selectedServers.length > 0 && !args.nonInteractive) {
       envValues = await collectMcpEnv(selectedServers);
     }
   }
@@ -235,7 +327,11 @@ async function main() {
   // ---- Global prompts ----
   let selectedPrompts = [];
   if (surfaces.includes("global-prompts") && allPrompts.length > 0) {
-    selectedPrompts = await pickGlobalPrompts(allPrompts, defaults.globalPrompts);
+    selectedPrompts = args.nonInteractive
+      ? (defaults.globalPrompts === "all" || !defaults.globalPrompts
+          ? allPrompts
+          : allPrompts.filter((p) => defaults.globalPrompts.includes(p.name)))
+      : await pickGlobalPrompts(allPrompts, defaults.globalPrompts);
   }
 
   // ---- Plan summary ----
@@ -249,11 +345,12 @@ async function main() {
       `Hook configs:   ${installHooks ? "yes" : "no"}`,
       `MCP servers:    ${selectedServers.length}`,
       `Global prompts: ${selectedPrompts.length}`,
+      `Force refresh:  ${args.force ? "yes (rebuild symlinks to bust caches)" : "no"}`,
     ].join("\n"),
     "Plan",
   );
 
-  if (!args.yes) {
+  if (!args.yes && !args.nonInteractive) {
     const ok = await confirmStep("Apply this plan now?", true);
     if (!ok) bail("aborted by user");
   }
@@ -268,6 +365,7 @@ async function main() {
       selectedSkills,
       dryRun: args.dryRun,
       log,
+      force: args.force,
     });
     log(
       `[hub] ${hubDir}: pruned ${result.pruned ?? 0}, linked ${result.created?.length ?? 0}, skipped ${result.skipped?.length ?? 0}`,
@@ -281,6 +379,7 @@ async function main() {
   const hubNames = hubEntries.map((e) => e.name);
 
   // ---- Apply: Stage B — mirror hub into each runtime ----
+  const updatedMemoryPaths = new Set();
   for (const rt of selectedRuntimes) {
     const skillsDir = runtimeSkillsDir(rt, root);
     if (skillsDir) {
@@ -290,6 +389,7 @@ async function main() {
         selectedNames: hubNames,
         dryRun: args.dryRun,
         log,
+        force: args.force,
       });
       log(
         `[${rt.id}] mirror ${skillsDir}: pruned ${result.pruned ?? 0}, linked ${result.created?.length ?? 0}`,
@@ -307,6 +407,7 @@ async function main() {
         repoDir: PACKAGE_DIR,
         dryRun: args.dryRun,
         log,
+        force: args.force,
       });
       log(`[${rt.id}] agents: pruned ${result.pruned ?? 0}, linked ${result.created?.length ?? 0}`);
     }
@@ -320,6 +421,7 @@ async function main() {
           repoDir: PACKAGE_DIR,
           dryRun: args.dryRun,
           log,
+          force: args.force,
         });
         log(`[${rt.id}] hook: ${JSON.stringify(result.result ?? { skipped: true })}`);
       }
@@ -350,8 +452,27 @@ async function main() {
         log,
       });
       log(`[${rt.id}] memory: ${JSON.stringify(result)}`);
+      updatedMemoryPaths.add(memoryPath);
     }
   }
+
+  // ---- Write install manifest + nudge cache busters ----
+  if (surfaces.includes("skills")) {
+    writeInstallManifest({
+      hubDir,
+      packageDir: PACKAGE_DIR,
+      installRoot: root,
+      installMode: mode,
+      skillNames: hubNames,
+      runtimes: selectedRuntimes.map((rt) => rt.id),
+      force: args.force,
+      dryRun: args.dryRun,
+      log,
+    });
+  }
+  // Touch each updated memory file so editors / agent runtimes that
+  // mtime-cache memory files re-read them on next open.
+  for (const p of updatedMemoryPaths) touchFile(p, { dryRun: args.dryRun, log });
 
   // ---- Persist env vars to ~/.zshenv ----
   if (Object.keys(envValues).length > 0) {
@@ -567,7 +688,22 @@ async function confirmStep(message, initial = true) {
   return v;
 }
 
-main().catch((err) => {
+async function runDoctorCommand() {
+  const { runDoctor } = await import("./lib/doctor.mjs");
+  const install = detectInstall(PACKAGE_DIR);
+  const mode = args.mode ?? install.defaultMode;
+  const root = args.root ? resolve(args.root) : resolveRoot({ mode, install, cwd: process.cwd() });
+  console.log(`adk doctor — checking install at ${root} (mode=${mode})`);
+  const { errors, warnings, info } = runDoctor({ packageDir: PACKAGE_DIR, root, mode });
+  for (const i of info) console.log(`info  ${i}`);
+  for (const w of warnings) console.warn(`warn  ${w}`);
+  for (const e of errors) console.error(`error ${e}`);
+  console.log(`\n${errors.length} error(s), ${warnings.length} warning(s).`);
+  process.exit(errors.length > 0 ? 1 : 0);
+}
+
+const entry = args.command === "doctor" ? runDoctorCommand() : main();
+entry.catch((err) => {
   console.error(err);
   process.exit(1);
 });

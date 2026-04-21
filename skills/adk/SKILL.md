@@ -111,6 +111,38 @@ Task skills tailor each step to their domain but do not skip any.
 - Using ADK for a one-line answer the agent already knows. Skip the router.
 - Looking for `_shared/`, `common/`, or cross-skill references. There are none.
 
+## Clarifying questions (default-ask)
+
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/clarifying-questions.md`) and reports the choices.
+
+1. **Which lifecycle stage are you in: planning, building, reviewing, documenting, auditing, publishing, visualizing, or frontend?** — _How to pick:_ Pick the earliest stage that still applies. If the direction is locked → skip planning. If code is already written → reviewing/auditing. If you want to ship something out of the repo → publishing.
+2. **Is this a one-off question or a multi-step task?** — _How to pick:_ One-off → skip the router and answer directly. Multi-step → continue routing.
+
+**Default report:** One line: chosen category + task skill, plus a one-sentence why.
+
+**Detailed report (on request or `--verbose`):** Lifecycle table, evidence for the routing choice, and the recommended chain (e.g. plan → roadmap → build).
+
+**Artifact:** `routing-decision` — Inline message; no file written. The downstream task skill produces the actual artifact.
+
+**Artifact path:** (none — router does not write files)
+
+## Clarifying questions (default-ask)
+
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/clarifying-questions.md`) and reports the choices.
+
+1. **Which lifecycle stage are you in: planning, building, reviewing, documenting, auditing, publishing, visualizing, or frontend?** — _How to pick:_ Pick the earliest stage that still applies. If the direction is locked → skip planning. If code is already written → reviewing/auditing. If you want to ship something out of the repo → publishing.
+2. **Is this a one-off question or a multi-step task?** — _How to pick:_ One-off → skip the router and answer directly. Multi-step → continue routing.
+
+## Default vs detailed output
+
+**Default report:** One line: chosen category + task skill, plus a one-sentence why.
+
+**Detailed report (on request or `--verbose`):** Lifecycle table, evidence for the routing choice, and the recommended chain (e.g. plan → roadmap → build).
+
+**Artifact:** `routing-decision` — Inline message; no file written. The downstream task skill produces the actual artifact.
+
+**Artifact path:** (none — router does not write files)
+
 <!-- adk:references:start -->
 
 ## References shipped with this skill
@@ -120,6 +152,11 @@ These files live in `references/` next to this `SKILL.md`. Read them when the sk
 | File | Purpose |
 | --- | --- |
 | `references/anti-patterns.md` | Things to avoid when running this skill. |
+| `references/artifact-format.md` | The deliverable's format and where it lives (.temp/ contract). |
+| `references/clarifying-questions.md` | The default-ask questions for this skill, with how-to-pick rubrics. |
 | `references/constitution.md` | Non-negotiable rules and working/communication discipline. |
+| `references/interaction-contract.md` | Default-ask, explained-options, --auto contract every skill must follow. |
+| `references/output-format.md` | Default vs detailed report shapes; severity labels; verbosity rules. |
+| `references/persona.md` | The agent persona that drives this skill. |
 
 <!-- adk:references:end -->

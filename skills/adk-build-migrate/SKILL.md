@@ -118,6 +118,40 @@ adk-build-migrate "Express 4 -> Express 5" --scope src/
 adk-build-migrate "Webpack 5 -> Vite 5" --scope ./
 ```
 
+## Clarifying questions (default-ask)
+
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/clarifying-questions.md`) and reports the choices.
+
+1. **What is the source and target (framework, version, runtime)?** — _How to pick:_ Be specific: 'React 17 → React 19', 'Node 18 → Node 22', 'Webpack → Vite'. Vague targets cause vague plans.
+2. **Is downtime acceptable, or does the system stay live throughout?** — _How to pick:_ Downtime allowed → simpler cutover. Live → compatibility shims + dual-write/dual-read for stateful systems.
+3. **Are there codemods or migration tools published by the upstream?** — _How to pick:_ Yes → use them; treat as one step. No → write a migration script committed to the repo.
+
+**Default report:** Step-by-step plan + per-step rollback + current step status + remaining steps + risk notes.
+
+**Detailed report (on request or `--verbose`):** Add: compatibility-shim inventory with removal deadlines, deprecated-API call sites, performance delta per step, traffic-shift plan if applicable.
+
+**Artifact:** `migration-runbook` — Markdown runbook + a series of step-scoped commits in the repo. Runbook sections: Source, Target, Why, Steps (each with commands + rollback + validation), Compatibility Shims, Removal Plan, Risks.
+
+**Artifact path:** .temp/plans/migrate-<slug>.md (runbook), .temp/notes/migrate-<slug>-step-<i>.md (per-step evidence)
+
+## Clarifying questions (default-ask)
+
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/clarifying-questions.md`) and reports the choices.
+
+1. **What is the source and target (framework, version, runtime)?** — _How to pick:_ Be specific: 'React 17 → React 19', 'Node 18 → Node 22', 'Webpack → Vite'. Vague targets cause vague plans.
+2. **Is downtime acceptable, or does the system stay live throughout?** — _How to pick:_ Downtime allowed → simpler cutover. Live → compatibility shims + dual-write/dual-read for stateful systems.
+3. **Are there codemods or migration tools published by the upstream?** — _How to pick:_ Yes → use them; treat as one step. No → write a migration script committed to the repo.
+
+## Default vs detailed output
+
+**Default report:** Step-by-step plan + per-step rollback + current step status + remaining steps + risk notes.
+
+**Detailed report (on request or `--verbose`):** Add: compatibility-shim inventory with removal deadlines, deprecated-API call sites, performance delta per step, traffic-shift plan if applicable.
+
+**Artifact:** `migration-runbook` — Markdown runbook + a series of step-scoped commits in the repo. Runbook sections: Source, Target, Why, Steps (each with commands + rollback + validation), Compatibility Shims, Removal Plan, Risks.
+
+**Artifact path:** .temp/plans/migrate-<slug>.md (runbook), .temp/notes/migrate-<slug>-step-<i>.md (per-step evidence)
+
 <!-- adk:references:start -->
 
 ## References shipped with this skill
@@ -127,10 +161,14 @@ These files live in `references/` next to this `SKILL.md`. Read them when the sk
 | File | Purpose |
 | --- | --- |
 | `references/anti-patterns.md` | Things to avoid when running this skill. |
+| `references/artifact-format.md` | The deliverable's format and where it lives (.temp/ contract). |
+| `references/clarifying-questions.md` | The default-ask questions for this skill, with how-to-pick rubrics. |
 | `references/constitution.md` | Non-negotiable rules and working/communication discipline. |
 | `references/examples.md` | Example trigger phrases, invocation, and report shape. |
-| `references/output-format.md` | Verbosity modes, result shape, severity labels. |
+| `references/interaction-contract.md` | Default-ask, explained-options, --auto contract every skill must follow. |
+| `references/output-format.md` | Default vs detailed report shapes; severity labels; verbosity rules. |
 | `references/persona.md` | The agent persona that drives this skill. |
-| `references/working-artifacts.md` | The .temp/ rule for intermediate artifacts. |
+| `references/research-protocol.md` | Source ordering, stop conditions, evidence buckets, citation discipline. |
+| `references/working-artifacts.md` | Legacy: superseded by artifact-format.md; kept for back-compat. |
 
 <!-- adk:references:end -->

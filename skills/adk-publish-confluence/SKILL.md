@@ -152,6 +152,40 @@ adk-publish-confluence page-update \
   --page-id 123456789
 ```
 
+## Clarifying questions (default-ask)
+
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/clarifying-questions.md`) and reports the choices.
+
+1. **What is the source markdown (path)?** — _How to pick:_ Required. Should already be authored via adk-docs-write or adk-plan-spec.
+2. **What space and parent page?** — _How to pick:_ Space = required. Parent = pick the existing topical parent; create one only with explicit approval.
+3. **New page or update existing?** — _How to pick:_ If a same-titled page exists under the parent, default to update (with version bump) rather than duplicate.
+
+**Default report:** Page URL + create/update verdict + version number + verification (title/body match expected).
+
+**Detailed report (on request or `--verbose`):** Add: storage-format diff vs prior version, attachment list, links from the new page that resolve.
+
+**Artifact:** `confluence-page` — The Confluence page is the artifact. Conversion log + diff in .temp/.
+
+**Artifact path:** .temp/notes/publish-confluence-<slug>.md (conversion + diff log)
+
+## Clarifying questions (default-ask)
+
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/clarifying-questions.md`) and reports the choices.
+
+1. **What is the source markdown (path)?** — _How to pick:_ Required. Should already be authored via adk-docs-write or adk-plan-spec.
+2. **What space and parent page?** — _How to pick:_ Space = required. Parent = pick the existing topical parent; create one only with explicit approval.
+3. **New page or update existing?** — _How to pick:_ If a same-titled page exists under the parent, default to update (with version bump) rather than duplicate.
+
+## Default vs detailed output
+
+**Default report:** Page URL + create/update verdict + version number + verification (title/body match expected).
+
+**Detailed report (on request or `--verbose`):** Add: storage-format diff vs prior version, attachment list, links from the new page that resolve.
+
+**Artifact:** `confluence-page` — The Confluence page is the artifact. Conversion log + diff in .temp/.
+
+**Artifact path:** .temp/notes/publish-confluence-<slug>.md (conversion + diff log)
+
 <!-- adk:references:start -->
 
 ## References shipped with this skill
@@ -161,10 +195,14 @@ These files live in `references/` next to this `SKILL.md`. Read them when the sk
 | File | Purpose |
 | --- | --- |
 | `references/anti-patterns.md` | Things to avoid when running this skill. |
+| `references/artifact-format.md` | The deliverable's format and where it lives (.temp/ contract). |
+| `references/clarifying-questions.md` | The default-ask questions for this skill, with how-to-pick rubrics. |
 | `references/constitution.md` | Non-negotiable rules and working/communication discipline. |
 | `references/examples.md` | Example trigger phrases, invocation, and report shape. |
+| `references/interaction-contract.md` | Default-ask, explained-options, --auto contract every skill must follow. |
 | `references/mcp-fallback.md` | Preferred MCP server and the manual fallback when it is missing. |
-| `references/output-format.md` | Verbosity modes, result shape, severity labels. |
+| `references/output-format.md` | Default vs detailed report shapes; severity labels; verbosity rules. |
 | `references/persona.md` | The agent persona that drives this skill. |
+| `references/research-protocol.md` | Source ordering, stop conditions, evidence buckets, citation discipline. |
 
 <!-- adk:references:end -->

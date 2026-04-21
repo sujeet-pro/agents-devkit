@@ -71,6 +71,38 @@ Once you have picked a task, load `adk-plan-<task>` and follow it. Each task ski
 - Skipping straight to a roadmap when there is real ambiguity.
 - Writing implementation steps inside this router. Always hand off to a task skill.
 
+## Clarifying questions (default-ask)
+
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/clarifying-questions.md`) and reports the choices.
+
+1. **What's missing right now: a decision, a fact, a written spec, an architecture, or an ordered plan?** — _How to pick:_ Decision → brainstorm. Fact → research. Spec → spec. Architecture → design. Ordered plan → roadmap.
+2. **Is the direction already locked?** — _How to pick:_ Yes → skip brainstorm; go to spec/design/roadmap. No → brainstorm.
+
+**Default report:** One line: chosen plan task + why.
+
+**Detailed report (on request or `--verbose`):** Gap audit table (decision/fact/spec/design/plan) showing which are present and which are missing.
+
+**Artifact:** `plan-routing-decision` — Inline message.
+
+**Artifact path:** (none)
+
+## Clarifying questions (default-ask)
+
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/clarifying-questions.md`) and reports the choices.
+
+1. **What's missing right now: a decision, a fact, a written spec, an architecture, or an ordered plan?** — _How to pick:_ Decision → brainstorm. Fact → research. Spec → spec. Architecture → design. Ordered plan → roadmap.
+2. **Is the direction already locked?** — _How to pick:_ Yes → skip brainstorm; go to spec/design/roadmap. No → brainstorm.
+
+## Default vs detailed output
+
+**Default report:** One line: chosen plan task + why.
+
+**Detailed report (on request or `--verbose`):** Gap audit table (decision/fact/spec/design/plan) showing which are present and which are missing.
+
+**Artifact:** `plan-routing-decision` — Inline message.
+
+**Artifact path:** (none)
+
 <!-- adk:references:start -->
 
 ## References shipped with this skill
@@ -80,6 +112,11 @@ These files live in `references/` next to this `SKILL.md`. Read them when the sk
 | File | Purpose |
 | --- | --- |
 | `references/anti-patterns.md` | Things to avoid when running this skill. |
+| `references/artifact-format.md` | The deliverable's format and where it lives (.temp/ contract). |
+| `references/clarifying-questions.md` | The default-ask questions for this skill, with how-to-pick rubrics. |
 | `references/constitution.md` | Non-negotiable rules and working/communication discipline. |
+| `references/interaction-contract.md` | Default-ask, explained-options, --auto contract every skill must follow. |
+| `references/output-format.md` | Default vs detailed report shapes; severity labels; verbosity rules. |
+| `references/persona.md` | The agent persona that drives this skill. |
 
 <!-- adk:references:end -->

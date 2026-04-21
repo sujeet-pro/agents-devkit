@@ -174,6 +174,46 @@ Want a deeper look at any section?
 - Padding with "this section will describe..." preamble.
 - Drafting code in the spec. Save it for `adk-build-feature`.
 
+## Clarifying questions (default-ask)
+
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/clarifying-questions.md`) and reports the choices.
+
+1. **Which spec type do you need: PRD (product), RFC (engineering proposal), functional spec (what), or technical spec (how)?** — _How to pick:_ PRD = stakeholder-facing, focuses on user value + acceptance criteria. RFC = peer-reviewed proposal, focuses on trade-offs. Functional = what behavior. Technical = how to build it.
+2. **Who is the audience and what decision will they make?** — _How to pick:_ Engineering implementers → technical detail. PMs/leadership → outcome and trade-offs. Reviewers → comparison vs alternatives.
+3. **What are the must-have requirements vs nice-to-haves?** — _How to pick:_ List 3-7 must-haves. Nice-to-haves go in a separate section so they do not block sign-off.
+
+**Default report:** Spec markdown using the doc-type template + a one-paragraph TL;DR at the top.
+
+**Detailed report (on request or `--verbose`):** Add: comparison table vs alternatives, sequence/state diagrams for non-trivial flows, error matrix, rollout plan, success metrics.
+
+**Artifact:** `spec-document` — Markdown spec. Sections: TL;DR, Background, Goals, Non-goals, Requirements (testable), Interfaces, Acceptance Criteria, Open Questions, Risks, Rollout.
+
+**Artifact path:** .temp/drafts/spec-<slug>.md (promote to docs/specs/ or a confluence page when signed off)
+
+Pass extra repos via `--repo <url-or-path>` (repeatable). URLs are cloned into `.temp/reference-repos/<owner>__<repo>/`; paths are read in place. Each repo is processed independently and findings/citations are tagged with the repo of origin. See `references/multi-repo.md` for full handling.
+
+## Clarifying questions (default-ask)
+
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/clarifying-questions.md`) and reports the choices.
+
+1. **Which spec type do you need: PRD (product), RFC (engineering proposal), functional spec (what), or technical spec (how)?** — _How to pick:_ PRD = stakeholder-facing, focuses on user value + acceptance criteria. RFC = peer-reviewed proposal, focuses on trade-offs. Functional = what behavior. Technical = how to build it.
+2. **Who is the audience and what decision will they make?** — _How to pick:_ Engineering implementers → technical detail. PMs/leadership → outcome and trade-offs. Reviewers → comparison vs alternatives.
+3. **What are the must-have requirements vs nice-to-haves?** — _How to pick:_ List 3-7 must-haves. Nice-to-haves go in a separate section so they do not block sign-off.
+
+## Default vs detailed output
+
+**Default report:** Spec markdown using the doc-type template + a one-paragraph TL;DR at the top.
+
+**Detailed report (on request or `--verbose`):** Add: comparison table vs alternatives, sequence/state diagrams for non-trivial flows, error matrix, rollout plan, success metrics.
+
+**Artifact:** `spec-document` — Markdown spec. Sections: TL;DR, Background, Goals, Non-goals, Requirements (testable), Interfaces, Acceptance Criteria, Open Questions, Risks, Rollout.
+
+**Artifact path:** .temp/drafts/spec-<slug>.md (promote to docs/specs/ or a confluence page when signed off)
+
+## Multi-repo context
+
+Pass extra repos via `--repo <url-or-path>` (repeatable). URLs are cloned into `.temp/reference-repos/<owner>__<repo>/`; paths are read in place. Each repo is processed independently and findings/citations are tagged with the repo of origin. See `references/multi-repo.md` for full handling.
+
 <!-- adk:references:start -->
 
 ## References shipped with this skill
@@ -183,10 +223,15 @@ These files live in `references/` next to this `SKILL.md`. Read them when the sk
 | File | Purpose |
 | --- | --- |
 | `references/anti-patterns.md` | Things to avoid when running this skill. |
+| `references/artifact-format.md` | The deliverable's format and where it lives (.temp/ contract). |
+| `references/clarifying-questions.md` | The default-ask questions for this skill, with how-to-pick rubrics. |
 | `references/constitution.md` | Non-negotiable rules and working/communication discipline. |
 | `references/examples.md` | Example trigger phrases, invocation, and report shape. |
-| `references/output-format.md` | Verbosity modes, result shape, severity labels. |
+| `references/interaction-contract.md` | Default-ask, explained-options, --auto contract every skill must follow. |
+| `references/multi-repo.md` | How to consume context from extra cloned or local-path repos. |
+| `references/output-format.md` | Default vs detailed report shapes; severity labels; verbosity rules. |
 | `references/persona.md` | The agent persona that drives this skill. |
-| `references/working-artifacts.md` | The .temp/ rule for intermediate artifacts. |
+| `references/research-protocol.md` | Source ordering, stop conditions, evidence buckets, citation discipline. |
+| `references/working-artifacts.md` | Legacy: superseded by artifact-format.md; kept for back-compat. |
 
 <!-- adk:references:end -->

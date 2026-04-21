@@ -154,6 +154,40 @@ adk-frontend-design "Settings page with profile, security, notifications"
 adk-frontend-design "Empty + loading + error states for the dashboard widgets" --viewports mobile,desktop
 ```
 
+## Clarifying questions (default-ask)
+
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/clarifying-questions.md`) and reports the choices.
+
+1. **What is the surface (page, component, feature flow)?** — _How to pick:_ Page → screen-level. Component → reusable primitive. Flow → multi-step user journey.
+2. **What is the design source-of-truth (existing design system, Figma file, sibling components)?** — _How to pick:_ Existing design system always wins. Figma if a designer is involved. Sibling components when extending a pattern.
+3. **Constraints: brand, accessibility, performance budget, internationalization?** — _How to pick:_ List as hard constraints. Brand = colors/fonts/voice. A11y = WCAG level, language support. Perf = LCP/CLS/INP targets. i18n = locale list + LTR/RTL.
+
+**Default report:** Component/page spec + interaction states table + accessibility notes + token usage.
+
+**Detailed report (on request or `--verbose`):** Add: low-fi sketch (mermaid/excalidraw), copy table per state, motion spec (duration + easing + reduced-motion fallback), responsive breakpoints, content-overflow rules.
+
+**Artifact:** `design-spec` — Markdown spec + optional sketch (excalidraw) + optional theme-grid screenshot pairs.
+
+**Artifact path:** .temp/drafts/design-fe-<slug>.md (spec) + .temp/drafts/diagrams/<slug>.excalidraw (sketch).
+
+## Clarifying questions (default-ask)
+
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/clarifying-questions.md`) and reports the choices.
+
+1. **What is the surface (page, component, feature flow)?** — _How to pick:_ Page → screen-level. Component → reusable primitive. Flow → multi-step user journey.
+2. **What is the design source-of-truth (existing design system, Figma file, sibling components)?** — _How to pick:_ Existing design system always wins. Figma if a designer is involved. Sibling components when extending a pattern.
+3. **Constraints: brand, accessibility, performance budget, internationalization?** — _How to pick:_ List as hard constraints. Brand = colors/fonts/voice. A11y = WCAG level, language support. Perf = LCP/CLS/INP targets. i18n = locale list + LTR/RTL.
+
+## Default vs detailed output
+
+**Default report:** Component/page spec + interaction states table + accessibility notes + token usage.
+
+**Detailed report (on request or `--verbose`):** Add: low-fi sketch (mermaid/excalidraw), copy table per state, motion spec (duration + easing + reduced-motion fallback), responsive breakpoints, content-overflow rules.
+
+**Artifact:** `design-spec` — Markdown spec + optional sketch (excalidraw) + optional theme-grid screenshot pairs.
+
+**Artifact path:** .temp/drafts/design-fe-<slug>.md (spec) + .temp/drafts/diagrams/<slug>.excalidraw (sketch).
+
 <!-- adk:references:start -->
 
 ## References shipped with this skill
@@ -163,10 +197,14 @@ These files live in `references/` next to this `SKILL.md`. Read them when the sk
 | File | Purpose |
 | --- | --- |
 | `references/anti-patterns.md` | Things to avoid when running this skill. |
+| `references/artifact-format.md` | The deliverable's format and where it lives (.temp/ contract). |
+| `references/clarifying-questions.md` | The default-ask questions for this skill, with how-to-pick rubrics. |
 | `references/constitution.md` | Non-negotiable rules and working/communication discipline. |
 | `references/examples.md` | Example trigger phrases, invocation, and report shape. |
-| `references/output-format.md` | Verbosity modes, result shape, severity labels. |
+| `references/interaction-contract.md` | Default-ask, explained-options, --auto contract every skill must follow. |
+| `references/output-format.md` | Default vs detailed report shapes; severity labels; verbosity rules. |
 | `references/persona.md` | The agent persona that drives this skill. |
-| `references/working-artifacts.md` | The .temp/ rule for intermediate artifacts. |
+| `references/research-protocol.md` | Source ordering, stop conditions, evidence buckets, citation discipline. |
+| `references/working-artifacts.md` | Legacy: superseded by artifact-format.md; kept for back-compat. |
 
 <!-- adk:references:end -->

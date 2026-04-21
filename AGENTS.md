@@ -4,7 +4,7 @@ Canonical entry point for any agent working **on** this repository (`agents-devk
 
 ## What this repo is
 
-A toolkit you install via `npm` or `git clone` that lays down self-contained `adk-*` skills, runtime-specific custom subagents, hooks, and MCP server configs into:
+A toolkit you install (preferably via `git clone` + `npm run setup`, or via `npm install` for a pinned version, or via `npx skills add` for a skills-only quick try) that lays down self-contained `adk-*` skills, runtime-specific custom subagents, hooks, MCP server configs, and global prompts into:
 
 - Claude Code (CLI) and Claude Desktop
 - Codex CLI and Codex Desktop
@@ -18,18 +18,18 @@ The Node CLI under [cli/](cli/) is the only installer. It is fully idempotent �
 
 | Path | Purpose | Notes |
 | --- | --- | --- |
-| [skills/](skills/) | 37 public `adk-*` skills, each one self-contained | `SKILL.md` + flat `references/` |
+| [skills/](skills/) | 38 public `adk-*` skills, each one self-contained | `SKILL.md` + flat `references/` |
 | [agents-claude/](agents-claude/) | Self-contained Claude custom subagents (Markdown + YAML) | One file per agent |
 | [agents-cursor/](agents-cursor/) | Self-contained Cursor custom subagents (Markdown + YAML) | One file per agent |
 | [agents-codex/](agents-codex/) | Self-contained Codex custom agents (TOML) | One file per agent |
 | [hooks/](hooks/) | Runtime-specific hook configs | `claude.json`, `cursor.json`, `codex.json` |
-| [mcp-config/servers/](mcp-config/servers/) | Per-server MCP configs with `${ENV_VAR}` placeholders | Merged into runtime mcp.json |
+| [mcp-config/servers/](mcp-config/servers/) | Per-server MCP configs with `${ENV_VAR}` placeholders | Merged into runtime `mcp.json` |
 | [global-prompts/](global-prompts/) | Always-on instructions injected into runtime memory files | Managed `<!-- adk:global-prompts:start/end -->` block |
 | [workflows/](workflows/) | Composable multi-skill YAML pipelines | Optional |
-| [cli/](cli/) | Node installer (`adk-install`) | Only install path |
+| [cli/](cli/) | Node installer (`adk-install`) | Only install path; pure ESM, no Python anywhere |
 | [docs/](docs/), [gh-pages/](gh-pages/) | Pagesmith docs source + built site | `npm run docs:build` |
 
-There is no `ai-guidelines/`, no `agent-personas/`, no `prj-*` skill folder, no projection script, no Python anywhere. Each skill carries the persona / constitution / output-format text it needs, inline.
+There is no `ai-guidelines/`, no `agent-personas/`, no `prj-*` skill folder, no projection script, no Python anywhere. Each skill carries its own persona, constitution, interaction-contract, clarifying-questions, output-format, artifact-format, anti-patterns, and (when relevant) research-protocol and multi-repo guidance, inline. All 38 skills' references are unique — there is no shared boilerplate at runtime.
 
 ## Self-containment rules
 
@@ -50,8 +50,21 @@ All intermediate agent output goes under `.temp/`. Never write plans, drafts, re
 | `.temp/reports/<slug>.md` | Review findings, audits, investigations |
 | `.temp/reference-repos/<owner>__<repo>/` | Cloned external repos |
 | `.temp/notes/<slug>.md` | Short-lived working notes |
+| `.temp/scripts/<name>.mjs` | One-off maintenance scripts that are not part of the CLI |
 
 `.temp/` is gitignored. Promote content to a tracked path only when it is the deliverable.
+
+## Interaction model (applies to every skill)
+
+Every skill ships `references/interaction-contract.md` (the global, identical contract) and `references/clarifying-questions.md` (the skill-specific questions the agent must ask in default-ask mode, with how-to-pick rubrics for each option). Default mode is **highly interactive**: each meaningful decision is presented as 2-3 options with `Pros / Cons / Best when / Blast radius / Reversibility`, one is marked `(default)`, the user picks. `--auto` skips all approval gates and uses the documented defaults; the skill still validates and still produces a final report. The same contract is mirrored in `global-prompts/interaction-contract.md` so it lands in every runtime's memory file.
+
+When you author or edit a skill in this repo, keep these in sync:
+- `references/interaction-contract.md` (identical copy across all skills — update via the global prompt at `global-prompts/interaction-contract.md` and propagate).
+- `references/clarifying-questions.md` (skill-specific — every option has a "How to pick" rubric).
+- `references/persona.md` (skill-specific role / mission / hard rules / status banner).
+- `references/constitution.md` (shared baseline + skill-specific non-negotiables; status banner mirrored from persona).
+- `references/artifact-format.md` (the deliverable's actual format and where it lives).
+- `references/output-format.md` (default vs detailed report shape).
 
 ## Maintenance commands
 
@@ -74,7 +87,7 @@ Both files are managed by `adk-install`. The user file also stores `knownPackage
 
 ## Skill catalog
 
-37 public skills: 1 top router (`adk`) + 8 category routers + 28 task skills. See [skills-manifest.json](skills-manifest.json) for the full list and `skills/<name>/SKILL.md` for each skill's contract.
+38 public skills: 1 top router (`adk`) + 8 category routers + 29 task skills. See [skills-manifest.json](skills-manifest.json) for the full list and `skills/<name>/SKILL.md` for each skill's contract.
 
 | Lifecycle stage | Category router | Task skills |
 | --- | --- | --- |
@@ -86,6 +99,7 @@ Both files are managed by `adk-install`. The user file also stores `knownPackage
 | Ship to a destination | `adk-publish` | `adk-publish-commit`, `adk-publish-github`, `adk-publish-bitbucket`, `adk-publish-confluence`, `adk-publish-gdrive` |
 | Make a picture | `adk-visualize` | `adk-visualize-diagram`, `adk-visualize-chart` |
 | Frontend / UI work | `adk-frontend` | `adk-frontend-design`, `adk-frontend-feature`, `adk-frontend-react-csr` |
+| Bootstrap a docs site | (no router) | `adk-doc-site-setup` |
 
 ## Provider-specific notes
 
@@ -100,6 +114,19 @@ Both files are managed by `adk-install`. The user file also stores `knownPackage
 | Antigravity | `AGENTS.md` | `.antigravity/skills/` | n/a |
 | Junie | `AGENTS.md` | `.junie/skills/` | n/a |
 
+## Install-scenario ↔ link-target matrix
+
+Ordered from suggested (top) to most minimal (bottom). The first three paths use the Node CLI in this repo and wire up all five surfaces (skills, agents, hooks, MCP, global prompts). The `npx skills` row uses the third-party [`skills`](https://skills.sh) loader and lands skills only.
+
+| Install | Command | Package lives at | CLI links into | Best when |
+| --- | --- | --- | --- | --- |
+| Clone + install script (**suggested**) | `git clone … && npm install && npm run setup` | The clone you choose | Either (`--mode global` or `--mode project`); symlinks point at the clone so edits show up live | Default for almost everyone — `git pull` to update, edit skills in place |
+| Global npm | `npm install -g agents-devkit && adk-install` | `$(npm prefix -g)/lib/node_modules/agents-devkit` | `$HOME/.{agents,claude,cursor,codex,antigravity,junie,gemini}/...` | Pinned to a published version, one toolkit per machine |
+| Per-project npm | `npm i --save-dev agents-devkit && npx adk-install` | `<project>/node_modules/agents-devkit` | `<project>/.{agents,claude,cursor,codex,antigravity,junie}/...` | Pinned in `package.json`, CI-reproducible bundle in one repo |
+| `npx skills add` (skills only — non-tech folks) | `npx skills add sujeet-pro/agents-devkit` | (cached by `skills` loader) | Agent's skills folder only | No Node toolchain commitment; **NOT** installed: custom subagents, hooks, MCP servers, global prompts |
+
+When documenting installation for users, keep this ordering: clone-first, npm modules second, `npx skills` third with the "skills only" caveat called out explicitly.
+
 ## Core rules for editors of this repo
 
 - Accuracy over speed.
@@ -109,3 +136,4 @@ Both files are managed by `adk-install`. The user file also stores `knownPackage
 - Keep output concise and bullet-first.
 - Do not present inference as fact.
 - Do not reintroduce shared sources (`ai-guidelines/`, `agent-personas/`, `_shared/`). Each skill stands alone; each agent file stands alone.
+- When you change a skill's `SKILL.md`, keep its `references/interaction-contract.md` and `references/constitution.md` aligned so consumers downstream get the same contract.

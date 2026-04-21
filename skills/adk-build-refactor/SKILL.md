@@ -105,6 +105,40 @@ adk-build-refactor "Extract HTTP retry helper from each controller into src/http
 adk-build-refactor "Inline the single-call AuthFacade and delete it" --scope src/auth/
 ```
 
+## Clarifying questions (default-ask)
+
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/clarifying-questions.md`) and reports the choices.
+
+1. **What is the single concern of this refactor: rename, extract, inline, dedupe, simplify, restructure modules?** — _How to pick:_ Pick exactly one. Multi-concern refactors hide regressions. If multiple are needed, run the skill multiple times in series.
+2. **Is the touched code covered by tests today?** — _How to pick:_ Yes → proceed. No → write characterization tests first (capture current behavior even if quirky), then refactor.
+3. **What is the acceptable blast radius (file, module, package, repo-wide)?** — _How to pick:_ Smaller is safer. Repo-wide rename = one commit per package + automation; never a single mega-commit.
+
+**Default report:** Result + before/after test output (identical) + changed-files table + remaining cleanup opportunities.
+
+**Detailed report (on request or `--verbose`):** Add: per-commit diff summary, complexity metric delta (LOC, cyclomatic, duplication), reasoning for each structural choice.
+
+**Artifact:** `behavior-preserving-diff` — Series of small commits, each compiling and passing tests, with before/after test output captured in .temp/notes/.
+
+**Artifact path:** .temp/plans/refactor-<slug>.md (plan), .temp/notes/refactor-<slug>-before.txt + -after.txt (test output snapshots)
+
+## Clarifying questions (default-ask)
+
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/clarifying-questions.md`) and reports the choices.
+
+1. **What is the single concern of this refactor: rename, extract, inline, dedupe, simplify, restructure modules?** — _How to pick:_ Pick exactly one. Multi-concern refactors hide regressions. If multiple are needed, run the skill multiple times in series.
+2. **Is the touched code covered by tests today?** — _How to pick:_ Yes → proceed. No → write characterization tests first (capture current behavior even if quirky), then refactor.
+3. **What is the acceptable blast radius (file, module, package, repo-wide)?** — _How to pick:_ Smaller is safer. Repo-wide rename = one commit per package + automation; never a single mega-commit.
+
+## Default vs detailed output
+
+**Default report:** Result + before/after test output (identical) + changed-files table + remaining cleanup opportunities.
+
+**Detailed report (on request or `--verbose`):** Add: per-commit diff summary, complexity metric delta (LOC, cyclomatic, duplication), reasoning for each structural choice.
+
+**Artifact:** `behavior-preserving-diff` — Series of small commits, each compiling and passing tests, with before/after test output captured in .temp/notes/.
+
+**Artifact path:** .temp/plans/refactor-<slug>.md (plan), .temp/notes/refactor-<slug>-before.txt + -after.txt (test output snapshots)
+
 <!-- adk:references:start -->
 
 ## References shipped with this skill
@@ -114,10 +148,14 @@ These files live in `references/` next to this `SKILL.md`. Read them when the sk
 | File | Purpose |
 | --- | --- |
 | `references/anti-patterns.md` | Things to avoid when running this skill. |
+| `references/artifact-format.md` | The deliverable's format and where it lives (.temp/ contract). |
+| `references/clarifying-questions.md` | The default-ask questions for this skill, with how-to-pick rubrics. |
 | `references/constitution.md` | Non-negotiable rules and working/communication discipline. |
 | `references/examples.md` | Example trigger phrases, invocation, and report shape. |
-| `references/output-format.md` | Verbosity modes, result shape, severity labels. |
+| `references/interaction-contract.md` | Default-ask, explained-options, --auto contract every skill must follow. |
+| `references/output-format.md` | Default vs detailed report shapes; severity labels; verbosity rules. |
 | `references/persona.md` | The agent persona that drives this skill. |
-| `references/working-artifacts.md` | The .temp/ rule for intermediate artifacts. |
+| `references/research-protocol.md` | Source ordering, stop conditions, evidence buckets, citation discipline. |
+| `references/working-artifacts.md` | Legacy: superseded by artifact-format.md; kept for back-compat. |
 
 <!-- adk:references:end -->

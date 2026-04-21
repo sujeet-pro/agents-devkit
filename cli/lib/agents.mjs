@@ -31,6 +31,7 @@ export function installAgentsForRuntime({
   repoDir,
   dryRun,
   log,
+  force = false,
 }) {
   if (!agentsDir || !runtime.agentSourceDir) {
     return { runtime: runtime.id, skipped: true, reason: "no-agents-dir" };
@@ -44,7 +45,7 @@ export function installAgentsForRuntime({
     : all;
   for (const agent of wanted) {
     const linkPath = join(agentsDir, agent.name);
-    const result = ensureSymlink(agent.path, linkPath, { dryRun, log });
+    const result = ensureSymlink(agent.path, linkPath, { dryRun, log, force });
     if (result.status === "ok" || result.status === "would-link") created.push(agent.name);
     else skipped.push({ name: agent.name, reason: result.reason });
   }

@@ -1,7 +1,7 @@
 ---
 name: "adk-implementer"
 description: "Implement the smallest correct change from an approved plan. Use for multi-file changes, targeted fixes, and parallel implementation work."
-model: "claude-sonnet-4-6"
+model: "claude-opus-4-7"
 maxTurns: 30
 skills:
   - "adk-build"

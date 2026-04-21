@@ -115,6 +115,40 @@ Ready to hand off to `adk-build-feature`?
 | "Add SSO to the admin panel" | Slices: discover identity provider, add config, wire login flow, gate routes, tests, rollout flag. |
 | "Migrate from Express 4 to 5" | Slices: pin Express 5, fix breaking middlewares per file group, regenerate types, run integration suite, remove shims. Mark middlewares group as parallel-safe. |
 
+## Clarifying questions (default-ask)
+
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/clarifying-questions.md`) and reports the choices.
+
+1. **What is the source spec or design we are planning from?** — _How to pick:_ Pass a path to the spec/design markdown. If none, ask the user to run adk-plan-spec or adk-plan-design first.
+2. **What is the slice size you want: thin vertical slices (one user-visible behavior at a time) or layered (model → API → UI)?** — _How to pick:_ Vertical = ship value continuously, simpler review, harder coordination. Layered = easier per-team handoff, slower user value, riskier integration. Default = vertical for ≤5 engineers.
+3. **Are there hard deadlines or external dependencies to respect?** — _How to pick:_ List them. Steps that depend on external parties get marked with a blocker tag and a fallback path.
+
+**Default report:** Ordered step list (id, summary, files, validation, dependencies, effort).
+
+**Detailed report (on request or `--verbose`):** Add: per-step risks, rollback strategy per step, parallelization graph (which steps can run concurrently), test-coverage delta per step.
+
+**Artifact:** `implementation-roadmap` — Markdown roadmap. Sections: Source (spec/design link), Goals, Steps (numbered table: id/summary/files/validation/dependencies/effort), Parallelization, Open Risks, Rollback Strategy.
+
+**Artifact path:** .temp/plans/roadmap-<slug>.md
+
+## Clarifying questions (default-ask)
+
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/clarifying-questions.md`) and reports the choices.
+
+1. **What is the source spec or design we are planning from?** — _How to pick:_ Pass a path to the spec/design markdown. If none, ask the user to run adk-plan-spec or adk-plan-design first.
+2. **What is the slice size you want: thin vertical slices (one user-visible behavior at a time) or layered (model → API → UI)?** — _How to pick:_ Vertical = ship value continuously, simpler review, harder coordination. Layered = easier per-team handoff, slower user value, riskier integration. Default = vertical for ≤5 engineers.
+3. **Are there hard deadlines or external dependencies to respect?** — _How to pick:_ List them. Steps that depend on external parties get marked with a blocker tag and a fallback path.
+
+## Default vs detailed output
+
+**Default report:** Ordered step list (id, summary, files, validation, dependencies, effort).
+
+**Detailed report (on request or `--verbose`):** Add: per-step risks, rollback strategy per step, parallelization graph (which steps can run concurrently), test-coverage delta per step.
+
+**Artifact:** `implementation-roadmap` — Markdown roadmap. Sections: Source (spec/design link), Goals, Steps (numbered table: id/summary/files/validation/dependencies/effort), Parallelization, Open Risks, Rollback Strategy.
+
+**Artifact path:** .temp/plans/roadmap-<slug>.md
+
 <!-- adk:references:start -->
 
 ## References shipped with this skill
@@ -124,10 +158,14 @@ These files live in `references/` next to this `SKILL.md`. Read them when the sk
 | File | Purpose |
 | --- | --- |
 | `references/anti-patterns.md` | Things to avoid when running this skill. |
+| `references/artifact-format.md` | The deliverable's format and where it lives (.temp/ contract). |
+| `references/clarifying-questions.md` | The default-ask questions for this skill, with how-to-pick rubrics. |
 | `references/constitution.md` | Non-negotiable rules and working/communication discipline. |
 | `references/examples.md` | Example trigger phrases, invocation, and report shape. |
-| `references/output-format.md` | Verbosity modes, result shape, severity labels. |
+| `references/interaction-contract.md` | Default-ask, explained-options, --auto contract every skill must follow. |
+| `references/output-format.md` | Default vs detailed report shapes; severity labels; verbosity rules. |
 | `references/persona.md` | The agent persona that drives this skill. |
-| `references/working-artifacts.md` | The .temp/ rule for intermediate artifacts. |
+| `references/research-protocol.md` | Source ordering, stop conditions, evidence buckets, citation discipline. |
+| `references/working-artifacts.md` | Legacy: superseded by artifact-format.md; kept for back-compat. |
 
 <!-- adk:references:end -->

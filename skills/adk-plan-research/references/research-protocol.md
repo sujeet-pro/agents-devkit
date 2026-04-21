@@ -1,33 +1,34 @@
 # Research Protocol
 
-## Default order
-1. Inspect the local repository.
-2. Inspect the exact tool/framework version in use.
-3. Read official docs.
-4. Read maintained implementation references.
-5. Compare local behavior against sources.
-6. Record what is verified vs still uncertain.
+`adk-plan-research` consults sources in the order below. Higher-ranked sources win conflicts. Stop researching when the stop condition is met — diminishing returns past that point.
+
+## Sources, in order
+
+1. Repo: existing code, tests, configs, ADRs, prior research notes in .temp/.
+2. Primary docs: vendor documentation, RFCs, official changelogs, language specs.
+3. Source code: tagged release of the library (clone into .temp/reference-repos/ if needed).
+4. Standards: W3C, IETF, ECMA, IEEE for protocol-level facts.
+5. Reference projects: well-known open-source repos using the same framework — only to verify common usage.
+6. Last resort: blog posts / Stack Overflow, only with publish date ≥ current major version.
+
+## Stop condition
+Confidence target reached and at least 2 independent primary sources agree, or contradiction is documented.
 
 ## Evidence buckets
-| Bucket | What belongs here |
-| --- | --- |
-| Verified | Directly supported by code, config, official docs, or runtime output |
-| Inferred | Strong conclusion from partial evidence, marked as inference |
-| Open | Not yet verified, requires follow-up |
 
-## Output shape
-- Question
-- Current state / target state
-- Repo evidence
-- External evidence
-- Conflicts (if any)
-- Recommendation with confidence (high / medium / low)
-- Validation plan
-- Open issues
+For every finding / claim, label it:
 
-## Research rules
-- Prefer official docs over blog posts.
-- Prefer maintained repos over abandoned examples.
-- Prefer the exact branch or released version in use.
-- If docs and code disagree, call it out.
-- Memory is never a `Verified` source.
+- `Verified` — backed by primary source or repo evidence with citation.
+- `Inferred` — extrapolated from related evidence; explicitly say so.
+- `Open` — could not verify; goes in the Open Questions section.
+
+## Citation discipline
+
+- Cite file paths as `path/to/file.ext:LINE-LINE`.
+- Cite URLs with retrieval date (e.g. "fetched 2026-04-21").
+- Cite git commits as short SHAs from the host repo.
+- Cite cloned reference repos as `.temp/reference-repos/<owner>__<repo>/path:LINE`.
+
+## Freshness
+
+Treat any web source older than 6 months for fast-moving libraries (React, Vite, browser APIs) as suspect — verify against the latest official changelog before using.

@@ -165,6 +165,40 @@ adk-visualize-diagram sequence "user login flow with API and Redis"
 adk-visualize-diagram architecture --format drawio --render svg --output docs/diagrams/system.drawio
 ```
 
+## Clarifying questions (default-ask)
+
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/clarifying-questions.md`) and reports the choices.
+
+1. **Diagram type: sequence / flowchart / class / state / entity-relationship / architecture / dependency-graph / mind-map / freeform UX?** — _How to pick:_ Sequence/flowchart/class/state/ER/mind → mermaid. Large dependency graph → graphviz. Architecture with rich shapes → drawio. UX sketch → excalidraw.
+2. **Source-of-truth for the diagram content (code path, spec, ticket, manual description)?** — _How to pick:_ Code/spec for engineering diagrams (must verify). Manual description for UX sketches.
+3. **Where does it live (page README, dedicated docs page, slide deck)?** — _How to pick:_ Page README → keep simple. Docs page → can be detailed. Slide → simplify; one idea per diagram.
+
+**Default report:** Path to source file + path to rendered light/dark SVGs + the markdown snippet to embed.
+
+**Detailed report (on request or `--verbose`):** Add: alt text suggestions, complexity check (node/edge count), recommended further diagrams to break things up.
+
+**Artifact:** `diagram-source-and-renders` — Source file (`*.mermaid` / `*.dot` / `*.drawio` / `*.excalidraw`) + rendered `*-light.svg` and `*-dark.svg`.
+
+**Artifact path:** Lives next to the page that embeds it: `<page-dir>/diagrams/<name>.<ext>` and `<page-dir>/diagrams/<name>-light.svg` / `-dark.svg`. Working drafts in `.temp/drafts/diagrams/`.
+
+## Clarifying questions (default-ask)
+
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/clarifying-questions.md`) and reports the choices.
+
+1. **Diagram type: sequence / flowchart / class / state / entity-relationship / architecture / dependency-graph / mind-map / freeform UX?** — _How to pick:_ Sequence/flowchart/class/state/ER/mind → mermaid. Large dependency graph → graphviz. Architecture with rich shapes → drawio. UX sketch → excalidraw.
+2. **Source-of-truth for the diagram content (code path, spec, ticket, manual description)?** — _How to pick:_ Code/spec for engineering diagrams (must verify). Manual description for UX sketches.
+3. **Where does it live (page README, dedicated docs page, slide deck)?** — _How to pick:_ Page README → keep simple. Docs page → can be detailed. Slide → simplify; one idea per diagram.
+
+## Default vs detailed output
+
+**Default report:** Path to source file + path to rendered light/dark SVGs + the markdown snippet to embed.
+
+**Detailed report (on request or `--verbose`):** Add: alt text suggestions, complexity check (node/edge count), recommended further diagrams to break things up.
+
+**Artifact:** `diagram-source-and-renders` — Source file (`*.mermaid` / `*.dot` / `*.drawio` / `*.excalidraw`) + rendered `*-light.svg` and `*-dark.svg`.
+
+**Artifact path:** Lives next to the page that embeds it: `<page-dir>/diagrams/<name>.<ext>` and `<page-dir>/diagrams/<name>-light.svg` / `-dark.svg`. Working drafts in `.temp/drafts/diagrams/`.
+
 <!-- adk:references:start -->
 
 ## References shipped with this skill
@@ -174,9 +208,13 @@ These files live in `references/` next to this `SKILL.md`. Read them when the sk
 | File | Purpose |
 | --- | --- |
 | `references/anti-patterns.md` | Things to avoid when running this skill. |
+| `references/artifact-format.md` | The deliverable's format and where it lives (.temp/ contract). |
+| `references/clarifying-questions.md` | The default-ask questions for this skill, with how-to-pick rubrics. |
 | `references/constitution.md` | Non-negotiable rules and working/communication discipline. |
 | `references/examples.md` | Example trigger phrases, invocation, and report shape. |
-| `references/output-format.md` | Verbosity modes, result shape, severity labels. |
+| `references/interaction-contract.md` | Default-ask, explained-options, --auto contract every skill must follow. |
+| `references/output-format.md` | Default vs detailed report shapes; severity labels; verbosity rules. |
 | `references/persona.md` | The agent persona that drives this skill. |
+| `references/research-protocol.md` | Source ordering, stop conditions, evidence buckets, citation discipline. |
 
 <!-- adk:references:end -->

@@ -1,7 +1,7 @@
 {
   "name": "agents-devkit",
-  "version": "3.0.0",
-  "description": "Agent Development Kit: 37 self-contained adk-* skills (each with its own flat references/), independent per-provider custom subagents (Claude / Cursor / Codex), per-runtime hooks, and MCP server configs. The Node CLI installs everything into Claude Code, Claude Desktop, Cursor, Codex CLI / Desktop, Gemini CLI, Antigravity, and Junie via a single .agents/skills hub.",
+  "version": "0.0.1",
+  "description": "Agent Development Kit: 38 self-contained adk-* skills (each with its own flat references/, including a default-ask-with-explained-options interaction contract and an --auto unattended mode), independent per-provider custom subagents (Claude / Cursor / Codex), per-runtime hooks, MCP server configs, and global prompts. The Node CLI installs everything into Claude Code, Claude Desktop, Cursor, Codex CLI / Desktop, Gemini CLI, Antigravity, and Junie via a single .agents/skills hub.",
   "type": "module",
   "engines": {
     "node": ">=18"
@@ -30,8 +30,13 @@
   "scripts": {
     "setup": "node cli/index.mjs",
     "setup:dry": "node cli/index.mjs --dry-run",
+    "setup:auto": "node cli/index.mjs -y --force",
+    "doctor": "node cli/index.mjs doctor",
     "postinstall": "node cli/postinstall.mjs",
     "validate": "node cli/lib/validate.mjs",
+    "validate:content": "node cli/lib/validate-content.mjs",
+    "validate:content:verbose": "node cli/lib/validate-content.mjs --verbose",
+    "validate:all": "npm run validate && npm run validate:content",
     "build": "npm run docs:build",
     "preview": "npm run docs:preview",
     "docs:dev": "pagesmith-docs dev",

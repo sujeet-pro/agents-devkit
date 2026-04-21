@@ -1,7 +1,7 @@
 ---
 name: "adk-debugger"
 description: "Investigate failures systematically, isolate root cause, and verify fixes. Use for failing tests, runtime errors, and flaky behavior."
-model: "claude-sonnet-4-6"
+model: "claude-opus-4-7"
 maxTurns: 30
 skills:
   - "adk-build"

@@ -100,6 +100,7 @@ export function syncHub({
   selectedSkills,
   dryRun = false,
   log = () => {},
+  force = false,
 }) {
   if (!hubDir) return { skipped: true, reason: "no-hub" };
   const allRoots = unique([packageDir, ...(knownPackagePaths ?? [])]);
@@ -113,7 +114,7 @@ export function syncHub({
   const skipped = [];
   for (const skill of selectedSkills) {
     const linkPath = join(hubDir, skill.name);
-    const result = ensureSymlink(skill.path, linkPath, { dryRun, log });
+    const result = ensureSymlink(skill.path, linkPath, { dryRun, log, force });
     if (result.status === "ok" || result.status === "would-link") created.push(skill.name);
     else skipped.push({ name: skill.name, reason: result.reason });
   }
@@ -129,6 +130,7 @@ export function mirrorHubInto({
   selectedNames,
   dryRun = false,
   log = () => {},
+  force = false,
 }) {
   if (!mirrorDir || !hubDir) return { skipped: true, reason: "no-target" };
 
@@ -144,7 +146,7 @@ export function mirrorHubInto({
 
   for (const entry of wanted) {
     const linkPath = join(mirrorDir, entry.name);
-    const result = ensureSymlink(entry.path, linkPath, { dryRun, log });
+    const result = ensureSymlink(entry.path, linkPath, { dryRun, log, force });
     if (result.status === "ok" || result.status === "would-link") created.push(entry.name);
     else skipped.push({ name: entry.name, reason: result.reason });
   }

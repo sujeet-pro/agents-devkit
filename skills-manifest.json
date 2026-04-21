@@ -1,13 +1,13 @@
 {
   "version": "3.0.0",
-  "generated": "2026-04-20",
+  "generated": "2026-04-21",
   "distribution": "npx-skills",
   "model": "standalone-skill",
-  "skill_count": 37,
+  "skill_count": 38,
   "categories": {
     "top": 1,
     "router": 8,
-    "task": 28
+    "task": 29
   },
   "adk_categories": [
     "audit",
@@ -155,6 +155,20 @@
       "invocation": {
         "default": "/adk-build-test",
         "npx_skills": "/adk-build-test"
+      },
+      "has_references": true,
+      "has_scripts": false,
+      "has_assets": false
+    },
+    {
+      "name": "adk-doc-site-setup",
+      "description": "Bootstrap a documentation site in a project using @pagesmith/docs (content + nav + search + theme) and diagramkit (mermaid / graphviz / drawio / excalidraw rendering). Installs the npm packages, writes pagesmith.config.json5 and diagramkit.config.json5, scaffolds the docs/ tree with guide and reference groupings (meta.json5 + README.md), wires npm scripts, and installs prj-doc-site-* skills into the consumer project so future agents can keep adding pages, generating content, configuring nav, embedding diagrams, and deploying. Use whenever the user asks to set up a docs site, scaffold Pagesmith+diagramkit, add documentation tooling, or bootstrap a doc site for a repo. Each installed prj-* skill reads from node_modules/<pkg>/skills/ first and falls back to the inlined references shipped with this skill, so it keeps working even if the packages are uninstalled.",
+      "kind": "task",
+      "category": "doc",
+      "path": "skills/adk-doc-site-setup",
+      "invocation": {
+        "default": "/adk-doc-site-setup",
+        "npx_skills": "/adk-doc-site-setup"
       },
       "has_references": true,
       "has_scripts": false,

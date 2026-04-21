@@ -146,6 +146,40 @@ adk-visualize-chart bar --data sales-2026.csv --x month --y revenue
 adk-visualize-chart line --data api-latency.json --x ts --y p99 --series endpoint --render png
 ```
 
+## Clarifying questions (default-ask)
+
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/clarifying-questions.md`) and reports the choices.
+
+1. **What is the data source (file path, URL, query)?** — _How to pick:_ File = csv/json/parquet. URL = HTTP fetch (cache to .temp/notes/). Query = SQL/PromQL/etc., capture the query string.
+2. **What story does the chart tell — what should the reader take away?** — _How to pick:_ One sentence. The chart type and design follow from this.
+3. **Audience (engineer / leadership / external)?** — _How to pick:_ Engineer = denser, more annotations OK. Leadership = simpler, big takeaway label. External = no jargon, brand-safe colors.
+
+**Default report:** Chart image path + the takeaway sentence + data-source citation.
+
+**Detailed report (on request or `--verbose`):** Add: alternative chart types considered, data-cleaning steps, statistical caveats (sample size, missing data, outliers).
+
+**Artifact:** `chart-image-and-source` — Rendered image (`*.svg` preferred, `*.png` fallback) + plotting source (`*.py` / `*.js` / `*.r`) + data snapshot.
+
+**Artifact path:** `<page-dir>/charts/<slug>.svg` for embedded charts. Working drafts + data snapshots in `.temp/drafts/charts/<slug>/`.
+
+## Clarifying questions (default-ask)
+
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/clarifying-questions.md`) and reports the choices.
+
+1. **What is the data source (file path, URL, query)?** — _How to pick:_ File = csv/json/parquet. URL = HTTP fetch (cache to .temp/notes/). Query = SQL/PromQL/etc., capture the query string.
+2. **What story does the chart tell — what should the reader take away?** — _How to pick:_ One sentence. The chart type and design follow from this.
+3. **Audience (engineer / leadership / external)?** — _How to pick:_ Engineer = denser, more annotations OK. Leadership = simpler, big takeaway label. External = no jargon, brand-safe colors.
+
+## Default vs detailed output
+
+**Default report:** Chart image path + the takeaway sentence + data-source citation.
+
+**Detailed report (on request or `--verbose`):** Add: alternative chart types considered, data-cleaning steps, statistical caveats (sample size, missing data, outliers).
+
+**Artifact:** `chart-image-and-source` — Rendered image (`*.svg` preferred, `*.png` fallback) + plotting source (`*.py` / `*.js` / `*.r`) + data snapshot.
+
+**Artifact path:** `<page-dir>/charts/<slug>.svg` for embedded charts. Working drafts + data snapshots in `.temp/drafts/charts/<slug>/`.
+
 <!-- adk:references:start -->
 
 ## References shipped with this skill
@@ -155,9 +189,13 @@ These files live in `references/` next to this `SKILL.md`. Read them when the sk
 | File | Purpose |
 | --- | --- |
 | `references/anti-patterns.md` | Things to avoid when running this skill. |
+| `references/artifact-format.md` | The deliverable's format and where it lives (.temp/ contract). |
+| `references/clarifying-questions.md` | The default-ask questions for this skill, with how-to-pick rubrics. |
 | `references/constitution.md` | Non-negotiable rules and working/communication discipline. |
 | `references/examples.md` | Example trigger phrases, invocation, and report shape. |
-| `references/output-format.md` | Verbosity modes, result shape, severity labels. |
+| `references/interaction-contract.md` | Default-ask, explained-options, --auto contract every skill must follow. |
+| `references/output-format.md` | Default vs detailed report shapes; severity labels; verbosity rules. |
 | `references/persona.md` | The agent persona that drives this skill. |
+| `references/research-protocol.md` | Source ordering, stop conditions, evidence buckets, citation discipline. |
 
 <!-- adk:references:end -->

@@ -174,6 +174,38 @@ adk-review-handoff --action resume --output .handoff/handoff-2026-04-14-1030.md
 adk-review-handoff --action status
 ```
 
+## Clarifying questions (default-ask)
+
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/clarifying-questions.md`) and reports the choices.
+
+1. **What is the next intended owner (yourself later, another agent, a human)?** — _How to pick:_ Adjust verbosity: terse for self, full context for stranger handoff.
+2. **Should the handoff include suggested commands to resume, or only state?** — _How to pick:_ Include commands when the next owner is an agent or a junior dev. State-only when the owner already knows the workflow.
+
+**Default report:** Status block (done / in-flight / blocked) + open questions + artifact map + recommended next step.
+
+**Detailed report (on request or `--verbose`):** Add: chronological session log, every decision made and its rationale, environment snapshot (branch, dirty files, env vars set).
+
+**Artifact:** `handoff-document` — Markdown handoff. Sections: Context, Status (Done / In-Flight / Blocked), Artifacts (paths + purpose), Open Questions, Recommended Next Step (skill + inputs), Environment Snapshot.
+
+**Artifact path:** .temp/reports/handoff-<date>-<slug>.md
+
+## Clarifying questions (default-ask)
+
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/clarifying-questions.md`) and reports the choices.
+
+1. **What is the next intended owner (yourself later, another agent, a human)?** — _How to pick:_ Adjust verbosity: terse for self, full context for stranger handoff.
+2. **Should the handoff include suggested commands to resume, or only state?** — _How to pick:_ Include commands when the next owner is an agent or a junior dev. State-only when the owner already knows the workflow.
+
+## Default vs detailed output
+
+**Default report:** Status block (done / in-flight / blocked) + open questions + artifact map + recommended next step.
+
+**Detailed report (on request or `--verbose`):** Add: chronological session log, every decision made and its rationale, environment snapshot (branch, dirty files, env vars set).
+
+**Artifact:** `handoff-document` — Markdown handoff. Sections: Context, Status (Done / In-Flight / Blocked), Artifacts (paths + purpose), Open Questions, Recommended Next Step (skill + inputs), Environment Snapshot.
+
+**Artifact path:** .temp/reports/handoff-<date>-<slug>.md
+
 <!-- adk:references:start -->
 
 ## References shipped with this skill
@@ -183,9 +215,12 @@ These files live in `references/` next to this `SKILL.md`. Read them when the sk
 | File | Purpose |
 | --- | --- |
 | `references/anti-patterns.md` | Things to avoid when running this skill. |
+| `references/artifact-format.md` | The deliverable's format and where it lives (.temp/ contract). |
+| `references/clarifying-questions.md` | The default-ask questions for this skill, with how-to-pick rubrics. |
 | `references/constitution.md` | Non-negotiable rules and working/communication discipline. |
-| `references/output-format.md` | Verbosity modes, result shape, severity labels. |
+| `references/interaction-contract.md` | Default-ask, explained-options, --auto contract every skill must follow. |
+| `references/output-format.md` | Default vs detailed report shapes; severity labels; verbosity rules. |
 | `references/persona.md` | The agent persona that drives this skill. |
-| `references/working-artifacts.md` | The .temp/ rule for intermediate artifacts. |
+| `references/working-artifacts.md` | Legacy: superseded by artifact-format.md; kept for back-compat. |
 
 <!-- adk:references:end -->

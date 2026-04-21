@@ -139,6 +139,42 @@ adk-publish-gdrive file-upload \
   --folder <folder-id> --format markdown
 ```
 
+## Clarifying questions (default-ask)
+
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/clarifying-questions.md`) and reports the choices.
+
+1. **Source path (markdown or already-formatted file)?** — _How to pick:_ Required.
+2. **Target folder (URL or folder ID)?** — _How to pick:_ Required. Use My Drive root only with explicit confirmation.
+3. **Format: keep as markdown, convert to Google Docs, or both?** — _How to pick:_ Markdown = exact source preserved, low fidelity in Docs UI. Docs = native editing, may lose code-block styling. Both = upload markdown + create Docs export.
+4. **Sharing: same-as-folder, specific people, anyone-with-link, public?** — _How to pick:_ Same-as-folder = safest default. Specific = explicit list. Anyone-with-link = approval required. Public = approval required.
+
+**Default report:** File URL + create/update verdict + sharing scope + format used.
+
+**Detailed report (on request or `--verbose`):** Add: conversion warnings, prior revision link, alternate formats produced.
+
+**Artifact:** `gdrive-file` — The Drive file is the artifact. Upload log in .temp/.
+
+**Artifact path:** .temp/notes/publish-gdrive-<slug>.md (upload log + conversion notes)
+
+## Clarifying questions (default-ask)
+
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/clarifying-questions.md`) and reports the choices.
+
+1. **Source path (markdown or already-formatted file)?** — _How to pick:_ Required.
+2. **Target folder (URL or folder ID)?** — _How to pick:_ Required. Use My Drive root only with explicit confirmation.
+3. **Format: keep as markdown, convert to Google Docs, or both?** — _How to pick:_ Markdown = exact source preserved, low fidelity in Docs UI. Docs = native editing, may lose code-block styling. Both = upload markdown + create Docs export.
+4. **Sharing: same-as-folder, specific people, anyone-with-link, public?** — _How to pick:_ Same-as-folder = safest default. Specific = explicit list. Anyone-with-link = approval required. Public = approval required.
+
+## Default vs detailed output
+
+**Default report:** File URL + create/update verdict + sharing scope + format used.
+
+**Detailed report (on request or `--verbose`):** Add: conversion warnings, prior revision link, alternate formats produced.
+
+**Artifact:** `gdrive-file` — The Drive file is the artifact. Upload log in .temp/.
+
+**Artifact path:** .temp/notes/publish-gdrive-<slug>.md (upload log + conversion notes)
+
 <!-- adk:references:start -->
 
 ## References shipped with this skill
@@ -148,10 +184,14 @@ These files live in `references/` next to this `SKILL.md`. Read them when the sk
 | File | Purpose |
 | --- | --- |
 | `references/anti-patterns.md` | Things to avoid when running this skill. |
+| `references/artifact-format.md` | The deliverable's format and where it lives (.temp/ contract). |
+| `references/clarifying-questions.md` | The default-ask questions for this skill, with how-to-pick rubrics. |
 | `references/constitution.md` | Non-negotiable rules and working/communication discipline. |
 | `references/examples.md` | Example trigger phrases, invocation, and report shape. |
+| `references/interaction-contract.md` | Default-ask, explained-options, --auto contract every skill must follow. |
 | `references/mcp-fallback.md` | Preferred MCP server and the manual fallback when it is missing. |
-| `references/output-format.md` | Verbosity modes, result shape, severity labels. |
+| `references/output-format.md` | Default vs detailed report shapes; severity labels; verbosity rules. |
 | `references/persona.md` | The agent persona that drives this skill. |
+| `references/research-protocol.md` | Source ordering, stop conditions, evidence buckets, citation discipline. |
 
 <!-- adk:references:end -->

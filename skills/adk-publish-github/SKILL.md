@@ -160,6 +160,40 @@ adk-publish-github pr-comment 842 --body-file .temp/drafts/comment.md
 adk-publish-github pr-merge 842 --merge-strategy squash
 ```
 
+## Clarifying questions (default-ask)
+
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/clarifying-questions.md`) and reports the choices.
+
+1. **Action: pr-create / pr-update / pr-comment / pr-merge / pr-request-review / issue-create / issue-comment / label / status?** — _How to pick:_ Pick by destination + intent. pr-merge is special — always requires explicit gate even with --auto.
+2. **Target: PR/issue number or URL?** — _How to pick:_ Required for actions that operate on an existing artifact.
+3. **Body source: file path, inline draft, or auto-generate via adk-publish-commit?** — _How to pick:_ Prefer file path (drafted upstream). Auto-generate only when no body exists.
+
+**Default report:** Action result URL + verification block (title/body/labels match expected) + tool used (gh / MCP).
+
+**Detailed report (on request or `--verbose`):** Add: full command line, full read-back JSON, follow-up suggestions (request reviewers, link to release draft).
+
+**Artifact:** `github-action-result` — The remote PR/issue/comment is the artifact. Locally: action log in .temp/notes/.
+
+**Artifact path:** .temp/notes/publish-github-<action>-<target>.md
+
+## Clarifying questions (default-ask)
+
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/clarifying-questions.md`) and reports the choices.
+
+1. **Action: pr-create / pr-update / pr-comment / pr-merge / pr-request-review / issue-create / issue-comment / label / status?** — _How to pick:_ Pick by destination + intent. pr-merge is special — always requires explicit gate even with --auto.
+2. **Target: PR/issue number or URL?** — _How to pick:_ Required for actions that operate on an existing artifact.
+3. **Body source: file path, inline draft, or auto-generate via adk-publish-commit?** — _How to pick:_ Prefer file path (drafted upstream). Auto-generate only when no body exists.
+
+## Default vs detailed output
+
+**Default report:** Action result URL + verification block (title/body/labels match expected) + tool used (gh / MCP).
+
+**Detailed report (on request or `--verbose`):** Add: full command line, full read-back JSON, follow-up suggestions (request reviewers, link to release draft).
+
+**Artifact:** `github-action-result` — The remote PR/issue/comment is the artifact. Locally: action log in .temp/notes/.
+
+**Artifact path:** .temp/notes/publish-github-<action>-<target>.md
+
 <!-- adk:references:start -->
 
 ## References shipped with this skill
@@ -169,10 +203,14 @@ These files live in `references/` next to this `SKILL.md`. Read them when the sk
 | File | Purpose |
 | --- | --- |
 | `references/anti-patterns.md` | Things to avoid when running this skill. |
+| `references/artifact-format.md` | The deliverable's format and where it lives (.temp/ contract). |
+| `references/clarifying-questions.md` | The default-ask questions for this skill, with how-to-pick rubrics. |
 | `references/constitution.md` | Non-negotiable rules and working/communication discipline. |
 | `references/examples.md` | Example trigger phrases, invocation, and report shape. |
+| `references/interaction-contract.md` | Default-ask, explained-options, --auto contract every skill must follow. |
 | `references/mcp-fallback.md` | Preferred MCP server and the manual fallback when it is missing. |
-| `references/output-format.md` | Verbosity modes, result shape, severity labels. |
+| `references/output-format.md` | Default vs detailed report shapes; severity labels; verbosity rules. |
 | `references/persona.md` | The agent persona that drives this skill. |
+| `references/research-protocol.md` | Source ordering, stop conditions, evidence buckets, citation discipline. |
 
 <!-- adk:references:end -->

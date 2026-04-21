@@ -196,6 +196,40 @@ adk-publish-commit --action pr-describe --convention conventional
 adk-publish-commit --action changelog --range v1.4.0..HEAD
 ```
 
+## Clarifying questions (default-ask)
+
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/clarifying-questions.md`) and reports the choices.
+
+1. **What artifact: commit message, PR description, or changelog entry?** — _How to pick:_ Commit = single change. PR = aggregate of branch commits. Changelog = release-scoped summary.
+2. **Convention: detect from git log, conventional commits, or project template?** — _How to pick:_ Default = detect from last 20 commits. Override only if the user states otherwise.
+3. **Include co-authors / sign-off?** — _How to pick:_ Sign-off when DCO / project policy requires. Co-authors when pair-programmed (use Co-authored-by trailer).
+
+**Default report:** Message draft (subject + body) + detected convention + breaking-change note.
+
+**Detailed report (on request or `--verbose`):** Add: diff summary, recent-commit examples used to infer style, alternative subject lines, suggested labels.
+
+**Artifact:** `commit-or-pr-message` — Markdown body file (`.temp/drafts/commit-<slug>.md` / `pr-<slug>.md`). Use `--body-file` when handing to publish-github/bitbucket.
+
+**Artifact path:** .temp/drafts/commit-<slug>.md or .temp/drafts/pr-<slug>.md (passed to adk-publish-github/bitbucket --body-file)
+
+## Clarifying questions (default-ask)
+
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/clarifying-questions.md`) and reports the choices.
+
+1. **What artifact: commit message, PR description, or changelog entry?** — _How to pick:_ Commit = single change. PR = aggregate of branch commits. Changelog = release-scoped summary.
+2. **Convention: detect from git log, conventional commits, or project template?** — _How to pick:_ Default = detect from last 20 commits. Override only if the user states otherwise.
+3. **Include co-authors / sign-off?** — _How to pick:_ Sign-off when DCO / project policy requires. Co-authors when pair-programmed (use Co-authored-by trailer).
+
+## Default vs detailed output
+
+**Default report:** Message draft (subject + body) + detected convention + breaking-change note.
+
+**Detailed report (on request or `--verbose`):** Add: diff summary, recent-commit examples used to infer style, alternative subject lines, suggested labels.
+
+**Artifact:** `commit-or-pr-message` — Markdown body file (`.temp/drafts/commit-<slug>.md` / `pr-<slug>.md`). Use `--body-file` when handing to publish-github/bitbucket.
+
+**Artifact path:** .temp/drafts/commit-<slug>.md or .temp/drafts/pr-<slug>.md (passed to adk-publish-github/bitbucket --body-file)
+
 <!-- adk:references:start -->
 
 ## References shipped with this skill
@@ -205,9 +239,13 @@ These files live in `references/` next to this `SKILL.md`. Read them when the sk
 | File | Purpose |
 | --- | --- |
 | `references/anti-patterns.md` | Things to avoid when running this skill. |
+| `references/artifact-format.md` | The deliverable's format and where it lives (.temp/ contract). |
+| `references/clarifying-questions.md` | The default-ask questions for this skill, with how-to-pick rubrics. |
 | `references/constitution.md` | Non-negotiable rules and working/communication discipline. |
 | `references/examples.md` | Example trigger phrases, invocation, and report shape. |
-| `references/output-format.md` | Verbosity modes, result shape, severity labels. |
+| `references/interaction-contract.md` | Default-ask, explained-options, --auto contract every skill must follow. |
+| `references/output-format.md` | Default vs detailed report shapes; severity labels; verbosity rules. |
 | `references/persona.md` | The agent persona that drives this skill. |
+| `references/research-protocol.md` | Source ordering, stop conditions, evidence buckets, citation discipline. |
 
 <!-- adk:references:end -->

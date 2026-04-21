@@ -12,20 +12,22 @@ of which runtime, harness, or skill you are operating under.
 - Cloned reference repositories used for research.
 - Short-lived working notes, scratch markdown, throwaway snippets.
 - Any markdown file produced *during* a task that is not what the user asked
-  you to deliver.
+you to deliver.
 
 ## Required layout
 
 Use these subfolders consistently so the next agent (or the human) can find
 prior work:
 
-| Path | Purpose |
-| --- | --- |
-| `.temp/plans/<slug>.md` | Implementation, refactor, or migration plans |
-| `.temp/drafts/<slug>.md` | Prose drafts before promotion |
-| `.temp/reports/<slug>.md` | Reviews, audits, investigations |
-| `.temp/reference-repos/<owner>__<repo>/` | Cloned external repos for research |
-| `.temp/notes/<slug>.md` | Short-lived working notes |
+
+| Path                                     | Purpose                                      |
+| ---------------------------------------- | -------------------------------------------- |
+| `.temp/plans/<slug>.md`                  | Implementation, refactor, or migration plans |
+| `.temp/drafts/<slug>.md`                 | Prose drafts before promotion                |
+| `.temp/reports/<slug>.md`                | Reviews, audits, investigations              |
+| `.temp/reference-repos/<owner>__<repo>/` | Cloned external repos for research           |
+| `.temp/notes/<slug>.md`                  | Short-lived working notes                    |
+
 
 Slugs are kebab-case and may include the date when uniqueness matters
 (`2026-04-20-login-redesign`).
@@ -33,14 +35,14 @@ Slugs are kebab-case and may include the date when uniqueness matters
 ## Rules
 
 1. **Never** write intermediate artifacts to the repo root, `docs/`, the
-   project's source tree, `~/Desktop`, `/tmp`, or anywhere outside `.temp/`.
+  project's source tree, `~/Desktop`, `/tmp`, or anywhere outside `.temp/`.
 2. **Never** commit `.temp/`. If a project does not already gitignore it, add
-   `.temp/` to the project's `.gitignore` before writing anything to it.
+  `.temp/` to the project's `.gitignore` before writing anything to it.
 3. If `.temp/` does not exist, create it on first use.
 4. Only promote a file out of `.temp/` once it is the deliverable the user
-   asked for, in the location they asked for it.
+  asked for, in the location they asked for it.
 5. When a task is complete, leave the artifacts in place — they are durable
-   context for follow-up sessions, not garbage.
+  context for follow-up sessions, not garbage.
 
 ## Why
 

@@ -1,33 +1,31 @@
 # Research Protocol
 
-## Default order
-1. Inspect the local repository.
-2. Inspect the exact tool/framework version in use.
-3. Read official docs.
-4. Read maintained implementation references.
-5. Compare local behavior against sources.
-6. Record what is verified vs still uncertain.
+`adk-plan-brainstorm` consults sources in the order below. Higher-ranked sources win conflicts. Stop researching when the stop condition is met — diminishing returns past that point.
+
+## Sources, in order
+
+1. Repo evidence first: file paths, recent git log, existing tests, related PRs, current behavior reproductions.
+2. Primary docs of any framework/library involved (vendor docs, RFCs, ADRs already in the repo).
+3. Comparable open-source projects only when needed to differentiate options.
+
+## Stop condition
+Each option has at least one verified pro and one verified con; no remaining unknown is direction-changing.
 
 ## Evidence buckets
-| Bucket | What belongs here |
-| --- | --- |
-| Verified | Directly supported by code, config, official docs, or runtime output |
-| Inferred | Strong conclusion from partial evidence, marked as inference |
-| Open | Not yet verified, requires follow-up |
 
-## Output shape
-- Question
-- Current state / target state
-- Repo evidence
-- External evidence
-- Conflicts (if any)
-- Recommendation with confidence (high / medium / low)
-- Validation plan
-- Open issues
+For every finding / claim, label it:
 
-## Research rules
-- Prefer official docs over blog posts.
-- Prefer maintained repos over abandoned examples.
-- Prefer the exact branch or released version in use.
-- If docs and code disagree, call it out.
-- Memory is never a `Verified` source.
+- `Verified` — backed by primary source or repo evidence with citation.
+- `Inferred` — extrapolated from related evidence; explicitly say so.
+- `Open` — could not verify; goes in the Open Questions section.
+
+## Citation discipline
+
+- Cite file paths as `path/to/file.ext:LINE-LINE`.
+- Cite URLs with retrieval date (e.g. "fetched 2026-04-21").
+- Cite git commits as short SHAs from the host repo.
+- Cite cloned reference repos as `.temp/reference-repos/<owner>__<repo>/path:LINE`.
+
+## Freshness
+
+Treat any web source older than 6 months for fast-moving libraries (React, Vite, browser APIs) as suspect — verify against the latest official changelog before using.

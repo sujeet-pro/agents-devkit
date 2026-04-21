@@ -10,16 +10,18 @@ of every session.
 The interactive installer (`npm run setup`) walks every detected runtime's
 top-level memory file:
 
-| Runtime | Memory file |
-| --- | --- |
-| Claude Code (CLI) | `~/.claude/CLAUDE.md` |
-| Claude Desktop | `~/Library/Application Support/Claude/CLAUDE.md` (macOS) |
-| Codex CLI | `~/.codex/AGENTS.md` |
-| Cursor (App + CLI) | `~/.cursor/AGENTS.md` |
-| Generic `.agents/*` | `~/.agents/AGENTS.md` |
-| Antigravity | `~/.antigravity/AGENTS.md` |
-| Junie | `~/.junie/AGENTS.md` |
-| Gemini CLI | `~/.gemini/GEMINI.md` |
+
+| Runtime             | Memory file                                              |
+| ------------------- | -------------------------------------------------------- |
+| Claude Code (CLI)   | `~/.claude/CLAUDE.md`                                    |
+| Claude Desktop      | `~/Library/Application Support/Claude/CLAUDE.md` (macOS) |
+| Codex CLI           | `~/.codex/AGENTS.md`                                     |
+| Cursor (App + CLI)  | `~/.cursor/AGENTS.md`                                    |
+| Generic `.agents/`* | `~/.agents/AGENTS.md`                                    |
+| Antigravity         | `~/.antigravity/AGENTS.md`                               |
+| Junie               | `~/.junie/AGENTS.md`                                     |
+| Gemini CLI          | `~/.gemini/GEMINI.md`                                    |
+
 
 For each global prompt file in this folder, the installer ensures the runtime's
 memory file contains a managed block that **imports** the prompt by absolute
@@ -46,3 +48,4 @@ So renames and removals propagate cleanly — exactly like the skill symlinks.
 1. Create `global-prompts/<topic>.md`.
 2. Keep it short, declarative, and runtime-agnostic.
 3. Re-run `npm run setup` and pick the runtimes you want it installed for.
+

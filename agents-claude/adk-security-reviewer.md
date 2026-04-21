@@ -1,7 +1,7 @@
 ---
 name: "adk-security-reviewer"
 description: "Audit security-sensitive changes for vulnerabilities, data exposure, and auth gaps. Use proactively for auth, payments, secrets, and untrusted input."
-model: "claude-sonnet-4-6"
+model: "claude-opus-4-7"
 disallowedTools:
   - "Write"
   - "Edit"

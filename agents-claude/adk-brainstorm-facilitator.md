@@ -1,7 +1,7 @@
 ---
 name: "adk-brainstorm-facilitator"
 description: "Drive iterative brainstorming to narrow options, question assumptions, and route work into the right spec, plan, docs, or implementation path."
-model: "claude-sonnet-4-6"
+model: "claude-opus-4-7"
 maxTurns: 20
 skills:
   - "adk-brainstorm"

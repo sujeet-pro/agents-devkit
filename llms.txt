@@ -2,15 +2,21 @@
 
 ## Overview
 
-ADK is a self-contained skill toolkit for coding agents. It ships 37 standalone `adk-*` skills, runtime-specific custom subagents for Claude / Cursor / Codex, lifecycle hooks, MCP server configurations, and a Node CLI installer that wires everything into Claude Code, Claude Desktop, Cursor (App + CLI), Codex CLI, Codex Desktop, Gemini CLI, Antigravity, and Junie.
+ADK is a self-contained skill toolkit for coding agents. It ships 38 standalone `adk-*` skills, runtime-specific custom subagents for Claude / Cursor / Codex, lifecycle hooks, MCP server configurations, global prompts, and a Node CLI installer that wires everything into Claude Code, Claude Desktop, Cursor (App + CLI), Codex CLI, Codex Desktop, Gemini CLI, Antigravity, and Junie.
 
-Every skill is fully self-contained — one folder with `SKILL.md` and a flat `references/` (no `_shared/`, no shared sources, no cross-skill file references).
+Every skill is fully self-contained — one folder with `SKILL.md` and a flat `references/` (no `_shared/`, no shared sources, no cross-skill file references). Every skill is **highly interactive by default** and accepts `--auto` for fully unattended runs.
 
 ## Install
 
-- `npm install -g agents-devkit && adk-install`                        # global, writes into $HOME
-- `npm install --save-dev agents-devkit && npx adk-install`            # per-project
-- `git clone https://github.com/sujeet-pro/agents-devkit.git && npm install && npm run setup`   # clone
+Ordered from suggested (top) to most minimal (bottom). The first two paths use the bundled Node CLI and wire up all five surfaces (skills, custom subagents, hooks, MCP servers, global prompts). The `npx skills` path uses the third-party skills.sh loader and lands skills only.
+
+- **Suggested — clone + install script:** `git clone https://github.com/sujeet-pro/agents-devkit.git && cd agents-devkit && npm install && npm run setup`. Symlinks point at the clone; `git pull` refreshes; local edits show up live.
+- **npm modules (pinned / CI-reproducible):**
+  - Global: `npm install -g agents-devkit && adk-install` (writes into `$HOME`).
+  - Per-project: `npm install --save-dev agents-devkit && npx adk-install` (writes into the project's dot-dirs).
+- **Non-tech folks — skills only:** `npx skills add sujeet-pro/agents-devkit`. Lands SKILL.md files only; custom subagents, hooks, MCP servers, and global prompts are NOT installed via this path.
+
+For the first two paths, `adk-install` auto-detects which scenario you launched it from. Override with `--mode global|project` or `--root <path>`.
 
 User config: `~/.config/adk/settings.json5`. Project config: `<project>/.adk/settings.json5`.
 
@@ -32,6 +38,18 @@ Audit: `adk-audit-repo`, `adk-audit-site`
 Publish: `adk-publish-commit`, `adk-publish-github`, `adk-publish-bitbucket`, `adk-publish-confluence`, `adk-publish-gdrive`
 Visualize: `adk-visualize-diagram`, `adk-visualize-chart`
 Frontend: `adk-frontend-design`, `adk-frontend-feature`, `adk-frontend-react-csr`
+
+## Standalone task skills (no router)
+
+- `adk-doc-site-setup` — bootstrap `@pagesmith/docs` + `diagramkit` and install `prj-doc-site-*` project skills
+
+## Interaction contract
+
+Every skill ships `references/interaction-contract.md` (identical global contract) AND `references/clarifying-questions.md` (skill-specific questions with how-to-pick rubrics for each option). Default mode: present 2-3 options at every meaningful decision with `Pros / Cons / Best when / Blast radius / Reversibility`, mark one `(default)`, ask one question, wait. `--auto` mode: skip approval gates, take the documented default, still validate, still report. Never auto-execute irreversible destructive ops the skill marks "never auto" (pr-merge, force-push, prod deploy, schema drop, billing, etc.). Same contract is mirrored as `global-prompts/interaction-contract.md` so it lands in every runtime memory file.
+
+## Per-skill references
+
+Every skill ships these unique-per-skill files: `persona.md`, `constitution.md`, `clarifying-questions.md`, `output-format.md`, `artifact-format.md`, `anti-patterns.md`. Skills consulting primary sources also ship `research-protocol.md`. Skills supporting cross-repo context (research, spec, design, docs-write, docs-review, audit-repo) also ship `multi-repo.md` and accept `--repo <url-or-path>` (repeatable; URLs cloned into `.temp/reference-repos/<owner>__<repo>/`).
 
 ## MCP servers
 

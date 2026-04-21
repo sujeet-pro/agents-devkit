@@ -1,29 +1,33 @@
 # Output Format
 
-## Core rules
-- Default to concise markdown.
-- Lead with the answer, status, or findings.
-- Bullets over prose for process and status.
-- Distinguish verified evidence from open questions.
-- End by offering deeper detail instead of front-loading it.
+The skill always produces two layers of output: a **default** (concise, decision-oriented) report and an **on-request detailed** report.
 
-## Verbosity modes
-| Mode | Use when | Shape |
-| --- | --- | --- |
-| `short` | quick updates, low-risk results | 1-3 bullets or short paragraph |
-| `standard` | default for most engineering tasks | summary, scope, validation, remaining risk |
-| `detailed` | audits, docs, migrations, deep reviews | expanded rationale, alternatives, evidence |
+## Default report (always shown)
 
-## Standard result shape
-- Summary
-- Changed scope or target
-- Validation evidence (commands run, output)
-- Remaining risk or open questions
-- Offer to expand
+Status block (done / in-flight / blocked) + open questions + artifact map + recommended next step.
 
-## Severity labels
-`Blocker > Critical > Should Have > May Have > Nitpick > Question`
+End the default report with: `Need more detail on any section? Pass --verbose or ask explicitly.`
 
-## Cross-platform safety
-- Safe everywhere: headings, bullets, numbered lists, fenced code blocks, tables, links, blockquotes.
-- Avoid HTML-only structures when output may land in PR comments or external tools.
+## Detailed report (on request, or under `--verbose`)
+
+Add: chronological session log, every decision made and its rationale, environment snapshot (branch, dirty files, env vars set).
+
+## Status banner
+
+Lead the report with one of:
+`HANDOFF-WRITTEN  |  HANDOFF-WITH-RISKS`
+
+## Severity ladder (where applicable)
+
+If the skill produces findings: `Blocker > Critical > Should Have > May Have > Nitpick > Question`. Lead with the highest. Never mix levels in one bullet.
+
+## Decisions auto-picked under `--auto`
+
+When running under `--auto`, the report MUST list each decision the skill auto-picked, with a one-line rationale, so the user can audit retrospectively.
+
+## Verbosity rules
+
+- Lead with the answer / status / artifact path.
+- Use bullets for process and lists; reserve prose for rationale.
+- Do not dump long context unprompted; offer it instead.
+- Quote primary evidence (file:line, command output) inline for findings; keep raw analyzer output in `.temp/notes/`.

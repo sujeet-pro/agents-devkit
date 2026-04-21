@@ -172,6 +172,46 @@ Want a deeper look at any section?
 - Putting implementation code in the design doc. Save for `adk-build-feature`.
 - Letting "open decisions" hide a Blocker - either decide or escalate.
 
+## Clarifying questions (default-ask)
+
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/clarifying-questions.md`) and reports the choices.
+
+1. **What artifact: HLD (system overview), LLD (component-level detail), ADR (single decision), or migration plan?** — _How to pick:_ HLD = new service or major rewrite. LLD = inside an existing service. ADR = single irreversible decision (DB choice, framework swap). Migration = move from A to B.
+2. **Which non-functional requirements are hard constraints (latency, throughput, availability, cost, regulatory)?** — _How to pick:_ List the top 3 with numeric thresholds. Anything below the threshold is a constraint; anything above is a target.
+3. **What is the blast radius (single service, multiple services, public API, data model)?** — _How to pick:_ Single service = LLD enough. Multiple services = HLD + per-service LLD. Public API = include API versioning + deprecation plan. Data model = include migration script and rollback.
+
+**Default report:** Design markdown with one mermaid diagram, alternatives table, failure modes, rollout.
+
+**Detailed report (on request or `--verbose`):** Add: component-level interface signatures, sequence diagram per primary flow, capacity/cost calculations, security threat model, observability plan.
+
+**Artifact:** `design-document` — Markdown design doc. Sections: Context, Constraints, Proposal (with diagrams), Alternatives Considered, Failure Modes, Observability, Rollout, Open Questions.
+
+**Artifact path:** .temp/drafts/design-<slug>.md (promote to docs/architecture/ or docs/adr/NNN-<slug>.md when signed off)
+
+Pass extra repos via `--repo <url-or-path>` (repeatable). URLs are cloned into `.temp/reference-repos/<owner>__<repo>/`; paths are read in place. Each repo is processed independently and findings/citations are tagged with the repo of origin. See `references/multi-repo.md` for full handling.
+
+## Clarifying questions (default-ask)
+
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/clarifying-questions.md`) and reports the choices.
+
+1. **What artifact: HLD (system overview), LLD (component-level detail), ADR (single decision), or migration plan?** — _How to pick:_ HLD = new service or major rewrite. LLD = inside an existing service. ADR = single irreversible decision (DB choice, framework swap). Migration = move from A to B.
+2. **Which non-functional requirements are hard constraints (latency, throughput, availability, cost, regulatory)?** — _How to pick:_ List the top 3 with numeric thresholds. Anything below the threshold is a constraint; anything above is a target.
+3. **What is the blast radius (single service, multiple services, public API, data model)?** — _How to pick:_ Single service = LLD enough. Multiple services = HLD + per-service LLD. Public API = include API versioning + deprecation plan. Data model = include migration script and rollback.
+
+## Default vs detailed output
+
+**Default report:** Design markdown with one mermaid diagram, alternatives table, failure modes, rollout.
+
+**Detailed report (on request or `--verbose`):** Add: component-level interface signatures, sequence diagram per primary flow, capacity/cost calculations, security threat model, observability plan.
+
+**Artifact:** `design-document` — Markdown design doc. Sections: Context, Constraints, Proposal (with diagrams), Alternatives Considered, Failure Modes, Observability, Rollout, Open Questions.
+
+**Artifact path:** .temp/drafts/design-<slug>.md (promote to docs/architecture/ or docs/adr/NNN-<slug>.md when signed off)
+
+## Multi-repo context
+
+Pass extra repos via `--repo <url-or-path>` (repeatable). URLs are cloned into `.temp/reference-repos/<owner>__<repo>/`; paths are read in place. Each repo is processed independently and findings/citations are tagged with the repo of origin. See `references/multi-repo.md` for full handling.
+
 <!-- adk:references:start -->
 
 ## References shipped with this skill
@@ -181,10 +221,15 @@ These files live in `references/` next to this `SKILL.md`. Read them when the sk
 | File | Purpose |
 | --- | --- |
 | `references/anti-patterns.md` | Things to avoid when running this skill. |
+| `references/artifact-format.md` | The deliverable's format and where it lives (.temp/ contract). |
+| `references/clarifying-questions.md` | The default-ask questions for this skill, with how-to-pick rubrics. |
 | `references/constitution.md` | Non-negotiable rules and working/communication discipline. |
 | `references/examples.md` | Example trigger phrases, invocation, and report shape. |
-| `references/output-format.md` | Verbosity modes, result shape, severity labels. |
+| `references/interaction-contract.md` | Default-ask, explained-options, --auto contract every skill must follow. |
+| `references/multi-repo.md` | How to consume context from extra cloned or local-path repos. |
+| `references/output-format.md` | Default vs detailed report shapes; severity labels; verbosity rules. |
 | `references/persona.md` | The agent persona that drives this skill. |
-| `references/working-artifacts.md` | The .temp/ rule for intermediate artifacts. |
+| `references/research-protocol.md` | Source ordering, stop conditions, evidence buckets, citation discipline. |
+| `references/working-artifacts.md` | Legacy: superseded by artifact-format.md; kept for back-compat. |
 
 <!-- adk:references:end -->

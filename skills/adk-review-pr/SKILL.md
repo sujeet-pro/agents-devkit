@@ -143,6 +143,40 @@ adk-review-pr https://github.com/org/repo/pull/842 --focus correctness,security
 adk-review-pr https://bitbucket.org/org/repo/pull-requests/17 --post-mode post --auto
 ```
 
+## Clarifying questions (default-ask)
+
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/clarifying-questions.md`) and reports the choices.
+
+1. **What is the PR URL and provider (GitHub or Bitbucket)?** — _How to pick:_ Detect from URL host. github.com / GHE → github. bitbucket.org → bitbucket.
+2. **Focus: correctness, security, performance, style, all?** — _How to pick:_ All = default for first review. Narrow to one when re-reviewing after changes or when scope is huge.
+3. **Post mode: dry-run (report only) or post (inline + summary)?** — _How to pick:_ Default dry-run on first run so the user can review the findings. Post after explicit approval (or pass --auto).
+
+**Default report:** Verdict (approve/request-changes/comment) + severity-grouped findings + verification block.
+
+**Detailed report (on request or `--verbose`):** Add: per-dimension narrative (correctness/security/perf/style/tests), out-of-scope list, lint/test output captured, suggested patches as code blocks.
+
+**Artifact:** `pr-review-comments` — The PR comments themselves are the artifact — inline per finding + one summary. Markdown report mirrored in .temp/.
+
+**Artifact path:** .temp/reports/review-pr-<provider>-<number>.md (full report). Inline + summary comments live on the remote PR.
+
+## Clarifying questions (default-ask)
+
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/clarifying-questions.md`) and reports the choices.
+
+1. **What is the PR URL and provider (GitHub or Bitbucket)?** — _How to pick:_ Detect from URL host. github.com / GHE → github. bitbucket.org → bitbucket.
+2. **Focus: correctness, security, performance, style, all?** — _How to pick:_ All = default for first review. Narrow to one when re-reviewing after changes or when scope is huge.
+3. **Post mode: dry-run (report only) or post (inline + summary)?** — _How to pick:_ Default dry-run on first run so the user can review the findings. Post after explicit approval (or pass --auto).
+
+## Default vs detailed output
+
+**Default report:** Verdict (approve/request-changes/comment) + severity-grouped findings + verification block.
+
+**Detailed report (on request or `--verbose`):** Add: per-dimension narrative (correctness/security/perf/style/tests), out-of-scope list, lint/test output captured, suggested patches as code blocks.
+
+**Artifact:** `pr-review-comments` — The PR comments themselves are the artifact — inline per finding + one summary. Markdown report mirrored in .temp/.
+
+**Artifact path:** .temp/reports/review-pr-<provider>-<number>.md (full report). Inline + summary comments live on the remote PR.
+
 <!-- adk:references:start -->
 
 ## References shipped with this skill
@@ -152,11 +186,15 @@ These files live in `references/` next to this `SKILL.md`. Read them when the sk
 | File | Purpose |
 | --- | --- |
 | `references/anti-patterns.md` | Things to avoid when running this skill. |
+| `references/artifact-format.md` | The deliverable's format and where it lives (.temp/ contract). |
+| `references/clarifying-questions.md` | The default-ask questions for this skill, with how-to-pick rubrics. |
 | `references/constitution.md` | Non-negotiable rules and working/communication discipline. |
 | `references/examples.md` | Example trigger phrases, invocation, and report shape. |
+| `references/interaction-contract.md` | Default-ask, explained-options, --auto contract every skill must follow. |
 | `references/mcp-fallback.md` | Preferred MCP server and the manual fallback when it is missing. |
-| `references/output-format.md` | Verbosity modes, result shape, severity labels. |
+| `references/output-format.md` | Default vs detailed report shapes; severity labels; verbosity rules. |
 | `references/persona.md` | The agent persona that drives this skill. |
+| `references/research-protocol.md` | Source ordering, stop conditions, evidence buckets, citation discipline. |
 | `references/review-comment-format.md` | Standard finding format with stable IDs and severities. |
 
 <!-- adk:references:end -->

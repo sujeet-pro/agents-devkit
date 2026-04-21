@@ -1,111 +1,129 @@
 # Contributing to ADK
 
-## Quick Start
+ADK is a single npm package + Node CLI installer. There is no Python tooling, no `ai-guidelines/` source-of-truth, no `agent-personas/` projection, and no `prj-*` skills in this repo. Everything below assumes a Node 18+ environment.
+
+## Quick start
 
 ```bash
 git clone https://github.com/sujeet-pro/agents-devkit.git
 cd agents-devkit
 npm install
-python3 tests/test_skills.py
-npm run docs:build
+npm run validate            # lints skill / agent / hook structure
+npm run skills:manifest     # regenerates skills-manifest.json
+npm run setup:dry           # preview what the installer would do
+npm run docs:build          # build gh-pages/ from docs/
 ```
 
-## Architecture
+## Repository layout
 
-- `skills/adk-*`: public installable skills
-- `agent-personas/adk-*`: canonical reusable subagent personas
-- `agents-claude/*.md`: Claude installable agent sources
-- `agents-cursor/*.md`: Cursor installable agent sources
-- `agents-codex/*.toml`: Codex installable agent sources
-- `hooks/claude.json`, `hooks/cursor.json`, `hooks/codex.json`: runtime-specific hook sources (flat layout)
-- `ai-guidelines/`: source-of-truth philosophy, research protocol, personas, update policy, and provenance
-- `.agents/skills/prj-*`: **canonical** contributor maintenance skills
-- `.claude/skills/prj-`*, `.cursor/skills/prj-`*: relative symlinks to the canonical `.agents/skills/prj-*` sources (managed by `scripts/sync-links.sh`)
-- `.codex/`: compatibility-only shim
+| Path | Contents |
+| --- | --- |
+| `skills/adk-*` | 38 public, self-contained skills (`SKILL.md` + flat `references/`) |
+| `agents-claude/*.md` | Claude custom subagent sources (Markdown + YAML frontmatter) |
+| `agents-cursor/*.md` | Cursor custom subagent sources (Markdown + Cursor frontmatter) |
+| `agents-codex/*.toml` | Codex custom agent sources (TOML) |
+| `hooks/{claude,cursor,codex}.json` | Per-runtime hook configs |
+| `mcp-config/servers/<server>.json` | One JSON per MCP server with `${ENV_VAR}` placeholders |
+| `global-prompts/*.md` | Always-on prompts injected into runtime memory files |
+| `workflows/*.yaml` | Composable multi-skill pipelines |
+| `cli/` | The Node installer (`adk-install`) — pure ESM, no Python |
+| `docs/`, `gh-pages/` | Pagesmith docs source + built site |
 
-## Public Skill Rules
+There are **no** shared-source folders. A skill's `references/` is flat: every supporting file (`persona.md`, `workflow.md`, `output-format.md`, `constitution.md`, `interaction-contract.md`, `working-artifacts.md`, etc.) lives next to the `SKILL.md` and is the canonical text for that skill.
 
-- public skill names must start with `adk-`
-- public skills must be self-contained
-- keep argument count low and memorable
-- use direct, professional names
-- copy shared guidance into `references/_shared/` instead of relying on separately installed helper skills
-- keep task-specific workflow and persona guidance in the skill's own local files
+## Hard rules for skills
 
-## Contributor Skill Rules
+- Skill folder names must match `^adk(-[a-z0-9]+)*$`.
+- Every `SKILL.md` has YAML frontmatter with `name` and `description`. Optional keys: `compatibility`, `metadata`, `license`, `allowed-tools`. Anything else fails validation.
+- `frontmatter.name` must equal the folder name.
+- `description` ≤ 1024 chars.
+- Body soft cap is 500 lines (warning above that).
+- `references/` is flat; no subdirectories; no `_shared/`.
+- Every `references/<file>` cited in `SKILL.md` must exist on disk (validation walks the body for `references/<file>` patterns).
+- The skill must accept `--auto`. Even routers that mostly hand off should mention `--auto` so the contract is visible.
+- The skill must include `references/interaction-contract.md` (the default-ask-with-explained-options + `--auto` contract). Updating the master copy in `global-prompts/interaction-contract.md` is the source of truth — propagate to skill references with a quick `cp` or via a maintenance script in `.temp/scripts/`.
 
-- edit contributor skills at their canonical path: `.agents/skills/prj-*/SKILL.md`
-- `.claude/skills/prj-*` and `.cursor/skills/prj-*` are relative symlinks; do not edit the mirrors
-- contributor skill names must start with `prj-` and frontmatter must declare `metadata.internal: true`
-- contributor skills may point directly to `ai-guidelines/` files
-- do not expose contributor skills as part of the default public catalog
-- run `./scripts/sync-links.sh` after adding or removing a contributor skill to refresh the Claude and Cursor mirrors
+## Adding or updating a skill
 
-## Shared Guidance Workflow
+1. Create `skills/adk-<name>/` with `SKILL.md` and `references/`.
+2. Author the `SKILL.md`: `When to use`, `When NOT to use`, `Inputs` (mark `--auto` row), `Workflow` (numbered phases with explicit "Approval gate unless `--auto`" calls), `Output format`, `Anti-patterns`, plus the managed `<!-- adk:references:start --> ... <!-- adk:references:end -->` block listing every reference file.
+3. Author the **standard skill-specific reference set** (every reference except `interaction-contract.md` MUST carry skill-specific content — no generic templates):
+   - `persona.md` — role, mission, focus areas, hard rules, status reporting banner. The hard rules are the source of truth for the constitution's skill-specific section.
+   - `constitution.md` — shared ADK baseline + skill-specific non-negotiables (typically mirrors persona's hard rules).
+   - `interaction-contract.md` — the global default-ask + `--auto` contract. Identical across all skills; copy from `global-prompts/interaction-contract.md`.
+   - `clarifying-questions.md` — the questions this skill asks in default-ask mode, each with a how-to-pick rubric. Under `--auto` the skill picks the safest documented option for each.
+   - `output-format.md` — default vs detailed report shape, status banner, severity ladder where applicable.
+   - `artifact-format.md` — the deliverable's format and where it lives (PR comments, audit report markdown, code diff, design doc, page, chart, etc.) plus the `.temp/` path matrix.
+   - `anti-patterns.md` — skill-specific anti-patterns.
+4. Add **task-specific** references when relevant:
+   - `research-protocol.md` for any skill that consults primary sources (research, design, spec, audit, docs-write, docs-review, etc.). Lists sources in priority order, stop condition, evidence buckets, citation discipline.
+   - `multi-repo.md` for skills that benefit from cross-repo context (research, spec, design, docs-write, docs-review, audit-repo). Documents `--repo <url-or-path>` and clone layout.
+   - `examples.md`, `mcp-fallback.md`, `review-comment-format.md`, `brainstorming-workflow.md` where present.
+4. Run `npm run validate` and fix any error.
+5. Run `npm run skills:manifest` so `skills-manifest.json` reflects the new entry.
+6. Update the catalog tables in `README.md`, `AGENTS.md`, `REFERENCE.md`, and `llms.txt` (skill count, category table, intent → task mapping).
+7. Run `npm run docs:build` to confirm the docs site still renders.
 
-1. Update `ai-guidelines/` first.
-2. Use `python3 ai-guidelines/scripts/refresh_adk_skills.py scope ...` to decide one-skill vs family vs full-catalog impact.
-3. Use `python3 ai-guidelines/scripts/refresh_adk_skills.py copy-shared` to refresh copied shared docs in public skills.
-4. Regenerate the public manifest.
-5. Run validation.
-6. Update attribution if user-facing behavior changed.
+## Adding or updating a custom subagent
 
-## Adding a Public Skill
+Each provider's agent file is independent. Authoring a new agent named `adk-<name>`:
 
-Use the contributor skill `prj-create-skill` (lives at `.agents/skills/prj-create-skill/`):
+1. Write `agents-claude/adk-<name>.md` (Markdown + YAML frontmatter — at least `name` and `description`).
+2. Write `agents-cursor/adk-<name>.md` (Cursor-shaped frontmatter).
+3. Write `agents-codex/adk-<name>.toml` (TOML keys: `name`, `description`, `model`, `developer_instructions`).
+4. Run `npm run validate`.
 
-1. Run `python3 .agents/skills/prj-create-skill/scripts/scaffold.py <name>`.
-2. The scaffold seeds `skills/adk-<name>/` from `.agents/skills/prj-create-skill/references/template/`.
-3. Author `SKILL.md`, `references/workflow.md`, `references/persona.md`, and `scripts/preflight.py`.
-4. Keep the skill self-contained.
-5. Run `python3 ai-guidelines/scripts/refresh_adk_skills.py copy-shared`.
-6. Run `python3 scripts/generate-skills-manifest.py`.
-7. Run `python3 tests/test_skills.py`.
-8. Run `npm run docs:build`.
-9. Verify `npx skills add . --list` shows the skill.
+Lists may differ per provider — there is no shared persona source. If an agent only makes sense for one runtime, ship it for that runtime only.
 
-## Adding or Updating Shared Guidance
+## Adding or updating a hook
 
-Update these first when relevant:
+1. Edit the relevant `hooks/{claude,cursor,codex}.json` file directly.
+2. Run `npm run validate` (parses each hook file as JSON).
+3. Codex hooks require `[features] codex_hooks = true` in `~/.codex/config.toml` to be active on a user's machine.
 
-- `ai-guidelines/constitution.md`
-- `ai-guidelines/skill-architecture.md`
-- `ai-guidelines/research-protocol.md`
-- `ai-guidelines/update-scope-policy.md`
-- `ai-guidelines/personas/`
-- `ai-guidelines/sources/registry.json`
+## Adding or updating an MCP server
 
-## Adding or Updating Agents
+1. Add `mcp-config/servers/<server>.json` with `${ENV_VAR}` placeholders for any required secrets.
+2. Include a `description` and a one-line "how to get this" string for each env var so the installer can prompt with helpful context.
+3. Run `npm run validate` then `npm run setup:dry` to confirm the installer surfaces the new server in the multiselect.
 
-1. Edit the canonical persona in `agent-personas/adk-*/AGENT.md`.
-2. Update `scripts/generate_agent_projections.py` if the runtime-specific metadata should change.
-3. Run `python3 scripts/generate_agent_projections.py`.
-4. Run validation.
+## Adding or updating a global prompt
 
-## Adding or Updating Hooks
+1. Drop `global-prompts/<topic>.md` (short, declarative, runtime-agnostic).
+2. Re-running `adk-install` rewrites the `<!-- adk:global-prompts:start/end -->` block in every selected runtime's memory file.
 
-1. Update `scripts/generate_hook_projections.py` if the shared hook behavior or runtime mapping should change.
-2. Run `python3 scripts/generate_hook_projections.py`.
-3. Run validation.
+When you change `global-prompts/interaction-contract.md`, also propagate it to `skills/*/references/interaction-contract.md` so the in-skill copy stays in sync.
 
-## Attribution
+## Workflow files
 
-- record new inspirations in `ai-guidelines/sources/registry.json`
-- update `NOTICE.md` when upstream influence becomes user-facing
-- update `docs/reference/skill-INSPIRATION-MAP.md` when skill-to-source mapping changes
-- do not guess license or provenance details
+Workflows in `workflows/*.yaml` chain skills. They are optional convenience presets — keep them up to date with the current skill catalog (e.g. don't reference deleted skills).
 
-## Validation Commands
+## Validation commands
 
 ```bash
-python3 ai-guidelines/scripts/refresh_adk_skills.py status
-python3 scripts/generate_agent_projections.py --check
-python3 scripts/generate_hook_projections.py --check
-python3 scripts/generate-skills-manifest.py --check
-python3 tests/test_skills.py
-python3 tests/test_agents.py
-python3 tests/test_hooks.py
-npm run docs:build
-npx skills add . --list
+npm run validate            # all skills, agents, hooks
+node cli/lib/validate.mjs   # same, called directly
+npm run skills:manifest     # regenerate manifest from skills/
+npm run setup:dry           # interactive plan, no writes
+npm run docs:build          # build the public docs site
 ```
 
+## Release checklist
+
+1. `npm run validate` — must be `0 error(s)`.
+2. `npm run skills:manifest` — commit the regenerated manifest.
+3. `npm run setup:dry` from a temp dir against both a global and a project install — confirm the plan summary lists every skill, agent, hook, and MCP server.
+4. Bump `package.json` `version`. Update the skill count anywhere it changed.
+5. `npm run docs:build` and commit `gh-pages/`.
+6. `git tag v<version> && git push --tags`.
+7. `npm publish`.
+
+## What this repo deliberately does NOT have
+
+- No Python anywhere. The old `tests/test_*.py`, `scripts/generate_*.py`, `ai-guidelines/scripts/refresh_adk_skills.py`, and `scripts/sync-links.sh` have all been removed in favor of the Node CLI.
+- No `ai-guidelines/` source-of-truth folder. Each skill carries its own copy of the persona, constitution, output format, and interaction contract.
+- No `agent-personas/` projection. Each provider's agent file is hand-authored.
+- No `prj-*` contributor skills installed at this repo's root. The `prj-doc-site-*` files referenced by `adk-doc-site-setup` only live as `references/` inside that skill — they are written into a *consumer* project when the skill runs.
+- No Bash install script. The CLI is the only install path.
+
+If you find a doc that mentions any of the above, it's stale — please fix it in the same PR as your change.

@@ -124,10 +124,23 @@ export function pruneRepoLink(file, repoDir, opts) {
  * Ensure a symlink at `linkPath` points to `target`.
  *
  * - If `linkPath` already exists as a non-symlink, skip and report.
- * - If it is a symlink with the same target, skip silently.
- * - Otherwise, replace it.
+ * - If it is a symlink with the same target:
+ *     - When `force` is true, delete + recreate it. This bumps the link's
+ *       ctime/mtime, which is useful for invalidating caches kept by
+ *       agent runtimes (e.g. Claude indexes skill metadata once per session
+ *       and decides "fresh" by stat). Re-creating ensures the live file
+ *       (which the symlink already points at) is treated as new.
+ *     - Otherwise, leave it alone.
+ * - If it is a symlink to a *different* target:
+ *     - When `allowForeignReplace` is true, replace it.
+ *     - Otherwise, refuse and skip (avoids silently clobbering a user's
+ *       dot-files-managed symlink, e.g. ~/.claude/settings.json).
  */
-export function ensureSymlink(target, linkPath, { dryRun = false, log = () => {} } = {}) {
+export function ensureSymlink(
+  target,
+  linkPath,
+  { dryRun = false, log = () => {}, force = false, allowForeignReplace = true } = {},
+) {
   if (!existsSync(target)) {
     log(`skip-missing-source ${target}`);
     return { status: "skipped", reason: "source-missing" };
@@ -137,21 +150,40 @@ export function ensureSymlink(target, linkPath, { dryRun = false, log = () => {}
     return { status: "skipped", reason: "non-symlink" };
   }
   if (isLink(linkPath)) {
+    let existing = null;
     try {
-      const existing = readLinkAbs(linkPath);
-      if (existing === target) return { status: "ok", reason: "already-linked" };
+      existing = readLinkAbs(linkPath);
     } catch {
       /* fall through to replace */
     }
-    if (dryRun) {
-      log(`[dry-run] replace ${linkPath} -> ${target}`);
-      return { status: "would-link", reason: "replace" };
-    }
-    try {
-      unlinkSync(linkPath);
-    } catch (err) {
-      log(`replace-failed ${linkPath} (${err.message})`);
-      return { status: "error", reason: err.message };
+    if (existing === target) {
+      if (!force) return { status: "ok", reason: "already-linked" };
+      // force-recreate to bump ctime for cache busters.
+      if (dryRun) {
+        log(`[dry-run] refresh ${linkPath} -> ${target}`);
+        return { status: "would-link", reason: "refresh" };
+      }
+      try {
+        unlinkSync(linkPath);
+      } catch (err) {
+        log(`refresh-failed ${linkPath} (${err.message})`);
+        return { status: "error", reason: err.message };
+      }
+    } else {
+      if (!allowForeignReplace) {
+        log(`skip-foreign-symlink ${linkPath} -> ${existing ?? "?"}`);
+        return { status: "skipped", reason: "foreign-symlink" };
+      }
+      if (dryRun) {
+        log(`[dry-run] replace ${linkPath} -> ${target}`);
+        return { status: "would-link", reason: "replace" };
+      }
+      try {
+        unlinkSync(linkPath);
+      } catch (err) {
+        log(`replace-failed ${linkPath} (${err.message})`);
+        return { status: "error", reason: err.message };
+      }
     }
   }
   if (dryRun) {

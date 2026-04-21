@@ -143,6 +143,40 @@ adk-review-feedback https://github.com/org/repo/pull/842
 adk-review-feedback https://bitbucket.org/org/repo/pull-requests/17 --filter unresolved --scope src/
 ```
 
+## Clarifying questions (default-ask)
+
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/clarifying-questions.md`) and reports the choices.
+
+1. **What is the PR URL?** — _How to pick:_ Required. Provider auto-detected from host.
+2. **Filter: address all, only Blockers/Critical, or only specific comment IDs?** — _How to pick:_ All = default. Severity-only = use when many comments and we want to ship core fixes first. Specific IDs = surgical follow-up.
+3. **Reply style: terse ('Fixed in <sha>') or explanatory (one-paragraph 'why this fix')?** — _How to pick:_ Terse for nits, explanatory for design comments and pushbacks.
+
+**Default report:** Comment-by-comment table (id / severity / status / fix commit / reply preview).
+
+**Detailed report (on request or `--verbose`):** Add: per-comment plan before fix, evidence each fix actually addresses the issue, residual disagreement notes.
+
+**Artifact:** `feedback-resolution-comments` — PR replies + commits. Plan + evidence in .temp/.
+
+**Artifact path:** .temp/reports/feedback-<provider>-<number>.md (resolution log). Replies + commits land on the remote PR.
+
+## Clarifying questions (default-ask)
+
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/clarifying-questions.md`) and reports the choices.
+
+1. **What is the PR URL?** — _How to pick:_ Required. Provider auto-detected from host.
+2. **Filter: address all, only Blockers/Critical, or only specific comment IDs?** — _How to pick:_ All = default. Severity-only = use when many comments and we want to ship core fixes first. Specific IDs = surgical follow-up.
+3. **Reply style: terse ('Fixed in <sha>') or explanatory (one-paragraph 'why this fix')?** — _How to pick:_ Terse for nits, explanatory for design comments and pushbacks.
+
+## Default vs detailed output
+
+**Default report:** Comment-by-comment table (id / severity / status / fix commit / reply preview).
+
+**Detailed report (on request or `--verbose`):** Add: per-comment plan before fix, evidence each fix actually addresses the issue, residual disagreement notes.
+
+**Artifact:** `feedback-resolution-comments` — PR replies + commits. Plan + evidence in .temp/.
+
+**Artifact path:** .temp/reports/feedback-<provider>-<number>.md (resolution log). Replies + commits land on the remote PR.
+
 <!-- adk:references:start -->
 
 ## References shipped with this skill
@@ -152,10 +186,14 @@ These files live in `references/` next to this `SKILL.md`. Read them when the sk
 | File | Purpose |
 | --- | --- |
 | `references/anti-patterns.md` | Things to avoid when running this skill. |
+| `references/artifact-format.md` | The deliverable's format and where it lives (.temp/ contract). |
+| `references/clarifying-questions.md` | The default-ask questions for this skill, with how-to-pick rubrics. |
 | `references/constitution.md` | Non-negotiable rules and working/communication discipline. |
 | `references/examples.md` | Example trigger phrases, invocation, and report shape. |
-| `references/output-format.md` | Verbosity modes, result shape, severity labels. |
+| `references/interaction-contract.md` | Default-ask, explained-options, --auto contract every skill must follow. |
+| `references/output-format.md` | Default vs detailed report shapes; severity labels; verbosity rules. |
 | `references/persona.md` | The agent persona that drives this skill. |
+| `references/research-protocol.md` | Source ordering, stop conditions, evidence buckets, citation discipline. |
 | `references/review-comment-format.md` | Standard finding format with stable IDs and severities. |
 
 <!-- adk:references:end -->

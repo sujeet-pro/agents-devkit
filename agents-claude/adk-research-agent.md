@@ -1,7 +1,7 @@
 ---
 name: "adk-research-agent"
 description: "Research framework behavior and upstream docs with clear verified versus inferred findings. Use when external behavior or version-specific guidance matters."
-model: "claude-sonnet-4-6"
+model: "claude-opus-4-6"
 disallowedTools:
   - "Write"
   - "Edit"

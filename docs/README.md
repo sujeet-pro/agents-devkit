@@ -23,23 +23,38 @@ features:
 
 ## Install
 
-The Node CLI is the only installer. Pick one of three install paths:
+Three install paths, ordered from most-recommended to most-minimal. Paths 1 and 2 use the bundled Node CLI (`adk-install`) and wire up all five surfaces (skills, custom subagents, hooks, MCP servers, global prompts). Path 3 uses the third-party [`skills`](https://skills.sh) loader and lands only the skills.
+
+### 1. Clone + install script — suggested
 
 ```bash
-# Global (writes into $HOME)
+git clone https://github.com/sujeet-pro/agents-devkit.git ~/code/agents-devkit
+cd ~/code/agents-devkit && npm install
+npm run setup            # interactive; same as `adk-install`
+```
+
+Symlinks point back at the clone, so `git pull` refreshes every linked runtime instantly and local skill edits show up live.
+
+### 2. npm modules — pinned / CI-reproducible
+
+```bash
+# Global ($HOME)
 npm install -g agents-devkit
 adk-install
 
-# Per-project (writes into <project>'s dot-dirs)
+# Per-project (pinned in package.json, CI-friendly)
 cd <your-project>
 npm install --save-dev agents-devkit
 npx adk-install
-
-# Clone (writes wherever you choose; symlinks point at the clone)
-git clone https://github.com/sujeet-pro/agents-devkit.git ~/code/agents-devkit
-cd ~/code/agents-devkit && npm install
-npm run setup
 ```
+
+### 3. `npx skills add` — for non-tech folks (skills only)
+
+```bash
+npx skills add sujeet-pro/agents-devkit
+```
+
+Drops just the `SKILL.md` files into your agent via the third-party [`skills`](https://skills.sh) loader. **Custom subagents, hooks, MCP servers, and global prompts are NOT installed via this path** — use path 1 or 2 if you want the full kit.
 
 User config: `~/.config/adk/settings.json5`. Project config: `<project>/.adk/settings.json5`.
 

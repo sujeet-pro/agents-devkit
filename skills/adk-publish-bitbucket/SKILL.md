@@ -175,6 +175,40 @@ adk-publish-bitbucket pr-comment 17 --body-file .temp/drafts/comment.md
 adk-publish-bitbucket pr-merge 17 --merge-strategy squash
 ```
 
+## Clarifying questions (default-ask)
+
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/clarifying-questions.md`) and reports the choices.
+
+1. **Action: pr-create / pr-update / pr-comment / pr-task / pr-merge / issue-create / issue-comment?** — _How to pick:_ Comments are discussion; tasks are blocking checklist items the author must resolve. Pick deliberately.
+2. **Target: PR/issue ID or URL?** — _How to pick:_ Required for actions on existing artifacts.
+3. **Body source: file path or auto-generate?** — _How to pick:_ Prefer file (drafted upstream). Auto-generate only when no body exists.
+
+**Default report:** Action result URL + verification block + tool used (REST / MCP).
+
+**Detailed report (on request or `--verbose`):** Add: full HTTP request/response JSON archived, follow-up suggestions (assign reviewers, link to spec page).
+
+**Artifact:** `bitbucket-action-result` — The remote PR/issue/comment/task is the artifact. Action log in .temp/notes/.
+
+**Artifact path:** .temp/notes/publish-bitbucket-<action>-<target>.md
+
+## Clarifying questions (default-ask)
+
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/clarifying-questions.md`) and reports the choices.
+
+1. **Action: pr-create / pr-update / pr-comment / pr-task / pr-merge / issue-create / issue-comment?** — _How to pick:_ Comments are discussion; tasks are blocking checklist items the author must resolve. Pick deliberately.
+2. **Target: PR/issue ID or URL?** — _How to pick:_ Required for actions on existing artifacts.
+3. **Body source: file path or auto-generate?** — _How to pick:_ Prefer file (drafted upstream). Auto-generate only when no body exists.
+
+## Default vs detailed output
+
+**Default report:** Action result URL + verification block + tool used (REST / MCP).
+
+**Detailed report (on request or `--verbose`):** Add: full HTTP request/response JSON archived, follow-up suggestions (assign reviewers, link to spec page).
+
+**Artifact:** `bitbucket-action-result` — The remote PR/issue/comment/task is the artifact. Action log in .temp/notes/.
+
+**Artifact path:** .temp/notes/publish-bitbucket-<action>-<target>.md
+
 <!-- adk:references:start -->
 
 ## References shipped with this skill
@@ -184,10 +218,14 @@ These files live in `references/` next to this `SKILL.md`. Read them when the sk
 | File | Purpose |
 | --- | --- |
 | `references/anti-patterns.md` | Things to avoid when running this skill. |
+| `references/artifact-format.md` | The deliverable's format and where it lives (.temp/ contract). |
+| `references/clarifying-questions.md` | The default-ask questions for this skill, with how-to-pick rubrics. |
 | `references/constitution.md` | Non-negotiable rules and working/communication discipline. |
 | `references/examples.md` | Example trigger phrases, invocation, and report shape. |
+| `references/interaction-contract.md` | Default-ask, explained-options, --auto contract every skill must follow. |
 | `references/mcp-fallback.md` | Preferred MCP server and the manual fallback when it is missing. |
-| `references/output-format.md` | Verbosity modes, result shape, severity labels. |
+| `references/output-format.md` | Default vs detailed report shapes; severity labels; verbosity rules. |
 | `references/persona.md` | The agent persona that drives this skill. |
+| `references/research-protocol.md` | Source ordering, stop conditions, evidence buckets, citation discipline. |
 
 <!-- adk:references:end -->

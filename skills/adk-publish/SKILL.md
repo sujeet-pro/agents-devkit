@@ -74,6 +74,36 @@ Once you have picked a task, load `adk-publish-<task>` and follow it. Each task 
 - Hiding breaking changes in the body. Surface them.
 - Auto-merging or force-pushing without explicit user approval.
 
+## Clarifying questions (default-ask)
+
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/clarifying-questions.md`) and reports the choices.
+
+1. **What is the destination?** — _How to pick:_ Local commit / PR-message draft → adk-publish-commit. GitHub action → adk-publish-github. Bitbucket → adk-publish-bitbucket. Confluence page → adk-publish-confluence. Google Drive doc → adk-publish-gdrive.
+
+**Default report:** Routed task + why.
+
+**Detailed report (on request or `--verbose`):** (n/a — small router)
+
+**Artifact:** `publish-routing-decision` — Inline message.
+
+**Artifact path:** (none)
+
+## Clarifying questions (default-ask)
+
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/clarifying-questions.md`) and reports the choices.
+
+1. **What is the destination?** — _How to pick:_ Local commit / PR-message draft → adk-publish-commit. GitHub action → adk-publish-github. Bitbucket → adk-publish-bitbucket. Confluence page → adk-publish-confluence. Google Drive doc → adk-publish-gdrive.
+
+## Default vs detailed output
+
+**Default report:** Routed task + why.
+
+**Detailed report (on request or `--verbose`):** (n/a — small router)
+
+**Artifact:** `publish-routing-decision` — Inline message.
+
+**Artifact path:** (none)
+
 <!-- adk:references:start -->
 
 ## References shipped with this skill
@@ -83,6 +113,11 @@ These files live in `references/` next to this `SKILL.md`. Read them when the sk
 | File | Purpose |
 | --- | --- |
 | `references/anti-patterns.md` | Things to avoid when running this skill. |
+| `references/artifact-format.md` | The deliverable's format and where it lives (.temp/ contract). |
+| `references/clarifying-questions.md` | The default-ask questions for this skill, with how-to-pick rubrics. |
 | `references/constitution.md` | Non-negotiable rules and working/communication discipline. |
+| `references/interaction-contract.md` | Default-ask, explained-options, --auto contract every skill must follow. |
+| `references/output-format.md` | Default vs detailed report shapes; severity labels; verbosity rules. |
+| `references/persona.md` | The agent persona that drives this skill. |
 
 <!-- adk:references:end -->

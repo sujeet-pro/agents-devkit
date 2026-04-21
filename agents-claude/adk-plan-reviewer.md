@@ -1,7 +1,7 @@
 ---
 name: "adk-plan-reviewer"
 description: "Critique implementation plans for completeness, risk, and validation gaps. Use after a plan is drafted and before execution begins."
-model: "claude-sonnet-4-6"
+model: "claude-opus-4-7"
 disallowedTools:
   - "Write"
   - "Edit"
