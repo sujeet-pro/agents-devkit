@@ -1,31 +1,10 @@
 ---
 title: 'plan-brainstorm'
-description: 'Run iterative brainstorming to close ambiguity, weigh 2-3 viable options, choose blast radius and confidence target, and route into the right next skill (spec, design, roadmap, build, write-docs).'
-artifact_kind: skill
+description: 'Run iterative brainstorming to close ambiguity, weigh 2-3 viable options, choose blast radius and confidence target, and route into the right next skill (spec, design, roadmap, build, write-docs). Use when a task has real ambiguity about goal, scope, or approach and the user wants help picking a direction before any code or doc is written. Do not use for trivial decisions with one obvious path.'
 skill_name: plan-brainstorm
-category: plan
+category: router
 ---
-# plan-brainstorm
-
-Run iterative brainstorming to close ambiguity, weigh 2-3 viable options, choose blast radius and confidence target, and route into the right next skill (spec, design, roadmap, build, write-docs). Use when a task has real ambiguity about goal, scope, or approach and the user wants help picking a direction before any code or doc is written. Do not use for trivial decisions with one obvious path.
-
-## Usage
-
-> Examples assume this repo is installed as the `adk` Claude Code plugin
-> (see [Quick Start](../guide/development/README.md)). Generic agents use the
-> `adk-plan-brainstorm` form via `agents-skills/`.
-
-```text
-/adk:plan-brainstorm            # interactive run (Claude Code)
-/adk:plan-brainstorm --auto     # unattended; pick safe defaults
-```
-
-In Cursor / Codex / Gemini: invoke as `adk-plan-brainstorm` (resolved through the
-`agents-skills/adk-plan-brainstorm/` symlink).
-
-## Source
-
-Direct from `skills/plan-brainstorm/SKILL.md` — this page is auto-generated.
+# ADK Plan / Brainstorm
 
 Standalone task skill under the `@adk:plan` (a.k.a. `adk-plan`) category router. Closes design ambiguity by capturing current state, target state, blast radius, and confidence target, surfacing 2-3 options, and recommending the next route.
 
@@ -206,18 +185,3 @@ These files live in `references/` next to this `SKILL.md`. Read them when the sk
 | `references/plan-brainstorm-validator.md` | The four-phase validator gate (pre-execution, mid-flow, pre-handoff, post-execution) this skill MUST run. |
 
 <!-- adk:references:end -->
-
-
-## Related skills
-
-- [`build`](./skill-build.md) — `@adk:build` (a.k.a. `adk-build`)
-- [`build-feature`](./skill-build-feature.md) — `@adk:build-feature` (a.k.a. `adk-build-feature`)
-- [`build-migrate`](./skill-build-migrate.md) — `@adk:build-migrate` (a.k.a. `adk-build-migrate`)
-- [`build-refactor`](./skill-build-refactor.md) — `@adk:build-refactor` (a.k.a. `adk-build-refactor`)
-- [`docs-write`](./skill-docs-write.md) — `@adk:docs-write` (a.k.a. `adk-docs-write`)
-- [`frontend-design`](./skill-frontend-design.md) — `@adk:frontend-design` (a.k.a. `adk-frontend-design`)
-- [`plan`](./skill-plan.md) — `@adk:plan` (a.k.a. `adk-plan`)
-- [`plan-design`](./skill-plan-design.md) — `@adk:plan-design` (a.k.a. `adk-plan-design`)
-- [`plan-research`](./skill-plan-research.md) — `@adk:plan-research` (a.k.a. `adk-plan-research`)
-- [`plan-roadmap`](./skill-plan-roadmap.md) — `@adk:plan-roadmap` (a.k.a. `adk-plan-roadmap`)
-- [`plan-spec`](./skill-plan-spec.md) — `@adk:plan-spec` (a.k.a. `adk-plan-spec`)

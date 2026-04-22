@@ -1,31 +1,10 @@
 ---
 title: 'plan-proposal'
-description: 'Author a formal stakeholder proposal — a one-pager (or short multi-page) doc with: problem, options considered, recommendation with rationale, cost/risk/timeline, decision asked of the audience.'
-artifact_kind: skill
+description: '|'
 skill_name: plan-proposal
-category: plan
+category: router
 ---
-# plan-proposal
-
-Author a formal stakeholder proposal — a one-pager (or short multi-page) doc with: problem, options considered, recommendation with rationale, cost/risk/timeline, decision asked of the audience. Different from `@adk:plan-brainstorm` (a.k.a. `adk-plan-brainstorm`) (which is the iterative thinking process) and from `@adk:plan-spec` (a.k.a. `adk-plan-spec`) (which is the implementation spec). Use when a decision needs to be presented to a wider audience (manager, architecture review, leadership) BEFORE plan-spec / plan-roadmap. Do not use for an internal implementation plan (use `@adk:plan-roadmap` (a.k.a. `adk-plan-roadmap`)).
-
-## Usage
-
-> Examples assume this repo is installed as the `adk` Claude Code plugin
-> (see [Quick Start](../guide/development/README.md)). Generic agents use the
-> `adk-plan-proposal` form via `agents-skills/`.
-
-```text
-/adk:plan-proposal            # interactive run (Claude Code)
-/adk:plan-proposal --auto     # unattended; pick safe defaults
-```
-
-In Cursor / Codex / Gemini: invoke as `adk-plan-proposal` (resolved through the
-`agents-skills/adk-plan-proposal/` symlink).
-
-## Source
-
-Direct from `skills/plan-proposal/SKILL.md` — this page is auto-generated.
+# plan-proposal — formal stakeholder proposal
 
 ## When to use
 
@@ -127,11 +106,3 @@ Direct from `skills/plan-proposal/SKILL.md` — this page is auto-generated.
 ## References
 
 Standard set + `references/proposal-template.md` (the template above expanded with examples).
-
-
-## Related skills
-
-- [`auto`](./skill-auto.md) — `@adk:auto` (a.k.a. `adk-auto`)
-- [`plan-brainstorm`](./skill-plan-brainstorm.md) — `@adk:plan-brainstorm` (a.k.a. `adk-plan-brainstorm`)
-- [`plan-design`](./skill-plan-design.md) — `@adk:plan-design` (a.k.a. `adk-plan-design`)
-- [`plan-spec`](./skill-plan-spec.md) — `@adk:plan-spec` (a.k.a. `adk-plan-spec`)

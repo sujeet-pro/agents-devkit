@@ -1,31 +1,10 @@
 ---
 title: 'docs-review'
-description: 'Review an existing technical document (Markdown file, fetched URL, or Confluence page) for accuracy, freshness, structure, completeness, and readability — producing severity-tiered findings against the actual code or configs the doc claims to describe.'
-artifact_kind: skill
+description: 'Review an existing technical document (Markdown file, fetched URL, or Confluence page) for accuracy, freshness, structure, completeness, and readability — producing severity-tiered findings against the actual code or configs the doc claims to describe. With `--mode confluence`, posts inline + footer comments back to the live page (with reconciliation against existing comments). Use when the deliverable is a critique with actionable fixes for a doc that already exists. Do not use to write a new doc (use adk-docs-write), publish a doc (use adk-publish-confluence), or review code (use adk-review-pr / adk-review-local).'
 skill_name: docs-review
-category: docs
+category: router
 ---
-# docs-review
-
-Review an existing technical document (Markdown file, fetched URL, or Confluence page) for accuracy, freshness, structure, completeness, and readability — producing severity-tiered findings against the actual code or configs the doc claims to describe. With `--mode confluence`, posts inline + footer comments back to the live page (with reconciliation against existing comments). Use when the deliverable is a critique with actionable fixes for a doc that already exists. Do not use to write a new doc (use adk-docs-write), publish a doc (use adk-publish-confluence), or review code (use adk-review-pr / adk-review-local).
-
-## Usage
-
-> Examples assume this repo is installed as the `adk` Claude Code plugin
-> (see [Quick Start](../guide/development/README.md)). Generic agents use the
-> `adk-docs-review` form via `agents-skills/`.
-
-```text
-/adk:docs-review            # interactive run (Claude Code)
-/adk:docs-review --auto     # unattended; pick safe defaults
-```
-
-In Cursor / Codex / Gemini: invoke as `adk-docs-review` (resolved through the
-`agents-skills/adk-docs-review/` symlink).
-
-## Source
-
-Direct from `skills/docs-review/SKILL.md` — this page is auto-generated.
+# ADK Docs / Review
 
 Standalone task skill under the `@adk:docs` (a.k.a. `adk-docs`) category router. Produces a findings-first review of an existing document with each finding anchored to the doc and to the source-of-truth it claims to describe. In `--mode confluence`, also reconciles existing comments and posts inline + footer comments back to the live page.
 
@@ -256,13 +235,3 @@ These files live in `references/` next to this `SKILL.md`. Read them when the sk
 | `references/doc-review-validator.md` | The four-phase validator gate (pre-execution, mid-flow, pre-post, post-execution) the skill MUST run. |
 
 <!-- adk:references:end -->
-
-
-## Related skills
-
-- [`audit-repo`](./skill-audit-repo.md) — `@adk:audit-repo` (a.k.a. `adk-audit-repo`)
-- [`docs`](./skill-docs.md) — `@adk:docs` (a.k.a. `adk-docs`)
-- [`docs-write`](./skill-docs-write.md) — `@adk:docs-write` (a.k.a. `adk-docs-write`)
-- [`publish-confluence`](./skill-publish-confluence.md) — `@adk:publish-confluence` (a.k.a. `adk-publish-confluence`)
-- [`review-local`](./skill-review-local.md) — `@adk:review-local` (a.k.a. `adk-review-local`)
-- [`review-pr`](./skill-review-pr.md) — `@adk:review-pr` (a.k.a. `adk-review-pr`)

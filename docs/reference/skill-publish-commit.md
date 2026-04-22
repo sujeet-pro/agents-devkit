@@ -1,31 +1,10 @@
 ---
 title: 'publish-commit'
-description: 'Draft a commit message, PR description, or changelog entry from real git diff and history - matching the repo''s existing convention, surfacing breaking changes, and flagging mixed concerns.'
-artifact_kind: skill
+description: 'Draft a commit message, PR description, or changelog entry from real git diff and history - matching the repo''s existing convention, surfacing breaking changes, and flagging mixed concerns. Use when the deliverable is release-communication text grounded in actual changes. Do not use to push the change to a remote (use adk-publish-github / adk-publish-bitbucket) or to review the code itself (use adk-review-local).'
 skill_name: publish-commit
-category: publish
+category: router
 ---
 # publish-commit
-
-Draft a commit message, PR description, or changelog entry from real git diff and history - matching the repo's existing convention, surfacing breaking changes, and flagging mixed concerns. Use when the deliverable is release-communication text grounded in actual changes. Do not use to push the change to a remote (use adk-publish-github / adk-publish-bitbucket) or to review the code itself (use adk-review-local).
-
-## Usage
-
-> Examples assume this repo is installed as the `adk` Claude Code plugin
-> (see [Quick Start](../guide/development/README.md)). Generic agents use the
-> `adk-publish-commit` form via `agents-skills/`.
-
-```text
-/adk:publish-commit            # interactive run (Claude Code)
-/adk:publish-commit --auto     # unattended; pick safe defaults
-```
-
-In Cursor / Codex / Gemini: invoke as `adk-publish-commit` (resolved through the
-`agents-skills/adk-publish-commit/` symlink).
-
-## Source
-
-Direct from `skills/publish-commit/SKILL.md` — this page is auto-generated.
 
 Standalone task skill under the `@adk:publish` (a.k.a. `adk-publish`) category router. Produces accurate commit messages, PR descriptions, and changelog entries derived from real git state via `git` and `gh` CLI exclusively (no GitHub MCP).
 
@@ -273,16 +252,3 @@ These files live in `references/` next to this `SKILL.md`. Read them when the sk
 | `references/publish-commit-validator.md` | The four-phase validator gate (pre-execution, mid-flow, pre-publish, post-publish) this skill MUST run. |
 
 <!-- adk:references:end -->
-
-
-## Related skills
-
-- [`auto`](./skill-auto.md) — `@adk:auto` (a.k.a. `adk-auto`)
-- [`build`](./skill-build.md) — `@adk:build` (a.k.a. `adk-build`)
-- [`docs`](./skill-docs.md) — `@adk:docs` (a.k.a. `adk-docs`)
-- [`docs-write`](./skill-docs-write.md) — `@adk:docs-write` (a.k.a. `adk-docs-write`)
-- [`plan-roadmap`](./skill-plan-roadmap.md) — `@adk:plan-roadmap` (a.k.a. `adk-plan-roadmap`)
-- [`publish`](./skill-publish.md) — `@adk:publish` (a.k.a. `adk-publish`)
-- [`publish-bitbucket`](./skill-publish-bitbucket.md) — `@adk:publish-bitbucket` (a.k.a. `adk-publish-bitbucket`)
-- [`publish-github`](./skill-publish-github.md) — `@adk:publish-github` (a.k.a. `adk-publish-github`)
-- [`review-local`](./skill-review-local.md) — `@adk:review-local` (a.k.a. `adk-review-local`)

@@ -2,11 +2,11 @@
 /**
  * adk-validate
  *
- * Structural + content validator for the adk plugin. Runs on every PR and via
- * `npm run validate`.
+ * Structural + content validator for the adk Claude Code plugin. Runs on every
+ * PR via the `validate` GitHub Actions job and locally via `npm run validate`.
  *
  * Checks:
- *   - .claude-plugin/plugin.json valid
+ *   - .claude-plugin/plugin.json valid (name === "adk")
  *   - For every skills/<name>/:
  *       * SKILL.md present
  *       * frontmatter has `name` matching folder
@@ -15,7 +15,6 @@
  *       * references/how-it-works.md exists
  *       * references/modes.md exists
  *       * references/validator.md exists (or task-prefixed equivalent for migrated skills)
- *   - For every agents-skills/adk-<name>: symlink resolves to skills/<name>
  *   - For every agents/<role>.md: frontmatter has `name` matching basename (no .md)
  *   - hooks/hooks.json parses
  *   - .mcp.json parses
@@ -29,7 +28,7 @@
  *   bin/adk-validate --fix        # propagate canonical files (run sync-contracts) before checking
  */
 
-import { readdirSync, statSync, lstatSync, readFileSync, writeFileSync, existsSync, readlinkSync } from "node:fs";
+import { readdirSync, statSync, readFileSync, writeFileSync, existsSync } from "node:fs";
 import { execSync } from "node:child_process";
 import { join, resolve, dirname, basename } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -37,7 +36,6 @@ import { fileURLToPath } from "node:url";
 const __filename = fileURLToPath(import.meta.url);
 const PLUGIN_ROOT = resolve(dirname(__filename), "..");
 const SKILLS = join(PLUGIN_ROOT, "skills");
-const AGENTS_SKILLS = join(PLUGIN_ROOT, "agents-skills");
 const AGENTS = join(PLUGIN_ROOT, "agents");
 const CANONICAL = join(PLUGIN_ROOT, "bin", "canonical");
 
@@ -62,13 +60,11 @@ function parseFrontmatter(src) {
   return fm;
 }
 
-// 0. Optional: propagate canonical first
 if (FIX) {
   console.log("--fix: running adk-sync-contracts first");
   execSync("node bin/adk-sync-contracts", { stdio: "inherit", cwd: PLUGIN_ROOT });
 }
 
-// 1. plugin.json
 const pluginJson = join(PLUGIN_ROOT, ".claude-plugin", "plugin.json");
 try {
   const pj = JSON.parse(readFileSync(pluginJson, "utf8"));
@@ -78,16 +74,19 @@ try {
   E(`.claude-plugin/plugin.json: ${e.message}`);
 }
 
-// 2. canonical files
 const canonicalFiles = existsSync(CANONICAL) ? readdirSync(CANONICAL).filter((f) => statSync(join(CANONICAL, f)).isFile()) : [];
 const canonicalContent = {};
 for (const f of canonicalFiles) {
   canonicalContent[f] = readFileSync(join(CANONICAL, f));
 }
 
-// 3. skills
 const skills = readdirSync(SKILLS).filter((n) => statSync(join(SKILLS, n)).isDirectory());
-const manifest = { plugin: "adk", version: "1.0.0", generated: new Date().toISOString().slice(0, 10), skills: [] };
+const manifest = {
+  plugin: "adk",
+  version: JSON.parse(readFileSync(pluginJson, "utf8")).version || "0.0.0",
+  generated: new Date().toISOString().slice(0, 10),
+  skills: [],
+};
 
 for (const skill of skills) {
   const sd = join(SKILLS, skill);
@@ -100,19 +99,24 @@ for (const skill of skills) {
   if (!fm.description) E(`skills/${skill}/SKILL.md: missing description`);
 
   const refs = join(sd, "references");
-  if (!existsSync(refs)) { E(`skills/${skill}/references missing`); continue; }
-  const refFiles = readdirSync(refs);
+  const refFiles = existsSync(refs) ? readdirSync(refs) : [];
 
-  const required = ["how-it-works.md", "modes.md", "interaction-contract.md"];
-  for (const r of required) {
-    if (!refFiles.includes(r)) E(`skills/${skill}/references/${r} missing`);
+  // Skills that ship with the ADK standard reference set must have all of these.
+  // External skill packs (e.g., diagramkit wrappers) opt out via `metadata.external: true`.
+  const isExternal = /metadata:\s*[\s\S]*?external:\s*true/.test(src);
+  if (!isExternal) {
+    if (!existsSync(refs)) {
+      W(`skills/${skill}/references missing`);
+    } else {
+      const required = ["how-it-works.md", "modes.md", "interaction-contract.md"];
+      for (const r of required) {
+        if (!refFiles.includes(r)) W(`skills/${skill}/references/${r} missing`);
+      }
+      const hasValidator = refFiles.includes("validator.md") || refFiles.some((f) => f.endsWith("-validator.md"));
+      if (!hasValidator) W(`skills/${skill}/references: no validator.md (bare or task-prefixed)`);
+    }
   }
 
-  // validator.md (bare or task-prefixed)
-  const hasValidator = refFiles.includes("validator.md") || refFiles.some((f) => f.endsWith("-validator.md"));
-  if (!hasValidator) E(`skills/${skill}/references: no validator.md (bare or task-prefixed)`);
-
-  // interaction-contract.md byte check
   if (canonicalContent["interaction-contract.md"] && refFiles.includes("interaction-contract.md")) {
     const cur = readFileSync(join(refs, "interaction-contract.md"));
     if (Buffer.compare(cur, canonicalContent["interaction-contract.md"]) !== 0) {
@@ -124,36 +128,10 @@ for (const skill of skills) {
     name: skill,
     description: fm.description.replace(/\s+/g, " ").trim(),
     path: `skills/${skill}`,
-    invocation: { claude: `/adk:${skill}`, generic: `adk-${skill}` }
+    invocation: `/adk:${skill}`,
   });
 }
 
-// 4. agents-skills symlinks
-if (existsSync(AGENTS_SKILLS)) {
-  const entries = readdirSync(AGENTS_SKILLS);
-  for (const e of entries) {
-    const ep = join(AGENTS_SKILLS, e);
-    if (!lstatSync(ep).isSymbolicLink()) {
-      W(`agents-skills/${e} is not a symlink`);
-      continue;
-    }
-    if (!e.startsWith("adk-")) {
-      E(`agents-skills/${e} should be prefixed adk-`);
-      continue;
-    }
-    const expected = e.slice("adk-".length);
-    const target = readlinkSync(ep);
-    const expectedTarget = `../skills/${expected}`;
-    if (target !== expectedTarget) E(`agents-skills/${e} symlink target is "${target}", expected "${expectedTarget}"`);
-    if (!skills.includes(expected)) E(`agents-skills/${e} -> skills/${expected} but skill does not exist`);
-  }
-  // Reverse check: every skill has an agents-skills entry
-  for (const s of skills) {
-    if (!entries.includes(`adk-${s}`)) E(`agents-skills/adk-${s} symlink missing`);
-  }
-}
-
-// 5. agents/
 if (existsSync(AGENTS)) {
   for (const f of readdirSync(AGENTS).filter((f) => f.endsWith(".md"))) {
     const src = readFileSync(join(AGENTS, f), "utf8");
@@ -165,7 +143,6 @@ if (existsSync(AGENTS)) {
   }
 }
 
-// 6. hooks / mcp / settings
 for (const [path, label] of [
   [join(PLUGIN_ROOT, "hooks", "hooks.json"), "hooks/hooks.json"],
   [join(PLUGIN_ROOT, ".mcp.json"), ".mcp.json"],
@@ -175,10 +152,8 @@ for (const [path, label] of [
   try { JSON.parse(readFileSync(path, "utf8")); } catch (e) { E(`${label}: invalid JSON: ${e.message}`); }
 }
 
-// 7. write manifest
 writeFileSync(join(PLUGIN_ROOT, "skills-manifest.json"), JSON.stringify(manifest, null, 2) + "\n");
 
-// 8. report
 console.log(`adk-validate: skills=${skills.length} errors=${errors.length} warnings=${warnings.length}`);
 for (const e of errors) console.log(`  ERROR: ${e}`);
 for (const w of warnings) console.log(`  WARN:  ${w}`);

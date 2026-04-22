@@ -1,31 +1,10 @@
 ---
 title: 'frontend'
-description: 'Category router for frontend and UI work - UI/UX design, building or extending frontend components and pages, and bootstrapping React 19 client-side sample apps on a fixed Vite + TanStack + Radix + GitHub Pages stack.'
-artifact_kind: skill
+description: 'Category router for frontend and UI work - UI/UX design, building or extending frontend components and pages, and bootstrapping React 19 client-side sample apps on a fixed Vite + TanStack + Radix + GitHub Pages stack. Use when the deliverable is a UI artifact, a frontend code change, or a new frontend project. Picks one of adk-frontend-design, adk-frontend-feature, adk-frontend-react-csr.'
 skill_name: frontend
-category: frontend
+category: standalone
 ---
-# frontend
-
-Category router for frontend and UI work - UI/UX design, building or extending frontend components and pages, and bootstrapping React 19 client-side sample apps on a fixed Vite + TanStack + Radix + GitHub Pages stack. Use when the deliverable is a UI artifact, a frontend code change, or a new frontend project. Picks one of adk-frontend-design, adk-frontend-feature, adk-frontend-react-csr.
-
-## Usage
-
-> Examples assume this repo is installed as the `adk` Claude Code plugin
-> (see [Quick Start](../guide/development/README.md)). Generic agents use the
-> `adk-frontend` form via `agents-skills/`.
-
-```text
-/adk:frontend            # interactive run (Claude Code)
-/adk:frontend --auto     # unattended; pick safe defaults
-```
-
-In Cursor / Codex / Gemini: invoke as `adk-frontend` (resolved through the
-`agents-skills/adk-frontend/` symlink).
-
-## Source
-
-Direct from `skills/frontend/SKILL.md` — this page is auto-generated.
+# ADK Frontend (Category Router)
 
 Routes any "frontend / UI" intent to the right frontend task. Activate one of the listed task skills below; do not implement directly from this router.
 
@@ -145,15 +124,3 @@ These files live in `references/` next to this `SKILL.md`. Read them when the sk
 | `references/frontend-validator.md` | The four-phase validator gate (pre-execution, mid-flow, pre-handoff, post-execution) this skill MUST run. |
 
 <!-- adk:references:end -->
-
-
-## Related skills
-
-- [`build`](./skill-build.md) — `@adk:build` (a.k.a. `adk-build`)
-- [`docs-write`](./skill-docs-write.md) — `@adk:docs-write` (a.k.a. `adk-docs-write`)
-- [`frontend-design`](./skill-frontend-design.md) — `@adk:frontend-design` (a.k.a. `adk-frontend-design`)
-- [`frontend-feature`](./skill-frontend-feature.md) — `@adk:frontend-feature` (a.k.a. `adk-frontend-feature`)
-- [`frontend-react-csr`](./skill-frontend-react-csr.md) — `@adk:frontend-react-csr` (a.k.a. `adk-frontend-react-csr`)
-- [`review-local`](./skill-review-local.md) — `@adk:review-local` (a.k.a. `adk-review-local`)
-- [`review-pr`](./skill-review-pr.md) — `@adk:review-pr` (a.k.a. `adk-review-pr`)
-- [`visualize`](./skill-visualize.md) — `@adk:visualize` (a.k.a. `adk-visualize`)

@@ -76,7 +76,12 @@
     {
       displayName: "Overviews",
       slug: "overviews",
-      articles: ["skills", "agents", "config", "guidelines"],
+      articles: [
+        "skills",
+        "agents",
+        "config",
+        "guidelines",
+      ],
     },
     {
       displayName: "Top + Routers",

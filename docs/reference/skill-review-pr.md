@@ -1,31 +1,10 @@
 ---
 title: 'review-pr'
-description: 'Review a remote pull request with severity-tiered findings, evidence per finding, existing-comment reconciliation, and posted-back comments via the appropriate provider (GitHub, Bitbucket).'
-artifact_kind: skill
+description: 'Review a remote pull request with severity-tiered findings, evidence per finding, existing-comment reconciliation, and posted-back comments via the appropriate provider (GitHub, Bitbucket). On Bitbucket, manages tasks for Blocker / Critical findings. Use when a PR URL is the target and the deliverable is a structured review (findings + optional posted comments). Do not use for local uncommitted changes (use adk-review-local), addressing existing reviewer feedback (use adk-review-feedback), doc-only review (use adk-docs-review), or auditing the whole repo (use adk-audit-repo).'
 skill_name: review-pr
-category: review
+category: router
 ---
-# review-pr
-
-Review a remote pull request with severity-tiered findings, evidence per finding, existing-comment reconciliation, and posted-back comments via the appropriate provider (GitHub, Bitbucket). On Bitbucket, manages tasks for Blocker / Critical findings. Use when a PR URL is the target and the deliverable is a structured review (findings + optional posted comments). Do not use for local uncommitted changes (use adk-review-local), addressing existing reviewer feedback (use adk-review-feedback), doc-only review (use adk-docs-review), or auditing the whole repo (use adk-audit-repo).
-
-## Usage
-
-> Examples assume this repo is installed as the `adk` Claude Code plugin
-> (see [Quick Start](../guide/development/README.md)). Generic agents use the
-> `adk-review-pr` form via `agents-skills/`.
-
-```text
-/adk:review-pr            # interactive run (Claude Code)
-/adk:review-pr --auto     # unattended; pick safe defaults
-```
-
-In Cursor / Codex / Gemini: invoke as `adk-review-pr` (resolved through the
-`agents-skills/adk-review-pr/` symlink).
-
-## Source
-
-Direct from `skills/review-pr/SKILL.md` — this page is auto-generated.
+# ADK Review / PR
 
 Standalone task skill under the `@adk:review` (a.k.a. `adk-review`) category router. Produces a findings-first review of a remote PR with explicit severity per finding, clear evidence, full reconciliation against existing comments, and (when authorized) posted-back inline + summary + tasks.
 
@@ -230,12 +209,3 @@ These files live in `references/` next to this `SKILL.md`. Read them when the sk
 | `references/pr-review-validator.md` | The four-phase validator gate (pre-execution, mid-flow, pre-post, post-execution) the skill MUST run. |
 
 <!-- adk:references:end -->
-
-
-## Related skills
-
-- [`audit-repo`](./skill-audit-repo.md) — `@adk:audit-repo` (a.k.a. `adk-audit-repo`)
-- [`docs-review`](./skill-docs-review.md) — `@adk:docs-review` (a.k.a. `adk-docs-review`)
-- [`review`](./skill-review.md) — `@adk:review` (a.k.a. `adk-review`)
-- [`review-feedback`](./skill-review-feedback.md) — `@adk:review-feedback` (a.k.a. `adk-review-feedback`)
-- [`review-local`](./skill-review-local.md) — `@adk:review-local` (a.k.a. `adk-review-local`)

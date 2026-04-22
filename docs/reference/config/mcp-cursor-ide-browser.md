@@ -1,6 +1,6 @@
 ---
 title: 'mcp-cursor-ide-browser'
-description: 'Cursor IDE''s bundled browser MCP — 2nd-priority backend for validate-browser when running inside Cursor (auto-injected).'
+description: 'Cursor IDE''s bundled browser MCP — 2nd-priority backend for validate-browser when running inside Cursor (auto-injected). No env vars required.'
 artifact_kind: mcp
 ---
 
@@ -10,14 +10,7 @@ Cursor IDE's bundled browser MCP — 2nd-priority backend for validate-browser w
 
 ## Usage
 
-Install via `bin/adk-mcp-install`:
-
-```bash
-node bin/adk-mcp-install              # interactive picker
-node bin/adk-mcp-install --auto       # enable every server with env vars present
-```
-
-The installer reads `.mcp.json`, resolves `${ENV_VAR}` placeholders from `~/.zshenv`, and registers the server with `claude mcp add`.
+`.mcp.json` is loaded automatically by Claude Code when the `adk` plugin is enabled. Each `${ENV_VAR}` placeholder is resolved from your shell env at session start. To inspect or override entries, edit `.mcp.json` and reload the plugin (`/reload-plugins`).
 
 ## Configuration
 
@@ -33,6 +26,10 @@ The installer reads `.mcp.json`, resolves `${ENV_VAR}` placeholders from `~/.zsh
   }
 }
 ```
+
+## Required environment variables
+
+None — this server runs with no env vars.
 
 ## Source
 

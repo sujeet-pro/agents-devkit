@@ -1,25 +1,35 @@
 ---
 title: 'dispatcher'
-description: 'Coordinates Phase C of the auto skill: reads the locked scope.'
+description: 'Coordinates Phase C of the auto skill: reads the locked scope.md, decides which downstream skills are needed, spawns parallel subagents via the Task tool with the right skill loaded for each work slice, collects their reports, and hands aggregated results back to auto Phase D.'
 artifact_kind: agent
 ---
+
 # dispatcher
 
 Coordinates Phase C of the auto skill: reads the locked scope.md, decides which downstream skills are needed, spawns parallel subagents via the Task tool with the right skill loaded for each work slice, collects their reports, and hands aggregated results back to auto Phase D.
 
 ## Usage
-Invoked automatically by `@adk:auto` (a.k.a. `adk-auto`) and by sibling
-skills that need a specialist persona. Direct invocation in Claude:
+
+Invoked automatically by `/adk:auto` and by sibling skills that need a specialist persona. Direct invocation in Claude:
+
 ```text
 /agent dispatcher
 ```
-## Profile
-- **Model:** `claude-opus-4-7`
-- **Color:** magenta
-- **Background:** false
-- **Isolation:** worktree
 
-## Mission & rules
+## Profile
+
+- **Model**: `claude-opus-4-7`
+- **Color**: magenta
+- **Effort**: medium
+- **Max turns**: 30
+- **Background**: false
+- **Memory**: local
+
+## Source
+
+`agents/dispatcher.md` — full persona body below.
+
+# Dispatcher
 
 ## Mission
 
@@ -75,7 +85,3 @@ After all subagents complete, return:
 - Forgetting to wait for all to complete.
 - Auto-merging the PR (never).
 - Spawning more than 4 in parallel.
-
-## Source
-
-Direct from `agents/dispatcher.md`.

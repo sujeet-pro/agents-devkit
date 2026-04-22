@@ -1,39 +1,10 @@
 ---
 title: 'diagram-excalidraw'
 description: 'Generate Excalidraw diagrams (.excalidraw) and render to SVG/PNG/JPEG/WebP/AVIF with diagramkit. Freeform hand-drawn-style architecture overviews, system context maps, concept diagrams, and whiteboard visuals. Use when creating diagrams that need flexible layout, a hand-drawn aesthetic, or when the audience benefits from an approachable whiteboard-style visual.'
-artifact_kind: skill
 skill_name: diagram-excalidraw
-category: standalone
+category: router
 ---
-# diagram-excalidraw
-
-Generate Excalidraw diagrams (.excalidraw) and render to SVG/PNG/JPEG/WebP/AVIF with diagramkit. Freeform hand-drawn-style architecture overviews, system context maps, concept diagrams, and whiteboard visuals. Use when creating diagrams that need flexible layout, a hand-drawn aesthetic, or when the audience benefits from an approachable whiteboard-style visual.
-
-## Usage
-
-> Examples assume this repo is installed as the `adk` Claude Code plugin
-> (see [Quick Start](../guide/development/README.md)). Generic agents use the
-> `adk-diagram-excalidraw` form via `agents-skills/`.
-
-```text
-/adk:diagram-excalidraw            # interactive run (Claude Code)
-/adk:diagram-excalidraw --auto     # unattended; pick safe defaults
-```
-
-In Cursor / Codex / Gemini: invoke as `adk-diagram-excalidraw` (resolved through the
-`agents-skills/adk-diagram-excalidraw/` symlink).
-
-The skill ships an executable helper (no project install required — it auto-installs the
-pinned global package on first run, with a y/N prompt):
-
-```bash
-./skills/diagram-excalidraw/scripts/render-and-validate.sh diagrams/
-```
-
-## Source
-
-Direct from `skills/diagram-excalidraw/SKILL.md` — this page is auto-generated. To change the
-authoring rules, edit the SKILL.md and re-run `/adk:prj-update-docs`.
+# Excalidraw Diagram Generation with diagramkit
 
 ## When to use
 
@@ -497,13 +468,3 @@ Stop on first clean run, or mark as residual after 8 iterations.
 
 - `references/element-reference.md` — Full element properties, arrow routing, bindings, label linking, layout grids, validation checklist
 - `references/color-and-theming.md` — Excalidraw color palette, universal palettes, dark mode, WCAG contrast, grouping patterns
-
-## Related skills
-
-- [`diagram-mermaid`](./skill-diagram-mermaid.md) — `@adk:diagram-mermaid` (a.k.a. `adk-diagram-mermaid`)
-- [`diagram-graphviz`](./skill-diagram-graphviz.md) — `@adk:diagram-graphviz` (a.k.a. `adk-diagram-graphviz`)
-- [`diagram-drawio`](./skill-diagram-drawio.md) — `@adk:diagram-drawio` (a.k.a. `adk-diagram-drawio`)
-- [`diagram-review`](./skill-diagram-review.md) — `@adk:diagram-review` (a.k.a. `adk-diagram-review`)
-- [`markdown`](./skill-markdown.md) — `@adk:markdown` (a.k.a. `adk-markdown`)
-- [`visualize-diagram`](./skill-visualize-diagram.md) — `@adk:visualize-diagram` (a.k.a. `adk-visualize-diagram`)
-- [`doc-site-diagrams`](./skill-doc-site-diagrams.md) — `@adk:doc-site-diagrams` (a.k.a. `adk-doc-site-diagrams`)

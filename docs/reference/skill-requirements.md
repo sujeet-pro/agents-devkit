@@ -1,31 +1,10 @@
 ---
 title: 'requirements'
-description: 'Iterative requirement-gathering session.'
-artifact_kind: skill
+description: '|'
 skill_name: requirements
 category: standalone
 ---
-# requirements
-
-Iterative requirement-gathering session. Asks the user one question at a time (per the interaction contract) to capture what they actually want — outcomes, users, success measures, must-haves, nice-to-haves, explicit non-goals, edge cases, and constraints. Produces `.temp/task-<slug>/requirements.md`. Use as the first conversational step in any non-trivial work, after `@adk:context-gather` (a.k.a. `adk-context-gather`) and before `@adk:scoping` (a.k.a. `adk-scoping`). Do not use when requirements are already locked in a spec / Jira ticket / RFC (read those instead).
-
-## Usage
-
-> Examples assume this repo is installed as the `adk` Claude Code plugin
-> (see [Quick Start](../guide/development/README.md)). Generic agents use the
-> `adk-requirements` form via `agents-skills/`.
-
-```text
-/adk:requirements            # interactive run (Claude Code)
-/adk:requirements --auto     # unattended; pick safe defaults
-```
-
-In Cursor / Codex / Gemini: invoke as `adk-requirements` (resolved through the
-`agents-skills/adk-requirements/` symlink).
-
-## Source
-
-Direct from `skills/requirements/SKILL.md` — this page is auto-generated.
+# requirements — iterative requirement gathering
 
 A continuous Q&A session that converts "I want X" into a confirmed requirements doc.
 
@@ -102,11 +81,3 @@ A continuous Q&A session that converts "I want X" into a confirmed requirements 
 | `references/anti-patterns.md` | What NOT to do |
 | `references/examples.md` | Worked examples |
 | `references/interaction-contract.md` | Synced from canonical |
-
-
-## Related skills
-
-- [`auto`](./skill-auto.md) — `@adk:auto` (a.k.a. `adk-auto`)
-- [`context-gather`](./skill-context-gather.md) — `@adk:context-gather` (a.k.a. `adk-context-gather`)
-- [`plan-research`](./skill-plan-research.md) — `@adk:plan-research` (a.k.a. `adk-plan-research`)
-- [`scoping`](./skill-scoping.md) — `@adk:scoping` (a.k.a. `adk-scoping`)

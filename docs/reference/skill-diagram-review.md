@@ -1,39 +1,10 @@
 ---
 title: 'diagram-review'
 description: 'Audit and repair every diagram in a repository — lint each source file against its engine''s authoring rules, force-regenerate every SVG, validate all rendered SVGs (structure, embed-safety, WCAG contrast), and iteratively fix issues by delegating engine-specific repairs to diagram-mermaid, diagram-excalidraw, diagram-drawio, and diagram-graphviz. Use when the user asks to review/audit existing diagrams, fix contrast warnings, regenerate stale SVGs, or run a pre-merge diagram health check.'
-artifact_kind: skill
 skill_name: diagram-review
-category: standalone
+category: router
 ---
 # diagram-review
-
-Audit and repair every diagram in a repository — lint each source file against its engine's authoring rules, force-regenerate every SVG, validate all rendered SVGs (structure, embed-safety, WCAG contrast), and iteratively fix issues by delegating engine-specific repairs to diagram-mermaid, diagram-excalidraw, diagram-drawio, and diagram-graphviz. Use when the user asks to review/audit existing diagrams, fix contrast warnings, regenerate stale SVGs, or run a pre-merge diagram health check.
-
-## Usage
-
-> Examples assume this repo is installed as the `adk` Claude Code plugin
-> (see [Quick Start](../guide/development/README.md)). Generic agents use the
-> `adk-diagram-review` form via `agents-skills/`.
-
-```text
-/adk:diagram-review            # interactive run (Claude Code)
-/adk:diagram-review --auto     # unattended; pick safe defaults
-```
-
-In Cursor / Codex / Gemini: invoke as `adk-diagram-review` (resolved through the
-`agents-skills/adk-diagram-review/` symlink).
-
-The skill ships an executable helper (no project install required — it auto-installs the
-pinned global package on first run, with a y/N prompt):
-
-```bash
-./skills/diagram-review/scripts/render-and-validate.sh diagrams/
-```
-
-## Source
-
-Direct from `skills/diagram-review/SKILL.md` — this page is auto-generated. To change the
-authoring rules, edit the SKILL.md and re-run `/adk:prj-update-docs`.
 
 Cross-engine review and repair workflow for an existing diagramkit-managed repo. This skill OWNS the orchestration; per-engine fixes are delegated back to the engine skill (`diagram-mermaid`, `diagram-excalidraw`, `diagram-drawio`, `diagram-graphviz`) using each one's **Review Mode** section.
 
@@ -321,12 +292,3 @@ If the repo has CI, recommend wiring the validate command into a pre-merge job:
 
 - [`references/audit-checklist.md`](references/audit-checklist.md) — per-engine source-file audit checklist.
 - [`references/issue-fix-matrix.md`](references/issue-fix-matrix.md) — `diagramkit validate` issue codes → engine-specific fix tactics.
-
-## Related skills
-
-- [`diagram-mermaid`](./skill-diagram-mermaid.md) — `@adk:diagram-mermaid` (a.k.a. `adk-diagram-mermaid`)
-- [`diagram-graphviz`](./skill-diagram-graphviz.md) — `@adk:diagram-graphviz` (a.k.a. `adk-diagram-graphviz`)
-- [`diagram-excalidraw`](./skill-diagram-excalidraw.md) — `@adk:diagram-excalidraw` (a.k.a. `adk-diagram-excalidraw`)
-- [`diagram-drawio`](./skill-diagram-drawio.md) — `@adk:diagram-drawio` (a.k.a. `adk-diagram-drawio`)
-- [`audit-repo`](./skill-audit-repo.md) — `@adk:audit-repo` (a.k.a. `adk-audit-repo`)
-- [`docs-review`](./skill-docs-review.md) — `@adk:docs-review` (a.k.a. `adk-docs-review`)

@@ -1,31 +1,10 @@
 ---
 title: 'publish-github'
-description: 'Run GitHub PR/issue/comment/merge actions via the `gh` CLI EXCLUSIVELY (no MCP fallback).'
-artifact_kind: skill
+description: '|'
 skill_name: publish-github
-category: publish
+category: router
 ---
 # publish-github
-
-Run GitHub PR/issue/comment/merge actions via the `gh` CLI EXCLUSIVELY (no MCP fallback). Create or update a PR, post a comment, request review, label, transition status, merge with the right strategy. Use when the destination is github.com (or GitHub Enterprise) and the deliverable is a remote action with verification. Do not use for Bitbucket (use `@adk:publish-bitbucket` (a.k.a. `adk-publish-bitbucket`)), drafting the message itself (use `@adk:publish-commit` (a.k.a. `adk-publish-commit`)), or reviewing the PR (use `@adk:review-pr` (a.k.a. `adk-review-pr`)). Requires `gh` installed and `gh auth status` ok — bootstrap via `@adk:setup` (a.k.a. `adk-setup`) if missing.
-
-## Usage
-
-> Examples assume this repo is installed as the `adk` Claude Code plugin
-> (see [Quick Start](../guide/development/README.md)). Generic agents use the
-> `adk-publish-github` form via `agents-skills/`.
-
-```text
-/adk:publish-github            # interactive run (Claude Code)
-/adk:publish-github --auto     # unattended; pick safe defaults
-```
-
-In Cursor / Codex / Gemini: invoke as `adk-publish-github` (resolved through the
-`agents-skills/adk-publish-github/` symlink).
-
-## Source
-
-Direct from `skills/publish-github/SKILL.md` — this page is auto-generated.
 
 Standalone task skill under the `@adk:publish` (a.k.a. `adk-publish`) category router. Executes EVERY GitHub action through the `gh` CLI; verifies the action landed.
 
@@ -239,14 +218,3 @@ These files live in `references/` next to this `SKILL.md`. Read them when the sk
 | `references/publish-github-validator.md` | The four-phase validator gate (pre-execution, mid-flow, pre-publish, post-publish) this skill MUST run. |
 
 <!-- adk:references:end -->
-
-
-## Related skills
-
-- [`publish`](./skill-publish.md) — `@adk:publish` (a.k.a. `adk-publish`)
-- [`publish-bitbucket`](./skill-publish-bitbucket.md) — `@adk:publish-bitbucket` (a.k.a. `adk-publish-bitbucket`)
-- [`publish-commit`](./skill-publish-commit.md) — `@adk:publish-commit` (a.k.a. `adk-publish-commit`)
-- [`publish-confluence`](./skill-publish-confluence.md) — `@adk:publish-confluence` (a.k.a. `adk-publish-confluence`)
-- [`publish-gdrive`](./skill-publish-gdrive.md) — `@adk:publish-gdrive` (a.k.a. `adk-publish-gdrive`)
-- [`review-pr`](./skill-review-pr.md) — `@adk:review-pr` (a.k.a. `adk-review-pr`)
-- [`setup`](./skill-setup.md) — `@adk:setup` (a.k.a. `adk-setup`)

@@ -1,31 +1,10 @@
 ---
 title: 'review-handoff'
-description: 'Capture a structured session-handoff document so a paused or transferred task can resume without information loss - covering task summary, decisions with rationale, work completed, remaining work, blockers, key files, git state, and environment.'
-artifact_kind: skill
+description: 'Capture a structured session-handoff document so a paused or transferred task can resume without information loss - covering task summary, decisions with rationale, work completed, remaining work, blockers, key files, git state, and environment. Use when pausing long-running work, switching contexts, transferring to another developer or session, or preparing async collaboration. Do not use for project documentation (use adk-docs-write) or commit messages (use adk-publish-commit).'
 skill_name: review-handoff
-category: review
+category: router
 ---
-# review-handoff
-
-Capture a structured session-handoff document so a paused or transferred task can resume without information loss - covering task summary, decisions with rationale, work completed, remaining work, blockers, key files, git state, and environment. Use when pausing long-running work, switching contexts, transferring to another developer or session, or preparing async collaboration. Do not use for project documentation (use adk-docs-write) or commit messages (use adk-publish-commit).
-
-## Usage
-
-> Examples assume this repo is installed as the `adk` Claude Code plugin
-> (see [Quick Start](../guide/development/README.md)). Generic agents use the
-> `adk-review-handoff` form via `agents-skills/`.
-
-```text
-/adk:review-handoff            # interactive run (Claude Code)
-/adk:review-handoff --auto     # unattended; pick safe defaults
-```
-
-In Cursor / Codex / Gemini: invoke as `adk-review-handoff` (resolved through the
-`agents-skills/adk-review-handoff/` symlink).
-
-## Source
-
-Direct from `skills/review-handoff/SKILL.md` — this page is auto-generated.
+# ADK Review / Handoff
 
 Standalone task skill under the `@adk:review` (a.k.a. `adk-review`) category router. Produces a self-contained handoff document that any session or person can resume without consulting the original chat.
 
@@ -248,11 +227,3 @@ These files live in `references/` next to this `SKILL.md`. Read them when the sk
 | `references/review-handoff-validator.md` | The four-phase validator gate (pre-execution, mid-flow, pre-handoff, post-execution) this skill MUST run. |
 
 <!-- adk:references:end -->
-
-
-## Related skills
-
-- [`docs-write`](./skill-docs-write.md) — `@adk:docs-write` (a.k.a. `adk-docs-write`)
-- [`plan-roadmap`](./skill-plan-roadmap.md) — `@adk:plan-roadmap` (a.k.a. `adk-plan-roadmap`)
-- [`publish-commit`](./skill-publish-commit.md) — `@adk:publish-commit` (a.k.a. `adk-publish-commit`)
-- [`review`](./skill-review.md) — `@adk:review` (a.k.a. `adk-review`)

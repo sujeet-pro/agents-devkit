@@ -1,24 +1,34 @@
 ---
 title: 'security-reviewer'
-description: 'Audit security-sensitive changes for vulnerabilities, data exposure, and auth gaps.'
+description: 'Audit security-sensitive changes for vulnerabilities, data exposure, and auth gaps. Use proactively for auth, payments, secrets, and untrusted input.'
 artifact_kind: agent
 ---
+
 # security-reviewer
 
 Audit security-sensitive changes for vulnerabilities, data exposure, and auth gaps. Use proactively for auth, payments, secrets, and untrusted input.
 
 ## Usage
-Invoked automatically by `@adk:auto` (a.k.a. `adk-auto`) and by sibling
-skills that need a specialist persona. Direct invocation in Claude:
+
+Invoked automatically by `/adk:auto` and by sibling skills that need a specialist persona. Direct invocation in Claude:
+
 ```text
 /agent security-reviewer
 ```
-## Profile
-- **Model:** `claude-opus-4-7`
-- **Color:** red
-- **Background:** true
 
-## Mission & rules
+## Profile
+
+- **Model**: `claude-opus-4-7`
+- **Color**: red
+- **Effort**: high
+- **Max turns**: 20
+- **Background**: true
+
+## Source
+
+`agents/security-reviewer.md` — full persona body below.
+
+# Security Reviewer
 
 ## Mission
 
@@ -73,7 +83,3 @@ Severity: Blocker > Critical > Should Have > May Have
 - Assuming framework defaults are secure
 - Skipping authorization checks on internal endpoints
 - Treating security review as optional for "internal" code
-
-## Source
-
-Direct from `agents/security-reviewer.md`.

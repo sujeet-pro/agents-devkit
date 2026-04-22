@@ -1,31 +1,10 @@
 ---
 title: 'visualize-diagram'
-description: 'Produce a structural diagram - sequence, flow, state, ER, architecture, dependency, class, deployment - by drafting an editable source file (mermaid, drawio, excalidraw, graphviz dot) and then rendering to the destination format.'
-artifact_kind: skill
+description: 'Produce a structural diagram - sequence, flow, state, ER, architecture, dependency, class, deployment - by drafting an editable source file (mermaid, drawio, excalidraw, graphviz dot) and then rendering to the destination format. Use when the deliverable is a structural picture, not a data chart. Do not use for numeric/categorical plots (use adk-visualize-chart) or UI mockups (use adk-frontend-design).'
 skill_name: visualize-diagram
-category: visualize
+category: router
 ---
-# visualize-diagram
-
-Produce a structural diagram - sequence, flow, state, ER, architecture, dependency, class, deployment - by drafting an editable source file (mermaid, drawio, excalidraw, graphviz dot) and then rendering to the destination format. Use when the deliverable is a structural picture, not a data chart. Do not use for numeric/categorical plots (use adk-visualize-chart) or UI mockups (use adk-frontend-design).
-
-## Usage
-
-> Examples assume this repo is installed as the `adk` Claude Code plugin
-> (see [Quick Start](../guide/development/README.md)). Generic agents use the
-> `adk-visualize-diagram` form via `agents-skills/`.
-
-```text
-/adk:visualize-diagram            # interactive run (Claude Code)
-/adk:visualize-diagram --auto     # unattended; pick safe defaults
-```
-
-In Cursor / Codex / Gemini: invoke as `adk-visualize-diagram` (resolved through the
-`agents-skills/adk-visualize-diagram/` symlink).
-
-## Source
-
-Direct from `skills/visualize-diagram/SKILL.md` — this page is auto-generated.
+# ADK Visualize / Diagram
 
 Standalone task skill under the `@adk:visualize` (a.k.a. `adk-visualize`) category router. Produces an editable diagram source first, then renders to the destination format. Editable source is always kept alongside the rendered output.
 
@@ -241,11 +220,3 @@ These files live in `references/` next to this `SKILL.md`. Read them when the sk
 | `references/visualize-diagram-validator.md` | The four-phase validator gate (pre-execution, mid-flow, pre-handoff, post-execution) this skill MUST run. |
 
 <!-- adk:references:end -->
-
-
-## Related skills
-
-- [`frontend-design`](./skill-frontend-design.md) — `@adk:frontend-design` (a.k.a. `adk-frontend-design`)
-- [`plan-design`](./skill-plan-design.md) — `@adk:plan-design` (a.k.a. `adk-plan-design`)
-- [`visualize`](./skill-visualize.md) — `@adk:visualize` (a.k.a. `adk-visualize`)
-- [`visualize-chart`](./skill-visualize-chart.md) — `@adk:visualize-chart` (a.k.a. `adk-visualize-chart`)

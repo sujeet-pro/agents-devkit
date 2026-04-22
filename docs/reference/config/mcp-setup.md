@@ -1,53 +1,61 @@
 ---
 title: MCP Setup
-description: How ADK installs MCP server configs and reads / writes their env vars via ~/.zshenv.
+description: How the adk Claude Code plugin auto-loads MCP servers from .mcp.json and resolves their ${ENV_VAR} placeholders from your shell env.
 ---
 
 # MCP Setup
 
-MCP servers are optional. `adk-install` knows about them, can wire them into each runtime's `mcp.json`, and persists their env vars to `~/.zshenv`.
+MCP servers are optional. The `adk` plugin ships a single `.mcp.json` at the repo root that Claude Code loads automatically when the plugin is enabled — there is no separate installer step.
 
 ## Available servers
 
-The package ships one config per server under `mcp-config/servers/<name>.json`:
+`.mcp.json` registers these 13 servers (one section per page under `docs/reference/config/mcp-<name>.md`):
 
-- `github`
 - `bitbucket`
-- `confluence`
-- `jira`
-- `google-drive`
 - `brainstorming`
+- `chrome-devtools`
+- `confluence`
+- `cursor-ide-browser`
+- `datadog`
+- `github`
+- `gmail`
+- `google-drive`
+- `jira`
+- `mixpanel`
+- `playwright`
+- `slack`
 
-Each JSON declares the runtime command line and an `env` map with `${ENV_VAR}` placeholders.
+Each entry declares its `command`, `args`, and an `env` map with `${ENV_VAR}` placeholders that Claude Code resolves from the launching shell at session start.
 
-## How the installer wires MCP
+## How loading works
 
-When you pick MCP servers in the `adk-install` prompt, the CLI:
+1. You install the `adk` plugin (locally via `claude --plugin-dir <path>`, or from the marketplace at `.claude-plugin/marketplace.json`).
+2. Claude Code reads `.mcp.json` when the plugin is loaded.
+3. For each server, every `${ENV_VAR}` in `args` / `env` is substituted from `process.env`.
+4. The server is registered with its own MCP transport (stdio / docker / npx) and tools become available in the session.
 
-1. Reads existing values from `~/.zshenv`.
-2. Prompts for any env vars that don't have a value, with a one-line "how to get this" hint.
-3. Appends new exports to `~/.zshenv` (with confirmation).
-4. Merges each server config into every chosen runtime's `mcp.json` under the `mcpServers` key, preserving servers you have already configured manually.
+To inspect or override entries, edit `.mcp.json` directly and reload the plugin with `/reload-plugins`.
 
-Re-running converges: removed servers are not pruned (so you can add a server manually and keep it), but added/changed entries always overwrite the ADK-managed ones.
+## Setting environment variables
 
-## Per-runtime config paths
+Add the required env vars to `~/.zshenv` (or your shell's equivalent) before launching Claude. Example:
 
-| Runtime | Path |
-| --- | --- |
-| Claude Code | `<root>/.claude/mcp.json` |
-| Claude Desktop | `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) |
-| Cursor | `<root>/.cursor/mcp.json` |
-| Codex CLI | `<root>/.codex/mcp.json` |
-| Codex Desktop | `~/Library/Application Support/Codex/mcp.json` (macOS) |
-| Gemini CLI | `<root>/.gemini/mcp.json` |
+```bash
+# ~/.zshenv
+export GITHUB_PAT=ghp_...
+export ATLASSIAN_EMAIL=you@company.com
+export ATLASSIAN_API_TOKEN=...
+export DD_API_KEY=...
+export DD_APP_KEY=...
+export DD_SITE=datadoghq.com
+```
 
-`<root>` is `$HOME` for global mode and the project root for project mode.
+Each per-server page lists its own required env vars.
 
-## Brainstorming MCP fallback
+## MCP fallback in skills
 
-Skills like `adk-plan-brainstorm` prefer the `brainstorming` MCP server when configured but ship a `references/mcp-fallback.md` describing the manual workflow when it is missing. Skills will warn once and continue.
+Skills like `/adk:plan-brainstorm` prefer the `brainstorming` MCP server when configured but ship a fallback workflow when it is missing. They warn once and continue.
 
-## Env-var portability
+## Source
 
-Use environment variables (`BITBUCKET_USERNAME`, `BRAINSTORMING_MCP_ROOT`, etc.) instead of hard-coded paths. This keeps a project's `mcp.json` portable across machines.
+`.mcp.json` at the repo root.

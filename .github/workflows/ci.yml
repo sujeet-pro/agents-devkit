@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   validate:
-    name: Validate skills, agents & content
+    name: Validate skills, agents, hooks, MCP, and canonical sync
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -29,16 +29,11 @@ jobs:
         run: npm ci
 
       # Spec-level checks (frontmatter keys, name match, body size, etc.)
+      # Also re-emits skills-manifest.json from the live tree.
       - name: Validate (spec)
         run: npm run validate
 
-      # Stricter content checks (markdown well-formedness, link integrity,
-      # containment: nothing escapes its skill folder).
-      - name: Validate (content, verbose)
-        run: npm run validate:content:verbose
-
-      # Make sure the installer's dry-run still produces a coherent plan
-      # against a fresh checkout — catches regressions in cli/lib/* before
-      # we ever publish.
-      - name: Installer dry-run (global)
-        run: node cli/index.mjs --mode global --dry-run -y
+      # Confirm bin/canonical/* has been propagated into every skill's
+      # references/interaction-contract.md byte-identically.
+      - name: Validate (canonical sync)
+        run: npm run validate:sync

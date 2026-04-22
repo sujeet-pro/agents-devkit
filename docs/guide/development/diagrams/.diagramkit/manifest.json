@@ -1,0 +1,31 @@
+{
+  "version": 2,
+  "diagrams": {
+    "build-routing.mermaid": {
+      "hash": "sha256:9b711b9615d33f8e",
+      "generatedAt": "2026-04-22T17:40:28.646Z",
+      "outputs": [
+        {
+          "file": "build-routing-light.svg",
+          "format": "svg",
+          "theme": "light",
+          "width": 1148.46875,
+          "height": 691.8062133789062
+        },
+        {
+          "file": "build-routing-dark.svg",
+          "format": "svg",
+          "theme": "dark",
+          "width": 1148.46875,
+          "height": 691.8062133789062
+        }
+      ],
+      "formats": [
+        "svg"
+      ],
+      "theme": "both",
+      "mtimeMs": 1776879551554.365,
+      "size": 498
+    }
+  }
+}

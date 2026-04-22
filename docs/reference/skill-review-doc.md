@@ -1,31 +1,10 @@
 ---
 title: 'review-doc'
-description: 'Review an existing technical document (Markdown file in repo, fetched URL, Confluence page, Google Doc) for accuracy, freshness, structure, completeness, and readability.'
-artifact_kind: skill
+description: '|'
 skill_name: review-doc
-category: review
+category: router
 ---
-# review-doc
-
-Review an existing technical document (Markdown file in repo, fetched URL, Confluence page, Google Doc) for accuracy, freshness, structure, completeness, and readability. Produces severity-tiered findings against the actual code or configs the doc claims to describe. Optionally accepts SUPPORTING DOCS (additional Confluence pages, Slack threads, Gmail threads, Google Docs) to add context to the review. Modes: `review` (post comments / write `review.md`) and `fix` (apply edits where authoritative). Use for any "look at this doc and tell me what's wrong / outdated / missing" request. Do not use to write a new doc (use `@adk:docs-write` (a.k.a. `adk-docs-write`)) or to publish a doc (use `@adk:publish-confluence` / `@adk:publish-gdrive`).
-
-## Usage
-
-> Examples assume this repo is installed as the `adk` Claude Code plugin
-> (see [Quick Start](../guide/development/README.md)). Generic agents use the
-> `adk-review-doc` form via `agents-skills/`.
-
-```text
-/adk:review-doc            # interactive run (Claude Code)
-/adk:review-doc --auto     # unattended; pick safe defaults
-```
-
-In Cursor / Codex / Gemini: invoke as `adk-review-doc` (resolved through the
-`agents-skills/adk-review-doc/` symlink).
-
-## Source
-
-Direct from `skills/review-doc/SKILL.md` — this page is auto-generated.
+# review-doc — doc review with supporting-context
 
 Replaces / extends the legacy `docs-review` skill. Adds support for passing supporting docs that inform the review.
 
@@ -98,12 +77,3 @@ Replaces / extends the legacy `docs-review` skill. Adds support for passing supp
 ## References
 
 Standard set + `references/severity-ladder.md`, `references/dimension-passes.md`, `references/post-comment-format.md`.
-
-
-## Related skills
-
-- [`context-gather`](./skill-context-gather.md) — `@adk:context-gather` (a.k.a. `adk-context-gather`)
-- [`docs-review`](./skill-docs-review.md) — `@adk:docs-review` (a.k.a. `adk-docs-review`)
-- [`docs-write`](./skill-docs-write.md) — `@adk:docs-write` (a.k.a. `adk-docs-write`)
-- [`review`](./skill-review.md) — `@adk:review` (a.k.a. `adk-review`)
-- [`review-pr`](./skill-review-pr.md) — `@adk:review-pr` (a.k.a. `adk-review-pr`)

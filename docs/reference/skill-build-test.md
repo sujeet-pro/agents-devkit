@@ -1,31 +1,10 @@
 ---
 title: 'build-test'
-description: 'Author or expand automated tests - unit, integration, end-to-end - to cover behavior, raise coverage, lock in a bug fix, or convert manual checks into repeatable validation.'
-artifact_kind: skill
+description: 'Author or expand automated tests - unit, integration, end-to-end - to cover behavior, raise coverage, lock in a bug fix, or convert manual checks into repeatable validation. Use when the deliverable is test code, not implementation. Do not use when implementation is also changing in the same pass (use adk-build-feature, which can include tests inline).'
 skill_name: build-test
-category: build
+category: router
 ---
-# build-test
-
-Author or expand automated tests - unit, integration, end-to-end - to cover behavior, raise coverage, lock in a bug fix, or convert manual checks into repeatable validation. Use when the deliverable is test code, not implementation. Do not use when implementation is also changing in the same pass (use adk-build-feature, which can include tests inline).
-
-## Usage
-
-> Examples assume this repo is installed as the `adk` Claude Code plugin
-> (see [Quick Start](../guide/development/README.md)). Generic agents use the
-> `adk-build-test` form via `agents-skills/`.
-
-```text
-/adk:build-test            # interactive run (Claude Code)
-/adk:build-test --auto     # unattended; pick safe defaults
-```
-
-In Cursor / Codex / Gemini: invoke as `adk-build-test` (resolved through the
-`agents-skills/adk-build-test/` symlink).
-
-## Source
-
-Direct from `skills/build-test/SKILL.md` — this page is auto-generated.
+# ADK Build / Test
 
 Standalone task skill under the `@adk:build` (a.k.a. `adk-build`) category router. Produces tests that actually exercise the behavior they claim to cover, using the repo's existing test stack.
 
@@ -185,12 +164,3 @@ These files live in `references/` next to this `SKILL.md`. Read them when the sk
 | `references/build-test-validator.md` | The four-phase validator gate (pre-execution, mid-flow, pre-handoff, post-execution) this skill MUST run. |
 
 <!-- adk:references:end -->
-
-
-## Related skills
-
-- [`audit-repo`](./skill-audit-repo.md) — `@adk:audit-repo` (a.k.a. `adk-audit-repo`)
-- [`build`](./skill-build.md) — `@adk:build` (a.k.a. `adk-build`)
-- [`build-feature`](./skill-build-feature.md) — `@adk:build-feature` (a.k.a. `adk-build-feature`)
-- [`build-migrate`](./skill-build-migrate.md) — `@adk:build-migrate` (a.k.a. `adk-build-migrate`)
-- [`build-refactor`](./skill-build-refactor.md) — `@adk:build-refactor` (a.k.a. `adk-build-refactor`)

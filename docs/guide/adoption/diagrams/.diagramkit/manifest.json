@@ -1,0 +1,31 @@
+{
+  "version": 2,
+  "diagrams": {
+    "adoption-flow.mermaid": {
+      "hash": "sha256:cfcd7473871027c2",
+      "generatedAt": "2026-04-22T17:40:28.644Z",
+      "outputs": [
+        {
+          "file": "adoption-flow-light.svg",
+          "format": "svg",
+          "theme": "light",
+          "width": 509.96875,
+          "height": 805.0968627929688
+        },
+        {
+          "file": "adoption-flow-dark.svg",
+          "format": "svg",
+          "theme": "dark",
+          "width": 509.96875,
+          "height": 805.0968627929688
+        }
+      ],
+      "formats": [
+        "svg"
+      ],
+      "theme": "both",
+      "mtimeMs": 1776879600490.8396,
+      "size": 432
+    }
+  }
+}

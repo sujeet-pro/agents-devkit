@@ -1,39 +1,10 @@
 ---
 title: 'diagram-drawio'
 description: 'Generate Draw.io diagrams (.drawio/.drawio.xml/.dio) and render to SVG/PNG/JPEG/WebP/AVIF with diagramkit. Rich shape libraries, cloud vendor icons (AWS/Azure/GCP), BPMN, org charts, network topology, swimlanes, and multi-page layouts. Use when creating infrastructure-heavy diagrams, cloud architecture, or diagrams needing precise manual positioning and vendor icon libraries.'
-artifact_kind: skill
 skill_name: diagram-drawio
-category: standalone
+category: router
 ---
-# diagram-drawio
-
-Generate Draw.io diagrams (.drawio/.drawio.xml/.dio) and render to SVG/PNG/JPEG/WebP/AVIF with diagramkit. Rich shape libraries, cloud vendor icons (AWS/Azure/GCP), BPMN, org charts, network topology, swimlanes, and multi-page layouts. Use when creating infrastructure-heavy diagrams, cloud architecture, or diagrams needing precise manual positioning and vendor icon libraries.
-
-## Usage
-
-> Examples assume this repo is installed as the `adk` Claude Code plugin
-> (see [Quick Start](../guide/development/README.md)). Generic agents use the
-> `adk-diagram-drawio` form via `agents-skills/`.
-
-```text
-/adk:diagram-drawio            # interactive run (Claude Code)
-/adk:diagram-drawio --auto     # unattended; pick safe defaults
-```
-
-In Cursor / Codex / Gemini: invoke as `adk-diagram-drawio` (resolved through the
-`agents-skills/adk-diagram-drawio/` symlink).
-
-The skill ships an executable helper (no project install required — it auto-installs the
-pinned global package on first run, with a y/N prompt):
-
-```bash
-./skills/diagram-drawio/scripts/render-and-validate.sh diagrams/
-```
-
-## Source
-
-Direct from `skills/diagram-drawio/SKILL.md` — this page is auto-generated. To change the
-authoring rules, edit the SKILL.md and re-run `/adk:prj-update-docs`.
+# diagramkit — Draw.io Engine
 
 ## When To Use
 
@@ -457,13 +428,3 @@ Stop on first clean run, or mark as residual after 8 iterations.
 
 - `references/xml-reference.md` — full XML structure, all shapes, cloud icons, edge styles, containers, multi-page, layout guidance
 - `references/color-and-theming.md` — complete color palettes, dark mode behavior, WCAG contrast rules
-
-## Related skills
-
-- [`diagram-mermaid`](./skill-diagram-mermaid.md) — `@adk:diagram-mermaid` (a.k.a. `adk-diagram-mermaid`)
-- [`diagram-graphviz`](./skill-diagram-graphviz.md) — `@adk:diagram-graphviz` (a.k.a. `adk-diagram-graphviz`)
-- [`diagram-excalidraw`](./skill-diagram-excalidraw.md) — `@adk:diagram-excalidraw` (a.k.a. `adk-diagram-excalidraw`)
-- [`diagram-review`](./skill-diagram-review.md) — `@adk:diagram-review` (a.k.a. `adk-diagram-review`)
-- [`markdown`](./skill-markdown.md) — `@adk:markdown` (a.k.a. `adk-markdown`)
-- [`visualize-diagram`](./skill-visualize-diagram.md) — `@adk:visualize-diagram` (a.k.a. `adk-visualize-diagram`)
-- [`doc-site-diagrams`](./skill-doc-site-diagrams.md) — `@adk:doc-site-diagrams` (a.k.a. `adk-doc-site-diagrams`)

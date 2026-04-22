@@ -1,8 +1,8 @@
 ---
-
-## title: Subagents
+title: Subagents
 description: How ADK ships specialist subagents under the Claude plugin agents/ folder, and the supported frontmatter surface for plugin-shipped agents.
 order: 4
+---
 
 # Subagents
 
@@ -17,16 +17,16 @@ The `adk` Claude Code plugin ships **one Markdown file per subagent** under `[ag
 
 | Subagent                                                                                                           | Role                                                                              |
 | ------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------- |
-| `[brainstorm-facilitator](https://github.com/sujeet-pro/agents-devkit/blob/main/agents/brainstorm-facilitator.md)` | Iterative brainstorming and route selection (paired with the `brainstorming` MCP) |
-| `[code-reviewer](https://github.com/sujeet-pro/agents-devkit/blob/main/agents/code-reviewer.md)`                   | Code review with severity-ordered findings                                        |
-| `[security-reviewer](https://github.com/sujeet-pro/agents-devkit/blob/main/agents/security-reviewer.md)`           | Security-focused vulnerability analysis                                           |
-| `[test-engineer](https://github.com/sujeet-pro/agents-devkit/blob/main/agents/test-engineer.md)`                   | Test writing, execution, and coverage                                             |
-| `[doc-writer](https://github.com/sujeet-pro/agents-devkit/blob/main/agents/doc-writer.md)`                         | Documentation authoring from code evidence                                        |
-| `[research-agent](https://github.com/sujeet-pro/agents-devkit/blob/main/agents/research-agent.md)`                 | Deep technical research with citations                                            |
-| `[plan-reviewer](https://github.com/sujeet-pro/agents-devkit/blob/main/agents/plan-reviewer.md)`                   | Plan critique and gap analysis                                                    |
-| `[implementer](https://github.com/sujeet-pro/agents-devkit/blob/main/agents/implementer.md)`                       | Focused code implementation                                                       |
-| `[debugger](https://github.com/sujeet-pro/agents-devkit/blob/main/agents/debugger.md)`                             | Systematic root-cause debugging                                                   |
-| `[dispatcher](https://github.com/sujeet-pro/agents-devkit/blob/main/agents/dispatcher.md)`                         | Routes a classified task to the right downstream subagent (used by `/adk:auto`)   |
+| [brainstorm-facilitator](https://github.com/sujeet-pro/agents-devkit/blob/main/agents/brainstorm-facilitator.md) | Iterative brainstorming and route selection (paired with the brainstorming MCP) |
+| [code-reviewer](https://github.com/sujeet-pro/agents-devkit/blob/main/agents/code-reviewer.md)                   | Code review with severity-ordered findings                                        |
+| [security-reviewer](https://github.com/sujeet-pro/agents-devkit/blob/main/agents/security-reviewer.md)           | Security-focused vulnerability analysis                                           |
+| [test-engineer](https://github.com/sujeet-pro/agents-devkit/blob/main/agents/test-engineer.md)                   | Test writing, execution, and coverage                                             |
+| [doc-writer](https://github.com/sujeet-pro/agents-devkit/blob/main/agents/doc-writer.md)                         | Documentation authoring from code evidence                                        |
+| [research-agent](https://github.com/sujeet-pro/agents-devkit/blob/main/agents/research-agent.md)                 | Deep technical research with citations                                            |
+| [plan-reviewer](https://github.com/sujeet-pro/agents-devkit/blob/main/agents/plan-reviewer.md)                   | Plan critique and gap analysis                                                    |
+| [implementer](https://github.com/sujeet-pro/agents-devkit/blob/main/agents/implementer.md)                       | Focused code implementation                                                       |
+| [debugger](https://github.com/sujeet-pro/agents-devkit/blob/main/agents/debugger.md)                             | Systematic root-cause debugging                                                   |
+| [dispatcher](https://github.com/sujeet-pro/agents-devkit/blob/main/agents/dispatcher.md)                         | Routes a classified task to the right downstream subagent (used by /adk:auto)   |
 
 
 In Claude's `/agents` UI, these appear with the plugin namespace prefix: `adk:code-reviewer`, `adk:dispatcher`, etc.
@@ -100,15 +100,12 @@ The calling skill is required to handle these statuses. It cannot silently retry
 | Add a new specialist role                                       | Author one Markdown file under `agents/` and add it to the relevant skill's `agents:` allowlist |
 
 
-## Non-Claude harnesses
+## Claude-only
 
-Cursor, Codex, Gemini, and Antigravity each have their own subagent format. The `adk` Claude plugin does **not** project these agents into other harnesses — they are Claude-only. If you want the same persona in a non-Claude harness, author it natively in that harness's agent format.
-
-The `agents-skills/adk-<name>` symlink farm projects **skills** to other harnesses, not agents.
+ADK's subagents (and the plugin as a whole) target Claude Code and Claude Desktop only. There is no projection into Cursor, Codex, Gemini, or other harnesses.
 
 ## Related
 
 - [Skill Anatomy](./skill-anatomy.md) — how skills decide to dispatch a subagent.
 - [Hooks](./hooks.md) — safety and lifecycle checks for both skills and subagents.
 - [Plugins reference — Agents](https://code.claude.com/docs/en/plugins-reference#agents) — Anthropic's authoritative spec for plugin-shipped agents.
-

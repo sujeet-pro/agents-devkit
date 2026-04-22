@@ -1,8 +1,8 @@
 # Agent Development Kit (ADK)
 
-> A Claude Code plugin shipping 50+ composable, self-contained, highly-interactive skills covering the full developer loop. Also installable via npm, repo clone, or `npx skills` for Cursor, Codex, Gemini, and Antigravity.
+> A Claude Code plugin shipping 50+ composable, self-contained, highly-interactive skills covering the full developer loop. Built for [Claude Code](https://code.claude.com) and Claude Desktop.
 
-`adk` is a Claude Code plugin (`.claude-plugin/plugin.json`) packed with skills for discovery, brainstorm, requirements, scoping, planning, design, frontend (with 5-sample mockups), build, review, browser-based validation, docs (wraps [pagesmith](https://github.com/sujeet-pro/pagesmith) + [diagramkit](https://github.com/sujeet-pro/diagramkit)), audits, publishing (`gh` CLI everywhere), CI/CD monitor + auto-fix, and observability (Datadog, Mixpanel).
+`adk` is a [Claude Code plugin](https://code.claude.com/docs/en/plugins) (`.claude-plugin/plugin.json`) packed with skills for discovery, brainstorm, requirements, scoping, planning, design, frontend (with 5-sample mockups), build, review, browser-based validation, docs (wraps [pagesmith](https://github.com/sujeet-pro/pagesmith) + [diagramkit](https://github.com/sujeet-pro/diagramkit)), audits, publishing (`gh` CLI everywhere), CI/CD monitor + auto-fix, and observability (Datadog, Mixpanel).
 
 Every skill:
 
@@ -11,41 +11,55 @@ Every skill:
 - Is **fully self-contained**: every reference file ships inside the skill folder, including a byte-identical copy of `interaction-contract.md`.
 - Writes intermediate artifacts under `.temp/task-<slug>/`.
 
+The plugin also ships:
+
+- **10 specialized subagents** under `agents/` (research, dispatcher, brainstorm-facilitator, code-reviewer, debugger, doc-writer, implementer, plan-reviewer, security-reviewer, test-engineer).
+- **Lifecycle hooks** at `hooks/hooks.json` — Pre/Post tool gates, Stop validators, and a `SessionStart` primer.
+- **MCP server registry** at `.mcp.json` — GitHub, Bitbucket, Jira, Confluence, Drive, Slack, Gmail, Datadog, Mixpanel, Chrome DevTools, Playwright, brainstorming.
+- **Background monitors** at `monitors/monitors.json` — `gh pr checks --watch` for `cicd-monitor`.
+- **Plugin defaults** at `settings.json` (subagent status line).
+
 ## Install
 
-> Whichever path you pick, finish with **`/adk:setup`** (Claude) or **`npx adk`** (any other harness) to install CLI deps, register MCP servers, and write the managed block into your user-level memory file.
+ADK is distributed as a Claude Code plugin via the marketplace at `.claude-plugin/marketplace.json`. The marketplace exposes three install paths (all use the same `/plugin install` flow inside Claude Code):
 
-### 1. Claude Code plugin from GitHub (primary — tracks `main`)
+1. **Marketplace + GitHub source** — tracks `main`, refreshed on `/plugin marketplace update`.
+2. **Marketplace + local clone** — point the marketplace at a local checkout so your edits are live and refreshable through the standard `/plugin` lifecycle.
+3. **Marketplace + npm source** — install the plugin from the [`agents-devkit`](https://www.npmjs.com/package/agents-devkit) npm package and pin to a semver release.
 
-The default `adk` entry uses a `github` plugin source with no pinned `ref`/`sha`, so it always tracks the latest commit on the `main` branch. Run `/plugin marketplace update sujeet-pro-adk` to pull new commits.
+A fourth, dev-only path uses `claude --plugin-dir` to load the plugin directly without registering a marketplace.
+
+### Path 1 — From the marketplace (GitHub, tracks `main`) — recommended
 
 ```text
-# In Claude Code:
 /plugin marketplace add sujeet-pro/agents-devkit
 /plugin install adk@sujeet-pro-adk
 /reload-plugins
-/adk:setup            # interactive — wires MCP, CLI deps, and user memory
 ```
 
-### 1b. Claude Code plugin from a local clone (contributor marketplace)
+The default `adk` entry uses a `github` plugin source with no pinned `ref`/`sha`, so it always tracks the latest commit on `main`. Refresh with:
 
-Clone the repo and add it as a **local marketplace** so the standard `/plugin install`, `/plugin update`, and `/reload-plugins` commands all operate on your working tree:
+```text
+/plugin marketplace update sujeet-pro-adk
+/reload-plugins
+```
+
+### Path 2 — From a local clone (contributors / live edits)
+
+Clone the repo and add it as a **local marketplace** so the standard `/plugin install`, `/plugin update`, `/plugin disable`, and `/plugin uninstall` commands all operate on your working tree.
 
 ```bash
 git clone https://github.com/sujeet-pro/agents-devkit.git ~/code/agents-devkit
-cd ~/code/agents-devkit
-npm install
 ```
 
 ```text
-# Inside Claude Code:
+# Inside Claude Code, point the marketplace at the local clone:
 /plugin marketplace add ~/code/agents-devkit
 /plugin install adk@sujeet-pro-adk
 /reload-plugins
-/adk:setup
 ```
 
-After editing skills, agents, hooks, MCP, or monitors:
+After editing skills, agents, hooks, MCP, or monitors in the clone:
 
 ```text
 /reload-plugins
@@ -58,88 +72,35 @@ After `git pull`:
 /reload-plugins
 ```
 
-### 1c. Claude Code plugin via `--plugin-dir` (no marketplace)
+The marketplace name (`sujeet-pro-adk`) is read from `.claude-plugin/marketplace.json`, so the install command is identical across Path 1 and Path 2 — only the **source** of the marketplace is different.
 
-```bash
-git clone https://github.com/sujeet-pro/agents-devkit.git
-cd agents-devkit
-npm install
-claude --plugin-dir "$(pwd)"
-```
+### Path 3 — From the npm registry (semver-pinned)
 
-### 1d. Claude Code plugin from npm (pinned versions)
-
-Same plugin, but installed from the [`agents-devkit` npm package](https://www.npmjs.com/package/agents-devkit) so you can lock to a semver release:
+The marketplace also exposes an `adk-npm` entry whose source is the [`agents-devkit`](https://www.npmjs.com/package/agents-devkit) npm package. Use this when you want a pinned, reproducible install instead of tracking `main`.
 
 ```text
 /plugin marketplace add sujeet-pro/agents-devkit
 /plugin install adk-npm@sujeet-pro-adk
+/reload-plugins
 ```
 
-### 2. npm module (works for every harness)
-
-Useful when you want a pinned version, are not on Claude Code yet, or are driving setup from a non-Claude harness.
+Behind the scenes Claude Code runs `npm install` against the public npm registry. To pin an exact version, install through the interactive `/plugin` UI (which lets you set version constraints) or via the CLI:
 
 ```bash
-# One-shot
-npx --yes agents-devkit adk
-
-# Project-pinned (CI-friendly)
-npm install --save-dev agents-devkit && npx adk
-
-# Global
-npm install -g agents-devkit && adk
+claude plugin install adk-npm@sujeet-pro-adk
 ```
 
-`adk` (alias for `adk-setup`) auto-detects which agents are installed — Claude Code, Claude Desktop, Cursor, Codex CLI, Gemini CLI, Antigravity — and:
+### Path 4 — Direct (`--plugin-dir`, no marketplace)
 
-- symlinks every `agents-skills/adk-<name>` folder into the right per-agent skill directory,
-- registers MCP servers via `claude mcp add` (when Claude is present),
-- updates the user-level memory file for each detected harness so each one auto-discovers ADK.
-
-Per-step CLIs:
+For one-off plugin development against a clone, without registering a marketplace:
 
 ```bash
-npx adk-install                # symlink skill folders into detected harnesses
-npx adk-mcp-install            # register MCP servers from .mcp.json
-npx adk-update-memory          # write managed block into ~/.claude/CLAUDE.md etc.
-npx adk-doctor                 # health check
+git clone https://github.com/sujeet-pro/agents-devkit.git
+cd agents-devkit
+claude --plugin-dir "$(pwd)"
 ```
 
-### 3. Clone + symlink (for contributors)
-
-```bash
-git clone https://github.com/sujeet-pro/agents-devkit.git ~/code/agents-devkit
-cd ~/code/agents-devkit
-npm install
-node bin/adk-setup            # same as `/adk:setup` and `npx adk`
-```
-
-Symlinks point back at the clone, so `git pull` instantly refreshes every linked harness and local skill edits show up live.
-
-Selective install:
-
-```bash
-node bin/adk-install --target cursor                  # only Cursor
-node bin/adk-install --target cursor,codex            # multiple
-node bin/adk-install --mode project                   # link into <cwd>/.cursor/skills/ etc.
-node bin/adk-install --dry-run
-
-node bin/adk-update-memory --target claude            # only ~/.claude/CLAUDE.md
-node bin/adk-update-memory --remove                   # remove the managed block
-```
-
-macOS only.
-
-### 4. `npx skills add` (skills only)
-
-The third-party [`skills`](https://skills.sh) loader picks up the `agents-skills/adk-<name>` folders. **Subagents, hooks, MCP servers, monitors, and the user-memory wiring are NOT installed via this path** — use one of the paths above for the full kit.
-
-```bash
-npx skills add sujeet-pro/agents-devkit
-npx skills add sujeet-pro/agents-devkit -a claude-code
-npx skills add sujeet-pro/agents-devkit -s adk-plan-brainstorm -s adk-review-pr
-```
+See [`docs/guide/getting-started/installation.md`](docs/guide/getting-started/installation.md) for the full guide, including MCP env-var setup and the non-interactive `claude plugin` CLI for CI.
 
 ## First skill
 
@@ -153,7 +114,7 @@ If you already know the skill: `/adk:plan-brainstorm`, `/adk:review-pr`, `/adk:a
 
 ## Skill catalog
 
-59 skills across 11 layers — full list in [`skills-manifest.json`](skills-manifest.json). Highlights:
+50+ skills across 11 layers — full list in [`skills-manifest.json`](skills-manifest.json) (regenerated by `npm run validate`). Highlights:
 
 - **Meta** — `auto`, `setup`, `temp-folder`, `mode-contract`
 - **Discovery** — `context-gather` (Jira/Confluence/Slack/GDocs/Gmail), `requirements`, `scoping`, `plan-research`
@@ -169,7 +130,21 @@ If you already know the skill: `/adk:plan-brainstorm`, `/adk:review-pr`, `/adk:a
 
 ## Repo layout
 
-See [`AGENTS.md`](AGENTS.md) for the canonical map and [`CLAUDE.md`](CLAUDE.md) for the Claude-specific delta.
+| Path | Purpose |
+| --- | --- |
+| `.claude-plugin/plugin.json` | Plugin manifest (`name: "adk"`) |
+| `.claude-plugin/marketplace.json` | Marketplace catalog with the `adk` entry |
+| `skills/<name>/SKILL.md` | All skills, bare folder names, no `adk-` prefix |
+| `agents/<role>.md` | Specialized subagents (Markdown + YAML frontmatter) |
+| `hooks/hooks.json` | Pre/Post tool, Stop, SessionStart hooks |
+| `.mcp.json` | Bundled MCP server registry (`${ENV_VAR}` placeholders) |
+| `monitors/monitors.json` | Background monitors |
+| `settings.json` | Plugin-level Claude defaults |
+| `bin/` | Repo CLI scripts (validator, contract sync, internal helpers) |
+| `bin/canonical/` | Single source of truth for the interaction contract and `SessionStart` primer |
+| `docs/`, `gh-pages/` | Pagesmith docs site source + built output |
+
+See [`CLAUDE.md`](CLAUDE.md) for the canonical contract any agent working **on** this repo should follow.
 
 ## License
 

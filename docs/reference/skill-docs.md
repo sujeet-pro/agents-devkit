@@ -1,31 +1,10 @@
 ---
 title: 'docs'
-description: 'Category router for technical documentation work - writing or reviewing READMEs, runbooks, API docs, ADRs, onboarding guides, migration guides, changelogs, and similar.'
-artifact_kind: skill
+description: 'Category router for technical documentation work - writing or reviewing READMEs, runbooks, API docs, ADRs, onboarding guides, migration guides, changelogs, and similar. Use when the deliverable is a markdown document (or its destination publish format), not code or a spec. Picks one of adk-docs-write, adk-docs-review.'
 skill_name: docs
-category: docs
+category: standalone
 ---
-# docs
-
-Category router for technical documentation work - writing or reviewing READMEs, runbooks, API docs, ADRs, onboarding guides, migration guides, changelogs, and similar. Use when the deliverable is a markdown document (or its destination publish format), not code or a spec. Picks one of adk-docs-write, adk-docs-review.
-
-## Usage
-
-> Examples assume this repo is installed as the `adk` Claude Code plugin
-> (see [Quick Start](../guide/development/README.md)). Generic agents use the
-> `adk-docs` form via `agents-skills/`.
-
-```text
-/adk:docs            # interactive run (Claude Code)
-/adk:docs --auto     # unattended; pick safe defaults
-```
-
-In Cursor / Codex / Gemini: invoke as `adk-docs` (resolved through the
-`agents-skills/adk-docs/` symlink).
-
-## Source
-
-Direct from `skills/docs/SKILL.md` — this page is auto-generated.
+# ADK Docs (Category Router)
 
 Routes any "produce or improve a documentation artifact" intent to the right docs task. Activate one of the listed task skills below; do not draft directly from this router.
 
@@ -137,13 +116,3 @@ These files live in `references/` next to this `SKILL.md`. Read them when the sk
 | `references/docs-validator.md` | The four-phase validator gate (pre-execution, mid-flow, pre-handoff, post-execution) this skill MUST run. |
 
 <!-- adk:references:end -->
-
-
-## Related skills
-
-- [`docs-review`](./skill-docs-review.md) — `@adk:docs-review` (a.k.a. `adk-docs-review`)
-- [`docs-write`](./skill-docs-write.md) — `@adk:docs-write` (a.k.a. `adk-docs-write`)
-- [`frontend-design`](./skill-frontend-design.md) — `@adk:frontend-design` (a.k.a. `adk-frontend-design`)
-- [`plan-spec`](./skill-plan-spec.md) — `@adk:plan-spec` (a.k.a. `adk-plan-spec`)
-- [`publish-commit`](./skill-publish-commit.md) — `@adk:publish-commit` (a.k.a. `adk-publish-commit`)
-- [`review`](./skill-review.md) — `@adk:review` (a.k.a. `adk-review`)

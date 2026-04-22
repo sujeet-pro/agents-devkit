@@ -1,31 +1,10 @@
 ---
 title: 'build-deps'
-description: 'Inventory, upgrade, deduplicate, audit, or remove dependencies in the repo with explicit risk per change and per-package validation.'
-artifact_kind: skill
+description: 'Inventory, upgrade, deduplicate, audit, or remove dependencies in the repo with explicit risk per change and per-package validation. Use when the deliverable is a dependency hygiene change - patch / minor upgrades, lockfile cleanups, security advisories, unused-dep removal. Do not use for major-version migrations with API changes (use adk-build-migrate).'
 skill_name: build-deps
-category: build
+category: router
 ---
-# build-deps
-
-Inventory, upgrade, deduplicate, audit, or remove dependencies in the repo with explicit risk per change and per-package validation. Use when the deliverable is a dependency hygiene change - patch / minor upgrades, lockfile cleanups, security advisories, unused-dep removal. Do not use for major-version migrations with API changes (use adk-build-migrate).
-
-## Usage
-
-> Examples assume this repo is installed as the `adk` Claude Code plugin
-> (see [Quick Start](../guide/development/README.md)). Generic agents use the
-> `adk-build-deps` form via `agents-skills/`.
-
-```text
-/adk:build-deps            # interactive run (Claude Code)
-/adk:build-deps --auto     # unattended; pick safe defaults
-```
-
-In Cursor / Codex / Gemini: invoke as `adk-build-deps` (resolved through the
-`agents-skills/adk-build-deps/` symlink).
-
-## Source
-
-Direct from `skills/build-deps/SKILL.md` — this page is auto-generated.
+# ADK Build / Deps
 
 Standalone task skill under the `@adk:build` (a.k.a. `adk-build`) category router. Produces a focused dependency change with explicit per-package risk, lockfile correctness, and validated outcomes.
 
@@ -210,12 +189,3 @@ These files live in `references/` next to this `SKILL.md`. Read them when the sk
 | `references/build-deps-validator.md` | The four-phase validator gate (pre-execution, mid-flow, pre-handoff, post-execution) this skill MUST run. |
 
 <!-- adk:references:end -->
-
-
-## Related skills
-
-- [`audit-repo`](./skill-audit-repo.md) — `@adk:audit-repo` (a.k.a. `adk-audit-repo`)
-- [`build`](./skill-build.md) — `@adk:build` (a.k.a. `adk-build`)
-- [`build-feature`](./skill-build-feature.md) — `@adk:build-feature` (a.k.a. `adk-build-feature`)
-- [`build-migrate`](./skill-build-migrate.md) — `@adk:build-migrate` (a.k.a. `adk-build-migrate`)
-- [`requirements`](./skill-requirements.md) — `@adk:requirements` (a.k.a. `adk-requirements`)

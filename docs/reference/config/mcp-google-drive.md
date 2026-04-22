@@ -1,6 +1,6 @@
 ---
 title: 'mcp-google-drive'
-description: 'Google Drive MCP.'
+description: 'Google Drive MCP. Requires GDRIVE_CREDENTIALS_PATH env var pointing to OAuth credentials JSON.'
 artifact_kind: mcp
 ---
 
@@ -10,14 +10,7 @@ Google Drive MCP. Requires GDRIVE_CREDENTIALS_PATH env var pointing to OAuth cre
 
 ## Usage
 
-Install via `bin/adk-mcp-install`:
-
-```bash
-node bin/adk-mcp-install              # interactive picker
-node bin/adk-mcp-install --auto       # enable every server with env vars present
-```
-
-The installer reads `.mcp.json`, resolves `${ENV_VAR}` placeholders from `~/.zshenv`, and registers the server with `claude mcp add`.
+`.mcp.json` is loaded automatically by Claude Code when the `adk` plugin is enabled. Each `${ENV_VAR}` placeholder is resolved from your shell env at session start. To inspect or override entries, edit `.mcp.json` and reload the plugin (`/reload-plugins`).
 
 ## Configuration
 
@@ -41,7 +34,7 @@ The installer reads `.mcp.json`, resolves `${ENV_VAR}` placeholders from `~/.zsh
 
 - `GDRIVE_CREDENTIALS_PATH`
 
-Set these in `~/.zshenv` before running `bin/adk-mcp-install`.
+Set these in `~/.zshenv` (or your shell's env file) so they are present when Claude Code launches the plugin.
 
 ## Source
 

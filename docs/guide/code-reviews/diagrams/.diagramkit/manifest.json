@@ -1,0 +1,31 @@
+{
+  "version": 2,
+  "diagrams": {
+    "review-routing.mermaid": {
+      "hash": "sha256:288ddde83fec67d8",
+      "generatedAt": "2026-04-22T17:40:28.645Z",
+      "outputs": [
+        {
+          "file": "review-routing-light.svg",
+          "format": "svg",
+          "theme": "light",
+          "width": 1058.8671875,
+          "height": 570.1062622070312
+        },
+        {
+          "file": "review-routing-dark.svg",
+          "format": "svg",
+          "theme": "dark",
+          "width": 1058.8671875,
+          "height": 570.1062622070312
+        }
+      ],
+      "formats": [
+        "svg"
+      ],
+      "theme": "both",
+      "mtimeMs": 1776879545917.222,
+      "size": 511
+    }
+  }
+}

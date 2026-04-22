@@ -1,31 +1,10 @@
 ---
 title: 'publish'
-description: 'Category router for shipping artifacts out of the repo - commit messages, PR descriptions, changelogs, GitHub PR/issue actions, Bitbucket PR/issue actions, Confluence pages, and Google Drive docs.'
-artifact_kind: skill
+description: 'Category router for shipping artifacts out of the repo - commit messages, PR descriptions, changelogs, GitHub PR/issue actions, Bitbucket PR/issue actions, Confluence pages, and Google Drive docs. Use when the deliverable leaves the local working tree (a commit, a remote PR, a published page, a shared doc). Picks one of adk-publish-commit, adk-publish-github, adk-publish-bitbucket, adk-publish-confluence, adk-publish-gdrive.'
 skill_name: publish
-category: publish
+category: standalone
 ---
-# publish
-
-Category router for shipping artifacts out of the repo - commit messages, PR descriptions, changelogs, GitHub PR/issue actions, Bitbucket PR/issue actions, Confluence pages, and Google Drive docs. Use when the deliverable leaves the local working tree (a commit, a remote PR, a published page, a shared doc). Picks one of adk-publish-commit, adk-publish-github, adk-publish-bitbucket, adk-publish-confluence, adk-publish-gdrive.
-
-## Usage
-
-> Examples assume this repo is installed as the `adk` Claude Code plugin
-> (see [Quick Start](../guide/development/README.md)). Generic agents use the
-> `adk-publish` form via `agents-skills/`.
-
-```text
-/adk:publish            # interactive run (Claude Code)
-/adk:publish --auto     # unattended; pick safe defaults
-```
-
-In Cursor / Codex / Gemini: invoke as `adk-publish` (resolved through the
-`agents-skills/adk-publish/` symlink).
-
-## Source
-
-Direct from `skills/publish/SKILL.md` — this page is auto-generated.
+# ADK Publish (Category Router)
 
 Routes any "ship this somewhere" intent to the right publishing task. Activate one of the listed task skills below; do not publish directly from this router.
 
@@ -144,17 +123,3 @@ These files live in `references/` next to this `SKILL.md`. Read them when the sk
 | `references/publish-validator.md` | The four-phase validator gate (pre-execution, mid-flow, pre-publish, post-publish) this skill MUST run. |
 
 <!-- adk:references:end -->
-
-
-## Related skills
-
-- [`build`](./skill-build.md) — `@adk:build` (a.k.a. `adk-build`)
-- [`docs-write`](./skill-docs-write.md) — `@adk:docs-write` (a.k.a. `adk-docs-write`)
-- [`plan-spec`](./skill-plan-spec.md) — `@adk:plan-spec` (a.k.a. `adk-plan-spec`)
-- [`publish-bitbucket`](./skill-publish-bitbucket.md) — `@adk:publish-bitbucket` (a.k.a. `adk-publish-bitbucket`)
-- [`publish-commit`](./skill-publish-commit.md) — `@adk:publish-commit` (a.k.a. `adk-publish-commit`)
-- [`publish-confluence`](./skill-publish-confluence.md) — `@adk:publish-confluence` (a.k.a. `adk-publish-confluence`)
-- [`publish-gdrive`](./skill-publish-gdrive.md) — `@adk:publish-gdrive` (a.k.a. `adk-publish-gdrive`)
-- [`publish-github`](./skill-publish-github.md) — `@adk:publish-github` (a.k.a. `adk-publish-github`)
-- [`review-local`](./skill-review-local.md) — `@adk:review-local` (a.k.a. `adk-review-local`)
-- [`review-pr`](./skill-review-pr.md) — `@adk:review-pr` (a.k.a. `adk-review-pr`)

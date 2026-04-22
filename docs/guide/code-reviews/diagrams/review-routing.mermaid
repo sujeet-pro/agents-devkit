@@ -1,0 +1,14 @@
+%%{init: {'htmlLabels': false}}%%
+flowchart TD
+  A["Review intent"] --> B["@adk:review\n(router)"]
+  B --> C{"Target?"}
+  C -- "Remote PR" --> D["review-pr"]
+  C -- "Local changes" --> E["review-local"]
+  C -- "PR feedback" --> F["review-feedback"]
+  C -- "Pause / handoff" --> G["review-handoff"]
+  C -- "Doc only" --> H["docs-review"]
+  D --> I["Findings +\nposted comments"]
+  E --> J["Self-review\nbefore commit"]
+  F --> K["Triaged threads\n+ replies"]
+  G --> L["Handoff brief"]
+  H --> M["Doc findings"]

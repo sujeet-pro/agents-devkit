@@ -1,53 +1,35 @@
 {
   "name": "agents-devkit",
-  "version": "1.0.0",
-  "description": "Agent Development Kit (ADK) - a Claude Code plugin (.claude-plugin/plugin.json) shipping 50+ composable, self-contained skills covering the full developer loop: discovery, brainstorm, requirements, scoping, planning, design, frontend with 5-sample mockups, build, review, browser-based validation via cursor-ide-browser MCP, docs (wraps pagesmith + diagramkit), audits, publishing via gh CLI, CI/CD monitor + auto-fix, and observability (Datadog, Mixpanel). Every skill is highly interactive by default with --auto for unattended runs and --mode review|fix where applicable. Also ships an agents-skills/ tree of folder-level symlinks so the same skills are discoverable as `adk-<name>` from `npx skills add` and from non-Claude agents (Cursor, Codex, Gemini, Antigravity).",
+  "version": "1.1.0",
+  "description": "Agent Development Kit (ADK) - a Claude Code plugin shipping 50+ composable, self-contained, highly-interactive skills covering the full developer loop: discovery, brainstorm, requirements, scoping, planning, design, frontend, build, review, browser-based validation, docs, audits, publishing, CI/CD, and observability. Distributed as a Claude Code plugin via the marketplace at .claude-plugin/marketplace.json (GitHub source by default, npm source for semver-pinned installs).",
   "type": "module",
   "engines": {
     "node": ">=18"
   },
-  "bin": {
-    "adk": "bin/adk-setup",
-    "adk-install": "bin/adk-install",
-    "adk-mcp-install": "bin/adk-mcp-install",
-    "adk-setup": "bin/adk-setup",
-    "adk-update-memory": "bin/adk-update-memory",
-    "adk-validate": "bin/adk-validate",
-    "adk-sync-contracts": "bin/adk-sync-contracts",
-    "adk-doctor": "bin/adk-doctor"
+  "claudePlugin": {
+    "manifest": ".claude-plugin/plugin.json",
+    "marketplace": ".claude-plugin/marketplace.json"
   },
   "files": [
     ".claude-plugin/",
     "skills/",
     "agents/",
-    "agents-skills/",
     "hooks/",
     "monitors/",
     "bin/",
     ".mcp.json",
     "settings.json",
     "skills-manifest.json",
-    "AGENTS.md",
     "CLAUDE.md",
-    "GEMINI.md",
     "README.md",
     "LICENSE"
   ],
-  "claudePlugin": {
-    "manifest": ".claude-plugin/plugin.json",
-    "marketplace": ".claude-plugin/marketplace.json"
-  },
   "scripts": {
     "build": "npm run docs:build",
     "preview": "npm run docs:preview",
     "validate": "node bin/adk-validate",
     "validate:sync": "node bin/adk-sync-contracts --check",
     "sync-contracts": "node bin/adk-sync-contracts",
-    "doctor": "node bin/adk-doctor",
-    "setup": "node bin/adk-setup",
-    "install:local": "node bin/adk-install",
-    "install:mcp": "node bin/adk-mcp-install",
-    "install:memory": "node bin/adk-update-memory",
     "skills:manifest": "node bin/internal/manifest.mjs",
     "docs:dev": "pagesmith-docs dev",
     "docs:build": "npm run docs:skills && pagesmith-docs build",
@@ -55,7 +37,6 @@
     "docs:skills": "node bin/internal/generate-skill-docs.mjs"
   },
   "dependencies": {
-    "@clack/prompts": "^0.7.0",
     "@pagesmith/site": "^0.9.9",
     "diagramkit": "^0.3.3",
     "json5": "^2.2.3"

@@ -1,31 +1,10 @@
 ---
 title: 'audit'
-description: 'Category router for systematic audits of an entire codebase or a public website - covering security, performance, code quality, dependency health, accessibility, SEO, and UX as relevant.'
-artifact_kind: skill
+description: 'Category router for systematic audits of an entire codebase or a public website - covering security, performance, code quality, dependency health, accessibility, SEO, and UX as relevant. Use when the deliverable is an audit report (not a single PR review). Picks one of adk-audit-repo, adk-audit-site.'
 skill_name: audit
-category: audit
+category: standalone
 ---
-# audit
-
-Category router for systematic audits of an entire codebase or a public website - covering security, performance, code quality, dependency health, accessibility, SEO, and UX as relevant. Use when the deliverable is an audit report (not a single PR review). Picks one of adk-audit-repo, adk-audit-site.
-
-## Usage
-
-> Examples assume this repo is installed as the `adk` Claude Code plugin
-> (see [Quick Start](../guide/development/README.md)). Generic agents use the
-> `adk-audit` form via `agents-skills/`.
-
-```text
-/adk:audit            # interactive run (Claude Code)
-/adk:audit --auto     # unattended; pick safe defaults
-```
-
-In Cursor / Codex / Gemini: invoke as `adk-audit` (resolved through the
-`agents-skills/adk-audit/` symlink).
-
-## Source
-
-Direct from `skills/audit/SKILL.md` — this page is auto-generated.
+# ADK Audit (Category Router)
 
 Routes any "produce a structured audit report" intent to the right audit task. Activate one of the listed task skills below; do not audit directly from this router.
 
@@ -136,18 +115,3 @@ These files live in `references/` next to this `SKILL.md`. Read them when the sk
 | `references/audit-validator.md` | The four-phase validator gate (pre-execution, mid-flow, pre-handoff, post-execution) this skill MUST run. |
 
 <!-- adk:references:end -->
-
-
-## Related skills
-
-- [`audit-repo`](./skill-audit-repo.md) — `@adk:audit-repo` (a.k.a. `adk-audit-repo`)
-- [`audit-site`](./skill-audit-site.md) — `@adk:audit-site` (a.k.a. `adk-audit-site`)
-- [`build`](./skill-build.md) — `@adk:build` (a.k.a. `adk-build`)
-- [`build-feature`](./skill-build-feature.md) — `@adk:build-feature` (a.k.a. `adk-build-feature`)
-- [`build-refactor`](./skill-build-refactor.md) — `@adk:build-refactor` (a.k.a. `adk-build-refactor`)
-- [`docs`](./skill-docs.md) — `@adk:docs` (a.k.a. `adk-docs`)
-- [`docs-review`](./skill-docs-review.md) — `@adk:docs-review` (a.k.a. `adk-docs-review`)
-- [`plan-research`](./skill-plan-research.md) — `@adk:plan-research` (a.k.a. `adk-plan-research`)
-- [`review`](./skill-review.md) — `@adk:review` (a.k.a. `adk-review`)
-- [`review-local`](./skill-review-local.md) — `@adk:review-local` (a.k.a. `adk-review-local`)
-- [`review-pr`](./skill-review-pr.md) — `@adk:review-pr` (a.k.a. `adk-review-pr`)

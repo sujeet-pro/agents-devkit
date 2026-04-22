@@ -1,31 +1,10 @@
 ---
 title: 'frontend-feature'
-description: 'Implement or extend a frontend component, page, route, or interaction in an existing app - typed React 19 with accessibility-first defaults, responsive layout at 360/768/1280, all interactive states (default/hover/focus/active/disabled/loading/empty/error), and repo-native validation (typecheck, lint, unit tests, axe).'
-artifact_kind: skill
+description: 'Implement or extend a frontend component, page, route, or interaction in an existing app - typed React 19 with accessibility-first defaults, responsive layout at 360/768/1280, all interactive states (default/hover/focus/active/disabled/loading/empty/error), and repo-native validation (typecheck, lint, unit tests, axe). Use when the deliverable is frontend code in an existing app. Do not use to design from scratch (use adk-frontend-design first), to bootstrap a new app (use adk-frontend-react-csr), or for backend work (use adk-build-feature).'
 skill_name: frontend-feature
-category: frontend
+category: router
 ---
-# frontend-feature
-
-Implement or extend a frontend component, page, route, or interaction in an existing app - typed React 19 with accessibility-first defaults, responsive layout at 360/768/1280, all interactive states (default/hover/focus/active/disabled/loading/empty/error), and repo-native validation (typecheck, lint, unit tests, axe). Use when the deliverable is frontend code in an existing app. Do not use to design from scratch (use adk-frontend-design first), to bootstrap a new app (use adk-frontend-react-csr), or for backend work (use adk-build-feature).
-
-## Usage
-
-> Examples assume this repo is installed as the `adk` Claude Code plugin
-> (see [Quick Start](../guide/development/README.md)). Generic agents use the
-> `adk-frontend-feature` form via `agents-skills/`.
-
-```text
-/adk:frontend-feature            # interactive run (Claude Code)
-/adk:frontend-feature --auto     # unattended; pick safe defaults
-```
-
-In Cursor / Codex / Gemini: invoke as `adk-frontend-feature` (resolved through the
-`agents-skills/adk-frontend-feature/` symlink).
-
-## Source
-
-Direct from `skills/frontend-feature/SKILL.md` — this page is auto-generated.
+# ADK Frontend / Feature
 
 Standalone task skill under the `@adk:frontend` (a.k.a. `adk-frontend`) category router. Builds or extends a frontend feature with typed code, accessibility defaults, responsive layout, and repo-native validation.
 
@@ -210,13 +189,3 @@ These files live in `references/` next to this `SKILL.md`. Read them when the sk
 | `references/frontend-feature-industry-anti-patterns.md` | Industry-specific design no-gos (fintech / healthcare / e-commerce / etc.) used to filter implementation choices. |
 
 <!-- adk:references:end -->
-
-
-## Related skills
-
-- [`build-deps`](./skill-build-deps.md) — `@adk:build-deps` (a.k.a. `adk-build-deps`)
-- [`build-feature`](./skill-build-feature.md) — `@adk:build-feature` (a.k.a. `adk-build-feature`)
-- [`build-refactor`](./skill-build-refactor.md) — `@adk:build-refactor` (a.k.a. `adk-build-refactor`)
-- [`frontend`](./skill-frontend.md) — `@adk:frontend` (a.k.a. `adk-frontend`)
-- [`frontend-design`](./skill-frontend-design.md) — `@adk:frontend-design` (a.k.a. `adk-frontend-design`)
-- [`frontend-react-csr`](./skill-frontend-react-csr.md) — `@adk:frontend-react-csr` (a.k.a. `adk-frontend-react-csr`)

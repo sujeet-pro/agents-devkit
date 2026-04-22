@@ -1,31 +1,10 @@
 ---
 title: 'audit-pr'
-description: 'Thinner, faster audit scoped to a single PR — different from `@adk:review-pr` (a.'
-artifact_kind: skill
+description: '|'
 skill_name: audit-pr
-category: audit
+category: router
 ---
-# audit-pr
-
-Thinner, faster audit scoped to a single PR — different from `@adk:review-pr` (a.k.a. `adk-review-pr`) which is a deep findings-first review. `audit-pr` runs a fixed set of "quick checks" against the PR's diff: lint, typecheck, test count vs lines added, secrets in diff, license headers, OSS-license compatibility, accessibility regressions if UI-touched, performance regressions if hot-path-touched. Use for fast pre-merge sanity checks or as an extra gate in `@adk:auto`'s D1 phase. Do not use for deep code review (use `@adk:review-pr`).
-
-## Usage
-
-> Examples assume this repo is installed as the `adk` Claude Code plugin
-> (see [Quick Start](../guide/development/README.md)). Generic agents use the
-> `adk-audit-pr` form via `agents-skills/`.
-
-```text
-/adk:audit-pr            # interactive run (Claude Code)
-/adk:audit-pr --auto     # unattended; pick safe defaults
-```
-
-In Cursor / Codex / Gemini: invoke as `adk-audit-pr` (resolved through the
-`agents-skills/adk-audit-pr/` symlink).
-
-## Source
-
-Direct from `skills/audit-pr/SKILL.md` — this page is auto-generated.
+# audit-pr — quick fixed-set audit on a PR diff
 
 ## When to use
 
@@ -95,14 +74,3 @@ Each check returns `pass` / `warn` / `fail` plus a one-line evidence.
 ## References
 
 Standard set + `references/check-recipes.md` (per-check command per stack).
-
-
-## Related skills
-
-- [`audit`](./skill-audit.md) — `@adk:audit` (a.k.a. `adk-audit`)
-- [`audit-repo`](./skill-audit-repo.md) — `@adk:audit-repo` (a.k.a. `adk-audit-repo`)
-- [`auto`](./skill-auto.md) — `@adk:auto` (a.k.a. `adk-auto`)
-- [`build`](./skill-build.md) — `@adk:build` (a.k.a. `adk-build`)
-- [`review`](./skill-review.md) — `@adk:review` (a.k.a. `adk-review`)
-- [`review-pr`](./skill-review-pr.md) — `@adk:review-pr` (a.k.a. `adk-review-pr`)
-- [`validate-browser`](./skill-validate-browser.md) — `@adk:validate-browser` (a.k.a. `adk-validate-browser`)

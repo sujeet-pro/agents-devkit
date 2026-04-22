@@ -1,0 +1,9 @@
+%%{init: {'htmlLabels': false}}%%
+flowchart TD
+  A["Repo to onboard"] --> B["Detect stack +\nresearch best practices\n(--refresh skips delete)"]
+  B --> C["Bootstrap layered scaffolding:\nai-guidelines/ + AGENTS.md +\nCLAUDE.md + skill wrappers"]
+  C --> D{"--no-hooks?"}
+  D -- "no" --> E["Write hook configs\n+ run validator"]
+  D -- "yes" --> F["Document hook commands\n+ run validator"]
+  E --> G["Bootstrapped repo"]
+  F --> G

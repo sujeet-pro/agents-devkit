@@ -1,31 +1,10 @@
 ---
 title: 'audit-site'
-description: 'Audit a publicly reachable website or web app across performance, accessibility, SEO, UX, and basic security headers - producing a single severity-tiered report with URL/selector evidence per finding.'
-artifact_kind: skill
+description: 'Audit a publicly reachable website or web app across performance, accessibility, SEO, UX, and basic security headers - producing a single severity-tiered report with URL/selector evidence per finding. Use when the deliverable is a multi-dimensional health report on a deployed site, not a code repo. Do not use to audit a checked-out repo (use adk-audit-repo) or to fix the issues found (use adk-build-* / adk-frontend-* skills).'
 skill_name: audit-site
-category: audit
+category: router
 ---
-# audit-site
-
-Audit a publicly reachable website or web app across performance, accessibility, SEO, UX, and basic security headers - producing a single severity-tiered report with URL/selector evidence per finding. Use when the deliverable is a multi-dimensional health report on a deployed site, not a code repo. Do not use to audit a checked-out repo (use adk-audit-repo) or to fix the issues found (use adk-build-* / adk-frontend-* skills).
-
-## Usage
-
-> Examples assume this repo is installed as the `adk` Claude Code plugin
-> (see [Quick Start](../guide/development/README.md)). Generic agents use the
-> `adk-audit-site` form via `agents-skills/`.
-
-```text
-/adk:audit-site            # interactive run (Claude Code)
-/adk:audit-site --auto     # unattended; pick safe defaults
-```
-
-In Cursor / Codex / Gemini: invoke as `adk-audit-site` (resolved through the
-`agents-skills/adk-audit-site/` symlink).
-
-## Source
-
-Direct from `skills/audit-site/SKILL.md` — this page is auto-generated.
+# ADK Audit / Site
 
 Standalone task skill under the `@adk:audit` (a.k.a. `adk-audit`) category router. Inspects a deployed website across multiple dimensions and produces one consolidated report with severity-tiered findings, each anchored to a URL or DOM selector.
 
@@ -226,16 +205,3 @@ These files live in `references/` next to this `SKILL.md`. Read them when the sk
 | `references/audit-site-validator.md` | The four-phase validator gate (pre-execution, mid-flow, pre-handoff, post-execution) this skill MUST run. |
 
 <!-- adk:references:end -->
-
-
-## Related skills
-
-- [`audit`](./skill-audit.md) — `@adk:audit` (a.k.a. `adk-audit`)
-- [`audit-repo`](./skill-audit-repo.md) — `@adk:audit-repo` (a.k.a. `adk-audit-repo`)
-- [`build`](./skill-build.md) — `@adk:build` (a.k.a. `adk-build`)
-- [`build-feature`](./skill-build-feature.md) — `@adk:build-feature` (a.k.a. `adk-build-feature`)
-- [`docs-review`](./skill-docs-review.md) — `@adk:docs-review` (a.k.a. `adk-docs-review`)
-- [`frontend`](./skill-frontend.md) — `@adk:frontend` (a.k.a. `adk-frontend`)
-- [`frontend-design`](./skill-frontend-design.md) — `@adk:frontend-design` (a.k.a. `adk-frontend-design`)
-- [`frontend-feature`](./skill-frontend-feature.md) — `@adk:frontend-feature` (a.k.a. `adk-frontend-feature`)
-- [`review-pr`](./skill-review-pr.md) — `@adk:review-pr` (a.k.a. `adk-review-pr`)

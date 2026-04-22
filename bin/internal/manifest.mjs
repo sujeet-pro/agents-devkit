@@ -55,10 +55,7 @@ export function buildManifest({ root = ROOT, version } = {}) {
       kind,
       category,
       path: `skills/${name}`,
-      invocation: {
-        default: `/${name}`,
-        npx_skills: `/${name}`,
-      },
+      invocation: `/adk:${name}`,
       has_references: existsSync(join(dir, "references")),
       has_scripts: existsSync(join(dir, "scripts")),
       has_assets: existsSync(join(dir, "assets")),
@@ -91,8 +88,8 @@ export function buildManifest({ root = ROOT, version } = {}) {
   return {
     version: pkgVersion,
     generated: new Date().toISOString().slice(0, 10),
-    distribution: "npx-skills",
-    model: "standalone-skill",
+    distribution: "claude-code-plugin",
+    model: "claude-plugin-skill",
     skill_count: skills.length,
     categories,
     adk_categories: adkCategories,

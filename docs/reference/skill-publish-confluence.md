@@ -1,31 +1,10 @@
 ---
 title: 'publish-confluence'
-description: 'Publish a markdown document as a Confluence page (create or update) via the atlassian-confluence MCP server, with parent-page placement, label management, and post-publish verification.'
-artifact_kind: skill
+description: 'Publish a markdown document as a Confluence page (create or update) via the atlassian-confluence MCP server, with parent-page placement, label management, and post-publish verification. Use when the destination is Confluence and the source is markdown produced by adk-docs-write or by hand. Do not use to author the markdown source (use adk-docs-write) or to publish to Google Drive (use adk-publish-gdrive).'
 skill_name: publish-confluence
-category: publish
+category: router
 ---
-# publish-confluence
-
-Publish a markdown document as a Confluence page (create or update) via the atlassian-confluence MCP server, with parent-page placement, label management, and post-publish verification. Use when the destination is Confluence and the source is markdown produced by adk-docs-write or by hand. Do not use to author the markdown source (use adk-docs-write) or to publish to Google Drive (use adk-publish-gdrive).
-
-## Usage
-
-> Examples assume this repo is installed as the `adk` Claude Code plugin
-> (see [Quick Start](../guide/development/README.md)). Generic agents use the
-> `adk-publish-confluence` form via `agents-skills/`.
-
-```text
-/adk:publish-confluence            # interactive run (Claude Code)
-/adk:publish-confluence --auto     # unattended; pick safe defaults
-```
-
-In Cursor / Codex / Gemini: invoke as `adk-publish-confluence` (resolved through the
-`agents-skills/adk-publish-confluence/` symlink).
-
-## Source
-
-Direct from `skills/publish-confluence/SKILL.md` — this page is auto-generated.
+# ADK Publish / Confluence
 
 Standalone task skill under the `@adk:publish` (a.k.a. `adk-publish`) category router. Publishes markdown to Confluence via the `atlassian-confluence` MCP server (preferred) or REST API, then verifies the page landed correctly.
 
@@ -229,11 +208,3 @@ These files live in `references/` next to this `SKILL.md`. Read them when the sk
 | `references/publish-confluence-validator.md` | The four-phase validator gate (pre-execution, mid-flow, pre-publish, post-publish) this skill MUST run. |
 
 <!-- adk:references:end -->
-
-
-## Related skills
-
-- [`docs-write`](./skill-docs-write.md) — `@adk:docs-write` (a.k.a. `adk-docs-write`)
-- [`plan-spec`](./skill-plan-spec.md) — `@adk:plan-spec` (a.k.a. `adk-plan-spec`)
-- [`publish`](./skill-publish.md) — `@adk:publish` (a.k.a. `adk-publish`)
-- [`publish-gdrive`](./skill-publish-gdrive.md) — `@adk:publish-gdrive` (a.k.a. `adk-publish-gdrive`)

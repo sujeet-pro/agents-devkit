@@ -1,25 +1,35 @@
 ---
 title: 'implementer'
-description: 'Implement the smallest correct change from an approved plan.'
+description: 'Implement the smallest correct change from an approved plan. Use for multi-file changes, targeted fixes, and parallel implementation work.'
 artifact_kind: agent
 ---
+
 # implementer
 
 Implement the smallest correct change from an approved plan. Use for multi-file changes, targeted fixes, and parallel implementation work.
 
 ## Usage
-Invoked automatically by `@adk:auto` (a.k.a. `adk-auto`) and by sibling
-skills that need a specialist persona. Direct invocation in Claude:
+
+Invoked automatically by `/adk:auto` and by sibling skills that need a specialist persona. Direct invocation in Claude:
+
 ```text
 /agent implementer
 ```
-## Profile
-- **Model:** `claude-opus-4-7`
-- **Color:** cyan
-- **Background:** false
-- **Isolation:** worktree
 
-## Mission & rules
+## Profile
+
+- **Model**: `claude-opus-4-7`
+- **Color**: cyan
+- **Effort**: medium
+- **Max turns**: 30
+- **Background**: false
+- **Memory**: local
+
+## Source
+
+`agents/implementer.md` — full persona body below.
+
+# Implementer
 
 ## Mission
 
@@ -74,7 +84,3 @@ Report one of four statuses after implementation:
 - Gold-plating beyond the requested scope
 - Skipping validation and claiming "done"
 - Introducing patterns inconsistent with the existing codebase
-
-## Source
-
-Direct from `agents/implementer.md`.

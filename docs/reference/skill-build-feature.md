@@ -1,31 +1,10 @@
 ---
 title: 'build-feature'
-description: 'Implement a new feature, fix a bug with root-cause analysis, or enhance existing behavior - with a short plan, scoped reads, smallest correct change, and repo-native validation.'
-artifact_kind: skill
+description: 'Implement a new feature, fix a bug with root-cause analysis, or enhance existing behavior - with a short plan, scoped reads, smallest correct change, and repo-native validation. Use when the deliverable is a code change that adds, changes, or fixes behavior. Do not use for restructuring without behavior change (use adk-build-refactor), framework upgrades (use adk-build-migrate), or test-only work (use adk-build-test).'
 skill_name: build-feature
-category: build
+category: router
 ---
-# build-feature
-
-Implement a new feature, fix a bug with root-cause analysis, or enhance existing behavior - with a short plan, scoped reads, smallest correct change, and repo-native validation. Use when the deliverable is a code change that adds, changes, or fixes behavior. Do not use for restructuring without behavior change (use adk-build-refactor), framework upgrades (use adk-build-migrate), or test-only work (use adk-build-test).
-
-## Usage
-
-> Examples assume this repo is installed as the `adk` Claude Code plugin
-> (see [Quick Start](../guide/development/README.md)). Generic agents use the
-> `adk-build-feature` form via `agents-skills/`.
-
-```text
-/adk:build-feature            # interactive run (Claude Code)
-/adk:build-feature --auto     # unattended; pick safe defaults
-```
-
-In Cursor / Codex / Gemini: invoke as `adk-build-feature` (resolved through the
-`agents-skills/adk-build-feature/` symlink).
-
-## Source
-
-Direct from `skills/build-feature/SKILL.md` — this page is auto-generated.
+# ADK Build / Feature
 
 Standalone task skill under the `@adk:build` (a.k.a. `adk-build`) category router. Delivers the smallest correct implementation that satisfies the requirement, backed by evidence and validation.
 
@@ -216,14 +195,3 @@ These files live in `references/` next to this `SKILL.md`. Read them when the sk
 | `references/build-feature-validator.md` | The four-phase validator gate (pre-execution, mid-flow, pre-handoff, post-execution) this skill MUST run. |
 
 <!-- adk:references:end -->
-
-
-## Related skills
-
-- [`build`](./skill-build.md) — `@adk:build` (a.k.a. `adk-build`)
-- [`build-deps`](./skill-build-deps.md) — `@adk:build-deps` (a.k.a. `adk-build-deps`)
-- [`build-migrate`](./skill-build-migrate.md) — `@adk:build-migrate` (a.k.a. `adk-build-migrate`)
-- [`build-refactor`](./skill-build-refactor.md) — `@adk:build-refactor` (a.k.a. `adk-build-refactor`)
-- [`build-test`](./skill-build-test.md) — `@adk:build-test` (a.k.a. `adk-build-test`)
-- [`frontend-feature`](./skill-frontend-feature.md) — `@adk:frontend-feature` (a.k.a. `adk-frontend-feature`)
-- [`review-local`](./skill-review-local.md) — `@adk:review-local` (a.k.a. `adk-review-local`)

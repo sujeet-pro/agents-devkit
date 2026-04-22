@@ -1,31 +1,10 @@
 ---
 title: 'build-refactor'
-description: 'Restructure code without changing observable behavior - rename, extract, inline, dedupe, simplify, reshape modules - while keeping tests green throughout.'
-artifact_kind: skill
+description: 'Restructure code without changing observable behavior - rename, extract, inline, dedupe, simplify, reshape modules - while keeping tests green throughout. Use when the goal is a cleaner shape, not a new behavior or bug fix. Do not use when behavior changes (use adk-build-feature), framework versions change (use adk-build-migrate), or only tests change (use adk-build-test).'
 skill_name: build-refactor
-category: build
+category: router
 ---
-# build-refactor
-
-Restructure code without changing observable behavior - rename, extract, inline, dedupe, simplify, reshape modules - while keeping tests green throughout. Use when the goal is a cleaner shape, not a new behavior or bug fix. Do not use when behavior changes (use adk-build-feature), framework versions change (use adk-build-migrate), or only tests change (use adk-build-test).
-
-## Usage
-
-> Examples assume this repo is installed as the `adk` Claude Code plugin
-> (see [Quick Start](../guide/development/README.md)). Generic agents use the
-> `adk-build-refactor` form via `agents-skills/`.
-
-```text
-/adk:build-refactor            # interactive run (Claude Code)
-/adk:build-refactor --auto     # unattended; pick safe defaults
-```
-
-In Cursor / Codex / Gemini: invoke as `adk-build-refactor` (resolved through the
-`agents-skills/adk-build-refactor/` symlink).
-
-## Source
-
-Direct from `skills/build-refactor/SKILL.md` — this page is auto-generated.
+# ADK Build / Refactor
 
 Standalone task skill under the `@adk:build` (a.k.a. `adk-build`) category router. Improves code structure with a behavior-preserving sequence of small, individually validated steps.
 
@@ -183,13 +162,3 @@ These files live in `references/` next to this `SKILL.md`. Read them when the sk
 | `references/build-refactor-validator.md` | The four-phase validator gate (pre-execution, mid-flow, pre-handoff, post-execution) this skill MUST run. |
 
 <!-- adk:references:end -->
-
-
-## Related skills
-
-- [`build`](./skill-build.md) — `@adk:build` (a.k.a. `adk-build`)
-- [`build-deps`](./skill-build-deps.md) — `@adk:build-deps` (a.k.a. `adk-build-deps`)
-- [`build-feature`](./skill-build-feature.md) — `@adk:build-feature` (a.k.a. `adk-build-feature`)
-- [`build-migrate`](./skill-build-migrate.md) — `@adk:build-migrate` (a.k.a. `adk-build-migrate`)
-- [`build-test`](./skill-build-test.md) — `@adk:build-test` (a.k.a. `adk-build-test`)
-- [`frontend-feature`](./skill-frontend-feature.md) — `@adk:frontend-feature` (a.k.a. `adk-frontend-feature`)

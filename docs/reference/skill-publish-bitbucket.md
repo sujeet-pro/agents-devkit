@@ -1,31 +1,10 @@
 ---
 title: 'publish-bitbucket'
-description: 'Run Bitbucket Cloud PR/issue/comment/merge actions via REST API or the bitbucket MCP server - create or update a PR, post a comment, request review, label, transition status, merge with the right strategy.'
-artifact_kind: skill
+description: 'Run Bitbucket Cloud PR/issue/comment/merge actions via REST API or the bitbucket MCP server - create or update a PR, post a comment, request review, label, transition status, merge with the right strategy. Use when the destination is bitbucket.org and the deliverable is a remote action with verification. Do not use for GitHub (use adk-publish-github), drafting the message itself (use adk-publish-commit), or reviewing the PR (use adk-review-pr).'
 skill_name: publish-bitbucket
-category: publish
+category: router
 ---
-# publish-bitbucket
-
-Run Bitbucket Cloud PR/issue/comment/merge actions via REST API or the bitbucket MCP server - create or update a PR, post a comment, request review, label, transition status, merge with the right strategy. Use when the destination is bitbucket.org and the deliverable is a remote action with verification. Do not use for GitHub (use adk-publish-github), drafting the message itself (use adk-publish-commit), or reviewing the PR (use adk-review-pr).
-
-## Usage
-
-> Examples assume this repo is installed as the `adk` Claude Code plugin
-> (see [Quick Start](../guide/development/README.md)). Generic agents use the
-> `adk-publish-bitbucket` form via `agents-skills/`.
-
-```text
-/adk:publish-bitbucket            # interactive run (Claude Code)
-/adk:publish-bitbucket --auto     # unattended; pick safe defaults
-```
-
-In Cursor / Codex / Gemini: invoke as `adk-publish-bitbucket` (resolved through the
-`agents-skills/adk-publish-bitbucket/` symlink).
-
-## Source
-
-Direct from `skills/publish-bitbucket/SKILL.md` — this page is auto-generated.
+# ADK Publish / Bitbucket
 
 Standalone task skill under the `@adk:publish` (a.k.a. `adk-publish`) category router. Executes Bitbucket Cloud actions through the `bitbucket` MCP server (preferred) or direct REST API, then verifies the action landed.
 
@@ -252,13 +231,3 @@ These files live in `references/` next to this `SKILL.md`. Read them when the sk
 | `references/publish-bitbucket-validator.md` | The four-phase validator gate (pre-execution, mid-flow, pre-publish, post-publish) this skill MUST run. |
 
 <!-- adk:references:end -->
-
-
-## Related skills
-
-- [`publish`](./skill-publish.md) — `@adk:publish` (a.k.a. `adk-publish`)
-- [`publish-commit`](./skill-publish-commit.md) — `@adk:publish-commit` (a.k.a. `adk-publish-commit`)
-- [`publish-confluence`](./skill-publish-confluence.md) — `@adk:publish-confluence` (a.k.a. `adk-publish-confluence`)
-- [`publish-gdrive`](./skill-publish-gdrive.md) — `@adk:publish-gdrive` (a.k.a. `adk-publish-gdrive`)
-- [`publish-github`](./skill-publish-github.md) — `@adk:publish-github` (a.k.a. `adk-publish-github`)
-- [`review-pr`](./skill-review-pr.md) — `@adk:review-pr` (a.k.a. `adk-review-pr`)

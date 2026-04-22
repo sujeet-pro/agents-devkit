@@ -1,0 +1,24 @@
+%%{init: {'htmlLabels': false}}%%
+flowchart TD
+  A["Plan-before-build\nintent"] --> B["@adk:plan\n(router)"]
+  B --> C{"Stage?"}
+  C -- "Ambiguous" --> D["plan-brainstorm"]
+  C -- "Need facts" --> E["plan-research"]
+  C -- "Proposal" --> F["plan-proposal"]
+  C -- "Spec" --> G["plan-spec"]
+  C -- "Design doc" --> H["plan-design"]
+  C -- "Roadmap" --> I["plan-roadmap"]
+  D --> J["brainstorm.md"]
+  E --> K["research.md"]
+  F --> L["proposal.md"]
+  G --> M["spec.md"]
+  H --> N["design.md"]
+  I --> O["roadmap.md"]
+  J --> P{"Next?"}
+  K --> P
+  L --> P
+  M --> P
+  N --> P
+  O --> P
+  P -- "More planning" --> B
+  P -- "Direction locked" --> Q["@adk:build"]

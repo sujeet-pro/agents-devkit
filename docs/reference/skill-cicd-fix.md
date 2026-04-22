@@ -1,31 +1,10 @@
 ---
 title: 'cicd-fix'
-description: 'Parse failed CI job logs (from `@adk:cicd-monitor` (a.'
-artifact_kind: skill
+description: '|'
 skill_name: cicd-fix
-category: standalone
+category: router
 ---
-# cicd-fix
-
-Parse failed CI job logs (from `@adk:cicd-monitor` (a.k.a. `adk-cicd-monitor`) or `gh run view --log-failed`), identify root cause, propose and apply a fix, push, then loop back to `cicd-monitor` to re-watch. Handles common failure classes: lint, typecheck, test, build, missing dep, snapshot drift, flaky test, infra retry. Use whenever CI is red and the user wants the agent to address it. Do not use for code changes unrelated to CI (use `@adk:build-feature` or `@adk:build-bugfix`).
-
-## Usage
-
-> Examples assume this repo is installed as the `adk` Claude Code plugin
-> (see [Quick Start](../guide/development/README.md)). Generic agents use the
-> `adk-cicd-fix` form via `agents-skills/`.
-
-```text
-/adk:cicd-fix            # interactive run (Claude Code)
-/adk:cicd-fix --auto     # unattended; pick safe defaults
-```
-
-In Cursor / Codex / Gemini: invoke as `adk-cicd-fix` (resolved through the
-`agents-skills/adk-cicd-fix/` symlink).
-
-## Source
-
-Direct from `skills/cicd-fix/SKILL.md` — this page is auto-generated.
+# cicd-fix — diagnose + fix CI failure
 
 ## When to use
 
@@ -94,11 +73,3 @@ Direct from `skills/cicd-fix/SKILL.md` — this page is auto-generated.
 ## References
 
 Standard set + `references/failure-class-recipes.md`.
-
-
-## Related skills
-
-- [`auto`](./skill-auto.md) — `@adk:auto` (a.k.a. `adk-auto`)
-- [`build`](./skill-build.md) — `@adk:build` (a.k.a. `adk-build`)
-- [`cicd-monitor`](./skill-cicd-monitor.md) — `@adk:cicd-monitor` (a.k.a. `adk-cicd-monitor`)
-- [`review-local`](./skill-review-local.md) — `@adk:review-local` (a.k.a. `adk-review-local`)

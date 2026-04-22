@@ -1,31 +1,10 @@
 ---
 title: 'frontend-mockup'
-description: 'Standalone 5-sample HTML mockup generator.'
-artifact_kind: skill
+description: '|'
 skill_name: frontend-mockup
-category: frontend
+category: router
 ---
-# frontend-mockup
-
-Standalone 5-sample HTML mockup generator. Produces 5 distinct visual variants of a UI surface (component / page / flow) as self-contained HTML files at `.temp/task-<slug>/preview/sample-{1..5}.html`. Each sample is a different aesthetic direction (NOT five copies of the same design with color tweaks). Use during plan mode for any UI work, called by `@adk:frontend-design` (a.k.a. `adk-frontend-design`) and `@adk:auto` (a.k.a. `adk-auto`) before any implementation. Do not use to write production component code (use `@adk:frontend-feature` (a.k.a. `adk-frontend-feature`)).
-
-## Usage
-
-> Examples assume this repo is installed as the `adk` Claude Code plugin
-> (see [Quick Start](../guide/development/README.md)). Generic agents use the
-> `adk-frontend-mockup` form via `agents-skills/`.
-
-```text
-/adk:frontend-mockup            # interactive run (Claude Code)
-/adk:frontend-mockup --auto     # unattended; pick safe defaults
-```
-
-In Cursor / Codex / Gemini: invoke as `adk-frontend-mockup` (resolved through the
-`agents-skills/adk-frontend-mockup/` symlink).
-
-## Source
-
-Direct from `skills/frontend-mockup/SKILL.md` — this page is auto-generated.
+# frontend-mockup — 5 distinct UI variants
 
 A hard-rule "always 5, always distinct" mockup generator. The user picks ONE of the five before any implementation begins.
 
@@ -117,13 +96,3 @@ A hard-rule "always 5, always distinct" mockup generator. The user picks ONE of 
 | `references/anti-patterns.md` | What NOT to do |
 | `references/examples.md` | Worked examples |
 | `references/interaction-contract.md` | Synced from canonical |
-
-
-## Related skills
-
-- [`auto`](./skill-auto.md) — `@adk:auto` (a.k.a. `adk-auto`)
-- [`frontend-design`](./skill-frontend-design.md) — `@adk:frontend-design` (a.k.a. `adk-frontend-design`)
-- [`frontend-feature`](./skill-frontend-feature.md) — `@adk:frontend-feature` (a.k.a. `adk-frontend-feature`)
-- [`requirements`](./skill-requirements.md) — `@adk:requirements` (a.k.a. `adk-requirements`)
-- [`scoping`](./skill-scoping.md) — `@adk:scoping` (a.k.a. `adk-scoping`)
-- [`validate-browser`](./skill-validate-browser.md) — `@adk:validate-browser` (a.k.a. `adk-validate-browser`)

@@ -1,31 +1,10 @@
 ---
 title: 'plan-roadmap'
-description: 'Turn a settled goal into an ordered, file-aware implementation plan with milestones, dependencies, and validation gates.'
-artifact_kind: skill
+description: 'Turn a settled goal into an ordered, file-aware implementation plan with milestones, dependencies, and validation gates. Use when direction and design are settled and the next step is to execute work in slices that can be reviewed, validated, and committed independently. Do not use when direction is still open (use adk-plan-brainstorm) or when an architecture write-up is needed (use adk-plan-design).'
 skill_name: plan-roadmap
-category: plan
+category: router
 ---
-# plan-roadmap
-
-Turn a settled goal into an ordered, file-aware implementation plan with milestones, dependencies, and validation gates. Use when direction and design are settled and the next step is to execute work in slices that can be reviewed, validated, and committed independently. Do not use when direction is still open (use adk-plan-brainstorm) or when an architecture write-up is needed (use adk-plan-design).
-
-## Usage
-
-> Examples assume this repo is installed as the `adk` Claude Code plugin
-> (see [Quick Start](../guide/development/README.md)). Generic agents use the
-> `adk-plan-roadmap` form via `agents-skills/`.
-
-```text
-/adk:plan-roadmap            # interactive run (Claude Code)
-/adk:plan-roadmap --auto     # unattended; pick safe defaults
-```
-
-In Cursor / Codex / Gemini: invoke as `adk-plan-roadmap` (resolved through the
-`agents-skills/adk-plan-roadmap/` symlink).
-
-## Source
-
-Direct from `skills/plan-roadmap/SKILL.md` — this page is auto-generated.
+# ADK Plan / Roadmap
 
 Standalone task skill under the `@adk:plan` (a.k.a. `adk-plan`) category router. Produces an ordered, file-aware implementation plan that an engineer (or `@adk:build-feature` (a.k.a. `adk-build-feature`)) can execute slice by slice.
 
@@ -193,13 +172,3 @@ These files live in `references/` next to this `SKILL.md`. Read them when the sk
 | `references/plan-roadmap-validator.md` | The four-phase validator gate (pre-execution, mid-flow, pre-handoff, post-execution) this skill MUST run. |
 
 <!-- adk:references:end -->
-
-
-## Related skills
-
-- [`build-feature`](./skill-build-feature.md) — `@adk:build-feature` (a.k.a. `adk-build-feature`)
-- [`plan`](./skill-plan.md) — `@adk:plan` (a.k.a. `adk-plan`)
-- [`plan-brainstorm`](./skill-plan-brainstorm.md) — `@adk:plan-brainstorm` (a.k.a. `adk-plan-brainstorm`)
-- [`plan-design`](./skill-plan-design.md) — `@adk:plan-design` (a.k.a. `adk-plan-design`)
-- [`plan-spec`](./skill-plan-spec.md) — `@adk:plan-spec` (a.k.a. `adk-plan-spec`)
-- [`review-local`](./skill-review-local.md) — `@adk:review-local` (a.k.a. `adk-review-local`)

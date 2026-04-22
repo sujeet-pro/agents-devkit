@@ -1,31 +1,10 @@
 ---
 title: 'publish-gdrive'
-description: 'Publish a markdown document to Google Drive as a Google Doc, plain markdown file, or PDF - via the google-drive MCP server, with folder placement, sharing settings, and post-publish verification.'
-artifact_kind: skill
+description: 'Publish a markdown document to Google Drive as a Google Doc, plain markdown file, or PDF - via the google-drive MCP server, with folder placement, sharing settings, and post-publish verification. Use when the destination is Google Drive / Google Docs and the source is markdown produced by adk-docs-write or by hand. Do not use to author the markdown source (use adk-docs-write) or to publish to Confluence (use adk-publish-confluence).'
 skill_name: publish-gdrive
-category: publish
+category: router
 ---
-# publish-gdrive
-
-Publish a markdown document to Google Drive as a Google Doc, plain markdown file, or PDF - via the google-drive MCP server, with folder placement, sharing settings, and post-publish verification. Use when the destination is Google Drive / Google Docs and the source is markdown produced by adk-docs-write or by hand. Do not use to author the markdown source (use adk-docs-write) or to publish to Confluence (use adk-publish-confluence).
-
-## Usage
-
-> Examples assume this repo is installed as the `adk` Claude Code plugin
-> (see [Quick Start](../guide/development/README.md)). Generic agents use the
-> `adk-publish-gdrive` form via `agents-skills/`.
-
-```text
-/adk:publish-gdrive            # interactive run (Claude Code)
-/adk:publish-gdrive --auto     # unattended; pick safe defaults
-```
-
-In Cursor / Codex / Gemini: invoke as `adk-publish-gdrive` (resolved through the
-`agents-skills/adk-publish-gdrive/` symlink).
-
-## Source
-
-Direct from `skills/publish-gdrive/SKILL.md` — this page is auto-generated.
+# ADK Publish / Google Drive
 
 Standalone task skill under the `@adk:publish` (a.k.a. `adk-publish`) category router. Publishes markdown to Google Drive via the `google-drive` MCP server, then verifies the file landed correctly.
 
@@ -218,10 +197,3 @@ These files live in `references/` next to this `SKILL.md`. Read them when the sk
 | `references/publish-gdrive-validator.md` | The four-phase validator gate (pre-execution, mid-flow, pre-publish, post-publish) this skill MUST run. |
 
 <!-- adk:references:end -->
-
-
-## Related skills
-
-- [`docs-write`](./skill-docs-write.md) — `@adk:docs-write` (a.k.a. `adk-docs-write`)
-- [`publish`](./skill-publish.md) — `@adk:publish` (a.k.a. `adk-publish`)
-- [`publish-confluence`](./skill-publish-confluence.md) — `@adk:publish-confluence` (a.k.a. `adk-publish-confluence`)

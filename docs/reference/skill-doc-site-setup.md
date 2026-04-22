@@ -1,31 +1,10 @@
 ---
 title: 'doc-site-setup'
-description: 'Bootstrap a documentation site in a project using `@pagesmith/docs` for content/nav/search/theme + `diagramkit` (via `@adk:doc-site-diagrams` (a.'
-artifact_kind: skill
+description: '|'
 skill_name: doc-site-setup
-category: standalone
+category: task
 ---
-# doc-site-setup
-
-Bootstrap a documentation site in a project using `@pagesmith/docs` for content/nav/search/theme + `diagramkit` (via `@adk:doc-site-diagrams` (a.k.a. `adk-doc-site-diagrams`)) for diagrams. Wraps the LOCAL pagesmith skill pack: installs `@pagesmith/docs`, runs `npx pagesmith-docs init`, scaffolds `docs/`, wires `package.json` scripts, optionally sets up GitHub Pages deploy. After setup, hands off to `pagesmith-docs-add-page`, `pagesmith-docs-configure-nav`, `pagesmith-docs-customize-theme`, `pagesmith-docs-add-search`, `pagesmith-docs-deploy-gh-pages` for ongoing work. Use when the user asks "add docs", "scaffold a doc site", "set up Pagesmith". Do not use for an already-bootstrapped site (jump straight to the relevant `pagesmith-docs-*` skill).
-
-## Usage
-
-> Examples assume this repo is installed as the `adk` Claude Code plugin
-> (see [Quick Start](../guide/development/README.md)). Generic agents use the
-> `adk-doc-site-setup` form via `agents-skills/`.
-
-```text
-/adk:doc-site-setup            # interactive run (Claude Code)
-/adk:doc-site-setup --auto     # unattended; pick safe defaults
-```
-
-In Cursor / Codex / Gemini: invoke as `adk-doc-site-setup` (resolved through the
-`agents-skills/adk-doc-site-setup/` symlink).
-
-## Source
-
-Direct from `skills/doc-site-setup/SKILL.md` — this page is auto-generated.
+# doc-site-setup — bootstrap pagesmith docs in a project
 
 This is a thin wrapper. It does NOT re-implement pagesmith — it INSTALLS pagesmith (which ships its own skills) and delegates ongoing work to those skills.
 
@@ -101,10 +80,3 @@ This is a thin wrapper. It does NOT re-implement pagesmith — it INSTALLS pages
 | `references/pagesmith-skill-pack.md` | List of pagesmith skills installed and what each does |
 | `references/examples.md` | Sample first-run output |
 | `references/interaction-contract.md` | Synced from canonical |
-
-
-## Related skills
-
-- [`auto`](./skill-auto.md) — `@adk:auto` (a.k.a. `adk-auto`)
-- [`doc-site-diagrams`](./skill-doc-site-diagrams.md) — `@adk:doc-site-diagrams` (a.k.a. `adk-doc-site-diagrams`)
-- [`docs`](./skill-docs.md) — `@adk:docs` (a.k.a. `adk-docs`)

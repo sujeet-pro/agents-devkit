@@ -1,31 +1,10 @@
 ---
 title: 'frontend-react-csr'
-description: 'Bootstrap or extend an opinionated React 19 client-side sample app on a fixed Vite (rolldown) + Vitest + oxc + TanStack (router/query/hotkeys) + Radix UI stack, with a self-contained themeable design system (paper + high-contrast, light/dark, three text sizes), full WCAG 2.'
-artifact_kind: skill
+description: 'Bootstrap or extend an opinionated React 19 client-side sample app on a fixed Vite (rolldown) + Vitest + oxc + TanStack (router/query/hotkeys) + Radix UI stack, with a self-contained themeable design system (paper + high-contrast, light/dark, three text sizes), full WCAG 2.2 AA + keyboard accessibility, performance-first defaults, and GitHub Pages deploy on push to main. Use to scaffold a new sample app, add a feature to one already on this stack, or audit one for stack conformance. Do not use for SSR/Next/Remix, non-React frontends, or production multi-tenant apps with auth/payments.'
 skill_name: frontend-react-csr
-category: frontend
+category: task
 ---
-# frontend-react-csr
-
-Bootstrap or extend an opinionated React 19 client-side sample app on a fixed Vite (rolldown) + Vitest + oxc + TanStack (router/query/hotkeys) + Radix UI stack, with a self-contained themeable design system (paper + high-contrast, light/dark, three text sizes), full WCAG 2.2 AA + keyboard accessibility, performance-first defaults, and GitHub Pages deploy on push to main. Use to scaffold a new sample app, add a feature to one already on this stack, or audit one for stack conformance. Do not use for SSR/Next/Remix, non-React frontends, or production multi-tenant apps with auth/payments.
-
-## Usage
-
-> Examples assume this repo is installed as the `adk` Claude Code plugin
-> (see [Quick Start](../guide/development/README.md)). Generic agents use the
-> `adk-frontend-react-csr` form via `agents-skills/`.
-
-```text
-/adk:frontend-react-csr            # interactive run (Claude Code)
-/adk:frontend-react-csr --auto     # unattended; pick safe defaults
-```
-
-In Cursor / Codex / Gemini: invoke as `adk-frontend-react-csr` (resolved through the
-`agents-skills/adk-frontend-react-csr/` symlink).
-
-## Source
-
-Direct from `skills/frontend-react-csr/SKILL.md` — this page is auto-generated.
+# ADK Frontend / React CSR
 
 Standalone task skill under the `@adk:frontend` (a.k.a. `adk-frontend`) category router. Bootstraps and maintains opinionated React 19 client-side sample apps on a fixed performance-first stack, with a polished accessible themeable design system, ready to deploy to GitHub Pages.
 
@@ -269,11 +248,3 @@ These files live in `references/` next to this `SKILL.md`. Read them when the sk
 | `references/frontend-react-csr-industry-anti-patterns.md` | Industry-specific design no-gos used to filter aesthetic + implementation choices. |
 
 <!-- adk:references:end -->
-
-
-## Related skills
-
-- [`audit`](./skill-audit.md) — `@adk:audit` (a.k.a. `adk-audit`)
-- [`build-feature`](./skill-build-feature.md) — `@adk:build-feature` (a.k.a. `adk-build-feature`)
-- [`frontend`](./skill-frontend.md) — `@adk:frontend` (a.k.a. `adk-frontend`)
-- [`frontend-feature`](./skill-frontend-feature.md) — `@adk:frontend-feature` (a.k.a. `adk-frontend-feature`)

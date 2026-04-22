@@ -1,31 +1,10 @@
 ---
 title: 'context-gather'
-description: 'Follows links found in a prompt, PR, doc, or task description and pulls relevant snippets from Jira, Confluence, Google Docs, Slack channels/threads, Gmail, and GitHub PRs/issues.'
-artifact_kind: skill
+description: '|'
 skill_name: context-gather
-category: standalone
+category: router
 ---
-# context-gather
-
-Follows links found in a prompt, PR, doc, or task description and pulls relevant snippets from Jira, Confluence, Google Docs, Slack channels/threads, Gmail, and GitHub PRs/issues. Summarizes, deduplicates, and writes the consolidated context to `.temp/task-<slug>/context.md`. Use whenever the user pastes a link to an external system OR when reviewing/auditing a doc/PR that itself links to external systems for additional context. Do not use as a research-from-scratch tool (use `@adk:plan-research` (a.k.a. `adk-plan-research`) instead).
-
-## Usage
-
-> Examples assume this repo is installed as the `adk` Claude Code plugin
-> (see [Quick Start](../guide/development/README.md)). Generic agents use the
-> `adk-context-gather` form via `agents-skills/`.
-
-```text
-/adk:context-gather            # interactive run (Claude Code)
-/adk:context-gather --auto     # unattended; pick safe defaults
-```
-
-In Cursor / Codex / Gemini: invoke as `adk-context-gather` (resolved through the
-`agents-skills/adk-context-gather/` symlink).
-
-## Source
-
-Direct from `skills/context-gather/SKILL.md` — this page is auto-generated.
+# context-gather — link follower & external-context aggregator
 
 Pulls structured context from external systems referenced by URL in the prompt or in a target doc/PR.
 
@@ -109,12 +88,3 @@ Final report: source count, fetched count, skipped count (with reasons), duratio
 | `references/source-types.md` | Per-host extraction recipe |
 | `references/examples.md` | Worked examples |
 | `references/interaction-contract.md` | Synced from canonical |
-
-
-## Related skills
-
-- [`auto`](./skill-auto.md) — `@adk:auto` (a.k.a. `adk-auto`)
-- [`docs`](./skill-docs.md) — `@adk:docs` (a.k.a. `adk-docs`)
-- [`plan-research`](./skill-plan-research.md) — `@adk:plan-research` (a.k.a. `adk-plan-research`)
-- [`setup`](./skill-setup.md) — `@adk:setup` (a.k.a. `adk-setup`)
-- [`temp-folder`](./skill-temp-folder.md) — `@adk:temp-folder` (a.k.a. `adk-temp-folder`)

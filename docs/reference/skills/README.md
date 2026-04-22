@@ -23,4 +23,4 @@ One reference page per skill in `skills/<name>/SKILL.md`. Pages are auto-generat
 
 ## Source
 
-`skills/<name>/SKILL.md` — see `AGENTS.md` for the canonical skill anatomy.
+`skills/<name>/SKILL.md` — see `CLAUDE.md` for the canonical skill anatomy.

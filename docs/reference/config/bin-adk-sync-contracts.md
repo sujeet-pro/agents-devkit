@@ -1,32 +1,34 @@
 ---
 title: 'adk-sync-contracts'
-description: 'adk-sync-contracts'
+description: 'Propagates byte-identical copies of bin/canonical/interaction-contract.md into every skills/<name>/references/ folder.'
 artifact_kind: bin
 ---
 
 # adk-sync-contracts
 
-adk-sync-contracts
+Propagates byte-identical copies of `bin/canonical/interaction-contract.md` into every `skills/<name>/references/interaction-contract.md`. Idempotent — safe to run by hand any time. Also invoked indirectly by `bin/adk-validate --fix`.
 
-Propagates byte-identical copies of every file in `bin/canonical/`
-into every `skills/<name>/references/`. Idempotent. Run by `bin/adk-validate`
-before each validation pass; safe to run by hand any time.
-
-Usage:
-  bin/adk-sync-contracts            # propagate
-  bin/adk-sync-contracts --check    # exit non-zero if any copy is out-of-sync
-  bin/adk-sync-contracts --verbose  # show every file copied
+Other files in `bin/canonical/` (e.g. `system-prompt.md` used by the `SessionStart` hook) intentionally stay at the canonical path only and are NOT propagated into each skill.
 
 ## Usage
 
 ```bash
-node bin/adk-sync-contracts
+node bin/adk-sync-contracts            # propagate
+node bin/adk-sync-contracts --check    # exit non-zero if any copy is out-of-sync
+node bin/adk-sync-contracts --verbose  # show every file copied
 ```
 
-From an installed plugin the script is in `PATH`:
+From an installed plugin the script is on `PATH`:
 
 ```bash
 adk-sync-contracts
+```
+
+Or via npm scripts:
+
+```bash
+npm run sync-contracts        # propagate
+npm run validate:sync         # --check (CI-friendly)
 ```
 
 ## Source

@@ -1,31 +1,10 @@
 ---
 title: 'plan-design'
-description: 'Author an architecture or system design - high-level design, low-level design, ADR, or technical design doc - covering components, interfaces, data flow, sequencing, failure modes, and trade-offs.'
-artifact_kind: skill
+description: 'Author an architecture or system design - high-level design, low-level design, ADR, or technical design doc - covering components, interfaces, data flow, sequencing, failure modes, and trade-offs. Use when the work is large enough that the team needs an architecture write-up before implementation. Do not use for short implementation plans (use adk-plan-roadmap), product specs (use adk-plan-spec), or UI mockups (use adk-frontend-design).'
 skill_name: plan-design
-category: plan
+category: router
 ---
-# plan-design
-
-Author an architecture or system design - high-level design, low-level design, ADR, or technical design doc - covering components, interfaces, data flow, sequencing, failure modes, and trade-offs. Use when the work is large enough that the team needs an architecture write-up before implementation. Do not use for short implementation plans (use adk-plan-roadmap), product specs (use adk-plan-spec), or UI mockups (use adk-frontend-design).
-
-## Usage
-
-> Examples assume this repo is installed as the `adk` Claude Code plugin
-> (see [Quick Start](../guide/development/README.md)). Generic agents use the
-> `adk-plan-design` form via `agents-skills/`.
-
-```text
-/adk:plan-design            # interactive run (Claude Code)
-/adk:plan-design --auto     # unattended; pick safe defaults
-```
-
-In Cursor / Codex / Gemini: invoke as `adk-plan-design` (resolved through the
-`agents-skills/adk-plan-design/` symlink).
-
-## Source
-
-Direct from `skills/plan-design/SKILL.md` — this page is auto-generated.
+# ADK Plan / Design
 
 Standalone task skill under the `@adk:plan` (a.k.a. `adk-plan`) category router. Produces an architecture or technical design document with components, interfaces, sequencing, failure modes, and trade-offs.
 
@@ -257,14 +236,3 @@ These files live in `references/` next to this `SKILL.md`. Read them when the sk
 | `references/plan-design-validator.md` | The four-phase validator gate (pre-execution, mid-flow, pre-handoff, post-execution) this skill MUST run. |
 
 <!-- adk:references:end -->
-
-
-## Related skills
-
-- [`build-feature`](./skill-build-feature.md) — `@adk:build-feature` (a.k.a. `adk-build-feature`)
-- [`frontend-design`](./skill-frontend-design.md) — `@adk:frontend-design` (a.k.a. `adk-frontend-design`)
-- [`plan`](./skill-plan.md) — `@adk:plan` (a.k.a. `adk-plan`)
-- [`plan-brainstorm`](./skill-plan-brainstorm.md) — `@adk:plan-brainstorm` (a.k.a. `adk-plan-brainstorm`)
-- [`plan-roadmap`](./skill-plan-roadmap.md) — `@adk:plan-roadmap` (a.k.a. `adk-plan-roadmap`)
-- [`plan-spec`](./skill-plan-spec.md) — `@adk:plan-spec` (a.k.a. `adk-plan-spec`)
-- [`visualize-diagram`](./skill-visualize-diagram.md) — `@adk:visualize-diagram` (a.k.a. `adk-visualize-diagram`)

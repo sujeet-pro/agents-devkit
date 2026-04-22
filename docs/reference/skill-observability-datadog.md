@@ -1,31 +1,10 @@
 ---
 title: 'observability-datadog'
-description: 'Query Datadog (logs, metrics, monitors, traces, dashboards) via the `datadog` MCP server.'
-artifact_kind: skill
+description: '|'
 skill_name: observability-datadog
-category: standalone
+category: router
 ---
-# observability-datadog
-
-Query Datadog (logs, metrics, monitors, traces, dashboards) via the `datadog` MCP server. Three modes-of-use: `investigate` (free-form question -> targeted query + summary), `dashboard-summary` (digest of a dashboard), `alert-triage` (review monitors in alert/warn state and propose root causes). Use whenever the user asks about prod metrics, recent errors, alert status, log search, or wants to investigate an incident. Do not use to write Datadog dashboards or modify monitors (out of scope; use Datadog UI / Terraform). Do not use as a generic incident handler — for full incident workflow use `@adk:observability-incident` (a.k.a. `adk-observability-incident`).
-
-## Usage
-
-> Examples assume this repo is installed as the `adk` Claude Code plugin
-> (see [Quick Start](../guide/development/README.md)). Generic agents use the
-> `adk-observability-datadog` form via `agents-skills/`.
-
-```text
-/adk:observability-datadog            # interactive run (Claude Code)
-/adk:observability-datadog --auto     # unattended; pick safe defaults
-```
-
-In Cursor / Codex / Gemini: invoke as `adk-observability-datadog` (resolved through the
-`agents-skills/adk-observability-datadog/` symlink).
-
-## Source
-
-Direct from `skills/observability-datadog/SKILL.md` — this page is auto-generated.
+# observability-datadog — Datadog query skill
 
 ## When to use
 
@@ -90,10 +69,3 @@ Direct from `skills/observability-datadog/SKILL.md` — this page is auto-genera
 ## References
 
 Standard set + `references/datadog-query-recipes.md` (per source-type query patterns).
-
-
-## Related skills
-
-- [`analytics-mixpanel`](./skill-analytics-mixpanel.md) — `@adk:analytics-mixpanel` (a.k.a. `adk-analytics-mixpanel`)
-- [`auto`](./skill-auto.md) — `@adk:auto` (a.k.a. `adk-auto`)
-- [`observability-incident`](./skill-observability-incident.md) — `@adk:observability-incident` (a.k.a. `adk-observability-incident`)

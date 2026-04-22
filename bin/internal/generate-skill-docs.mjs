@@ -82,7 +82,6 @@ function generate() {
   let written = 0;
   let unchanged = 0;
   for (const name of skills) {
-    if (!name.startsWith("adk")) continue;
     const skillFile = join(SKILLS_DIR, name, "SKILL.md");
     if (!existsSync(skillFile)) continue;
     const text = readFileSync(skillFile, "utf8");

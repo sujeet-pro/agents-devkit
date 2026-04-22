@@ -1,31 +1,10 @@
 ---
 title: 'docs-write'
-description: 'Author or refresh a technical document - README, runbook, API reference, ADR, onboarding guide, migration guide, tech-radar entry - grounded in the actual code and configs of the repo.'
-artifact_kind: skill
+description: 'Author or refresh a technical document - README, runbook, API reference, ADR, onboarding guide, migration guide, tech-radar entry - grounded in the actual code and configs of the repo. Use when the deliverable is a markdown doc that real engineers will read and follow. Do not use for product specs (use adk-plan-spec), architecture write-ups (use adk-plan-design), or commit/PR text (use adk-publish-commit).'
 skill_name: docs-write
-category: docs
+category: router
 ---
-# docs-write
-
-Author or refresh a technical document - README, runbook, API reference, ADR, onboarding guide, migration guide, tech-radar entry - grounded in the actual code and configs of the repo. Use when the deliverable is a markdown doc that real engineers will read and follow. Do not use for product specs (use adk-plan-spec), architecture write-ups (use adk-plan-design), or commit/PR text (use adk-publish-commit).
-
-## Usage
-
-> Examples assume this repo is installed as the `adk` Claude Code plugin
-> (see [Quick Start](../guide/development/README.md)). Generic agents use the
-> `adk-docs-write` form via `agents-skills/`.
-
-```text
-/adk:docs-write            # interactive run (Claude Code)
-/adk:docs-write --auto     # unattended; pick safe defaults
-```
-
-In Cursor / Codex / Gemini: invoke as `adk-docs-write` (resolved through the
-`agents-skills/adk-docs-write/` symlink).
-
-## Source
-
-Direct from `skills/docs-write/SKILL.md` — this page is auto-generated.
+# ADK Docs / Write
 
 Standalone task skill under the `@adk:docs` (a.k.a. `adk-docs`) category router. Produces engineer-grade docs grounded in the actual code, with verifiable examples and minimal padding.
 
@@ -326,13 +305,3 @@ These files live in `references/` next to this `SKILL.md`. Read them when the sk
 | `references/docs-write-persona.md`              | The agent persona that drives this skill.                                |
 | `references/docs-write-research-protocol.md`    | Source ordering, stop conditions, evidence buckets, citation discipline. |
 | `references/docs-write-working-artifacts.md`    | Legacy: superseded by artifact-format.md; kept for back-compat.          |
-
-
-## Related skills
-
-- [`docs`](./skill-docs.md) — `@adk:docs` (a.k.a. `adk-docs`)
-- [`docs-review`](./skill-docs-review.md) — `@adk:docs-review` (a.k.a. `adk-docs-review`)
-- [`frontend-design`](./skill-frontend-design.md) — `@adk:frontend-design` (a.k.a. `adk-frontend-design`)
-- [`plan-design`](./skill-plan-design.md) — `@adk:plan-design` (a.k.a. `adk-plan-design`)
-- [`plan-spec`](./skill-plan-spec.md) — `@adk:plan-spec` (a.k.a. `adk-plan-spec`)
-- [`publish-commit`](./skill-publish-commit.md) — `@adk:publish-commit` (a.k.a. `adk-publish-commit`)

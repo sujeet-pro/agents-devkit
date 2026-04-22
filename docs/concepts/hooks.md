@@ -11,7 +11,7 @@ Hooks are the non-negotiable safety rails around an agent session. Unlike skills
 The `adk` Claude Code plugin ships **one hook configuration file** at [`hooks/hooks.json`](https://github.com/sujeet-pro/agents-devkit/blob/main/hooks/hooks.json), referenced from `.claude-plugin/plugin.json`. The schema is defined in the [Claude Code plugins reference — Hooks](https://code.claude.com/docs/en/plugins-reference#hooks).
 
 > [!NOTE]
-> Cursor, Codex, Gemini, and Antigravity each have their own hook system that is **not** wired by the ADK plugin. The `agents-skills/adk-<name>` symlink farm exposes ADK skills to those harnesses, but their hook systems are managed by `bin/adk-install` separately if you opt in.
+> ADK targets Claude Code and Claude Desktop only. Hooks are managed exclusively through the Claude plugin spec — there is no projection into other harnesses.
 
 ## What ADK hooks do
 

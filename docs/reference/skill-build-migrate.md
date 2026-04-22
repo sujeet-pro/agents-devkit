@@ -1,31 +1,10 @@
 ---
 title: 'build-migrate'
-description: 'Migrate a framework, runtime, library version, or build tool with explicit breaking-change analysis, scoped per-file changes, and validation between groups.'
-artifact_kind: skill
+description: 'Migrate a framework, runtime, library version, or build tool with explicit breaking-change analysis, scoped per-file changes, and validation between groups. Use when the change is a version bump or tool replacement that has API or behavior implications across the codebase. Do not use for simple package upgrades with no API changes (use adk-build-deps) or for new features (use adk-build-feature).'
 skill_name: build-migrate
-category: build
+category: router
 ---
-# build-migrate
-
-Migrate a framework, runtime, library version, or build tool with explicit breaking-change analysis, scoped per-file changes, and validation between groups. Use when the change is a version bump or tool replacement that has API or behavior implications across the codebase. Do not use for simple package upgrades with no API changes (use adk-build-deps) or for new features (use adk-build-feature).
-
-## Usage
-
-> Examples assume this repo is installed as the `adk` Claude Code plugin
-> (see [Quick Start](../guide/development/README.md)). Generic agents use the
-> `adk-build-migrate` form via `agents-skills/`.
-
-```text
-/adk:build-migrate            # interactive run (Claude Code)
-/adk:build-migrate --auto     # unattended; pick safe defaults
-```
-
-In Cursor / Codex / Gemini: invoke as `adk-build-migrate` (resolved through the
-`agents-skills/adk-build-migrate/` symlink).
-
-## Source
-
-Direct from `skills/build-migrate/SKILL.md` — this page is auto-generated.
+# ADK Build / Migrate
 
 Standalone task skill under the `@adk:build` (a.k.a. `adk-build`) category router. Replaces a framework, runtime, library version, or build tool with a methodical, validated migration.
 
@@ -195,13 +174,3 @@ These files live in `references/` next to this `SKILL.md`. Read them when the sk
 | `references/build-migrate-validator.md` | The four-phase validator gate (pre-execution, mid-flow, pre-handoff, post-execution) this skill MUST run. |
 
 <!-- adk:references:end -->
-
-
-## Related skills
-
-- [`build`](./skill-build.md) — `@adk:build` (a.k.a. `adk-build`)
-- [`build-deps`](./skill-build-deps.md) — `@adk:build-deps` (a.k.a. `adk-build-deps`)
-- [`build-feature`](./skill-build-feature.md) — `@adk:build-feature` (a.k.a. `adk-build-feature`)
-- [`build-refactor`](./skill-build-refactor.md) — `@adk:build-refactor` (a.k.a. `adk-build-refactor`)
-- [`build-test`](./skill-build-test.md) — `@adk:build-test` (a.k.a. `adk-build-test`)
-- [`plan-research`](./skill-plan-research.md) — `@adk:plan-research` (a.k.a. `adk-plan-research`)

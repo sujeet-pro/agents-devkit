@@ -1,31 +1,10 @@
 ---
 title: 'review-feedback'
-description: 'Triage existing PR review comments, address each in code with traceable replies, and produce a single response summary.'
-artifact_kind: skill
+description: 'Triage existing PR review comments, address each in code with traceable replies, and produce a single response summary. Use when reviewer comments already exist on a PR (GitHub or Bitbucket) and the goal is to act on them - apply changes, push back with rationale, or accept and defer - while keeping every comment thread answered. Do not use to author the original review (use adk-review-pr) or to review your own local changes (use adk-review-local).'
 skill_name: review-feedback
-category: review
+category: router
 ---
-# review-feedback
-
-Triage existing PR review comments, address each in code with traceable replies, and produce a single response summary. Use when reviewer comments already exist on a PR (GitHub or Bitbucket) and the goal is to act on them - apply changes, push back with rationale, or accept and defer - while keeping every comment thread answered. Do not use to author the original review (use adk-review-pr) or to review your own local changes (use adk-review-local).
-
-## Usage
-
-> Examples assume this repo is installed as the `adk` Claude Code plugin
-> (see [Quick Start](../guide/development/README.md)). Generic agents use the
-> `adk-review-feedback` form via `agents-skills/`.
-
-```text
-/adk:review-feedback            # interactive run (Claude Code)
-/adk:review-feedback --auto     # unattended; pick safe defaults
-```
-
-In Cursor / Codex / Gemini: invoke as `adk-review-feedback` (resolved through the
-`agents-skills/adk-review-feedback/` symlink).
-
-## Source
-
-Direct from `skills/review-feedback/SKILL.md` — this page is auto-generated.
+# ADK Review / Feedback
 
 Standalone task skill under the `@adk:review` (a.k.a. `adk-review`) category router. Walks every reviewer comment, classifies it, addresses it in code or with a reply, and produces a single response summary with traceability.
 
@@ -220,11 +199,3 @@ These files live in `references/` next to this `SKILL.md`. Read them when the sk
 | `references/review-feedback-validator.md` | The four-phase validator gate (pre-execution, mid-flow, pre-handoff, post-execution) this skill MUST run. |
 
 <!-- adk:references:end -->
-
-
-## Related skills
-
-- [`docs-review`](./skill-docs-review.md) — `@adk:docs-review` (a.k.a. `adk-docs-review`)
-- [`review`](./skill-review.md) — `@adk:review` (a.k.a. `adk-review`)
-- [`review-local`](./skill-review-local.md) — `@adk:review-local` (a.k.a. `adk-review-local`)
-- [`review-pr`](./skill-review-pr.md) — `@adk:review-pr` (a.k.a. `adk-review-pr`)

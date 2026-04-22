@@ -1,31 +1,10 @@
 ---
 title: 'cicd-monitor'
-description: 'Watch the CI/CD pipeline on the current PR (GitHub Actions via `gh pr checks --watch`).'
-artifact_kind: skill
+description: '|'
 skill_name: cicd-monitor
-category: standalone
+category: router
 ---
-# cicd-monitor
-
-Watch the CI/CD pipeline on the current PR (GitHub Actions via `gh pr checks --watch`). Streams check status; on failure, captures failed-job logs and hands off to `@adk:cicd-fix` (a.k.a. `adk-cicd-fix`). Use after `@adk:publish-github` (a.k.a. `adk-publish-github`) or any time the user wants to monitor CI on an open PR. Do not use to fix CI failures (use `@adk:cicd-fix`) or to monitor non-GitHub CI (Bitbucket Pipelines support TBD).
-
-## Usage
-
-> Examples assume this repo is installed as the `adk` Claude Code plugin
-> (see [Quick Start](../guide/development/README.md)). Generic agents use the
-> `adk-cicd-monitor` form via `agents-skills/`.
-
-```text
-/adk:cicd-monitor            # interactive run (Claude Code)
-/adk:cicd-monitor --auto     # unattended; pick safe defaults
-```
-
-In Cursor / Codex / Gemini: invoke as `adk-cicd-monitor` (resolved through the
-`agents-skills/adk-cicd-monitor/` symlink).
-
-## Source
-
-Direct from `skills/cicd-monitor/SKILL.md` — this page is auto-generated.
+# cicd-monitor — watch GH Actions on the current PR
 
 ## When to use
 
@@ -82,10 +61,3 @@ Optionally runs as a `monitors/monitors.json` background watcher (already declar
 ## References
 
 Standard set + `references/gh-watch-recipes.md`.
-
-
-## Related skills
-
-- [`auto`](./skill-auto.md) — `@adk:auto` (a.k.a. `adk-auto`)
-- [`cicd-fix`](./skill-cicd-fix.md) — `@adk:cicd-fix` (a.k.a. `adk-cicd-fix`)
-- [`publish-github`](./skill-publish-github.md) — `@adk:publish-github` (a.k.a. `adk-publish-github`)

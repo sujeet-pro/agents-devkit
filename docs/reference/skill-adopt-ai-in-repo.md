@@ -1,31 +1,10 @@
 ---
 title: 'adopt-ai-in-repo'
-description: 'Analyze the current repository deeply, detect its stack and collaboration conventions, research stack-specific best practices, and bootstrap cross-agent AI guidance — `ai-guidelines/` (canonical knowledge), `AGENTS.'
-artifact_kind: skill
+description: 'Analyze the current repository deeply, detect its stack and collaboration conventions, research stack-specific best practices, and bootstrap cross-agent AI guidance — `ai-guidelines/` (canonical knowledge), `AGENTS.md` (neutral router), `CLAUDE.md` (Claude-specific delta), repo-local task skills under `.claude/skills/` and `.cursor/skills/`, and Python-based maintenance hooks. Use when onboarding AI to an existing repo or refreshing repo-aware agent scaffolding after the codebase has changed. Do not use for greenfield project scaffolding (use the repo''s own templates) or for adopting a single skill into an already-scaffolded repo (just edit the file).'
 skill_name: adopt-ai-in-repo
-category: standalone
+category: task
 ---
-# adopt-ai-in-repo
-
-Analyze the current repository deeply, detect its stack and collaboration conventions, research stack-specific best practices, and bootstrap cross-agent AI guidance — `ai-guidelines/` (canonical knowledge), `AGENTS.md` (neutral router), `CLAUDE.md` (Claude-specific delta), repo-local task skills under `.claude/skills/` and `.cursor/skills/`, and Python-based maintenance hooks. Use when onboarding AI to an existing repo or refreshing repo-aware agent scaffolding after the codebase has changed. Do not use for greenfield project scaffolding (use the repo's own templates) or for adopting a single skill into an already-scaffolded repo (just edit the file).
-
-## Usage
-
-> Examples assume this repo is installed as the `adk` Claude Code plugin
-> (see [Quick Start](../guide/development/README.md)). Generic agents use the
-> `adk-adopt-ai-in-repo` form via `agents-skills/`.
-
-```text
-/adk:adopt-ai-in-repo            # interactive run (Claude Code)
-/adk:adopt-ai-in-repo --auto     # unattended; pick safe defaults
-```
-
-In Cursor / Codex / Gemini: invoke as `adk-adopt-ai-in-repo` (resolved through the
-`agents-skills/adk-adopt-ai-in-repo/` symlink).
-
-## Source
-
-Direct from `skills/adopt-ai-in-repo/SKILL.md` — this page is auto-generated.
+# ADK Adopt AI In Repo
 
 Standalone task skill. Bootstraps the canonical "AI scaffolding" inside a target repo so any agent (Claude, Cursor, Codex, Gemini, Antigravity, Junie, plain `AGENTS.md` reader) can work on it productively.
 
@@ -195,10 +174,3 @@ These files live in `references/` next to this `SKILL.md`. Read them when the sk
 | `references/adopt-ai-validator.md` | The four-phase validator gate (pre-execution, mid-flow, pre-handoff, post-execution) the skill MUST run. |
 
 <!-- adk:references:end -->
-
-
-## Related skills
-
-- [`audit-repo`](./skill-audit-repo.md) — `@adk:audit-repo` (a.k.a. `adk-audit-repo`)
-- [`build`](./skill-build.md) — `@adk:build` (a.k.a. `adk-build`)
-- [`docs-write`](./skill-docs-write.md) — `@adk:docs-write` (a.k.a. `adk-docs-write`)

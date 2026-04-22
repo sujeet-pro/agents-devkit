@@ -1,31 +1,10 @@
 ---
 title: 'personal-skill-create'
-description: 'Scaffold a NEW skill that composes existing adk skills + agents into a personal workflow.'
-artifact_kind: skill
+description: '|'
 skill_name: personal-skill-create
-category: standalone
+category: task
 ---
-# personal-skill-create
-
-Scaffold a NEW skill that composes existing adk skills + agents into a personal workflow. The new skill lives in the user's `.claude/skills/<name>/` (or `.cursor/skills/<name>/`), references one or more `@adk:*` skills + `agents/<role>.md` subagents, and follows the same SKILL.md + references/ structure. Use when a user has a recurring workflow that strings several adk skills together (e.g., "every Monday: pull all open PRs, run audit-pr on each, post a Slack summary"). Do not use to author skills inside this plugin — those are authored by hand following the templates in this skill's references.
-
-## Usage
-
-> Examples assume this repo is installed as the `adk` Claude Code plugin
-> (see [Quick Start](../guide/development/README.md)). Generic agents use the
-> `adk-personal-skill-create` form via `agents-skills/`.
-
-```text
-/adk:personal-skill-create            # interactive run (Claude Code)
-/adk:personal-skill-create --auto     # unattended; pick safe defaults
-```
-
-In Cursor / Codex / Gemini: invoke as `adk-personal-skill-create` (resolved through the
-`agents-skills/adk-personal-skill-create/` symlink).
-
-## Source
-
-Direct from `skills/personal-skill-create/SKILL.md` — this page is auto-generated.
+# personal-skill-create — scaffold user-composed skill
 
 ## When to use
 
@@ -102,8 +81,3 @@ Plus a one-paragraph instructions file at `.temp/personal-skill-<skill-name>-rea
 | `references/composition-template.md` | Sequence-diagram + input/output mapping example |
 | `references/examples.md` | 3 worked examples (PR digest, weekly audit, on-call summary) |
 | `references/interaction-contract.md` | Synced from canonical |
-
-
-## Related skills
-
-- [`auto`](./skill-auto.md) — `@adk:auto` (a.k.a. `adk-auto`)

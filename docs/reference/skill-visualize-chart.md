@@ -1,31 +1,10 @@
 ---
 title: 'visualize-chart'
-description: 'Produce a numeric or categorical chart - bar, line, pie, scatter, histogram, stacked area, heatmap - from a data source (CSV, JSON, inline values, or a SQL/REST query result).'
-artifact_kind: skill
+description: 'Produce a numeric or categorical chart - bar, line, pie, scatter, histogram, stacked area, heatmap - from a data source (CSV, JSON, inline values, or a SQL/REST query result). Use when the deliverable is a data plot, with the editable spec saved alongside the rendered image. Do not use for structural diagrams (use adk-visualize-diagram) or UI mockups (use adk-frontend-design).'
 skill_name: visualize-chart
-category: visualize
+category: router
 ---
-# visualize-chart
-
-Produce a numeric or categorical chart - bar, line, pie, scatter, histogram, stacked area, heatmap - from a data source (CSV, JSON, inline values, or a SQL/REST query result). Use when the deliverable is a data plot, with the editable spec saved alongside the rendered image. Do not use for structural diagrams (use adk-visualize-diagram) or UI mockups (use adk-frontend-design).
-
-## Usage
-
-> Examples assume this repo is installed as the `adk` Claude Code plugin
-> (see [Quick Start](../guide/development/README.md)). Generic agents use the
-> `adk-visualize-chart` form via `agents-skills/`.
-
-```text
-/adk:visualize-chart            # interactive run (Claude Code)
-/adk:visualize-chart --auto     # unattended; pick safe defaults
-```
-
-In Cursor / Codex / Gemini: invoke as `adk-visualize-chart` (resolved through the
-`agents-skills/adk-visualize-chart/` symlink).
-
-## Source
-
-Direct from `skills/visualize-chart/SKILL.md` — this page is auto-generated.
+# ADK Visualize / Chart
 
 Standalone task skill under the `@adk:visualize` (a.k.a. `adk-visualize`) category router. Produces an editable chart spec first, then renders to the destination format. The editable spec is always kept alongside the rendered image.
 
@@ -222,10 +201,3 @@ These files live in `references/` next to this `SKILL.md`. Read them when the sk
 | `references/visualize-chart-validator.md` | The four-phase validator gate (pre-execution, mid-flow, pre-handoff, post-execution) this skill MUST run. |
 
 <!-- adk:references:end -->
-
-
-## Related skills
-
-- [`frontend-design`](./skill-frontend-design.md) — `@adk:frontend-design` (a.k.a. `adk-frontend-design`)
-- [`visualize`](./skill-visualize.md) — `@adk:visualize` (a.k.a. `adk-visualize`)
-- [`visualize-diagram`](./skill-visualize-diagram.md) — `@adk:visualize-diagram` (a.k.a. `adk-visualize-diagram`)

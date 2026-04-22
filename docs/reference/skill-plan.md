@@ -1,31 +1,10 @@
 ---
 title: 'plan'
-description: 'Category router for planning, research, spec authoring, design, and roadmap work.'
-artifact_kind: skill
+description: 'Category router for planning, research, spec authoring, design, and roadmap work. Use when the next step is to close ambiguity, gather facts, write a spec, design an architecture, or break a goal into an implementation roadmap - any case where thinking and writing must finish before code is touched. Picks one of adk-plan-brainstorm, adk-plan-research, adk-plan-spec, adk-plan-design, adk-plan-roadmap.'
 skill_name: plan
-category: plan
+category: standalone
 ---
-# plan
-
-Category router for planning, research, spec authoring, design, and roadmap work. Use when the next step is to close ambiguity, gather facts, write a spec, design an architecture, or break a goal into an implementation roadmap - any case where thinking and writing must finish before code is touched. Picks one of adk-plan-brainstorm, adk-plan-research, adk-plan-spec, adk-plan-design, adk-plan-roadmap.
-
-## Usage
-
-> Examples assume this repo is installed as the `adk` Claude Code plugin
-> (see [Quick Start](../guide/development/README.md)). Generic agents use the
-> `adk-plan` form via `agents-skills/`.
-
-```text
-/adk:plan            # interactive run (Claude Code)
-/adk:plan --auto     # unattended; pick safe defaults
-```
-
-In Cursor / Codex / Gemini: invoke as `adk-plan` (resolved through the
-`agents-skills/adk-plan/` symlink).
-
-## Source
-
-Direct from `skills/plan/SKILL.md` — this page is auto-generated.
+# ADK Plan (Category Router)
 
 Routes any "think before you build" intent to the right planning task. Activate one of the listed task skills below; do not plan directly from this router.
 
@@ -143,16 +122,3 @@ These files live in `references/` next to this `SKILL.md`. Read them when the sk
 | `references/plan-validator.md` | The four-phase validator gate (pre-execution, mid-flow, pre-handoff, post-execution) this skill MUST run. |
 
 <!-- adk:references:end -->
-
-
-## Related skills
-
-- [`audit`](./skill-audit.md) — `@adk:audit` (a.k.a. `adk-audit`)
-- [`build`](./skill-build.md) — `@adk:build` (a.k.a. `adk-build`)
-- [`docs`](./skill-docs.md) — `@adk:docs` (a.k.a. `adk-docs`)
-- [`plan-brainstorm`](./skill-plan-brainstorm.md) — `@adk:plan-brainstorm` (a.k.a. `adk-plan-brainstorm`)
-- [`plan-design`](./skill-plan-design.md) — `@adk:plan-design` (a.k.a. `adk-plan-design`)
-- [`plan-research`](./skill-plan-research.md) — `@adk:plan-research` (a.k.a. `adk-plan-research`)
-- [`plan-roadmap`](./skill-plan-roadmap.md) — `@adk:plan-roadmap` (a.k.a. `adk-plan-roadmap`)
-- [`plan-spec`](./skill-plan-spec.md) — `@adk:plan-spec` (a.k.a. `adk-plan-spec`)
-- [`review`](./skill-review.md) — `@adk:review` (a.k.a. `adk-review`)

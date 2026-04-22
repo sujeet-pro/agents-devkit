@@ -1,31 +1,10 @@
 ---
 title: 'review-local'
-description: 'Self-review uncommitted, staged, or branch-vs-base changes before pushing or committing - with severity-tiered findings and explicit evidence.'
-artifact_kind: skill
+description: 'Self-review uncommitted, staged, or branch-vs-base changes before pushing or committing - with severity-tiered findings and explicit evidence. Use when the change has not yet been pushed and the goal is to catch issues before they land in a remote PR. Do not use for an existing remote PR (use adk-review-pr) or for addressing reviewer feedback (use adk-review-feedback).'
 skill_name: review-local
-category: review
+category: router
 ---
-# review-local
-
-Self-review uncommitted, staged, or branch-vs-base changes before pushing or committing - with severity-tiered findings and explicit evidence. Use when the change has not yet been pushed and the goal is to catch issues before they land in a remote PR. Do not use for an existing remote PR (use adk-review-pr) or for addressing reviewer feedback (use adk-review-feedback).
-
-## Usage
-
-> Examples assume this repo is installed as the `adk` Claude Code plugin
-> (see [Quick Start](../guide/development/README.md)). Generic agents use the
-> `adk-review-local` form via `agents-skills/`.
-
-```text
-/adk:review-local            # interactive run (Claude Code)
-/adk:review-local --auto     # unattended; pick safe defaults
-```
-
-In Cursor / Codex / Gemini: invoke as `adk-review-local` (resolved through the
-`agents-skills/adk-review-local/` symlink).
-
-## Source
-
-Direct from `skills/review-local/SKILL.md` — this page is auto-generated.
+# ADK Review / Local
 
 Standalone task skill under the `@adk:review` (a.k.a. `adk-review`) category router. Produces a findings-first self-review of local working-tree changes (unstaged, staged, or branch-vs-base).
 
@@ -210,13 +189,3 @@ These files live in `references/` next to this `SKILL.md`. Read them when the sk
 | `references/review-local-validator.md` | The four-phase validator gate (pre-execution, mid-flow, pre-handoff, post-execution) this skill MUST run. |
 
 <!-- adk:references:end -->
-
-
-## Related skills
-
-- [`audit-repo`](./skill-audit-repo.md) — `@adk:audit-repo` (a.k.a. `adk-audit-repo`)
-- [`docs-review`](./skill-docs-review.md) — `@adk:docs-review` (a.k.a. `adk-docs-review`)
-- [`publish-commit`](./skill-publish-commit.md) — `@adk:publish-commit` (a.k.a. `adk-publish-commit`)
-- [`review`](./skill-review.md) — `@adk:review` (a.k.a. `adk-review`)
-- [`review-feedback`](./skill-review-feedback.md) — `@adk:review-feedback` (a.k.a. `adk-review-feedback`)
-- [`review-pr`](./skill-review-pr.md) — `@adk:review-pr` (a.k.a. `adk-review-pr`)

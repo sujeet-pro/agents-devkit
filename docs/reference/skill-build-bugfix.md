@@ -1,31 +1,10 @@
 ---
 title: 'build-bugfix'
-description: 'Fix a bug with explicit root-cause analysis, smallest correct patch, and a regression test.'
-artifact_kind: skill
+description: '|'
 skill_name: build-bugfix
-category: build
+category: router
 ---
-# build-bugfix
-
-Fix a bug with explicit root-cause analysis, smallest correct patch, and a regression test. Different from `@adk:build-feature` (a.k.a. `adk-build-feature`): a bugfix MUST start with a written reproducer, an explicit "what was wrong" analysis, and end with a test that fails without the fix and passes with it. Use for any bug-class request: "this is broken", "this returns the wrong value", "this crashes when X". Calls `@adk:validate-browser` (a.k.a. `adk-validate-browser`) `--mode verify-fix` if the bug is UI-affecting. Do not use for new behavior (use build-feature) or for refactors that incidentally fix a bug (use build-refactor + a separate regression test).
-
-## Usage
-
-> Examples assume this repo is installed as the `adk` Claude Code plugin
-> (see [Quick Start](../guide/development/README.md)). Generic agents use the
-> `adk-build-bugfix` form via `agents-skills/`.
-
-```text
-/adk:build-bugfix            # interactive run (Claude Code)
-/adk:build-bugfix --auto     # unattended; pick safe defaults
-```
-
-In Cursor / Codex / Gemini: invoke as `adk-build-bugfix` (resolved through the
-`agents-skills/adk-build-bugfix/` symlink).
-
-## Source
-
-Direct from `skills/build-bugfix/SKILL.md` — this page is auto-generated.
+# build-bugfix — root-cause + minimal patch + regression test
 
 ## When to use
 
@@ -98,14 +77,3 @@ Direct from `skills/build-bugfix/SKILL.md` — this page is auto-generated.
 | `references/anti-patterns.md` | What NOT to do |
 | `references/examples.md` | Worked bugfix examples |
 | `references/interaction-contract.md` | Synced from canonical |
-
-
-## Related skills
-
-- [`auto`](./skill-auto.md) — `@adk:auto` (a.k.a. `adk-auto`)
-- [`build-feature`](./skill-build-feature.md) — `@adk:build-feature` (a.k.a. `adk-build-feature`)
-- [`build-refactor`](./skill-build-refactor.md) — `@adk:build-refactor` (a.k.a. `adk-build-refactor`)
-- [`build-test`](./skill-build-test.md) — `@adk:build-test` (a.k.a. `adk-build-test`)
-- [`context-gather`](./skill-context-gather.md) — `@adk:context-gather` (a.k.a. `adk-context-gather`)
-- [`review-local`](./skill-review-local.md) — `@adk:review-local` (a.k.a. `adk-review-local`)
-- [`validate-browser`](./skill-validate-browser.md) — `@adk:validate-browser` (a.k.a. `adk-validate-browser`)

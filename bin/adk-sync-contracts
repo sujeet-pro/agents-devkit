@@ -2,9 +2,14 @@
 /**
  * adk-sync-contracts
  *
- * Propagates byte-identical copies of every file in `bin/canonical/`
- * into every `skills/<name>/references/`. Idempotent. Run by `bin/adk-validate`
- * before each validation pass; safe to run by hand any time.
+ * Propagates byte-identical copies of the canonical interaction contract
+ * (`bin/canonical/interaction-contract.md`) into every
+ * `skills/<name>/references/interaction-contract.md`. Idempotent. Safe to
+ * run by hand any time.
+ *
+ * Other files in `bin/canonical/` (e.g. `system-prompt.md` used by the
+ * SessionStart hook) stay where they are — they are NOT propagated into
+ * each skill.
  *
  * Usage:
  *   bin/adk-sync-contracts            # propagate
@@ -25,6 +30,11 @@ const args = new Set(process.argv.slice(2));
 const CHECK_ONLY = args.has("--check");
 const VERBOSE = args.has("--verbose");
 
+// Allowlist: only these canonical files are mirrored into every skill's
+// references/ folder. Other files in bin/canonical/ (such as the
+// SessionStart system-prompt primer) stay at the canonical path only.
+const PROPAGATE_TO_SKILLS = new Set(["interaction-contract.md"]);
+
 function listCanonicalFiles() {
   if (!existsSync(CANONICAL_DIR)) {
     console.error(`adk-sync-contracts: canonical dir not found at ${CANONICAL_DIR}`);
@@ -32,6 +42,7 @@ function listCanonicalFiles() {
   }
   return readdirSync(CANONICAL_DIR)
     .filter((f) => statSync(join(CANONICAL_DIR, f)).isFile())
+    .filter((f) => PROPAGATE_TO_SKILLS.has(f))
     .sort();
 }
 

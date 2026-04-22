@@ -1,31 +1,10 @@
 ---
 title: 'plan-spec'
-description: 'Author a structured spec - PRD, RFC, functional spec, or technical spec - with goals, non-goals, requirements, constraints, success criteria, and open questions.'
-artifact_kind: skill
+description: 'Author a structured spec - PRD, RFC, functional spec, or technical spec - with goals, non-goals, requirements, constraints, success criteria, and open questions. Use when implementation must be preceded by a written spec that the team can review, comment on, and align around. Do not use for short implementation plans (use adk-plan-roadmap) or for architectural design write-ups (use adk-plan-design).'
 skill_name: plan-spec
-category: plan
+category: router
 ---
-# plan-spec
-
-Author a structured spec - PRD, RFC, functional spec, or technical spec - with goals, non-goals, requirements, constraints, success criteria, and open questions. Use when implementation must be preceded by a written spec that the team can review, comment on, and align around. Do not use for short implementation plans (use adk-plan-roadmap) or for architectural design write-ups (use adk-plan-design).
-
-## Usage
-
-> Examples assume this repo is installed as the `adk` Claude Code plugin
-> (see [Quick Start](../guide/development/README.md)). Generic agents use the
-> `adk-plan-spec` form via `agents-skills/`.
-
-```text
-/adk:plan-spec            # interactive run (Claude Code)
-/adk:plan-spec --auto     # unattended; pick safe defaults
-```
-
-In Cursor / Codex / Gemini: invoke as `adk-plan-spec` (resolved through the
-`agents-skills/adk-plan-spec/` symlink).
-
-## Source
-
-Direct from `skills/plan-spec/SKILL.md` — this page is auto-generated.
+# ADK Plan / Spec
 
 Standalone task skill under the `@adk:plan` (a.k.a. `adk-plan`) category router. Turns a settled direction into a written spec that the team can review and commit to.
 
@@ -259,13 +238,3 @@ These files live in `references/` next to this `SKILL.md`. Read them when the sk
 | `references/plan-spec-validator.md` | The four-phase validator gate (pre-execution, mid-flow, pre-handoff, post-execution) this skill MUST run. |
 
 <!-- adk:references:end -->
-
-
-## Related skills
-
-- [`build-feature`](./skill-build-feature.md) — `@adk:build-feature` (a.k.a. `adk-build-feature`)
-- [`docs-write`](./skill-docs-write.md) — `@adk:docs-write` (a.k.a. `adk-docs-write`)
-- [`plan`](./skill-plan.md) — `@adk:plan` (a.k.a. `adk-plan`)
-- [`plan-brainstorm`](./skill-plan-brainstorm.md) — `@adk:plan-brainstorm` (a.k.a. `adk-plan-brainstorm`)
-- [`plan-design`](./skill-plan-design.md) — `@adk:plan-design` (a.k.a. `adk-plan-design`)
-- [`plan-roadmap`](./skill-plan-roadmap.md) — `@adk:plan-roadmap` (a.k.a. `adk-plan-roadmap`)

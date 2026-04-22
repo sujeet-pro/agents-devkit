@@ -1,31 +1,10 @@
 ---
 title: 'temp-folder'
-description: 'Enforces the canonical `.'
-artifact_kind: skill
+description: '|'
 skill_name: temp-folder
-category: standalone
+category: router
 ---
-# temp-folder
-
-Enforces the canonical `.temp/task-<slug>/` working-artifact layout that every other adk skill writes through. Use whenever you need to create a new task workspace, look up the canonical path for a particular artifact (requirements / scope / design / plan / preview / browser-validation / report), or convert a non-canonical path back into the contract. Reference-only by default; not auto-invoked.
-
-## Usage
-
-> Examples assume this repo is installed as the `adk` Claude Code plugin
-> (see [Quick Start](../guide/development/README.md)). Generic agents use the
-> `adk-temp-folder` form via `agents-skills/`.
-
-```text
-/adk:temp-folder            # interactive run (Claude Code)
-/adk:temp-folder --auto     # unattended; pick safe defaults
-```
-
-In Cursor / Codex / Gemini: invoke as `adk-temp-folder` (resolved through the
-`agents-skills/adk-temp-folder/` symlink).
-
-## Source
-
-Direct from `skills/temp-folder/SKILL.md` — this page is auto-generated.
+# temp-folder — `.temp/` working-artifact contract
 
 Single source of truth for where intermediate artifacts live. Every other skill calls this convention to resolve paths.
 
@@ -117,10 +96,3 @@ See `references/anti-patterns.md`. Key ones: writing to repo root, omitting the 
 | `references/anti-patterns.md` | What NOT to do |
 | `references/examples.md` | Worked slug examples |
 | `references/interaction-contract.md` | Synced from canonical |
-
-
-## Related skills
-
-- [`auto`](./skill-auto.md) — `@adk:auto` (a.k.a. `adk-auto`)
-- [`plan`](./skill-plan.md) — `@adk:plan` (a.k.a. `adk-plan`)
-- [`requirements`](./skill-requirements.md) — `@adk:requirements` (a.k.a. `adk-requirements`)

@@ -1,16 +1,15 @@
 ---
-name: "brainstorm-facilitator"
-description: "Drive iterative brainstorming to narrow options, question assumptions, and route work into the right spec, plan, docs, or implementation path."
-model: "claude-opus-4-7"
+name: brainstorm-facilitator
+description: Drive iterative brainstorming to narrow options, question assumptions, and route work into the right spec, plan, docs, or implementation path.
+model: claude-opus-4-7
 maxTurns: 20
 skills:
-  - "brainstorm"
-  - "plan"
-  - "spec"
-memory: "local"
-effort: "high"
+  - plan-brainstorm
+  - plan-spec
+memory: local
+effort: high
 background: false
-color: "teal"
+color: cyan
 ---
 
 # Brainstorm Facilitator

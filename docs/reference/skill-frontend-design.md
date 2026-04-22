@@ -1,31 +1,10 @@
 ---
 title: 'frontend-design'
-description: 'Produce UI/UX design artifacts - mockups, layouts, interaction specs, component specs - before code.'
-artifact_kind: skill
+description: 'Produce UI/UX design artifacts - mockups, layouts, interaction specs, component specs - before code. Covers desktop + mobile + tablet viewports, default + hover + focus + active + disabled + loading + empty + error states, accessibility-first defaults (WCAG 2.2 AA, keyboard, prefers-reduced-motion, prefers-color-scheme), and a design rationale for every non-trivial choice. Use when the deliverable is a design (markdown spec + sketch / wireframe / mockup), not code. Do not use for backend or non-UI work (use adk-build) or for implementing the design (use adk-frontend-feature).'
 skill_name: frontend-design
-category: frontend
+category: router
 ---
-# frontend-design
-
-Produce UI/UX design artifacts - mockups, layouts, interaction specs, component specs - before code. Covers desktop + mobile + tablet viewports, default + hover + focus + active + disabled + loading + empty + error states, accessibility-first defaults (WCAG 2.2 AA, keyboard, prefers-reduced-motion, prefers-color-scheme), and a design rationale for every non-trivial choice. Use when the deliverable is a design (markdown spec + sketch / wireframe / mockup), not code. Do not use for backend or non-UI work (use adk-build) or for implementing the design (use adk-frontend-feature).
-
-## Usage
-
-> Examples assume this repo is installed as the `adk` Claude Code plugin
-> (see [Quick Start](../guide/development/README.md)). Generic agents use the
-> `adk-frontend-design` form via `agents-skills/`.
-
-```text
-/adk:frontend-design            # interactive run (Claude Code)
-/adk:frontend-design --auto     # unattended; pick safe defaults
-```
-
-In Cursor / Codex / Gemini: invoke as `adk-frontend-design` (resolved through the
-`agents-skills/adk-frontend-design/` symlink).
-
-## Source
-
-Direct from `skills/frontend-design/SKILL.md` — this page is auto-generated.
+# ADK Frontend / Design
 
 Standalone task skill under the `@adk:frontend` (a.k.a. `adk-frontend`) category router. Produces a UI design artifact: layout, interaction spec, component spec, with intentional aesthetic choices and explicit accessibility / responsive defaults.
 
@@ -239,14 +218,3 @@ These files live in `references/` next to this `SKILL.md`. Read them when the sk
 | `references/frontend-design-industry-anti-patterns.md` | Industry-specific design no-gos (fintech / healthcare / e-commerce / etc.) used to filter aesthetic choices. |
 
 <!-- adk:references:end -->
-
-
-## Related skills
-
-- [`build`](./skill-build.md) — `@adk:build` (a.k.a. `adk-build`)
-- [`frontend`](./skill-frontend.md) — `@adk:frontend` (a.k.a. `adk-frontend`)
-- [`frontend-feature`](./skill-frontend-feature.md) — `@adk:frontend-feature` (a.k.a. `adk-frontend-feature`)
-- [`frontend-mockup`](./skill-frontend-mockup.md) — `@adk:frontend-mockup` (a.k.a. `adk-frontend-mockup`)
-- [`plan-design`](./skill-plan-design.md) — `@adk:plan-design` (a.k.a. `adk-plan-design`)
-- [`validate-browser`](./skill-validate-browser.md) — `@adk:validate-browser` (a.k.a. `adk-validate-browser`)
-- [`visualize-diagram`](./skill-visualize-diagram.md) — `@adk:visualize-diagram` (a.k.a. `adk-visualize-diagram`)

@@ -1,39 +1,10 @@
 ---
 title: 'diagram-graphviz'
 description: 'Generate Graphviz DOT diagrams (.dot/.gv/.graphviz) and render to SVG/PNG/JPEG/WebP/AVIF with diagramkit. Strong algorithmic layout for dependency graphs, call graphs, hierarchical DAGs, and rank-constrained visualizations. Uses WASM — no browser needed. Use when graph structure matters more than hand-tuned positioning, or when working with existing .dot/.gv source files.'
-artifact_kind: skill
 skill_name: diagram-graphviz
-category: standalone
+category: router
 ---
-# diagram-graphviz
-
-Generate Graphviz DOT diagrams (.dot/.gv/.graphviz) and render to SVG/PNG/JPEG/WebP/AVIF with diagramkit. Strong algorithmic layout for dependency graphs, call graphs, hierarchical DAGs, and rank-constrained visualizations. Uses WASM — no browser needed. Use when graph structure matters more than hand-tuned positioning, or when working with existing .dot/.gv source files.
-
-## Usage
-
-> Examples assume this repo is installed as the `adk` Claude Code plugin
-> (see [Quick Start](../guide/development/README.md)). Generic agents use the
-> `adk-diagram-graphviz` form via `agents-skills/`.
-
-```text
-/adk:diagram-graphviz            # interactive run (Claude Code)
-/adk:diagram-graphviz --auto     # unattended; pick safe defaults
-```
-
-In Cursor / Codex / Gemini: invoke as `adk-diagram-graphviz` (resolved through the
-`agents-skills/adk-diagram-graphviz/` symlink).
-
-The skill ships an executable helper (no project install required — it auto-installs the
-pinned global package on first run, with a y/N prompt):
-
-```bash
-./skills/diagram-graphviz/scripts/render-and-validate.sh diagrams/
-```
-
-## Source
-
-Direct from `skills/diagram-graphviz/SKILL.md` — this page is auto-generated. To change the
-authoring rules, edit the SKILL.md and re-run `/adk:prj-update-docs`.
+# diagramkit — Graphviz Engine
 
 ## When To Use
 
@@ -419,13 +390,3 @@ Stop on first clean run, or mark as residual after 8 iterations.
 
 - `references/dot-reference.md` — full DOT syntax, node shapes, record nodes, clusters, layout engines, edge styles, HTML labels
 - `references/color-and-theming.md` — complete color palettes, dark mode behavior, WCAG contrast rules
-
-## Related skills
-
-- [`diagram-mermaid`](./skill-diagram-mermaid.md) — `@adk:diagram-mermaid` (a.k.a. `adk-diagram-mermaid`)
-- [`diagram-excalidraw`](./skill-diagram-excalidraw.md) — `@adk:diagram-excalidraw` (a.k.a. `adk-diagram-excalidraw`)
-- [`diagram-drawio`](./skill-diagram-drawio.md) — `@adk:diagram-drawio` (a.k.a. `adk-diagram-drawio`)
-- [`diagram-review`](./skill-diagram-review.md) — `@adk:diagram-review` (a.k.a. `adk-diagram-review`)
-- [`markdown`](./skill-markdown.md) — `@adk:markdown` (a.k.a. `adk-markdown`)
-- [`visualize-diagram`](./skill-visualize-diagram.md) — `@adk:visualize-diagram` (a.k.a. `adk-visualize-diagram`)
-- [`doc-site-diagrams`](./skill-doc-site-diagrams.md) — `@adk:doc-site-diagrams` (a.k.a. `adk-doc-site-diagrams`)

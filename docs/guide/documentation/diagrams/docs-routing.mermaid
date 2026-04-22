@@ -1,0 +1,8 @@
+%%{init: {'htmlLabels': false}}%%
+flowchart TD
+  A["Documentation intent"] --> B{"@adk:docs router\n-> direction?"}
+  B -- "Author / update" --> D["@adk:docs-write\noutline -> draft -> validate -> markdown artifact"]
+  B -- "Critique" --> E["@adk:docs-review\nread source + claim audit"]
+  E --> F{"--mode fix?"}
+  F -- "yes" --> D
+  F -- "no" --> G["review.md report\n(no edits)"]

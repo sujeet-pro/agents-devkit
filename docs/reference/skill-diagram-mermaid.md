@@ -1,39 +1,10 @@
 ---
 title: 'diagram-mermaid'
 description: 'Generate Mermaid diagrams (.mermaid/.mmd/.mmdc) and render to SVG/PNG/JPEG/WebP/AVIF with diagramkit. Supports 21+ diagram types including flowchart, sequence, class, state, ER, gantt, gitgraph, mindmap, timeline, C4, pie, quadrant, sankey, XY, block, architecture, kanban, journey, packet, radar, and requirement. Use when creating or updating Mermaid diagram source files, rendering them to images, or choosing which Mermaid diagram type fits a task.'
-artifact_kind: skill
 skill_name: diagram-mermaid
-category: standalone
+category: router
 ---
-# diagram-mermaid
-
-Generate Mermaid diagrams (.mermaid/.mmd/.mmdc) and render to SVG/PNG/JPEG/WebP/AVIF with diagramkit. Supports 21+ diagram types including flowchart, sequence, class, state, ER, gantt, gitgraph, mindmap, timeline, C4, pie, quadrant, sankey, XY, block, architecture, kanban, journey, packet, radar, and requirement. Use when creating or updating Mermaid diagram source files, rendering them to images, or choosing which Mermaid diagram type fits a task.
-
-## Usage
-
-> Examples assume this repo is installed as the `adk` Claude Code plugin
-> (see [Quick Start](../guide/development/README.md)). Generic agents use the
-> `adk-diagram-mermaid` form via `agents-skills/`.
-
-```text
-/adk:diagram-mermaid            # interactive run (Claude Code)
-/adk:diagram-mermaid --auto     # unattended; pick safe defaults
-```
-
-In Cursor / Codex / Gemini: invoke as `adk-diagram-mermaid` (resolved through the
-`agents-skills/adk-diagram-mermaid/` symlink).
-
-The skill ships an executable helper (no project install required — it auto-installs the
-pinned global package on first run, with a y/N prompt):
-
-```bash
-./skills/diagram-mermaid/scripts/render-and-validate.sh diagrams/
-```
-
-## Source
-
-Direct from `skills/diagram-mermaid/SKILL.md` — this page is auto-generated. To change the
-authoring rules, edit the SKILL.md and re-run `/adk:prj-update-docs`.
+# Mermaid Diagrams with diagramkit
 
 ## Diagram Type Routing
 
@@ -572,13 +543,3 @@ Stop when both report zero targeted findings, or after 8 iterations (mark as res
 
 - **`references/diagram-types.md`** — Full syntax reference for all 21 Mermaid diagram types with examples, gotchas, and best practices.
 - **`references/color-and-theming.md`** — Detailed color palettes, dark mode variables, WCAG contrast optimization, classDef/linkStyle reference.
-
-## Related skills
-
-- [`diagram-graphviz`](./skill-diagram-graphviz.md) — `@adk:diagram-graphviz` (a.k.a. `adk-diagram-graphviz`)
-- [`diagram-excalidraw`](./skill-diagram-excalidraw.md) — `@adk:diagram-excalidraw` (a.k.a. `adk-diagram-excalidraw`)
-- [`diagram-drawio`](./skill-diagram-drawio.md) — `@adk:diagram-drawio` (a.k.a. `adk-diagram-drawio`)
-- [`diagram-review`](./skill-diagram-review.md) — `@adk:diagram-review` (a.k.a. `adk-diagram-review`)
-- [`markdown`](./skill-markdown.md) — `@adk:markdown` (a.k.a. `adk-markdown`)
-- [`visualize-diagram`](./skill-visualize-diagram.md) — `@adk:visualize-diagram` (a.k.a. `adk-visualize-diagram`)
-- [`doc-site-diagrams`](./skill-doc-site-diagrams.md) — `@adk:doc-site-diagrams` (a.k.a. `adk-doc-site-diagrams`)

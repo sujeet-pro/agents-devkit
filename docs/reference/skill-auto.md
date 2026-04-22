@@ -1,31 +1,10 @@
 ---
 title: 'auto'
-description: 'Prompt-routing dispatcher.'
-artifact_kind: skill
+description: '|'
 skill_name: auto
 category: standalone
 ---
-# auto
-
-Prompt-routing dispatcher. Use this first for any non-trivial request when you (or the user) are not certain which adk skill to invoke. It expands the prompt, classifies the domain, runs requirements + scoping with the user (via the brainstorm-facilitator subagent), then dispatches per-task subagents loaded with the right downstream skills (build, test, docs, review, browser-validate, publish, cicd-monitor) in parallel. Use whenever the user issues a multi-step request such as "build me X", "fix this bug end-to-end", "ship a feature", "investigate this incident". Do not use when the user has already named a specific skill (just invoke that skill).
-
-## Usage
-
-> Examples assume this repo is installed as the `adk` Claude Code plugin
-> (see [Quick Start](../guide/development/README.md)). Generic agents use the
-> `adk-auto` form via `agents-skills/`.
-
-```text
-/adk:auto            # interactive run (Claude Code)
-/adk:auto --auto     # unattended; pick safe defaults
-```
-
-In Cursor / Codex / Gemini: invoke as `adk-auto` (resolved through the
-`agents-skills/adk-auto/` symlink).
-
-## Source
-
-Direct from `skills/auto/SKILL.md` — this page is auto-generated.
+# auto — prompt-routing dispatcher
 
 Top-level orchestration skill. Reads the prompt, picks the right downstream skills, and runs them via Claude subagents.
 
@@ -139,33 +118,3 @@ See `references/anti-patterns.md`. Headlines:
 | `references/anti-patterns.md` | What to avoid |
 | `references/examples.md` | Worked examples (UI feature, bug fix, incident triage) |
 | `references/interaction-contract.md` | Default-ask + `--auto` contract (synced from `bin/canonical/`) |
-
-
-## Related skills
-
-- [`audit`](./skill-audit.md) — `@adk:audit` (a.k.a. `adk-audit`)
-- [`audit-repo`](./skill-audit-repo.md) — `@adk:audit-repo` (a.k.a. `adk-audit-repo`)
-- [`build`](./skill-build.md) — `@adk:build` (a.k.a. `adk-build`)
-- [`build-bugfix`](./skill-build-bugfix.md) — `@adk:build-bugfix` (a.k.a. `adk-build-bugfix`)
-- [`build-feature`](./skill-build-feature.md) — `@adk:build-feature` (a.k.a. `adk-build-feature`)
-- [`build-migrate`](./skill-build-migrate.md) — `@adk:build-migrate` (a.k.a. `adk-build-migrate`)
-- [`build-refactor`](./skill-build-refactor.md) — `@adk:build-refactor` (a.k.a. `adk-build-refactor`)
-- [`build-test`](./skill-build-test.md) — `@adk:build-test` (a.k.a. `adk-build-test`)
-- [`cicd-fix`](./skill-cicd-fix.md) — `@adk:cicd-fix` (a.k.a. `adk-cicd-fix`)
-- [`cicd-monitor`](./skill-cicd-monitor.md) — `@adk:cicd-monitor` (a.k.a. `adk-cicd-monitor`)
-- [`context-gather`](./skill-context-gather.md) — `@adk:context-gather` (a.k.a. `adk-context-gather`)
-- [`docs`](./skill-docs.md) — `@adk:docs` (a.k.a. `adk-docs`)
-- [`docs-write`](./skill-docs-write.md) — `@adk:docs-write` (a.k.a. `adk-docs-write`)
-- [`frontend`](./skill-frontend.md) — `@adk:frontend` (a.k.a. `adk-frontend`)
-- [`frontend-design`](./skill-frontend-design.md) — `@adk:frontend-design` (a.k.a. `adk-frontend-design`)
-- [`frontend-mockup`](./skill-frontend-mockup.md) — `@adk:frontend-mockup` (a.k.a. `adk-frontend-mockup`)
-- [`plan`](./skill-plan.md) — `@adk:plan` (a.k.a. `adk-plan`)
-- [`publish`](./skill-publish.md) — `@adk:publish` (a.k.a. `adk-publish`)
-- [`publish-commit`](./skill-publish-commit.md) — `@adk:publish-commit` (a.k.a. `adk-publish-commit`)
-- [`publish-github`](./skill-publish-github.md) — `@adk:publish-github` (a.k.a. `adk-publish-github`)
-- [`requirements`](./skill-requirements.md) — `@adk:requirements` (a.k.a. `adk-requirements`)
-- [`review`](./skill-review.md) — `@adk:review` (a.k.a. `adk-review`)
-- [`review-local`](./skill-review-local.md) — `@adk:review-local` (a.k.a. `adk-review-local`)
-- [`scoping`](./skill-scoping.md) — `@adk:scoping` (a.k.a. `adk-scoping`)
-- [`temp-folder`](./skill-temp-folder.md) — `@adk:temp-folder` (a.k.a. `adk-temp-folder`)
-- [`validate-browser`](./skill-validate-browser.md) — `@adk:validate-browser` (a.k.a. `adk-validate-browser`)

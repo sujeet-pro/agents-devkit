@@ -1,8 +1,8 @@
 {
-  "version": "1.0.0",
+  "version": "1.1.0",
   "generated": "2026-04-22",
-  "distribution": "npx-skills",
-  "model": "standalone-skill",
+  "distribution": "claude-code-plugin",
+  "model": "claude-plugin-skill",
   "skill_count": 65,
   "categories": {
     "top": 1,
@@ -60,10 +60,7 @@
       "kind": "top",
       "category": "",
       "path": "skills/adk",
-      "invocation": {
-        "default": "/adk",
-        "npx_skills": "/adk"
-      },
+      "invocation": "/adk:adk",
       "has_references": true,
       "has_scripts": false,
       "has_assets": false
@@ -74,10 +71,7 @@
       "kind": "task",
       "category": "ai",
       "path": "skills/adopt-ai-in-repo",
-      "invocation": {
-        "default": "/adopt-ai-in-repo",
-        "npx_skills": "/adopt-ai-in-repo"
-      },
+      "invocation": "/adk:adopt-ai-in-repo",
       "has_references": true,
       "has_scripts": false,
       "has_assets": false
@@ -88,10 +82,7 @@
       "kind": "router",
       "category": "mixpanel",
       "path": "skills/analytics-mixpanel",
-      "invocation": {
-        "default": "/analytics-mixpanel",
-        "npx_skills": "/analytics-mixpanel"
-      },
+      "invocation": "/adk:analytics-mixpanel",
       "has_references": true,
       "has_scripts": false,
       "has_assets": false
@@ -101,10 +92,7 @@
       "description": "Category router for systematic audits of an entire codebase or a public website - covering security, performance, code quality, dependency health, accessibility, SEO, and UX as relevant. Use when the deliverable is an audit report (not a single PR review). Picks one of adk-audit-repo, adk-audit-site.",
       "kind": "task",
       "path": "skills/audit",
-      "invocation": {
-        "default": "/audit",
-        "npx_skills": "/audit"
-      },
+      "invocation": "/adk:audit",
       "has_references": true,
       "has_scripts": false,
       "has_assets": false
@@ -115,10 +103,7 @@
       "kind": "router",
       "category": "pr",
       "path": "skills/audit-pr",
-      "invocation": {
-        "default": "/audit-pr",
-        "npx_skills": "/audit-pr"
-      },
+      "invocation": "/adk:audit-pr",
       "has_references": true,
       "has_scripts": false,
       "has_assets": false
@@ -129,10 +114,7 @@
       "kind": "router",
       "category": "repo",
       "path": "skills/audit-repo",
-      "invocation": {
-        "default": "/audit-repo",
-        "npx_skills": "/audit-repo"
-      },
+      "invocation": "/adk:audit-repo",
       "has_references": true,
       "has_scripts": false,
       "has_assets": false
@@ -143,10 +125,7 @@
       "kind": "router",
       "category": "site",
       "path": "skills/audit-site",
-      "invocation": {
-        "default": "/audit-site",
-        "npx_skills": "/audit-site"
-      },
+      "invocation": "/adk:audit-site",
       "has_references": true,
       "has_scripts": false,
       "has_assets": false
@@ -156,10 +135,7 @@
       "description": "|",
       "kind": "task",
       "path": "skills/auto",
-      "invocation": {
-        "default": "/auto",
-        "npx_skills": "/auto"
-      },
+      "invocation": "/adk:auto",
       "has_references": true,
       "has_scripts": false,
       "has_assets": false
@@ -169,10 +145,7 @@
       "description": "Category router for implementing, refactoring, migrating, testing, or analyzing dependencies. Use when the next step is to change code (new feature, bug fix, refactor, framework migration, test authoring, or dependency hygiene). Picks one of adk-build-feature, adk-build-refactor, adk-build-migrate, adk-build-test, adk-build-deps.",
       "kind": "task",
       "path": "skills/build",
-      "invocation": {
-        "default": "/build",
-        "npx_skills": "/build"
-      },
+      "invocation": "/adk:build",
       "has_references": true,
       "has_scripts": false,
       "has_assets": false
@@ -183,10 +156,7 @@
       "kind": "router",
       "category": "bugfix",
       "path": "skills/build-bugfix",
-      "invocation": {
-        "default": "/build-bugfix",
-        "npx_skills": "/build-bugfix"
-      },
+      "invocation": "/adk:build-bugfix",
       "has_references": true,
       "has_scripts": false,
       "has_assets": false
@@ -197,10 +167,7 @@
       "kind": "router",
       "category": "deps",
       "path": "skills/build-deps",
-      "invocation": {
-        "default": "/build-deps",
-        "npx_skills": "/build-deps"
-      },
+      "invocation": "/adk:build-deps",
       "has_references": true,
       "has_scripts": false,
       "has_assets": false
@@ -211,10 +178,7 @@
       "kind": "router",
       "category": "feature",
       "path": "skills/build-feature",
-      "invocation": {
-        "default": "/build-feature",
-        "npx_skills": "/build-feature"
-      },
+      "invocation": "/adk:build-feature",
       "has_references": true,
       "has_scripts": false,
       "has_assets": false
@@ -225,10 +189,7 @@
       "kind": "router",
       "category": "migrate",
       "path": "skills/build-migrate",
-      "invocation": {
-        "default": "/build-migrate",
-        "npx_skills": "/build-migrate"
-      },
+      "invocation": "/adk:build-migrate",
       "has_references": true,
       "has_scripts": false,
       "has_assets": false
@@ -239,10 +200,7 @@
       "kind": "router",
       "category": "refactor",
       "path": "skills/build-refactor",
-      "invocation": {
-        "default": "/build-refactor",
-        "npx_skills": "/build-refactor"
-      },
+      "invocation": "/adk:build-refactor",
       "has_references": true,
       "has_scripts": false,
       "has_assets": false
@@ -253,10 +211,7 @@
       "kind": "router",
       "category": "test",
       "path": "skills/build-test",
-      "invocation": {
-        "default": "/build-test",
-        "npx_skills": "/build-test"
-      },
+      "invocation": "/adk:build-test",
       "has_references": true,
       "has_scripts": false,
       "has_assets": false
@@ -267,10 +222,7 @@
       "kind": "router",
       "category": "fix",
       "path": "skills/cicd-fix",
-      "invocation": {
-        "default": "/cicd-fix",
-        "npx_skills": "/cicd-fix"
-      },
+      "invocation": "/adk:cicd-fix",
       "has_references": true,
       "has_scripts": false,
       "has_assets": false
@@ -281,10 +233,7 @@
       "kind": "router",
       "category": "monitor",
       "path": "skills/cicd-monitor",
-      "invocation": {
-        "default": "/cicd-monitor",
-        "npx_skills": "/cicd-monitor"
-      },
+      "invocation": "/adk:cicd-monitor",
       "has_references": true,
       "has_scripts": false,
       "has_assets": false
@@ -295,10 +244,7 @@
       "kind": "router",
       "category": "gather",
       "path": "skills/context-gather",
-      "invocation": {
-        "default": "/context-gather",
-        "npx_skills": "/context-gather"
-      },
+      "invocation": "/adk:context-gather",
       "has_references": true,
       "has_scripts": false,
       "has_assets": false
@@ -309,10 +255,7 @@
       "kind": "router",
       "category": "drawio",
       "path": "skills/diagram-drawio",
-      "invocation": {
-        "default": "/diagram-drawio",
-        "npx_skills": "/diagram-drawio"
-      },
+      "invocation": "/adk:diagram-drawio",
       "has_references": true,
       "has_scripts": true,
       "has_assets": false
@@ -323,10 +266,7 @@
       "kind": "router",
       "category": "excalidraw",
       "path": "skills/diagram-excalidraw",
-      "invocation": {
-        "default": "/diagram-excalidraw",
-        "npx_skills": "/diagram-excalidraw"
-      },
+      "invocation": "/adk:diagram-excalidraw",
       "has_references": true,
       "has_scripts": true,
       "has_assets": false
@@ -337,10 +277,7 @@
       "kind": "router",
       "category": "graphviz",
       "path": "skills/diagram-graphviz",
-      "invocation": {
-        "default": "/diagram-graphviz",
-        "npx_skills": "/diagram-graphviz"
-      },
+      "invocation": "/adk:diagram-graphviz",
       "has_references": true,
       "has_scripts": true,
       "has_assets": false
@@ -351,10 +288,7 @@
       "kind": "router",
       "category": "mermaid",
       "path": "skills/diagram-mermaid",
-      "invocation": {
-        "default": "/diagram-mermaid",
-        "npx_skills": "/diagram-mermaid"
-      },
+      "invocation": "/adk:diagram-mermaid",
       "has_references": true,
       "has_scripts": true,
       "has_assets": false
@@ -365,10 +299,7 @@
       "kind": "router",
       "category": "review",
       "path": "skills/diagram-review",
-      "invocation": {
-        "default": "/diagram-review",
-        "npx_skills": "/diagram-review"
-      },
+      "invocation": "/adk:diagram-review",
       "has_references": true,
       "has_scripts": true,
       "has_assets": false
@@ -379,10 +310,7 @@
       "kind": "task",
       "category": "site",
       "path": "skills/doc-site-diagrams",
-      "invocation": {
-        "default": "/doc-site-diagrams",
-        "npx_skills": "/doc-site-diagrams"
-      },
+      "invocation": "/adk:doc-site-diagrams",
       "has_references": true,
       "has_scripts": false,
       "has_assets": false
@@ -393,10 +321,7 @@
       "kind": "task",
       "category": "site",
       "path": "skills/doc-site-setup",
-      "invocation": {
-        "default": "/doc-site-setup",
-        "npx_skills": "/doc-site-setup"
-      },
+      "invocation": "/adk:doc-site-setup",
       "has_references": true,
       "has_scripts": false,
       "has_assets": false
@@ -406,10 +331,7 @@
       "description": "Category router for technical documentation work - writing or reviewing READMEs, runbooks, API docs, ADRs, onboarding guides, migration guides, changelogs, and similar. Use when the deliverable is a markdown document (or its destination publish format), not code or a spec. Picks one of adk-docs-write, adk-docs-review.",
       "kind": "task",
       "path": "skills/docs",
-      "invocation": {
-        "default": "/docs",
-        "npx_skills": "/docs"
-      },
+      "invocation": "/adk:docs",
       "has_references": true,
       "has_scripts": false,
       "has_assets": false
@@ -420,10 +342,7 @@
       "kind": "router",
       "category": "review",
       "path": "skills/docs-review",
-      "invocation": {
-        "default": "/docs-review",
-        "npx_skills": "/docs-review"
-      },
+      "invocation": "/adk:docs-review",
       "has_references": true,
       "has_scripts": false,
       "has_assets": false
@@ -434,10 +353,7 @@
       "kind": "router",
       "category": "write",
       "path": "skills/docs-write",
-      "invocation": {
-        "default": "/docs-write",
-        "npx_skills": "/docs-write"
-      },
+      "invocation": "/adk:docs-write",
       "has_references": true,
       "has_scripts": false,
       "has_assets": false
@@ -447,10 +363,7 @@
       "description": "Category router for frontend and UI work - UI/UX design, building or extending frontend components and pages, and bootstrapping React 19 client-side sample apps on a fixed Vite + TanStack + Radix + GitHub Pages stack. Use when the deliverable is a UI artifact, a frontend code change, or a new frontend project. Picks one of adk-frontend-design, adk-frontend-feature, adk-frontend-react-csr.",
       "kind": "task",
       "path": "skills/frontend",
-      "invocation": {
-        "default": "/frontend",
-        "npx_skills": "/frontend"
-      },
+      "invocation": "/adk:frontend",
       "has_references": true,
       "has_scripts": false,
       "has_assets": false
@@ -461,10 +374,7 @@
       "kind": "router",
       "category": "design",
       "path": "skills/frontend-design",
-      "invocation": {
-        "default": "/frontend-design",
-        "npx_skills": "/frontend-design"
-      },
+      "invocation": "/adk:frontend-design",
       "has_references": true,
       "has_scripts": false,
       "has_assets": false
@@ -475,10 +385,7 @@
       "kind": "router",
       "category": "feature",
       "path": "skills/frontend-feature",
-      "invocation": {
-        "default": "/frontend-feature",
-        "npx_skills": "/frontend-feature"
-      },
+      "invocation": "/adk:frontend-feature",
       "has_references": true,
       "has_scripts": false,
       "has_assets": false
@@ -489,10 +396,7 @@
       "kind": "router",
       "category": "mockup",
       "path": "skills/frontend-mockup",
-      "invocation": {
-        "default": "/frontend-mockup",
-        "npx_skills": "/frontend-mockup"
-      },
+      "invocation": "/adk:frontend-mockup",
       "has_references": true,
       "has_scripts": false,
       "has_assets": false
@@ -503,10 +407,7 @@
       "kind": "task",
       "category": "react",
       "path": "skills/frontend-react-csr",
-      "invocation": {
-        "default": "/frontend-react-csr",
-        "npx_skills": "/frontend-react-csr"
-      },
+      "invocation": "/adk:frontend-react-csr",
       "has_references": true,
       "has_scripts": false,
       "has_assets": false
@@ -516,10 +417,7 @@
       "description": "Author and validate Pagesmith-flavored markdown — GitHub Flavored Markdown (tables, task lists, strikethrough, autolinks, footnotes), GitHub-style alerts (NOTE/TIP/IMPORTANT/WARNING/CAUTION), inline and display math via remark-math + rehype-mathjax, smart typography, accessible emojis, themed light/dark image pairs, the Pagesmith code-block renderer (titles, line numbers, mark/ins/del, collapse, wrap, frame, language aliases, dual Shiki themes), and the auto-grouping code-tabs pattern. Self-contained and pinned to @pagesmith/core@0.9.9; the bundled script auto-installs the package globally (with permission) and runs `pagesmith-core validate` against your content. Use when writing or auditing markdown that targets Pagesmith / @pagesmith/docs sites, or when you want to know which features the built-in pipeline ships.",
       "kind": "task",
       "path": "skills/markdown",
-      "invocation": {
-        "default": "/markdown",
-        "npx_skills": "/markdown"
-      },
+      "invocation": "/adk:markdown",
       "has_references": true,
       "has_scripts": true,
       "has_assets": false
@@ -530,10 +428,7 @@
       "kind": "router",
       "category": "contract",
       "path": "skills/mode-contract",
-      "invocation": {
-        "default": "/mode-contract",
-        "npx_skills": "/mode-contract"
-      },
+      "invocation": "/adk:mode-contract",
       "has_references": true,
       "has_scripts": false,
       "has_assets": false
@@ -544,10 +439,7 @@
       "kind": "router",
       "category": "datadog",
       "path": "skills/observability-datadog",
-      "invocation": {
-        "default": "/observability-datadog",
-        "npx_skills": "/observability-datadog"
-      },
+      "invocation": "/adk:observability-datadog",
       "has_references": true,
       "has_scripts": false,
       "has_assets": false
@@ -558,10 +450,7 @@
       "kind": "router",
       "category": "incident",
       "path": "skills/observability-incident",
-      "invocation": {
-        "default": "/observability-incident",
-        "npx_skills": "/observability-incident"
-      },
+      "invocation": "/adk:observability-incident",
       "has_references": true,
       "has_scripts": false,
       "has_assets": false
@@ -572,10 +461,7 @@
       "kind": "task",
       "category": "skill",
       "path": "skills/personal-skill-create",
-      "invocation": {
-        "default": "/personal-skill-create",
-        "npx_skills": "/personal-skill-create"
-      },
+      "invocation": "/adk:personal-skill-create",
       "has_references": true,
       "has_scripts": false,
       "has_assets": false
@@ -585,10 +471,7 @@
       "description": "Category router for planning, research, spec authoring, design, and roadmap work. Use when the next step is to close ambiguity, gather facts, write a spec, design an architecture, or break a goal into an implementation roadmap - any case where thinking and writing must finish before code is touched. Picks one of adk-plan-brainstorm, adk-plan-research, adk-plan-spec, adk-plan-design, adk-plan-roadmap.",
       "kind": "task",
       "path": "skills/plan",
-      "invocation": {
-        "default": "/plan",
-        "npx_skills": "/plan"
-      },
+      "invocation": "/adk:plan",
       "has_references": true,
       "has_scripts": false,
       "has_assets": false
@@ -599,10 +482,7 @@
       "kind": "router",
       "category": "brainstorm",
       "path": "skills/plan-brainstorm",
-      "invocation": {
-        "default": "/plan-brainstorm",
-        "npx_skills": "/plan-brainstorm"
-      },
+      "invocation": "/adk:plan-brainstorm",
       "has_references": true,
       "has_scripts": false,
       "has_assets": false
@@ -613,10 +493,7 @@
       "kind": "router",
       "category": "design",
       "path": "skills/plan-design",
-      "invocation": {
-        "default": "/plan-design",
-        "npx_skills": "/plan-design"
-      },
+      "invocation": "/adk:plan-design",
       "has_references": true,
       "has_scripts": false,
       "has_assets": false
@@ -627,10 +504,7 @@
       "kind": "router",
       "category": "proposal",
       "path": "skills/plan-proposal",
-      "invocation": {
-        "default": "/plan-proposal",
-        "npx_skills": "/plan-proposal"
-      },
+      "invocation": "/adk:plan-proposal",
       "has_references": true,
       "has_scripts": false,
       "has_assets": false
@@ -641,10 +515,7 @@
       "kind": "router",
       "category": "research",
       "path": "skills/plan-research",
-      "invocation": {
-        "default": "/plan-research",
-        "npx_skills": "/plan-research"
-      },
+      "invocation": "/adk:plan-research",
       "has_references": true,
       "has_scripts": false,
       "has_assets": false
@@ -655,10 +526,7 @@
       "kind": "router",
       "category": "roadmap",
       "path": "skills/plan-roadmap",
-      "invocation": {
-        "default": "/plan-roadmap",
-        "npx_skills": "/plan-roadmap"
-      },
+      "invocation": "/adk:plan-roadmap",
       "has_references": true,
       "has_scripts": false,
       "has_assets": false
@@ -669,10 +537,7 @@
       "kind": "router",
       "category": "spec",
       "path": "skills/plan-spec",
-      "invocation": {
-        "default": "/plan-spec",
-        "npx_skills": "/plan-spec"
-      },
+      "invocation": "/adk:plan-spec",
       "has_references": true,
       "has_scripts": false,
       "has_assets": false
@@ -682,10 +547,7 @@
       "description": "Category router for shipping artifacts out of the repo - commit messages, PR descriptions, changelogs, GitHub PR/issue actions, Bitbucket PR/issue actions, Confluence pages, and Google Drive docs. Use when the deliverable leaves the local working tree (a commit, a remote PR, a published page, a shared doc). Picks one of adk-publish-commit, adk-publish-github, adk-publish-bitbucket, adk-publish-confluence, adk-publish-gdrive.",
       "kind": "task",
       "path": "skills/publish",
-      "invocation": {
-        "default": "/publish",
-        "npx_skills": "/publish"
-      },
+      "invocation": "/adk:publish",
       "has_references": true,
       "has_scripts": false,
       "has_assets": false
@@ -696,10 +558,7 @@
       "kind": "router",
       "category": "bitbucket",
       "path": "skills/publish-bitbucket",
-      "invocation": {
-        "default": "/publish-bitbucket",
-        "npx_skills": "/publish-bitbucket"
-      },
+      "invocation": "/adk:publish-bitbucket",
       "has_references": true,
       "has_scripts": false,
       "has_assets": false
@@ -710,10 +569,7 @@
       "kind": "router",
       "category": "commit",
       "path": "skills/publish-commit",
-      "invocation": {
-        "default": "/publish-commit",
-        "npx_skills": "/publish-commit"
-      },
+      "invocation": "/adk:publish-commit",
       "has_references": true,
       "has_scripts": false,
       "has_assets": false
@@ -724,10 +580,7 @@
       "kind": "router",
       "category": "confluence",
       "path": "skills/publish-confluence",
-      "invocation": {
-        "default": "/publish-confluence",
-        "npx_skills": "/publish-confluence"
-      },
+      "invocation": "/adk:publish-confluence",
       "has_references": true,
       "has_scripts": false,
       "has_assets": false
@@ -738,10 +591,7 @@
       "kind": "router",
       "category": "gdrive",
       "path": "skills/publish-gdrive",
-      "invocation": {
-        "default": "/publish-gdrive",
-        "npx_skills": "/publish-gdrive"
-      },
+      "invocation": "/adk:publish-gdrive",
       "has_references": true,
       "has_scripts": false,
       "has_assets": false
@@ -752,10 +602,7 @@
       "kind": "router",
       "category": "github",
       "path": "skills/publish-github",
-      "invocation": {
-        "default": "/publish-github",
-        "npx_skills": "/publish-github"
-      },
+      "invocation": "/adk:publish-github",
       "has_references": true,
       "has_scripts": false,
       "has_assets": false
@@ -765,10 +612,7 @@
       "description": "|",
       "kind": "task",
       "path": "skills/requirements",
-      "invocation": {
-        "default": "/requirements",
-        "npx_skills": "/requirements"
-      },
+      "invocation": "/adk:requirements",
       "has_references": true,
       "has_scripts": false,
       "has_assets": false
@@ -778,10 +622,7 @@
       "description": "Category router for code review work - reviewing a pull request, reviewing local uncommitted changes, addressing review feedback, or capturing a session handoff so the next reviewer or session can continue without information loss. Picks one of adk-review-pr, adk-review-local, adk-review-feedback, adk-review-handoff.",
       "kind": "task",
       "path": "skills/review",
-      "invocation": {
-        "default": "/review",
-        "npx_skills": "/review"
-      },
+      "invocation": "/adk:review",
       "has_references": true,
       "has_scripts": false,
       "has_assets": false
@@ -792,10 +633,7 @@
       "kind": "router",
       "category": "doc",
       "path": "skills/review-doc",
-      "invocation": {
-        "default": "/review-doc",
-        "npx_skills": "/review-doc"
-      },
+      "invocation": "/adk:review-doc",
       "has_references": true,
       "has_scripts": false,
       "has_assets": false
@@ -806,10 +644,7 @@
       "kind": "router",
       "category": "feedback",
       "path": "skills/review-feedback",
-      "invocation": {
-        "default": "/review-feedback",
-        "npx_skills": "/review-feedback"
-      },
+      "invocation": "/adk:review-feedback",
       "has_references": true,
       "has_scripts": false,
       "has_assets": false
@@ -820,10 +655,7 @@
       "kind": "router",
       "category": "handoff",
       "path": "skills/review-handoff",
-      "invocation": {
-        "default": "/review-handoff",
-        "npx_skills": "/review-handoff"
-      },
+      "invocation": "/adk:review-handoff",
       "has_references": true,
       "has_scripts": false,
       "has_assets": false
@@ -834,10 +666,7 @@
       "kind": "router",
       "category": "local",
       "path": "skills/review-local",
-      "invocation": {
-        "default": "/review-local",
-        "npx_skills": "/review-local"
-      },
+      "invocation": "/adk:review-local",
       "has_references": true,
       "has_scripts": false,
       "has_assets": false
@@ -848,10 +677,7 @@
       "kind": "router",
       "category": "pr",
       "path": "skills/review-pr",
-      "invocation": {
-        "default": "/review-pr",
-        "npx_skills": "/review-pr"
-      },
+      "invocation": "/adk:review-pr",
       "has_references": true,
       "has_scripts": false,
       "has_assets": false
@@ -861,10 +687,7 @@
       "description": "|",
       "kind": "task",
       "path": "skills/scoping",
-      "invocation": {
-        "default": "/scoping",
-        "npx_skills": "/scoping"
-      },
+      "invocation": "/adk:scoping",
       "has_references": true,
       "has_scripts": false,
       "has_assets": false
@@ -874,10 +697,7 @@
       "description": "|",
       "kind": "task",
       "path": "skills/setup",
-      "invocation": {
-        "default": "/setup",
-        "npx_skills": "/setup"
-      },
+      "invocation": "/adk:setup",
       "has_references": true,
       "has_scripts": false,
       "has_assets": false
@@ -888,10 +708,7 @@
       "kind": "router",
       "category": "folder",
       "path": "skills/temp-folder",
-      "invocation": {
-        "default": "/temp-folder",
-        "npx_skills": "/temp-folder"
-      },
+      "invocation": "/adk:temp-folder",
       "has_references": true,
       "has_scripts": false,
       "has_assets": false
@@ -902,10 +719,7 @@
       "kind": "router",
       "category": "browser",
       "path": "skills/validate-browser",
-      "invocation": {
-        "default": "/validate-browser",
-        "npx_skills": "/validate-browser"
-      },
+      "invocation": "/adk:validate-browser",
       "has_references": true,
       "has_scripts": false,
       "has_assets": false
@@ -915,10 +729,7 @@
       "description": "Category router for producing diagrams and charts from text descriptions or data - sequence/flow/architecture diagrams via mermaid/drawio/excalidraw/graphviz, and bar/line/pie/scatter charts from CSV/JSON/inline data. Use when the deliverable is a visual (image, SVG, or markdown-embedded diagram), not prose. Picks one of adk-visualize-diagram, adk-visualize-chart.",
       "kind": "task",
       "path": "skills/visualize",
-      "invocation": {
-        "default": "/visualize",
-        "npx_skills": "/visualize"
-      },
+      "invocation": "/adk:visualize",
       "has_references": true,
       "has_scripts": false,
       "has_assets": false
@@ -929,10 +740,7 @@
       "kind": "router",
       "category": "chart",
       "path": "skills/visualize-chart",
-      "invocation": {
-        "default": "/visualize-chart",
-        "npx_skills": "/visualize-chart"
-      },
+      "invocation": "/adk:visualize-chart",
       "has_references": true,
       "has_scripts": false,
       "has_assets": false
@@ -943,10 +751,7 @@
       "kind": "router",
       "category": "diagram",
       "path": "skills/visualize-diagram",
-      "invocation": {
-        "default": "/visualize-diagram",
-        "npx_skills": "/visualize-diagram"
-      },
+      "invocation": "/adk:visualize-diagram",
       "has_references": true,
       "has_scripts": false,
       "has_assets": false

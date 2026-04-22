@@ -1,31 +1,10 @@
 ---
 title: 'plan-research'
-description: 'Run structured technical research with explicit evidence buckets - Verified, Inferred, Open - to answer a factual question about framework behavior, library APIs, upstream changes, or implementation patterns.'
-artifact_kind: skill
+description: 'Run structured technical research with explicit evidence buckets - Verified, Inferred, Open - to answer a factual question about framework behavior, library APIs, upstream changes, or implementation patterns. Use when a task depends on external facts the agent cannot answer from memory and the codebase alone is not enough. Do not use for opinion-based decisions or for questions answerable from one known file.'
 skill_name: plan-research
-category: plan
+category: router
 ---
-# plan-research
-
-Run structured technical research with explicit evidence buckets - Verified, Inferred, Open - to answer a factual question about framework behavior, library APIs, upstream changes, or implementation patterns. Use when a task depends on external facts the agent cannot answer from memory and the codebase alone is not enough. Do not use for opinion-based decisions or for questions answerable from one known file.
-
-## Usage
-
-> Examples assume this repo is installed as the `adk` Claude Code plugin
-> (see [Quick Start](../guide/development/README.md)). Generic agents use the
-> `adk-plan-research` form via `agents-skills/`.
-
-```text
-/adk:plan-research            # interactive run (Claude Code)
-/adk:plan-research --auto     # unattended; pick safe defaults
-```
-
-In Cursor / Codex / Gemini: invoke as `adk-plan-research` (resolved through the
-`agents-skills/adk-plan-research/` symlink).
-
-## Source
-
-Direct from `skills/plan-research/SKILL.md` — this page is auto-generated.
+# ADK Plan / Research
 
 Standalone task skill under the `@adk:plan` (a.k.a. `adk-plan`) category router. Resolves uncertainty with verified sources and explicit confidence levels. Every claim cites its source.
 
@@ -194,10 +173,3 @@ These files live in `references/` next to this `SKILL.md`. Read them when the sk
 | `references/plan-research-validator.md` | The four-phase validator gate (pre-execution, mid-flow, pre-handoff, post-execution) this skill MUST run. |
 
 <!-- adk:references:end -->
-
-
-## Related skills
-
-- [`build-feature`](./skill-build-feature.md) — `@adk:build-feature` (a.k.a. `adk-build-feature`)
-- [`plan`](./skill-plan.md) — `@adk:plan` (a.k.a. `adk-plan`)
-- [`plan-brainstorm`](./skill-plan-brainstorm.md) — `@adk:plan-brainstorm` (a.k.a. `adk-plan-brainstorm`)

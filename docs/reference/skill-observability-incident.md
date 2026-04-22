@@ -1,31 +1,10 @@
 ---
 title: 'observability-incident'
-description: 'Full incident-investigation workflow combining Datadog (logs + metrics + traces + monitor history), recent deploy timeline (via `gh` CLI), and a Slack channel scrape (via `slack` MCP) to produce a single incident summary with a likely root-cause hypothesis and next actions.'
-artifact_kind: skill
+description: '|'
 skill_name: observability-incident
-category: standalone
+category: router
 ---
-# observability-incident
-
-Full incident-investigation workflow combining Datadog (logs + metrics + traces + monitor history), recent deploy timeline (via `gh` CLI), and a Slack channel scrape (via `slack` MCP) to produce a single incident summary with a likely root-cause hypothesis and next actions. Use for "the dashboard is broken since X", "users report errors with Y", "investigate the alert from Z minutes ago". Do not use for routine metric queries (use `@adk:observability-datadog` (a.k.a. `adk-observability-datadog`)) or for the actual code fix (use `@adk:build-bugfix` (a.k.a. `adk-build-bugfix`) after).
-
-## Usage
-
-> Examples assume this repo is installed as the `adk` Claude Code plugin
-> (see [Quick Start](../guide/development/README.md)). Generic agents use the
-> `adk-observability-incident` form via `agents-skills/`.
-
-```text
-/adk:observability-incident            # interactive run (Claude Code)
-/adk:observability-incident --auto     # unattended; pick safe defaults
-```
-
-In Cursor / Codex / Gemini: invoke as `adk-observability-incident` (resolved through the
-`agents-skills/adk-observability-incident/` symlink).
-
-## Source
-
-Direct from `skills/observability-incident/SKILL.md` — this page is auto-generated.
+# observability-incident — multi-source incident triage
 
 ## When to use
 
@@ -87,9 +66,3 @@ Direct from `skills/observability-incident/SKILL.md` — this page is auto-gener
 ## References
 
 Standard set + `references/correlation-recipes.md`, `references/incident-output-template.md`.
-
-
-## Related skills
-
-- [`build-bugfix`](./skill-build-bugfix.md) — `@adk:build-bugfix` (a.k.a. `adk-build-bugfix`)
-- [`observability-datadog`](./skill-observability-datadog.md) — `@adk:observability-datadog` (a.k.a. `adk-observability-datadog`)

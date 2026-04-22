@@ -1,0 +1,31 @@
+{
+  "version": 2,
+  "diagrams": {
+    "visualize-routing.mermaid": {
+      "hash": "sha256:0ebaad9e525c2da3",
+      "generatedAt": "2026-04-22T17:40:28.646Z",
+      "outputs": [
+        {
+          "file": "visualize-routing-light.svg",
+          "format": "svg",
+          "theme": "light",
+          "width": 1192.05078125,
+          "height": 908.109375
+        },
+        {
+          "file": "visualize-routing-dark.svg",
+          "format": "svg",
+          "theme": "dark",
+          "width": 1192.05078125,
+          "height": 908.109375
+        }
+      ],
+      "formats": [
+        "svg"
+      ],
+      "theme": "both",
+      "mtimeMs": 1776879554746.4968,
+      "size": 650
+    }
+  }
+}

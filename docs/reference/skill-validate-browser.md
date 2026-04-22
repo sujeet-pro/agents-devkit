@@ -1,31 +1,10 @@
 ---
 title: 'validate-browser'
-description: 'Drives a real browser to validate any UI work end-to-end.'
-artifact_kind: skill
+description: '|'
 skill_name: validate-browser
-category: standalone
+category: router
 ---
-# validate-browser
-
-Drives a real browser to validate any UI work end-to-end. Backend selection (in priority order): (1) `chrome-devtools` MCP — Claude Code's built-in Chrome controller, the preferred backend; (2) `cursor-ide-browser` MCP — Cursor IDE's built-in browser, used when the host is Cursor; (3) `playwright` MCP — universal fallback; (4) bare `npx playwright` script — last-resort. Five modes: `verify-fix` (assert a UI bug is actually fixed), `visual-check` (responsive 360/768/1280 screenshot diff), `console-audit` (collect errors/warnings/network failures), `interaction-test` (walk a script of click/type/hover and assert state), `a11y-audit` (axe-core scan with WCAG references). Use after any UI change, after a UI bug fix, after generating preview HTMLs, or as Phase D2 of `@adk:auto` (a.k.a. `adk-auto`). Output lands under `.temp/task-<slug>/browser-validation/<mode>/`. Non-zero findings fail the parent skill's validator.
-
-## Usage
-
-> Examples assume this repo is installed as the `adk` Claude Code plugin
-> (see [Quick Start](../guide/development/README.md)). Generic agents use the
-> `adk-validate-browser` form via `agents-skills/`.
-
-```text
-/adk:validate-browser            # interactive run (Claude Code)
-/adk:validate-browser --auto     # unattended; pick safe defaults
-```
-
-In Cursor / Codex / Gemini: invoke as `adk-validate-browser` (resolved through the
-`agents-skills/adk-validate-browser/` symlink).
-
-## Source
-
-Direct from `skills/validate-browser/SKILL.md` — this page is auto-generated.
+# validate-browser — real-browser UI validation
 
 Runs a real browser, navigates to a target, and asserts what should be true.
 
@@ -185,14 +164,3 @@ Each mode's `report.md` follows the structured shape in `references/output-forma
 | `references/auto-fix-recipes.md` | Patterns we can auto-fix in `--mode fix` |
 | `references/examples.md` | Worked examples per mode |
 | `references/interaction-contract.md` | Synced from canonical |
-
-
-## Related skills
-
-- [`audit-site`](./skill-audit-site.md) — `@adk:audit-site` (a.k.a. `adk-audit-site`)
-- [`auto`](./skill-auto.md) — `@adk:auto` (a.k.a. `adk-auto`)
-- [`build-bugfix`](./skill-build-bugfix.md) — `@adk:build-bugfix` (a.k.a. `adk-build-bugfix`)
-- [`build-test`](./skill-build-test.md) — `@adk:build-test` (a.k.a. `adk-build-test`)
-- [`frontend-feature`](./skill-frontend-feature.md) — `@adk:frontend-feature` (a.k.a. `adk-frontend-feature`)
-- [`frontend-mockup`](./skill-frontend-mockup.md) — `@adk:frontend-mockup` (a.k.a. `adk-frontend-mockup`)
-- [`review`](./skill-review.md) — `@adk:review` (a.k.a. `adk-review`)

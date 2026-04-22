@@ -6,8 +6,8 @@
     "url": "https://github.com/sujeet-pro"
   },
   "metadata": {
-    "description": "Sujeet's marketplace exposing the adk plugin (Agent Development Kit). The default 'adk' entry tracks the latest commit on the main branch on GitHub. The 'adk-npm' entry installs the published npm package and lets you pin to a specific version.",
-    "version": "1.0.0"
+    "description": "Sujeet's marketplace exposing the adk plugin (Agent Development Kit) for Claude Code. Two install paths: the default 'adk' entry tracks the latest commit on the main branch on GitHub; the 'adk-npm' entry installs the plugin from the npm registry so you can pin to a semver release. Refresh with `/plugin marketplace update sujeet-pro-adk`.",
+    "version": "1.1.0"
   },
   "plugins": [
     {
@@ -16,7 +16,7 @@
         "source": "github",
         "repo": "sujeet-pro/agents-devkit"
       },
-      "description": "Agent Development Kit - 50+ composable skills, agents, hooks, MCP servers, and monitors for the developer loop, optimized for Claude Code. Default install: tracks the latest commit on the main branch and refreshes on /plugin marketplace update.",
+      "description": "Agent Development Kit - 50+ composable skills, specialized subagents, hooks, MCP servers, and monitors for the developer loop. Built for Claude Code and Claude Desktop. Tracks the latest commit on the main branch and refreshes on `/plugin marketplace update`.",
       "homepage": "https://github.com/sujeet-pro/agents-devkit",
       "repository": "https://github.com/sujeet-pro/agents-devkit",
       "license": "MIT",
@@ -40,7 +40,7 @@
         "source": "npm",
         "package": "agents-devkit"
       },
-      "description": "Same ADK plugin, installed from the npm registry as 'agents-devkit'. Use this when you want to pin to a specific semver version (set version constraints via /plugin install) instead of always tracking the main branch.",
+      "description": "Same ADK plugin, installed from the npm registry as 'agents-devkit'. Use this when you want to pin to a specific semver release (set version constraints via `/plugin install`) instead of always tracking the main branch.",
       "homepage": "https://www.npmjs.com/package/agents-devkit",
       "repository": "https://github.com/sujeet-pro/agents-devkit",
       "license": "MIT",

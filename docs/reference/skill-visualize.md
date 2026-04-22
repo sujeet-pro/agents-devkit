@@ -1,31 +1,10 @@
 ---
 title: 'visualize'
-description: 'Category router for producing diagrams and charts from text descriptions or data - sequence/flow/architecture diagrams via mermaid/drawio/excalidraw/graphviz, and bar/line/pie/scatter charts from CSV/JSON/inline data.'
-artifact_kind: skill
+description: 'Category router for producing diagrams and charts from text descriptions or data - sequence/flow/architecture diagrams via mermaid/drawio/excalidraw/graphviz, and bar/line/pie/scatter charts from CSV/JSON/inline data. Use when the deliverable is a visual (image, SVG, or markdown-embedded diagram), not prose. Picks one of adk-visualize-diagram, adk-visualize-chart.'
 skill_name: visualize
-category: visualize
+category: standalone
 ---
-# visualize
-
-Category router for producing diagrams and charts from text descriptions or data - sequence/flow/architecture diagrams via mermaid/drawio/excalidraw/graphviz, and bar/line/pie/scatter charts from CSV/JSON/inline data. Use when the deliverable is a visual (image, SVG, or markdown-embedded diagram), not prose. Picks one of adk-visualize-diagram, adk-visualize-chart.
-
-## Usage
-
-> Examples assume this repo is installed as the `adk` Claude Code plugin
-> (see [Quick Start](../guide/development/README.md)). Generic agents use the
-> `adk-visualize` form via `agents-skills/`.
-
-```text
-/adk:visualize            # interactive run (Claude Code)
-/adk:visualize --auto     # unattended; pick safe defaults
-```
-
-In Cursor / Codex / Gemini: invoke as `adk-visualize` (resolved through the
-`agents-skills/adk-visualize/` symlink).
-
-## Source
-
-Direct from `skills/visualize/SKILL.md` — this page is auto-generated.
+# ADK Visualize (Category Router)
 
 Routes any "make a picture from this" intent to the right visualization task. Activate one of the listed task skills below; do not draft directly from this router.
 
@@ -128,11 +107,3 @@ These files live in `references/` next to this `SKILL.md`. Read them when the sk
 | `references/visualize-validator.md` | The four-phase validator gate (pre-execution, mid-flow, pre-handoff, post-execution) this skill MUST run. |
 
 <!-- adk:references:end -->
-
-
-## Related skills
-
-- [`frontend-design`](./skill-frontend-design.md) — `@adk:frontend-design` (a.k.a. `adk-frontend-design`)
-- [`plan-design`](./skill-plan-design.md) — `@adk:plan-design` (a.k.a. `adk-plan-design`)
-- [`visualize-chart`](./skill-visualize-chart.md) — `@adk:visualize-chart` (a.k.a. `adk-visualize-chart`)
-- [`visualize-diagram`](./skill-visualize-diagram.md) — `@adk:visualize-diagram` (a.k.a. `adk-visualize-diagram`)

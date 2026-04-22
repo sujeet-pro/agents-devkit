@@ -1,31 +1,10 @@
 ---
 title: 'build'
-description: 'Category router for implementing, refactoring, migrating, testing, or analyzing dependencies.'
-artifact_kind: skill
+description: 'Category router for implementing, refactoring, migrating, testing, or analyzing dependencies. Use when the next step is to change code (new feature, bug fix, refactor, framework migration, test authoring, or dependency hygiene). Picks one of adk-build-feature, adk-build-refactor, adk-build-migrate, adk-build-test, adk-build-deps.'
 skill_name: build
-category: build
+category: standalone
 ---
-# build
-
-Category router for implementing, refactoring, migrating, testing, or analyzing dependencies. Use when the next step is to change code (new feature, bug fix, refactor, framework migration, test authoring, or dependency hygiene). Picks one of adk-build-feature, adk-build-refactor, adk-build-migrate, adk-build-test, adk-build-deps.
-
-## Usage
-
-> Examples assume this repo is installed as the `adk` Claude Code plugin
-> (see [Quick Start](../guide/development/README.md)). Generic agents use the
-> `adk-build` form via `agents-skills/`.
-
-```text
-/adk:build            # interactive run (Claude Code)
-/adk:build --auto     # unattended; pick safe defaults
-```
-
-In Cursor / Codex / Gemini: invoke as `adk-build` (resolved through the
-`agents-skills/adk-build/` symlink).
-
-## Source
-
-Direct from `skills/build/SKILL.md` — this page is auto-generated.
+# ADK Build (Category Router)
 
 Routes any "change the code" intent to the right implementation task. Activate one of the listed task skills below; do not implement directly from this router.
 
@@ -155,20 +134,3 @@ These files live in `references/` next to this `SKILL.md`. Read them when the sk
 | `references/build-validator.md` | The four-phase validator gate (pre-execution, mid-flow, pre-handoff, post-execution) this skill MUST run. |
 
 <!-- adk:references:end -->
-
-
-## Related skills
-
-- [`build-deps`](./skill-build-deps.md) — `@adk:build-deps` (a.k.a. `adk-build-deps`)
-- [`build-feature`](./skill-build-feature.md) — `@adk:build-feature` (a.k.a. `adk-build-feature`)
-- [`build-migrate`](./skill-build-migrate.md) — `@adk:build-migrate` (a.k.a. `adk-build-migrate`)
-- [`build-refactor`](./skill-build-refactor.md) — `@adk:build-refactor` (a.k.a. `adk-build-refactor`)
-- [`build-test`](./skill-build-test.md) — `@adk:build-test` (a.k.a. `adk-build-test`)
-- [`docs`](./skill-docs.md) — `@adk:docs` (a.k.a. `adk-docs`)
-- [`frontend`](./skill-frontend.md) — `@adk:frontend` (a.k.a. `adk-frontend`)
-- [`plan`](./skill-plan.md) — `@adk:plan` (a.k.a. `adk-plan`)
-- [`plan-roadmap`](./skill-plan-roadmap.md) — `@adk:plan-roadmap` (a.k.a. `adk-plan-roadmap`)
-- [`plan-spec`](./skill-plan-spec.md) — `@adk:plan-spec` (a.k.a. `adk-plan-spec`)
-- [`publish-commit`](./skill-publish-commit.md) — `@adk:publish-commit` (a.k.a. `adk-publish-commit`)
-- [`review`](./skill-review.md) — `@adk:review` (a.k.a. `adk-review`)
-- [`review-local`](./skill-review-local.md) — `@adk:review-local` (a.k.a. `adk-review-local`)

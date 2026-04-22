@@ -1,0 +1,17 @@
+%%{init: {'htmlLabels': false}}%%
+flowchart TD
+  A["Change-the-code\nintent"] --> B["@adk:build\n(router)"]
+  B --> C{"Goal?"}
+  C -- "New / extend" --> D["build-feature"]
+  C -- "Fix bug" --> E["build-bugfix"]
+  C -- "Restructure" --> F["build-refactor"]
+  C -- "Upgrade" --> G["build-migrate"]
+  C -- "Tests" --> H["build-test"]
+  C -- "Deps" --> I["build-deps"]
+  D --> J["plan -> implement\n-> validate"]
+  E --> J
+  F --> J
+  G --> J
+  H --> J
+  I --> J
+  J --> K["Hand off to\nreview-local"]

@@ -1,31 +1,10 @@
 ---
 title: 'review'
-description: 'Category router for code review work - reviewing a pull request, reviewing local uncommitted changes, addressing review feedback, or capturing a session handoff so the next reviewer or session can continue without information loss.'
-artifact_kind: skill
+description: 'Category router for code review work - reviewing a pull request, reviewing local uncommitted changes, addressing review feedback, or capturing a session handoff so the next reviewer or session can continue without information loss. Picks one of adk-review-pr, adk-review-local, adk-review-feedback, adk-review-handoff.'
 skill_name: review
-category: review
+category: standalone
 ---
-# review
-
-Category router for code review work - reviewing a pull request, reviewing local uncommitted changes, addressing review feedback, or capturing a session handoff so the next reviewer or session can continue without information loss. Picks one of adk-review-pr, adk-review-local, adk-review-feedback, adk-review-handoff.
-
-## Usage
-
-> Examples assume this repo is installed as the `adk` Claude Code plugin
-> (see [Quick Start](../guide/development/README.md)). Generic agents use the
-> `adk-review` form via `agents-skills/`.
-
-```text
-/adk:review            # interactive run (Claude Code)
-/adk:review --auto     # unattended; pick safe defaults
-```
-
-In Cursor / Codex / Gemini: invoke as `adk-review` (resolved through the
-`agents-skills/adk-review/` symlink).
-
-## Source
-
-Direct from `skills/review/SKILL.md` — this page is auto-generated.
+# ADK Review (Category Router)
 
 Routes any "look at code that already exists, judge it, capture state" intent to the right review task. Activate one of the listed task skills below; do not review directly from this router.
 
@@ -141,15 +120,3 @@ These files live in `references/` next to this `SKILL.md`. Read them when the sk
 | `references/review-validator.md` | The four-phase validator gate (pre-execution, mid-flow, pre-handoff, post-execution) this skill MUST run. |
 
 <!-- adk:references:end -->
-
-
-## Related skills
-
-- [`audit`](./skill-audit.md) — `@adk:audit` (a.k.a. `adk-audit`)
-- [`build`](./skill-build.md) — `@adk:build` (a.k.a. `adk-build`)
-- [`docs-review`](./skill-docs-review.md) — `@adk:docs-review` (a.k.a. `adk-docs-review`)
-- [`publish-commit`](./skill-publish-commit.md) — `@adk:publish-commit` (a.k.a. `adk-publish-commit`)
-- [`review-feedback`](./skill-review-feedback.md) — `@adk:review-feedback` (a.k.a. `adk-review-feedback`)
-- [`review-handoff`](./skill-review-handoff.md) — `@adk:review-handoff` (a.k.a. `adk-review-handoff`)
-- [`review-local`](./skill-review-local.md) — `@adk:review-local` (a.k.a. `adk-review-local`)
-- [`review-pr`](./skill-review-pr.md) — `@adk:review-pr` (a.k.a. `adk-review-pr`)

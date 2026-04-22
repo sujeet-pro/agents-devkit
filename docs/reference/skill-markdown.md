@@ -1,39 +1,10 @@
 ---
 title: 'markdown'
 description: 'Author and validate Pagesmith-flavored markdown — GitHub Flavored Markdown (tables, task lists, strikethrough, autolinks, footnotes), GitHub-style alerts (NOTE/TIP/IMPORTANT/WARNING/CAUTION), inline and display math via remark-math + rehype-mathjax, smart typography, accessible emojis, themed light/dark image pairs, the Pagesmith code-block renderer (titles, line numbers, mark/ins/del, collapse, wrap, frame, language aliases, dual Shiki themes), and the auto-grouping code-tabs pattern. Self-contained and pinned to @pagesmith/core@0.9.9; the bundled script auto-installs the package globally (with permission) and runs `pagesmith-core validate` against your content. Use when writing or auditing markdown that targets Pagesmith / @pagesmith/docs sites, or when you want to know which features the built-in pipeline ships.'
-artifact_kind: skill
 skill_name: markdown
 category: standalone
 ---
-# markdown
-
-Author and validate Pagesmith-flavored markdown — GitHub Flavored Markdown (tables, task lists, strikethrough, autolinks, footnotes), GitHub-style alerts (NOTE/TIP/IMPORTANT/WARNING/CAUTION), inline and display math via remark-math + rehype-mathjax, smart typography, accessible emojis, themed light/dark image pairs, the Pagesmith code-block renderer (titles, line numbers, mark/ins/del, collapse, wrap, frame, language aliases, dual Shiki themes), and the auto-grouping code-tabs pattern. Self-contained and pinned to @pagesmith/core@0.9.9; the bundled script auto-installs the package globally (with permission) and runs `pagesmith-core validate` against your content. Use when writing or auditing markdown that targets Pagesmith / @pagesmith/docs sites, or when you want to know which features the built-in pipeline ships.
-
-## Usage
-
-> Examples assume this repo is installed as the `adk` Claude Code plugin
-> (see [Quick Start](../guide/development/README.md)). Generic agents use the
-> `adk-markdown` form via `agents-skills/`.
-
-```text
-/adk:markdown            # interactive run (Claude Code)
-/adk:markdown --auto     # unattended; pick safe defaults
-```
-
-In Cursor / Codex / Gemini: invoke as `adk-markdown` (resolved through the
-`agents-skills/adk-markdown/` symlink).
-
-The skill ships an executable helper (no project install required — it auto-installs the
-pinned global package on first run, with a y/N prompt):
-
-```bash
-./skills/markdown/scripts/validate-markdown.sh content/
-```
-
-## Source
-
-Direct from `skills/markdown/SKILL.md` — this page is auto-generated. To change the
-authoring rules, edit the SKILL.md and re-run `/adk:prj-update-docs`.
+# Markdown for Pagesmith (self-contained, pinned to @pagesmith/core@0.9.9)
 
 This skill ships **all** of the Pagesmith markdown feature reference, the
 unified pipeline order, and the syntax for every built-in remark / rehype
@@ -741,12 +712,3 @@ Apply these whenever you write or audit a Pagesmith markdown file:
   infrastructure diagrams.
 - [`diagram-review`](../diagram-review/SKILL.md) — pre-merge audit for any
   embedded diagrams.
-
-## Related skills
-
-- [`diagram-mermaid`](./skill-diagram-mermaid.md) — `@adk:diagram-mermaid` (a.k.a. `adk-diagram-mermaid`)
-- [`diagram-graphviz`](./skill-diagram-graphviz.md) — `@adk:diagram-graphviz` (a.k.a. `adk-diagram-graphviz`)
-- [`diagram-excalidraw`](./skill-diagram-excalidraw.md) — `@adk:diagram-excalidraw` (a.k.a. `adk-diagram-excalidraw`)
-- [`diagram-drawio`](./skill-diagram-drawio.md) — `@adk:diagram-drawio` (a.k.a. `adk-diagram-drawio`)
-- [`docs-write`](./skill-docs-write.md) — `@adk:docs-write` (a.k.a. `adk-docs-write`)
-- [`doc-site-setup`](./skill-doc-site-setup.md) — `@adk:doc-site-setup` (a.k.a. `adk-doc-site-setup`)

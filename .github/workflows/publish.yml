@@ -1,18 +1,20 @@
 name: Publish to npm
 
-# Manual release pipeline.
+# Manual release pipeline. The npm package `agents-devkit` ships the same
+# Claude Code plugin layout as the GitHub repo, so the marketplace's
+# `adk-npm` entry resolves directly to this package.
 #
 # Trusted publishing (OIDC) is enabled for this repo on npm, so no
-# NPM_TOKEN secret is required — the npm registry verifies the GitHub
+# NPM_TOKEN secret is required - the npm registry verifies the GitHub
 # Actions OIDC token issued for this exact workflow + environment.
 # See https://docs.npmjs.com/trusted-publishers
 #
 # Setup (one-time, on npmjs.com):
-#   1. Publish v0.0.1 manually once with `npm publish` (so the package
+#   1. Publish v1.0.0 manually once with `npm publish` (so the package
 #      exists on the registry and you can configure trusted publishing).
 #   2. On https://www.npmjs.com/package/agents-devkit/access, add a
 #      trusted publisher with:
-#         repository: <your-org>/agents-devkit
+#         repository: sujeet-pro/agents-devkit
 #         workflow:   .github/workflows/publish.yml
 #         environment: npm-publish     (matches the `environment:` below)
 #   3. From then on, this workflow can publish without any secret.
@@ -65,11 +67,8 @@ jobs:
       - name: Validate (spec)
         run: npm run validate
 
-      - name: Validate (content, verbose)
-        run: npm run validate:content:verbose
-
-      - name: Installer dry-run
-        run: node cli/index.mjs --mode global --dry-run -y
+      - name: Validate (canonical sync)
+        run: npm run validate:sync
 
       # ── Bump version locally; do not commit yet so a failed publish
       # leaves the working tree clean for re-runs. ──
@@ -85,10 +84,19 @@ jobs:
           echo "version=${NEW#v}" >> "$GITHUB_OUTPUT"
           echo "tag=$NEW"        >> "$GITHUB_OUTPUT"
 
+      # Sync .claude-plugin/plugin.json version to the bumped npm version
+      # so the Claude plugin version (which Claude Code uses to detect
+      # updates) always matches the npm package version.
+      - name: Sync plugin.json version
+        run: |
+          NEW="${{ steps.bump.outputs.version }}"
+          node -e "const fs=require('fs'); const p='.claude-plugin/plugin.json'; const j=JSON.parse(fs.readFileSync(p,'utf8')); j.version='$NEW'; fs.writeFileSync(p, JSON.stringify(j, null, 2)+'\n');"
+          node -e "const fs=require('fs'); const p='.claude-plugin/marketplace.json'; const j=JSON.parse(fs.readFileSync(p,'utf8')); if(j.metadata) j.metadata.version='$NEW'; fs.writeFileSync(p, JSON.stringify(j, null, 2)+'\n');"
+
       # Re-validate after the version bump so the manifest written on the
       # consumer's machine matches the version we publish.
       - name: Re-validate after bump
-        run: npm run validate:all
+        run: npm run validate
 
       - name: Publish (dry-run)
         if: ${{ inputs.dry-run }}
@@ -101,7 +109,7 @@ jobs:
       - name: Commit + push version + tag
         if: ${{ !inputs.dry-run }}
         run: |
-          git add package.json package-lock.json
+          git add package.json package-lock.json .claude-plugin/plugin.json .claude-plugin/marketplace.json
           git commit -m "chore: release v${{ steps.bump.outputs.version }}"
           git tag "${{ steps.bump.outputs.tag }}"
           git push origin HEAD --follow-tags

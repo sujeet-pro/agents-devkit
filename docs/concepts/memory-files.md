@@ -1,34 +1,34 @@
 ---
 title: 'memory-files'
-description: 'Top-level repo memory files (AGENTS.md, CLAUDE.md, GEMINI.md) and how they compose.'
+description: 'Repo memory file (CLAUDE.md) and how it composes with the plugin.'
 ---
 
-# Repo memory files
+# Repo memory file
 
-ADK ships three top-level memory files that any agent reads on activation. They form a layered contract: `AGENTS.md` is the canonical source, the others are runtime-specific deltas that point back to it.
+ADK ships a single top-level memory file at the repo root: [`CLAUDE.md`](https://github.com/sujeet-pro/agents-devkit/blob/main/CLAUDE.md). It is the canonical contract for any Claude session working **on** this repository (`agents-devkit` itself, not the ADK skills installed elsewhere).
 
-## Files
+## File
 
 | File | Audience | Purpose |
 | --- | --- | --- |
-| [`AGENTS.md`](https://github.com/sujeet-pro/agents-devkit/blob/main/AGENTS.md) | Any agent working **on** this repo | Canonical contract — directory map, skill shape, working-artifact rules, interaction model. |
-| [`CLAUDE.md`](https://github.com/sujeet-pro/agents-devkit/blob/main/CLAUDE.md) | Claude Code | Claude-specific delta: `/adk:<skill>` invocation, plugin layout, subagents, hooks, MCP. |
-| [`GEMINI.md`](https://github.com/sujeet-pro/agents-devkit/blob/main/GEMINI.md) | Gemini CLI users | Notes for installing via `bin/adk-install --target gemini` and the differences from Claude. |
+| [`CLAUDE.md`](https://github.com/sujeet-pro/agents-devkit/blob/main/CLAUDE.md) | Any Claude session editing this repo | Canonical contract — directory map, skill shape, plugin component layout, working-artifact rules, interaction model. |
+
+ADK is a Claude-only plugin. There is no `AGENTS.md`, `GEMINI.md`, or runtime-specific delta — `CLAUDE.md` is the single source of truth.
 
 ## Reading order for agents
 
-1. Read `AGENTS.md` first — it covers the directory map, skill anatomy, cross-reference convention, and `.temp/` working-artifact rules.
-2. Read the runtime-specific delta (`CLAUDE.md` / `GEMINI.md`) to learn how to invoke skills in that surface.
-3. For any specific skill, read `skills/<name>/SKILL.md` plus its `references/` folder.
+1. Read `CLAUDE.md` first — it covers the directory map, skill anatomy, cross-reference convention, and `.temp/` working-artifact rules.
+2. For any specific skill, read `skills/<name>/SKILL.md` plus its `references/` folder.
+3. For repo-local skills (e.g. doc-site refresh), read `.claude/skills/<name>/SKILL.md`.
 
 ## Cross-reference convention
 
-When a memory file references another skill, use **both** forms on first mention:
+When a memory file or `SKILL.md` references another skill, use the Claude-invocable form:
 
-> `@adk:plan-spec` (a.k.a. `adk-plan-spec`)
+> Hand off to `/adk:plan-spec`.
 
-The validator (`bin/adk-validate`) enforces dual-form on first mention.
+When referencing a subagent, use its file path: `agents/<role>.md` (no prefix).
 
 ## Source
 
-`AGENTS.md`, `CLAUDE.md`, `GEMINI.md` at repo root.
+`CLAUDE.md` at repo root.

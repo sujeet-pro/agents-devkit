@@ -25,15 +25,9 @@ What ADK does **not** ship:
 
 ## How the Claude plugin loads MCP
 
-The `adk` Claude Code plugin declares its MCP registry in [`.claude-plugin/plugin.json`](https://github.com/sujeet-pro/agents-devkit/blob/main/.claude-plugin/plugin.json):
+The `adk` Claude Code plugin places its MCP registry at the [default plugin location](https://code.claude.com/docs/en/plugins-reference#standard-plugin-layout): a `.mcp.json` file at the plugin root. The server definitions follow the standard `mcpServers` map shape from the [Claude Code plugins reference — MCP servers](https://code.claude.com/docs/en/plugins-reference#mcp-servers).
 
-```json
-{ "mcpServers": "./.mcp.json" }
-```
-
-The actual server definitions live at [`.mcp.json`](https://github.com/sujeet-pro/agents-devkit/blob/main/.mcp.json) in the standard `mcpServers` map shape from the [Claude Code plugins reference — MCP servers](https://code.claude.com/docs/en/plugins-reference#mcp-servers).
-
-When the plugin is enabled, every server in `.mcp.json` is started automatically and its tools appear as standard MCP tools in Claude's toolkit. No separate "install MCP" step is required for the Claude path — the plugin owns it.
+When the plugin is enabled, every server in [`.mcp.json`](https://github.com/sujeet-pro/agents-devkit/blob/main/.mcp.json) is started automatically and its tools appear as standard MCP tools in Claude's toolkit. No separate "install MCP" step is required — the Claude plugin host owns it.
 
 ## Environment variable substitution
 
@@ -50,16 +44,10 @@ Most servers in `.mcp.json` need credentials. ADK uses the documented `${ENV_VAR
 }
 ```
 
-`${GITHUB_PAT}` is read from the user's shell environment when Claude Code starts the server. ADK ships [`bin/adk-mcp-install`](https://github.com/sujeet-pro/agents-devkit/blob/main/bin/adk-mcp-install) which:
-
-- Reads existing values from `~/.zshenv`.
-- Prompts for any missing env vars with a one-line "how to get this" hint.
-- Appends new exports to `~/.zshenv` (with confirmation).
-
-Run it once via `/adk:setup` (Claude) or `npx adk-mcp-install` (any harness).
+`${GITHUB_PAT}` is read from the user's shell environment when Claude Code starts the server. Set the required exports in `~/.zshenv` (or your shell's equivalent) **before** launching Claude Code. The `/adk:setup` skill walks the env vars referenced by `.mcp.json` and reports which are present, missing, or wired correctly.
 
 > [!NOTE]
-> The Claude plugin spec also supports a `userConfig` field that prompts the user for values when the plugin is enabled (substituted as `${user_config.KEY}`). ADK currently uses `${ENV_VAR}` so the same `~/.zshenv` exports are reused across every harness — switching to `userConfig` would Claude-lock those credentials.
+> The Claude plugin spec also supports a `userConfig` field that prompts the user for values when the plugin is enabled (substituted as `${user_config.KEY}`). ADK currently uses `${ENV_VAR}` so the same shell env can be shared with `gh`, `docker`, and other CLI tools.
 
 ## Shipped servers
 
@@ -96,30 +84,16 @@ The connector skills prefer their matching MCP but also fall back to shell comma
 
 Each connector skill is expected to warn once when its MCP is missing and continue with the manual path. A skill that silently does nothing because an MCP is missing is considered broken (the validator flags this).
 
-## Per-harness install (non-Claude)
-
-When ADK is installed into Cursor, Codex, Gemini, or Antigravity via the `agents-skills/` symlink farm, the bundled `.mcp.json` is **not** auto-loaded — those harnesses have their own MCP config files. `bin/adk-mcp-install` writes a per-harness MCP config:
-
-| Harness | Config path |
-| --- | --- |
-| Claude Code | Auto-loaded by the plugin from `.mcp.json` (no extra step) |
-| Cursor | `~/.cursor/mcp.json` (or project-level `.cursor/mcp.json`) |
-| Claude Desktop | `~/Library/Application Support/Claude/claude_desktop_config.json` |
-| Codex | `~/.codex/mcp.json` |
-
-Run `npx adk-mcp-install` once per machine and pick the harnesses you want to wire.
-
 ## Why not publish an `adk-mcp-*` skill?
 
-ADK deliberately does not publish public skills whose only job is to expose an MCP server or wire up a runtime. The Claude plugin format owns MCP setup natively for Claude Code; for other harnesses, `adk-mcp-install` is a one-liner. A public skill that wraps that wiring would duplicate work without owning a specialist job.
+ADK deliberately does not publish public skills whose only job is to expose an MCP server or wire up a runtime. The Claude plugin format owns MCP setup natively for Claude Code via `.mcp.json` — a public skill that wraps that wiring would duplicate work without owning a specialist job.
 
 ## Summary
 
 - MCP is optional for every public ADK skill.
 - Each skill that prefers an MCP must warn once and fall back to a manual path.
-- The Claude plugin loads `.mcp.json` automatically — no extra wiring step on the Claude path.
-- Other harnesses use `bin/adk-mcp-install` to merge the same registry into their native MCP config files.
-- Credentials use `${ENV_VAR}` substitution sourced from `~/.zshenv`.
+- The Claude plugin loads `.mcp.json` automatically — no extra wiring step.
+- Credentials use `${ENV_VAR}` substitution sourced from your shell environment (typically `~/.zshenv`).
 
 ## Related
 

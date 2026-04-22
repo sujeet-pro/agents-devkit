@@ -1,31 +1,10 @@
 ---
 title: 'audit-repo'
-description: 'Audit a code repository across security, performance, code quality, dependencies, test coverage, and architecture - producing a single severity-tiered report with file-anchored evidence per finding.'
-artifact_kind: skill
+description: 'Audit a code repository across security, performance, code quality, dependencies, test coverage, and architecture - producing a single severity-tiered report with file-anchored evidence per finding. Use when the deliverable is a multi-dimensional health report on a checked-out repo, not a single-PR review or a doc review. Do not use to audit a deployed website (use adk-audit-site) or to fix the issues found (use adk-build-* skills).'
 skill_name: audit-repo
-category: audit
+category: router
 ---
-# audit-repo
-
-Audit a code repository across security, performance, code quality, dependencies, test coverage, and architecture - producing a single severity-tiered report with file-anchored evidence per finding. Use when the deliverable is a multi-dimensional health report on a checked-out repo, not a single-PR review or a doc review. Do not use to audit a deployed website (use adk-audit-site) or to fix the issues found (use adk-build-* skills).
-
-## Usage
-
-> Examples assume this repo is installed as the `adk` Claude Code plugin
-> (see [Quick Start](../guide/development/README.md)). Generic agents use the
-> `adk-audit-repo` form via `agents-skills/`.
-
-```text
-/adk:audit-repo            # interactive run (Claude Code)
-/adk:audit-repo --auto     # unattended; pick safe defaults
-```
-
-In Cursor / Codex / Gemini: invoke as `adk-audit-repo` (resolved through the
-`agents-skills/adk-audit-repo/` symlink).
-
-## Source
-
-Direct from `skills/audit-repo/SKILL.md` — this page is auto-generated.
+# ADK Audit / Repo
 
 Standalone task skill under the `@adk:audit` (a.k.a. `adk-audit`) category router. Inspects a checked-out repository across multiple dimensions in parallel and produces one consolidated report with severity-tiered findings, each anchored to a file path.
 
@@ -224,16 +203,3 @@ These files live in `references/` next to this `SKILL.md`. Read them when the sk
 | `references/audit-repo-validator.md` | The four-phase validator gate (pre-execution, mid-flow, pre-handoff, post-execution) this skill MUST run. |
 
 <!-- adk:references:end -->
-
-
-## Related skills
-
-- [`audit`](./skill-audit.md) — `@adk:audit` (a.k.a. `adk-audit`)
-- [`audit-site`](./skill-audit-site.md) — `@adk:audit-site` (a.k.a. `adk-audit-site`)
-- [`build`](./skill-build.md) — `@adk:build` (a.k.a. `adk-build`)
-- [`build-deps`](./skill-build-deps.md) — `@adk:build-deps` (a.k.a. `adk-build-deps`)
-- [`build-feature`](./skill-build-feature.md) — `@adk:build-feature` (a.k.a. `adk-build-feature`)
-- [`build-refactor`](./skill-build-refactor.md) — `@adk:build-refactor` (a.k.a. `adk-build-refactor`)
-- [`docs-review`](./skill-docs-review.md) — `@adk:docs-review` (a.k.a. `adk-docs-review`)
-- [`review-local`](./skill-review-local.md) — `@adk:review-local` (a.k.a. `adk-review-local`)
-- [`review-pr`](./skill-review-pr.md) — `@adk:review-pr` (a.k.a. `adk-review-pr`)
