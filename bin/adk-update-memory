@@ -1,0 +1,168 @@
+#!/usr/bin/env node
+/**
+ * adk-update-memory
+ *
+ * Idempotently manages an `<!-- adk:start --> ... <!-- adk:end -->` block in
+ * the user-level memory file for each detected coding agent. The block points
+ * the agent at the locally installed adk plugin (skills, agents, hooks, MCP)
+ * so the agent auto-discovers `/adk:<skill>` and `adk-<name>` invocations.
+ *
+ * Targets (auto-detected by default):
+ *   ~/.claude/CLAUDE.md      — Claude Code / Claude Desktop user memory
+ *   ~/.cursor/AGENTS.md      — Cursor user memory
+ *   ~/.codex/AGENTS.md       — Codex user memory
+ *   ~/.gemini/GEMINI.md      — Gemini CLI user memory
+ *   ~/.antigravity/AGENTS.md — Antigravity user memory
+ *
+ * Usage:
+ *   bin/adk-update-memory                    # update every detected target
+ *   bin/adk-update-memory --target claude    # only Claude
+ *   bin/adk-update-memory --target claude,cursor
+ *   bin/adk-update-memory --remove           # remove the managed block from every target
+ *   bin/adk-update-memory --dry-run          # preview, no writes
+ *   bin/adk-update-memory --plugin-root <p>  # override install location
+ */
+
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  writeFileSync,
+} from "node:fs";
+import { dirname, resolve, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { homedir } from "node:os";
+
+const __filename = fileURLToPath(import.meta.url);
+const SCRIPT_ROOT = resolve(dirname(__filename), "..");
+
+const args = process.argv.slice(2);
+const has = (k) => args.includes(k);
+const get = (k) => {
+  const i = args.indexOf(k);
+  return i >= 0 ? args[i + 1] : null;
+};
+
+const PLUGIN_ROOT = resolve(get("--plugin-root") || SCRIPT_ROOT);
+const TARGETS_RAW = (get("--target") || "auto").split(",").map((s) => s.trim()).filter(Boolean);
+const REMOVE = has("--remove");
+const DRY = has("--dry-run");
+
+const HOME = homedir();
+const TARGETS = {
+  claude:      { path: join(HOME, ".claude", "CLAUDE.md"),      label: "Claude Code / Desktop" },
+  cursor:      { path: join(HOME, ".cursor", "AGENTS.md"),      label: "Cursor" },
+  codex:       { path: join(HOME, ".codex", "AGENTS.md"),       label: "Codex" },
+  gemini:      { path: join(HOME, ".gemini", "GEMINI.md"),      label: "Gemini CLI" },
+  antigravity: { path: join(HOME, ".antigravity", "AGENTS.md"), label: "Antigravity" },
+};
+
+function detectInstalled() {
+  const out = [];
+  for (const [name, t] of Object.entries(TARGETS)) {
+    if (existsSync(dirname(t.path))) out.push(name);
+  }
+  if (out.length === 0) out.push("claude"); // create the dir on first install
+  return out;
+}
+
+const targets = TARGETS_RAW[0] === "auto" ? detectInstalled() : TARGETS_RAW;
+
+const START = "<!-- adk:start -->";
+const END = "<!-- adk:end -->";
+
+function buildBlock(target) {
+  const isClaude = target === "claude";
+  const invoke = isClaude
+    ? "Invoke skills as `/adk:<skill-name>` (e.g. `/adk:auto`, `/adk:plan-brainstorm`)."
+    : "Invoke skills as `adk-<skill-name>` (the `agents-skills/adk-<name>` symlink farm exposes every skill under that name).";
+  const ref = isClaude
+    ? "- Read `${PLUGIN_ROOT}/CLAUDE.md` for the Claude-specific delta."
+    : "- Read `${PLUGIN_ROOT}/AGENTS.md` for the canonical contract.";
+
+  return [
+    START,
+    "## Agent Development Kit (ADK) — installed",
+    "",
+    "ADK ships 50+ self-contained, highly-interactive skills covering the full developer loop (plan, build, review, docs, audit, publish, observability).",
+    "",
+    `- **Plugin root:** \`${PLUGIN_ROOT}\``,
+    `- **Manifest:** \`${PLUGIN_ROOT}/skills-manifest.json\``,
+    `- **Repo:** https://github.com/sujeet-pro/agents-devkit`,
+    "",
+    "### How to invoke",
+    "",
+    `- ${invoke}`,
+    "- Run `/adk:auto` (or `adk-auto`) for the prompt-routing dispatcher when you are unsure which skill to use.",
+    "- Every skill is interactive by default; pass `--auto` for unattended runs and `--mode review|fix` where applicable.",
+    "",
+    "### Reading order",
+    "",
+    `- Read \`${PLUGIN_ROOT}/AGENTS.md\` first — it is the canonical contract (directory map, skill anatomy, working-artifact rules).`,
+    isClaude
+      ? `- Then \`${PLUGIN_ROOT}/CLAUDE.md\` for plugin/subagent/hook/MCP details.`
+      : `- The harness-specific delta lives under \`${PLUGIN_ROOT}/<HARNESS>.md\` (e.g. GEMINI.md).`,
+    `- For any specific skill, read \`${PLUGIN_ROOT}/skills/<name>/SKILL.md\` plus its \`references/\` folder.`,
+    "",
+    "### Notes for this harness",
+    "",
+    `Target: ${TARGETS[target].label}.`,
+    "Run `node ${PLUGIN_ROOT}/bin/adk-doctor` if a skill reports a missing dependency.",
+    "",
+    "_This block is managed by `bin/adk-update-memory` — re-run that script to refresh, or `bin/adk-update-memory --remove` to delete._",
+    END,
+  ].join("\n");
+}
+
+function applyBlock(filePath, block) {
+  if (!existsSync(filePath)) {
+    if (DRY) return { action: "would-create", path: filePath };
+    mkdirSync(dirname(filePath), { recursive: true });
+    writeFileSync(filePath, `# Agent memory\n\n${block}\n`, "utf8");
+    return { action: "created", path: filePath };
+  }
+  const cur = readFileSync(filePath, "utf8");
+  const startIdx = cur.indexOf(START);
+  const endIdx = cur.indexOf(END);
+  let next;
+  if (startIdx >= 0 && endIdx > startIdx) {
+    next = cur.slice(0, startIdx) + block + cur.slice(endIdx + END.length);
+  } else {
+    next = cur.replace(/\s*$/, "") + `\n\n${block}\n`;
+  }
+  if (next === cur) return { action: "unchanged", path: filePath };
+  if (DRY) return { action: "would-update", path: filePath };
+  writeFileSync(filePath, next, "utf8");
+  return { action: "updated", path: filePath };
+}
+
+function removeBlock(filePath) {
+  if (!existsSync(filePath)) return { action: "absent", path: filePath };
+  const cur = readFileSync(filePath, "utf8");
+  const startIdx = cur.indexOf(START);
+  const endIdx = cur.indexOf(END);
+  if (startIdx < 0 || endIdx < 0) return { action: "no-block", path: filePath };
+  let next = cur.slice(0, startIdx).replace(/\s*$/, "") + cur.slice(endIdx + END.length);
+  next = next.replace(/\n{3,}/g, "\n\n").replace(/^\s+|\s+$/g, "") + "\n";
+  if (next === cur) return { action: "unchanged", path: filePath };
+  if (DRY) return { action: "would-remove", path: filePath };
+  writeFileSync(filePath, next, "utf8");
+  return { action: "removed", path: filePath };
+}
+
+const results = [];
+for (const t of targets) {
+  const target = TARGETS[t];
+  if (!target) {
+    console.warn(`adk-update-memory: unknown target '${t}' — skipping`);
+    continue;
+  }
+  const result = REMOVE ? removeBlock(target.path) : applyBlock(target.path, buildBlock(t));
+  results.push({ target: t, ...result });
+}
+
+console.log(`adk-update-memory: targets=${targets.join(",")} dry=${DRY} remove=${REMOVE}`);
+for (const r of results) {
+  console.log(`  ${r.target.padEnd(12)} ${r.action.padEnd(13)} ${r.path}`);
+}
+if (DRY) console.log("\n(dry-run: no changes written)");

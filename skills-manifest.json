@@ -1,570 +1,538 @@
 {
-  "version": "0.0.1",
+  "plugin": "adk",
+  "version": "1.0.0",
   "generated": "2026-04-22",
-  "distribution": "npx-skills",
-  "model": "standalone-skill",
-  "skill_count": 39,
-  "categories": {
-    "top": 1,
-    "router": 8,
-    "task": 30
-  },
-  "adk_categories": [
-    "audit",
-    "build",
-    "docs",
-    "frontend",
-    "plan",
-    "publish",
-    "review",
-    "visualize"
-  ],
   "skills": [
     {
       "name": "adk",
       "description": "Top-level router for the ADK (Agents Devkit) skill family. Use this whenever a non-trivial coding, planning, review, documentation, audit, publishing, visualization, or frontend task lands in the conversation, even if the user does not name an ADK skill. It picks the right category router (adk-plan, adk-build, adk-review, adk-docs, adk-audit, adk-publish, adk-visualize, adk-frontend) and tells the agent which adk-[category]-[task] skill to load next.",
-      "kind": "top",
-      "category": "",
       "path": "skills/adk",
       "invocation": {
-        "default": "/adk",
-        "npx_skills": "/adk"
-      },
-      "has_references": true,
-      "has_scripts": false,
-      "has_assets": false
+        "claude": "/adk:adk",
+        "generic": "adk-adk"
+      }
     },
     {
-      "name": "adk-adopt-ai-in-repo",
+      "name": "adopt-ai-in-repo",
       "description": "Analyze the current repository deeply, detect its stack and collaboration conventions, research stack-specific best practices, and bootstrap cross-agent AI guidance — `ai-guidelines/` (canonical knowledge), `AGENTS.md` (neutral router), `CLAUDE.md` (Claude-specific delta), repo-local task skills under `.claude/skills/` and `.cursor/skills/`, and Python-based maintenance hooks. Use when onboarding AI to an existing repo or refreshing repo-aware agent scaffolding after the codebase has changed. Do not use for greenfield project scaffolding (use the repo's own templates) or for adopting a single skill into an already-scaffolded repo (just edit the file).",
-      "kind": "task",
-      "category": "adopt",
-      "path": "skills/adk-adopt-ai-in-repo",
+      "path": "skills/adopt-ai-in-repo",
       "invocation": {
-        "default": "/adk-adopt-ai-in-repo",
-        "npx_skills": "/adk-adopt-ai-in-repo"
-      },
-      "has_references": true,
-      "has_scripts": false,
-      "has_assets": false
+        "claude": "/adk:adopt-ai-in-repo",
+        "generic": "adk-adopt-ai-in-repo"
+      }
     },
     {
-      "name": "adk-audit",
+      "name": "analytics-mixpanel",
+      "description": "|",
+      "path": "skills/analytics-mixpanel",
+      "invocation": {
+        "claude": "/adk:analytics-mixpanel",
+        "generic": "adk-analytics-mixpanel"
+      }
+    },
+    {
+      "name": "audit",
       "description": "Category router for systematic audits of an entire codebase or a public website - covering security, performance, code quality, dependency health, accessibility, SEO, and UX as relevant. Use when the deliverable is an audit report (not a single PR review). Picks one of adk-audit-repo, adk-audit-site.",
-      "kind": "router",
-      "category": "audit",
-      "path": "skills/adk-audit",
+      "path": "skills/audit",
       "invocation": {
-        "default": "/adk-audit",
-        "npx_skills": "/adk-audit"
-      },
-      "has_references": true,
-      "has_scripts": false,
-      "has_assets": false
+        "claude": "/adk:audit",
+        "generic": "adk-audit"
+      }
     },
     {
-      "name": "adk-audit-repo",
+      "name": "audit-pr",
+      "description": "|",
+      "path": "skills/audit-pr",
+      "invocation": {
+        "claude": "/adk:audit-pr",
+        "generic": "adk-audit-pr"
+      }
+    },
+    {
+      "name": "audit-repo",
       "description": "Audit a code repository across security, performance, code quality, dependencies, test coverage, and architecture - producing a single severity-tiered report with file-anchored evidence per finding. Use when the deliverable is a multi-dimensional health report on a checked-out repo, not a single-PR review or a doc review. Do not use to audit a deployed website (use adk-audit-site) or to fix the issues found (use adk-build-* skills).",
-      "kind": "task",
-      "category": "audit",
-      "path": "skills/adk-audit-repo",
+      "path": "skills/audit-repo",
       "invocation": {
-        "default": "/adk-audit-repo",
-        "npx_skills": "/adk-audit-repo"
-      },
-      "has_references": true,
-      "has_scripts": false,
-      "has_assets": false
+        "claude": "/adk:audit-repo",
+        "generic": "adk-audit-repo"
+      }
     },
     {
-      "name": "adk-audit-site",
+      "name": "audit-site",
       "description": "Audit a publicly reachable website or web app across performance, accessibility, SEO, UX, and basic security headers - producing a single severity-tiered report with URL/selector evidence per finding. Use when the deliverable is a multi-dimensional health report on a deployed site, not a code repo. Do not use to audit a checked-out repo (use adk-audit-repo) or to fix the issues found (use adk-build-* / adk-frontend-* skills).",
-      "kind": "task",
-      "category": "audit",
-      "path": "skills/adk-audit-site",
+      "path": "skills/audit-site",
       "invocation": {
-        "default": "/adk-audit-site",
-        "npx_skills": "/adk-audit-site"
-      },
-      "has_references": true,
-      "has_scripts": false,
-      "has_assets": false
+        "claude": "/adk:audit-site",
+        "generic": "adk-audit-site"
+      }
     },
     {
-      "name": "adk-build",
+      "name": "auto",
+      "description": "|",
+      "path": "skills/auto",
+      "invocation": {
+        "claude": "/adk:auto",
+        "generic": "adk-auto"
+      }
+    },
+    {
+      "name": "build",
       "description": "Category router for implementing, refactoring, migrating, testing, or analyzing dependencies. Use when the next step is to change code (new feature, bug fix, refactor, framework migration, test authoring, or dependency hygiene). Picks one of adk-build-feature, adk-build-refactor, adk-build-migrate, adk-build-test, adk-build-deps.",
-      "kind": "router",
-      "category": "build",
-      "path": "skills/adk-build",
+      "path": "skills/build",
       "invocation": {
-        "default": "/adk-build",
-        "npx_skills": "/adk-build"
-      },
-      "has_references": true,
-      "has_scripts": false,
-      "has_assets": false
+        "claude": "/adk:build",
+        "generic": "adk-build"
+      }
     },
     {
-      "name": "adk-build-deps",
+      "name": "build-bugfix",
+      "description": "|",
+      "path": "skills/build-bugfix",
+      "invocation": {
+        "claude": "/adk:build-bugfix",
+        "generic": "adk-build-bugfix"
+      }
+    },
+    {
+      "name": "build-deps",
       "description": "Inventory, upgrade, deduplicate, audit, or remove dependencies in the repo with explicit risk per change and per-package validation. Use when the deliverable is a dependency hygiene change - patch / minor upgrades, lockfile cleanups, security advisories, unused-dep removal. Do not use for major-version migrations with API changes (use adk-build-migrate).",
-      "kind": "task",
-      "category": "build",
-      "path": "skills/adk-build-deps",
+      "path": "skills/build-deps",
       "invocation": {
-        "default": "/adk-build-deps",
-        "npx_skills": "/adk-build-deps"
-      },
-      "has_references": true,
-      "has_scripts": false,
-      "has_assets": false
+        "claude": "/adk:build-deps",
+        "generic": "adk-build-deps"
+      }
     },
     {
-      "name": "adk-build-feature",
+      "name": "build-feature",
       "description": "Implement a new feature, fix a bug with root-cause analysis, or enhance existing behavior - with a short plan, scoped reads, smallest correct change, and repo-native validation. Use when the deliverable is a code change that adds, changes, or fixes behavior. Do not use for restructuring without behavior change (use adk-build-refactor), framework upgrades (use adk-build-migrate), or test-only work (use adk-build-test).",
-      "kind": "task",
-      "category": "build",
-      "path": "skills/adk-build-feature",
+      "path": "skills/build-feature",
       "invocation": {
-        "default": "/adk-build-feature",
-        "npx_skills": "/adk-build-feature"
-      },
-      "has_references": true,
-      "has_scripts": false,
-      "has_assets": false
+        "claude": "/adk:build-feature",
+        "generic": "adk-build-feature"
+      }
     },
     {
-      "name": "adk-build-migrate",
+      "name": "build-migrate",
       "description": "Migrate a framework, runtime, library version, or build tool with explicit breaking-change analysis, scoped per-file changes, and validation between groups. Use when the change is a version bump or tool replacement that has API or behavior implications across the codebase. Do not use for simple package upgrades with no API changes (use adk-build-deps) or for new features (use adk-build-feature).",
-      "kind": "task",
-      "category": "build",
-      "path": "skills/adk-build-migrate",
+      "path": "skills/build-migrate",
       "invocation": {
-        "default": "/adk-build-migrate",
-        "npx_skills": "/adk-build-migrate"
-      },
-      "has_references": true,
-      "has_scripts": false,
-      "has_assets": false
+        "claude": "/adk:build-migrate",
+        "generic": "adk-build-migrate"
+      }
     },
     {
-      "name": "adk-build-refactor",
+      "name": "build-refactor",
       "description": "Restructure code without changing observable behavior - rename, extract, inline, dedupe, simplify, reshape modules - while keeping tests green throughout. Use when the goal is a cleaner shape, not a new behavior or bug fix. Do not use when behavior changes (use adk-build-feature), framework versions change (use adk-build-migrate), or only tests change (use adk-build-test).",
-      "kind": "task",
-      "category": "build",
-      "path": "skills/adk-build-refactor",
+      "path": "skills/build-refactor",
       "invocation": {
-        "default": "/adk-build-refactor",
-        "npx_skills": "/adk-build-refactor"
-      },
-      "has_references": true,
-      "has_scripts": false,
-      "has_assets": false
+        "claude": "/adk:build-refactor",
+        "generic": "adk-build-refactor"
+      }
     },
     {
-      "name": "adk-build-test",
+      "name": "build-test",
       "description": "Author or expand automated tests - unit, integration, end-to-end - to cover behavior, raise coverage, lock in a bug fix, or convert manual checks into repeatable validation. Use when the deliverable is test code, not implementation. Do not use when implementation is also changing in the same pass (use adk-build-feature, which can include tests inline).",
-      "kind": "task",
-      "category": "build",
-      "path": "skills/adk-build-test",
+      "path": "skills/build-test",
       "invocation": {
-        "default": "/adk-build-test",
-        "npx_skills": "/adk-build-test"
-      },
-      "has_references": true,
-      "has_scripts": false,
-      "has_assets": false
+        "claude": "/adk:build-test",
+        "generic": "adk-build-test"
+      }
     },
     {
-      "name": "adk-doc-site-setup",
-      "description": "Bootstrap a documentation site in a project using @pagesmith/docs (content + nav + search + theme) and diagramkit (mermaid / graphviz / drawio / excalidraw rendering). Installs the npm packages, writes pagesmith.config.json5 and diagramkit.config.json5, scaffolds the docs/ tree with guide and reference groupings (meta.json5 + README.md), wires npm scripts, and installs prj-doc-site-* skills into the consumer project so future agents can keep adding pages, generating content, configuring nav, embedding diagrams, and deploying. Use whenever the user asks to set up a docs site, scaffold Pagesmith+diagramkit, add documentation tooling, or bootstrap a doc site for a repo. Each installed prj-* skill reads from node_modules/<pkg>/skills/ first and falls back to the inlined references shipped with this skill, so it keeps working even if the packages are uninstalled.",
-      "kind": "task",
-      "category": "doc",
-      "path": "skills/adk-doc-site-setup",
+      "name": "cicd-fix",
+      "description": "|",
+      "path": "skills/cicd-fix",
       "invocation": {
-        "default": "/adk-doc-site-setup",
-        "npx_skills": "/adk-doc-site-setup"
-      },
-      "has_references": true,
-      "has_scripts": false,
-      "has_assets": false
+        "claude": "/adk:cicd-fix",
+        "generic": "adk-cicd-fix"
+      }
     },
     {
-      "name": "adk-docs",
+      "name": "cicd-monitor",
+      "description": "|",
+      "path": "skills/cicd-monitor",
+      "invocation": {
+        "claude": "/adk:cicd-monitor",
+        "generic": "adk-cicd-monitor"
+      }
+    },
+    {
+      "name": "context-gather",
+      "description": "|",
+      "path": "skills/context-gather",
+      "invocation": {
+        "claude": "/adk:context-gather",
+        "generic": "adk-context-gather"
+      }
+    },
+    {
+      "name": "doc-site-diagrams",
+      "description": "|",
+      "path": "skills/doc-site-diagrams",
+      "invocation": {
+        "claude": "/adk:doc-site-diagrams",
+        "generic": "adk-doc-site-diagrams"
+      }
+    },
+    {
+      "name": "doc-site-setup",
+      "description": "|",
+      "path": "skills/doc-site-setup",
+      "invocation": {
+        "claude": "/adk:doc-site-setup",
+        "generic": "adk-doc-site-setup"
+      }
+    },
+    {
+      "name": "docs",
       "description": "Category router for technical documentation work - writing or reviewing READMEs, runbooks, API docs, ADRs, onboarding guides, migration guides, changelogs, and similar. Use when the deliverable is a markdown document (or its destination publish format), not code or a spec. Picks one of adk-docs-write, adk-docs-review.",
-      "kind": "router",
-      "category": "docs",
-      "path": "skills/adk-docs",
+      "path": "skills/docs",
       "invocation": {
-        "default": "/adk-docs",
-        "npx_skills": "/adk-docs"
-      },
-      "has_references": true,
-      "has_scripts": false,
-      "has_assets": false
+        "claude": "/adk:docs",
+        "generic": "adk-docs"
+      }
     },
     {
-      "name": "adk-docs-review",
+      "name": "docs-review",
       "description": "Review an existing technical document (Markdown file, fetched URL, or Confluence page) for accuracy, freshness, structure, completeness, and readability — producing severity-tiered findings against the actual code or configs the doc claims to describe. With `--mode confluence`, posts inline + footer comments back to the live page (with reconciliation against existing comments). Use when the deliverable is a critique with actionable fixes for a doc that already exists. Do not use to write a new doc (use adk-docs-write), publish a doc (use adk-publish-confluence), or review code (use adk-review-pr / adk-review-local).",
-      "kind": "task",
-      "category": "docs",
-      "path": "skills/adk-docs-review",
+      "path": "skills/docs-review",
       "invocation": {
-        "default": "/adk-docs-review",
-        "npx_skills": "/adk-docs-review"
-      },
-      "has_references": true,
-      "has_scripts": false,
-      "has_assets": false
+        "claude": "/adk:docs-review",
+        "generic": "adk-docs-review"
+      }
     },
     {
-      "name": "adk-docs-write",
+      "name": "docs-write",
       "description": "Author or refresh a technical document - README, runbook, API reference, ADR, onboarding guide, migration guide, tech-radar entry - grounded in the actual code and configs of the repo. Use when the deliverable is a markdown doc that real engineers will read and follow. Do not use for product specs (use adk-plan-spec), architecture write-ups (use adk-plan-design), or commit/PR text (use adk-publish-commit).",
-      "kind": "task",
-      "category": "docs",
-      "path": "skills/adk-docs-write",
+      "path": "skills/docs-write",
       "invocation": {
-        "default": "/adk-docs-write",
-        "npx_skills": "/adk-docs-write"
-      },
-      "has_references": true,
-      "has_scripts": false,
-      "has_assets": false
+        "claude": "/adk:docs-write",
+        "generic": "adk-docs-write"
+      }
     },
     {
-      "name": "adk-frontend",
+      "name": "frontend",
       "description": "Category router for frontend and UI work - UI/UX design, building or extending frontend components and pages, and bootstrapping React 19 client-side sample apps on a fixed Vite + TanStack + Radix + GitHub Pages stack. Use when the deliverable is a UI artifact, a frontend code change, or a new frontend project. Picks one of adk-frontend-design, adk-frontend-feature, adk-frontend-react-csr.",
-      "kind": "router",
-      "category": "frontend",
-      "path": "skills/adk-frontend",
+      "path": "skills/frontend",
       "invocation": {
-        "default": "/adk-frontend",
-        "npx_skills": "/adk-frontend"
-      },
-      "has_references": true,
-      "has_scripts": false,
-      "has_assets": false
+        "claude": "/adk:frontend",
+        "generic": "adk-frontend"
+      }
     },
     {
-      "name": "adk-frontend-design",
+      "name": "frontend-design",
       "description": "Produce UI/UX design artifacts - mockups, layouts, interaction specs, component specs - before code. Covers desktop + mobile + tablet viewports, default + hover + focus + active + disabled + loading + empty + error states, accessibility-first defaults (WCAG 2.2 AA, keyboard, prefers-reduced-motion, prefers-color-scheme), and a design rationale for every non-trivial choice. Use when the deliverable is a design (markdown spec + sketch / wireframe / mockup), not code. Do not use for backend or non-UI work (use adk-build) or for implementing the design (use adk-frontend-feature).",
-      "kind": "task",
-      "category": "frontend",
-      "path": "skills/adk-frontend-design",
+      "path": "skills/frontend-design",
       "invocation": {
-        "default": "/adk-frontend-design",
-        "npx_skills": "/adk-frontend-design"
-      },
-      "has_references": true,
-      "has_scripts": false,
-      "has_assets": false
+        "claude": "/adk:frontend-design",
+        "generic": "adk-frontend-design"
+      }
     },
     {
-      "name": "adk-frontend-feature",
+      "name": "frontend-feature",
       "description": "Implement or extend a frontend component, page, route, or interaction in an existing app - typed React 19 with accessibility-first defaults, responsive layout at 360/768/1280, all interactive states (default/hover/focus/active/disabled/loading/empty/error), and repo-native validation (typecheck, lint, unit tests, axe). Use when the deliverable is frontend code in an existing app. Do not use to design from scratch (use adk-frontend-design first), to bootstrap a new app (use adk-frontend-react-csr), or for backend work (use adk-build-feature).",
-      "kind": "task",
-      "category": "frontend",
-      "path": "skills/adk-frontend-feature",
+      "path": "skills/frontend-feature",
       "invocation": {
-        "default": "/adk-frontend-feature",
-        "npx_skills": "/adk-frontend-feature"
-      },
-      "has_references": true,
-      "has_scripts": false,
-      "has_assets": false
+        "claude": "/adk:frontend-feature",
+        "generic": "adk-frontend-feature"
+      }
     },
     {
-      "name": "adk-frontend-react-csr",
+      "name": "frontend-mockup",
+      "description": "|",
+      "path": "skills/frontend-mockup",
+      "invocation": {
+        "claude": "/adk:frontend-mockup",
+        "generic": "adk-frontend-mockup"
+      }
+    },
+    {
+      "name": "frontend-react-csr",
       "description": "Bootstrap or extend an opinionated React 19 client-side sample app on a fixed Vite (rolldown) + Vitest + oxc + TanStack (router/query/hotkeys) + Radix UI stack, with a self-contained themeable design system (paper + high-contrast, light/dark, three text sizes), full WCAG 2.2 AA + keyboard accessibility, performance-first defaults, and GitHub Pages deploy on push to main. Use to scaffold a new sample app, add a feature to one already on this stack, or audit one for stack conformance. Do not use for SSR/Next/Remix, non-React frontends, or production multi-tenant apps with auth/payments.",
-      "kind": "task",
-      "category": "frontend",
-      "path": "skills/adk-frontend-react-csr",
+      "path": "skills/frontend-react-csr",
       "invocation": {
-        "default": "/adk-frontend-react-csr",
-        "npx_skills": "/adk-frontend-react-csr"
-      },
-      "has_references": true,
-      "has_scripts": false,
-      "has_assets": false
+        "claude": "/adk:frontend-react-csr",
+        "generic": "adk-frontend-react-csr"
+      }
     },
     {
-      "name": "adk-plan",
+      "name": "mode-contract",
+      "description": "|",
+      "path": "skills/mode-contract",
+      "invocation": {
+        "claude": "/adk:mode-contract",
+        "generic": "adk-mode-contract"
+      }
+    },
+    {
+      "name": "observability-datadog",
+      "description": "|",
+      "path": "skills/observability-datadog",
+      "invocation": {
+        "claude": "/adk:observability-datadog",
+        "generic": "adk-observability-datadog"
+      }
+    },
+    {
+      "name": "observability-incident",
+      "description": "|",
+      "path": "skills/observability-incident",
+      "invocation": {
+        "claude": "/adk:observability-incident",
+        "generic": "adk-observability-incident"
+      }
+    },
+    {
+      "name": "personal-skill-create",
+      "description": "|",
+      "path": "skills/personal-skill-create",
+      "invocation": {
+        "claude": "/adk:personal-skill-create",
+        "generic": "adk-personal-skill-create"
+      }
+    },
+    {
+      "name": "plan",
       "description": "Category router for planning, research, spec authoring, design, and roadmap work. Use when the next step is to close ambiguity, gather facts, write a spec, design an architecture, or break a goal into an implementation roadmap - any case where thinking and writing must finish before code is touched. Picks one of adk-plan-brainstorm, adk-plan-research, adk-plan-spec, adk-plan-design, adk-plan-roadmap.",
-      "kind": "router",
-      "category": "plan",
-      "path": "skills/adk-plan",
+      "path": "skills/plan",
       "invocation": {
-        "default": "/adk-plan",
-        "npx_skills": "/adk-plan"
-      },
-      "has_references": true,
-      "has_scripts": false,
-      "has_assets": false
+        "claude": "/adk:plan",
+        "generic": "adk-plan"
+      }
     },
     {
-      "name": "adk-plan-brainstorm",
+      "name": "plan-brainstorm",
       "description": "Run iterative brainstorming to close ambiguity, weigh 2-3 viable options, choose blast radius and confidence target, and route into the right next skill (spec, design, roadmap, build, write-docs). Use when a task has real ambiguity about goal, scope, or approach and the user wants help picking a direction before any code or doc is written. Do not use for trivial decisions with one obvious path.",
-      "kind": "task",
-      "category": "plan",
-      "path": "skills/adk-plan-brainstorm",
+      "path": "skills/plan-brainstorm",
       "invocation": {
-        "default": "/adk-plan-brainstorm",
-        "npx_skills": "/adk-plan-brainstorm"
-      },
-      "has_references": true,
-      "has_scripts": false,
-      "has_assets": false
+        "claude": "/adk:plan-brainstorm",
+        "generic": "adk-plan-brainstorm"
+      }
     },
     {
-      "name": "adk-plan-design",
+      "name": "plan-design",
       "description": "Author an architecture or system design - high-level design, low-level design, ADR, or technical design doc - covering components, interfaces, data flow, sequencing, failure modes, and trade-offs. Use when the work is large enough that the team needs an architecture write-up before implementation. Do not use for short implementation plans (use adk-plan-roadmap), product specs (use adk-plan-spec), or UI mockups (use adk-frontend-design).",
-      "kind": "task",
-      "category": "plan",
-      "path": "skills/adk-plan-design",
+      "path": "skills/plan-design",
       "invocation": {
-        "default": "/adk-plan-design",
-        "npx_skills": "/adk-plan-design"
-      },
-      "has_references": true,
-      "has_scripts": false,
-      "has_assets": false
+        "claude": "/adk:plan-design",
+        "generic": "adk-plan-design"
+      }
     },
     {
-      "name": "adk-plan-research",
+      "name": "plan-proposal",
+      "description": "|",
+      "path": "skills/plan-proposal",
+      "invocation": {
+        "claude": "/adk:plan-proposal",
+        "generic": "adk-plan-proposal"
+      }
+    },
+    {
+      "name": "plan-research",
       "description": "Run structured technical research with explicit evidence buckets - Verified, Inferred, Open - to answer a factual question about framework behavior, library APIs, upstream changes, or implementation patterns. Use when a task depends on external facts the agent cannot answer from memory and the codebase alone is not enough. Do not use for opinion-based decisions or for questions answerable from one known file.",
-      "kind": "task",
-      "category": "plan",
-      "path": "skills/adk-plan-research",
+      "path": "skills/plan-research",
       "invocation": {
-        "default": "/adk-plan-research",
-        "npx_skills": "/adk-plan-research"
-      },
-      "has_references": true,
-      "has_scripts": false,
-      "has_assets": false
+        "claude": "/adk:plan-research",
+        "generic": "adk-plan-research"
+      }
     },
     {
-      "name": "adk-plan-roadmap",
+      "name": "plan-roadmap",
       "description": "Turn a settled goal into an ordered, file-aware implementation plan with milestones, dependencies, and validation gates. Use when direction and design are settled and the next step is to execute work in slices that can be reviewed, validated, and committed independently. Do not use when direction is still open (use adk-plan-brainstorm) or when an architecture write-up is needed (use adk-plan-design).",
-      "kind": "task",
-      "category": "plan",
-      "path": "skills/adk-plan-roadmap",
+      "path": "skills/plan-roadmap",
       "invocation": {
-        "default": "/adk-plan-roadmap",
-        "npx_skills": "/adk-plan-roadmap"
-      },
-      "has_references": true,
-      "has_scripts": false,
-      "has_assets": false
+        "claude": "/adk:plan-roadmap",
+        "generic": "adk-plan-roadmap"
+      }
     },
     {
-      "name": "adk-plan-spec",
+      "name": "plan-spec",
       "description": "Author a structured spec - PRD, RFC, functional spec, or technical spec - with goals, non-goals, requirements, constraints, success criteria, and open questions. Use when implementation must be preceded by a written spec that the team can review, comment on, and align around. Do not use for short implementation plans (use adk-plan-roadmap) or for architectural design write-ups (use adk-plan-design).",
-      "kind": "task",
-      "category": "plan",
-      "path": "skills/adk-plan-spec",
+      "path": "skills/plan-spec",
       "invocation": {
-        "default": "/adk-plan-spec",
-        "npx_skills": "/adk-plan-spec"
-      },
-      "has_references": true,
-      "has_scripts": false,
-      "has_assets": false
+        "claude": "/adk:plan-spec",
+        "generic": "adk-plan-spec"
+      }
     },
     {
-      "name": "adk-publish",
+      "name": "publish",
       "description": "Category router for shipping artifacts out of the repo - commit messages, PR descriptions, changelogs, GitHub PR/issue actions, Bitbucket PR/issue actions, Confluence pages, and Google Drive docs. Use when the deliverable leaves the local working tree (a commit, a remote PR, a published page, a shared doc). Picks one of adk-publish-commit, adk-publish-github, adk-publish-bitbucket, adk-publish-confluence, adk-publish-gdrive.",
-      "kind": "router",
-      "category": "publish",
-      "path": "skills/adk-publish",
+      "path": "skills/publish",
       "invocation": {
-        "default": "/adk-publish",
-        "npx_skills": "/adk-publish"
-      },
-      "has_references": true,
-      "has_scripts": false,
-      "has_assets": false
+        "claude": "/adk:publish",
+        "generic": "adk-publish"
+      }
     },
     {
-      "name": "adk-publish-bitbucket",
+      "name": "publish-bitbucket",
       "description": "Run Bitbucket Cloud PR/issue/comment/merge actions via REST API or the bitbucket MCP server - create or update a PR, post a comment, request review, label, transition status, merge with the right strategy. Use when the destination is bitbucket.org and the deliverable is a remote action with verification. Do not use for GitHub (use adk-publish-github), drafting the message itself (use adk-publish-commit), or reviewing the PR (use adk-review-pr).",
-      "kind": "task",
-      "category": "publish",
-      "path": "skills/adk-publish-bitbucket",
+      "path": "skills/publish-bitbucket",
       "invocation": {
-        "default": "/adk-publish-bitbucket",
-        "npx_skills": "/adk-publish-bitbucket"
-      },
-      "has_references": true,
-      "has_scripts": false,
-      "has_assets": false
+        "claude": "/adk:publish-bitbucket",
+        "generic": "adk-publish-bitbucket"
+      }
     },
     {
-      "name": "adk-publish-commit",
+      "name": "publish-commit",
       "description": "Draft a commit message, PR description, or changelog entry from real git diff and history - matching the repo's existing convention, surfacing breaking changes, and flagging mixed concerns. Use when the deliverable is release-communication text grounded in actual changes. Do not use to push the change to a remote (use adk-publish-github / adk-publish-bitbucket) or to review the code itself (use adk-review-local).",
-      "kind": "task",
-      "category": "publish",
-      "path": "skills/adk-publish-commit",
+      "path": "skills/publish-commit",
       "invocation": {
-        "default": "/adk-publish-commit",
-        "npx_skills": "/adk-publish-commit"
-      },
-      "has_references": true,
-      "has_scripts": false,
-      "has_assets": false
+        "claude": "/adk:publish-commit",
+        "generic": "adk-publish-commit"
+      }
     },
     {
-      "name": "adk-publish-confluence",
+      "name": "publish-confluence",
       "description": "Publish a markdown document as a Confluence page (create or update) via the atlassian-confluence MCP server, with parent-page placement, label management, and post-publish verification. Use when the destination is Confluence and the source is markdown produced by adk-docs-write or by hand. Do not use to author the markdown source (use adk-docs-write) or to publish to Google Drive (use adk-publish-gdrive).",
-      "kind": "task",
-      "category": "publish",
-      "path": "skills/adk-publish-confluence",
+      "path": "skills/publish-confluence",
       "invocation": {
-        "default": "/adk-publish-confluence",
-        "npx_skills": "/adk-publish-confluence"
-      },
-      "has_references": true,
-      "has_scripts": false,
-      "has_assets": false
+        "claude": "/adk:publish-confluence",
+        "generic": "adk-publish-confluence"
+      }
     },
     {
-      "name": "adk-publish-gdrive",
+      "name": "publish-gdrive",
       "description": "Publish a markdown document to Google Drive as a Google Doc, plain markdown file, or PDF - via the google-drive MCP server, with folder placement, sharing settings, and post-publish verification. Use when the destination is Google Drive / Google Docs and the source is markdown produced by adk-docs-write or by hand. Do not use to author the markdown source (use adk-docs-write) or to publish to Confluence (use adk-publish-confluence).",
-      "kind": "task",
-      "category": "publish",
-      "path": "skills/adk-publish-gdrive",
+      "path": "skills/publish-gdrive",
       "invocation": {
-        "default": "/adk-publish-gdrive",
-        "npx_skills": "/adk-publish-gdrive"
-      },
-      "has_references": true,
-      "has_scripts": false,
-      "has_assets": false
+        "claude": "/adk:publish-gdrive",
+        "generic": "adk-publish-gdrive"
+      }
     },
     {
-      "name": "adk-publish-github",
-      "description": "Run GitHub PR/issue/comment/merge actions via `gh` CLI or the github MCP server - create or update a PR, post a comment, request review, label, transition status, merge with the right strategy. Use when the destination is github.com (or GitHub Enterprise) and the deliverable is a remote action with verification. Do not use for Bitbucket (use adk-publish-bitbucket), drafting the message itself (use adk-publish-commit), or reviewing the PR (use adk-review-pr).",
-      "kind": "task",
-      "category": "publish",
-      "path": "skills/adk-publish-github",
+      "name": "publish-github",
+      "description": "|",
+      "path": "skills/publish-github",
       "invocation": {
-        "default": "/adk-publish-github",
-        "npx_skills": "/adk-publish-github"
-      },
-      "has_references": true,
-      "has_scripts": false,
-      "has_assets": false
+        "claude": "/adk:publish-github",
+        "generic": "adk-publish-github"
+      }
     },
     {
-      "name": "adk-review",
+      "name": "requirements",
+      "description": "|",
+      "path": "skills/requirements",
+      "invocation": {
+        "claude": "/adk:requirements",
+        "generic": "adk-requirements"
+      }
+    },
+    {
+      "name": "review",
       "description": "Category router for code review work - reviewing a pull request, reviewing local uncommitted changes, addressing review feedback, or capturing a session handoff so the next reviewer or session can continue without information loss. Picks one of adk-review-pr, adk-review-local, adk-review-feedback, adk-review-handoff.",
-      "kind": "router",
-      "category": "review",
-      "path": "skills/adk-review",
+      "path": "skills/review",
       "invocation": {
-        "default": "/adk-review",
-        "npx_skills": "/adk-review"
-      },
-      "has_references": true,
-      "has_scripts": false,
-      "has_assets": false
+        "claude": "/adk:review",
+        "generic": "adk-review"
+      }
     },
     {
-      "name": "adk-review-feedback",
+      "name": "review-doc",
+      "description": "|",
+      "path": "skills/review-doc",
+      "invocation": {
+        "claude": "/adk:review-doc",
+        "generic": "adk-review-doc"
+      }
+    },
+    {
+      "name": "review-feedback",
       "description": "Triage existing PR review comments, address each in code with traceable replies, and produce a single response summary. Use when reviewer comments already exist on a PR (GitHub or Bitbucket) and the goal is to act on them - apply changes, push back with rationale, or accept and defer - while keeping every comment thread answered. Do not use to author the original review (use adk-review-pr) or to review your own local changes (use adk-review-local).",
-      "kind": "task",
-      "category": "review",
-      "path": "skills/adk-review-feedback",
+      "path": "skills/review-feedback",
       "invocation": {
-        "default": "/adk-review-feedback",
-        "npx_skills": "/adk-review-feedback"
-      },
-      "has_references": true,
-      "has_scripts": false,
-      "has_assets": false
+        "claude": "/adk:review-feedback",
+        "generic": "adk-review-feedback"
+      }
     },
     {
-      "name": "adk-review-handoff",
+      "name": "review-handoff",
       "description": "Capture a structured session-handoff document so a paused or transferred task can resume without information loss - covering task summary, decisions with rationale, work completed, remaining work, blockers, key files, git state, and environment. Use when pausing long-running work, switching contexts, transferring to another developer or session, or preparing async collaboration. Do not use for project documentation (use adk-docs-write) or commit messages (use adk-publish-commit).",
-      "kind": "task",
-      "category": "review",
-      "path": "skills/adk-review-handoff",
+      "path": "skills/review-handoff",
       "invocation": {
-        "default": "/adk-review-handoff",
-        "npx_skills": "/adk-review-handoff"
-      },
-      "has_references": true,
-      "has_scripts": false,
-      "has_assets": false
+        "claude": "/adk:review-handoff",
+        "generic": "adk-review-handoff"
+      }
     },
     {
-      "name": "adk-review-local",
+      "name": "review-local",
       "description": "Self-review uncommitted, staged, or branch-vs-base changes before pushing or committing - with severity-tiered findings and explicit evidence. Use when the change has not yet been pushed and the goal is to catch issues before they land in a remote PR. Do not use for an existing remote PR (use adk-review-pr) or for addressing reviewer feedback (use adk-review-feedback).",
-      "kind": "task",
-      "category": "review",
-      "path": "skills/adk-review-local",
+      "path": "skills/review-local",
       "invocation": {
-        "default": "/adk-review-local",
-        "npx_skills": "/adk-review-local"
-      },
-      "has_references": true,
-      "has_scripts": false,
-      "has_assets": false
+        "claude": "/adk:review-local",
+        "generic": "adk-review-local"
+      }
     },
     {
-      "name": "adk-review-pr",
+      "name": "review-pr",
       "description": "Review a remote pull request with severity-tiered findings, evidence per finding, existing-comment reconciliation, and posted-back comments via the appropriate provider (GitHub, Bitbucket). On Bitbucket, manages tasks for Blocker / Critical findings. Use when a PR URL is the target and the deliverable is a structured review (findings + optional posted comments). Do not use for local uncommitted changes (use adk-review-local), addressing existing reviewer feedback (use adk-review-feedback), doc-only review (use adk-docs-review), or auditing the whole repo (use adk-audit-repo).",
-      "kind": "task",
-      "category": "review",
-      "path": "skills/adk-review-pr",
+      "path": "skills/review-pr",
       "invocation": {
-        "default": "/adk-review-pr",
-        "npx_skills": "/adk-review-pr"
-      },
-      "has_references": true,
-      "has_scripts": false,
-      "has_assets": false
+        "claude": "/adk:review-pr",
+        "generic": "adk-review-pr"
+      }
     },
     {
-      "name": "adk-visualize",
+      "name": "scoping",
+      "description": "|",
+      "path": "skills/scoping",
+      "invocation": {
+        "claude": "/adk:scoping",
+        "generic": "adk-scoping"
+      }
+    },
+    {
+      "name": "setup",
+      "description": "|",
+      "path": "skills/setup",
+      "invocation": {
+        "claude": "/adk:setup",
+        "generic": "adk-setup"
+      }
+    },
+    {
+      "name": "temp-folder",
+      "description": "|",
+      "path": "skills/temp-folder",
+      "invocation": {
+        "claude": "/adk:temp-folder",
+        "generic": "adk-temp-folder"
+      }
+    },
+    {
+      "name": "validate-browser",
+      "description": "|",
+      "path": "skills/validate-browser",
+      "invocation": {
+        "claude": "/adk:validate-browser",
+        "generic": "adk-validate-browser"
+      }
+    },
+    {
+      "name": "visualize",
       "description": "Category router for producing diagrams and charts from text descriptions or data - sequence/flow/architecture diagrams via mermaid/drawio/excalidraw/graphviz, and bar/line/pie/scatter charts from CSV/JSON/inline data. Use when the deliverable is a visual (image, SVG, or markdown-embedded diagram), not prose. Picks one of adk-visualize-diagram, adk-visualize-chart.",
-      "kind": "router",
-      "category": "visualize",
-      "path": "skills/adk-visualize",
+      "path": "skills/visualize",
       "invocation": {
-        "default": "/adk-visualize",
-        "npx_skills": "/adk-visualize"
-      },
-      "has_references": true,
-      "has_scripts": false,
-      "has_assets": false
+        "claude": "/adk:visualize",
+        "generic": "adk-visualize"
+      }
     },
     {
-      "name": "adk-visualize-chart",
+      "name": "visualize-chart",
       "description": "Produce a numeric or categorical chart - bar, line, pie, scatter, histogram, stacked area, heatmap - from a data source (CSV, JSON, inline values, or a SQL/REST query result). Use when the deliverable is a data plot, with the editable spec saved alongside the rendered image. Do not use for structural diagrams (use adk-visualize-diagram) or UI mockups (use adk-frontend-design).",
-      "kind": "task",
-      "category": "visualize",
-      "path": "skills/adk-visualize-chart",
+      "path": "skills/visualize-chart",
       "invocation": {
-        "default": "/adk-visualize-chart",
-        "npx_skills": "/adk-visualize-chart"
-      },
-      "has_references": true,
-      "has_scripts": false,
-      "has_assets": false
+        "claude": "/adk:visualize-chart",
+        "generic": "adk-visualize-chart"
+      }
     },
     {
-      "name": "adk-visualize-diagram",
+      "name": "visualize-diagram",
       "description": "Produce a structural diagram - sequence, flow, state, ER, architecture, dependency, class, deployment - by drafting an editable source file (mermaid, drawio, excalidraw, graphviz dot) and then rendering to the destination format. Use when the deliverable is a structural picture, not a data chart. Do not use for numeric/categorical plots (use adk-visualize-chart) or UI mockups (use adk-frontend-design).",
-      "kind": "task",
-      "category": "visualize",
-      "path": "skills/adk-visualize-diagram",
+      "path": "skills/visualize-diagram",
       "invocation": {
-        "default": "/adk-visualize-diagram",
-        "npx_skills": "/adk-visualize-diagram"
-      },
-      "has_references": true,
-      "has_scripts": false,
-      "has_assets": false
+        "claude": "/adk:visualize-diagram",
+        "generic": "adk-visualize-diagram"
+      }
     }
   ]
 }

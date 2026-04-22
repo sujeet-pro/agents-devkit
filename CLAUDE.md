@@ -2,31 +2,55 @@
 
 Read [AGENTS.md](AGENTS.md) first; it is the canonical contract for any agent working **on** this repository. Everything below is Claude-specific.
 
-## Claude specifics
+## Repo IS the plugin
 
-- Custom subagents: `.claude/agents/<name>.md` (installed from [agents-claude/](agents-claude/) by `adk-install`).
-- Hook config: `.claude/settings.json` (installed from [hooks/claude.json](hooks/claude.json) — symlink in this repo).
-- Skill discovery: `.claude/skills/<name>` symlinks into the hub at `.agents/skills/<name>`.
-- Optional local Claude env flags: `.claude/settings.local.json`.
+This repo is a Claude Code plugin (`adk`). Skills are invoked as `/adk:<skill-name>`, e.g. `/adk:plan-brainstorm`, `/adk:review-pr`, `/adk:auto`.
+
+| Component | Location | Notes |
+| --- | --- | --- |
+| Plugin manifest | `.claude-plugin/plugin.json` | `name: "adk"` |
+| Marketplace | `.claude-plugin/marketplace.json` | Private marketplace for distribution |
+| Skills | `skills/<name>/SKILL.md` | No `adk-` prefix in folder names; frontmatter `name` matches folder |
+| Subagents | `agents/<role>.md` | Markdown + YAML frontmatter |
+| Hooks | `hooks/hooks.json` | PreToolUse:Bash, PostToolUse:Edit/Write, Stop, SessionStart |
+| MCP | `.mcp.json` | `${ENV_VAR}` placeholders; `bin/adk-mcp-install` resolves them |
+| Monitors | `monitors/monitors.json` | `cicd-monitor` watches `gh pr checks` |
+| Settings | `settings.json` | Plugin-level Claude defaults |
+
+## Local development
+
+```bash
+claude --plugin-dir /Users/sujeet/personal/agents-devkit
+```
+
+Inside Claude:
+
+```
+/adk:auto                  # prompt-routing dispatcher (recommended starting point)
+/adk:plan-brainstorm       # any specific skill, by name
+/reload-plugins            # after editing a SKILL.md
+```
 
 ## Interaction contract
 
-Every ADK skill is highly interactive by default and supports `--auto` for unattended runs. See `global-prompts/interaction-contract.md` and any skill's `references/interaction-contract.md` for the full text. Default mode asks one question at a time with explained options (`Pros / Cons / Best when / Blast radius / Reversibility`); `--auto` picks the documented `(default)` at every fork. Every skill also runs a four-phase validator gate (`<task>-validator.md`) at every phase boundary — pre-execution, mid-flow, pre-handoff/pre-publish, post-execution — before declaring success.
+Every ADK skill is highly interactive by default and supports `--auto` for unattended runs. The full contract is at `bin/canonical/interaction-contract.md` (single source of truth) and propagated as a byte-identical copy into every `skills/<name>/references/interaction-contract.md` by `bin/adk-sync-contracts`. Never edit the per-skill copies directly.
 
-## Reference filename convention
+## Mode contract
 
-References under each skill's `references/` are **task-prefixed** by the skill's task token (the suffix after `adk-`): e.g., `pr-reviewer-persona.md` and `pr-review-validator.md` for `adk-review-pr`; `feature-persona.md` and `feature-validator.md` for `adk-build-feature`. The single file shared verbatim across all skills is `interaction-contract.md`.
+Many skills support `--mode review | fix | auto`. See `skills/mode-contract/SKILL.md` for the universal definition. Each skill declares its supported modes in `metadata.modes`.
+
+## Auto-router
+
+`/adk:auto` reads the prompt, classifies the domain, runs `requirements` + `scoping` (via `agents/brainstorm-facilitator.md`), then dispatches per-task subagents (via `agents/dispatcher.md`) with the right downstream skills. It is the default entry point when the user issues a non-trivial prompt.
 
 ## Working artifacts
 
-All intermediate output goes under `.temp/` (gitignored). See `AGENTS.md` for the full path table.
+All intermediate output goes under `.temp/` (gitignored). See AGENTS.md for the full path table; the canonical task layout is `.temp/task-<slug>/{context,requirements,scope,brainstorm,spec,design,plan,roadmap,preview/,validation/,browser-validation/,report}.md`.
 
-## Installation
+## When editing this repo
 
-Install paths in priority order. Paths 1 and 2 use the bundled Node CLI and wire up all five surfaces (skills, custom subagents, hooks, MCP, global prompts). Path 3 uses the third-party [`skills`](https://skills.sh) loader and lands skills only.
-
-1. **Suggested — clone + install script.** `git clone https://github.com/sujeet-pro/agents-devkit.git && cd agents-devkit && npm install && npm run setup`. Symlinks point at the clone, so `git pull` refreshes everything and local edits show up live.
-2. **npm modules — pinned / CI-reproducible.** `npm install -g agents-devkit && adk-install` (writes into `$HOME`) or `npm install --save-dev agents-devkit && npx adk-install` (writes into the project's dot-dirs).
-3. **Non-tech folks — `npx skills add sujeet-pro/agents-devkit`.** Lands SKILL.md files only. Custom subagents, hooks, MCP servers, and global prompts are NOT installed via this path.
-
-The CLI used in paths 1 and 2 auto-detects how it was launched and the install scope; override with `--mode global|project` or `--root <path>`. User config lives at `~/.config/adk/settings.json5`. Project config (when `--mode project`) lives at `<project>/.adk/settings.json5`.
+- Plan in `.temp/plans/<slug>.md` first.
+- Run `npm run sync-contracts` after editing `bin/canonical/*`.
+- Run `npm run validate` before commit.
+- Use `gh` CLI for every GitHub op.
+- Do not touch `docs/` or `gh-pages/`.

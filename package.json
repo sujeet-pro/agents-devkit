@@ -1,67 +1,75 @@
 {
   "name": "agents-devkit",
-  "version": "0.0.1",
-  "description": "Agent Development Kit: 39 self-contained adk-* skills (each with its own flat references/, task-prefixed filenames, a four-phase validator gate, an interaction contract, and an --auto unattended mode), independent per-provider custom subagents (Claude / Cursor / Codex), per-runtime hooks, MCP server configs, and global prompts. The Node CLI installs everything into Claude Code, Claude Desktop, Cursor, Codex CLI / Desktop, Gemini CLI, Antigravity, and Junie via a single .agents/skills hub.",
+  "version": "1.0.0",
+  "description": "Agent Development Kit (ADK) - a Claude Code plugin (.claude-plugin/plugin.json) shipping 50+ composable, self-contained skills covering the full developer loop: discovery, brainstorm, requirements, scoping, planning, design, frontend with 5-sample mockups, build, review, browser-based validation via cursor-ide-browser MCP, docs (wraps pagesmith + diagramkit), audits, publishing via gh CLI, CI/CD monitor + auto-fix, and observability (Datadog, Mixpanel). Every skill is highly interactive by default with --auto for unattended runs and --mode review|fix where applicable. Also ships an agents-skills/ tree of folder-level symlinks so the same skills are discoverable as `adk-<name>` from `npx skills add` and from non-Claude agents (Cursor, Codex, Gemini, Antigravity).",
   "type": "module",
   "engines": {
     "node": ">=18"
   },
   "bin": {
-    "adk-install": "cli/index.mjs",
-    "adk": "cli/index.mjs"
+    "adk": "bin/adk-setup",
+    "adk-install": "bin/adk-install",
+    "adk-mcp-install": "bin/adk-mcp-install",
+    "adk-setup": "bin/adk-setup",
+    "adk-update-memory": "bin/adk-update-memory",
+    "adk-validate": "bin/adk-validate",
+    "adk-sync-contracts": "bin/adk-sync-contracts",
+    "adk-doctor": "bin/adk-doctor"
   },
   "files": [
-    "cli/",
+    ".claude-plugin/",
     "skills/",
-    "agents-claude/",
-    "agents-cursor/",
-    "agents-codex/",
+    "agents/",
+    "agents-skills/",
     "hooks/",
-    "mcp-config/",
-    "global-prompts/",
-    "workflows/",
+    "monitors/",
+    "bin/",
+    ".mcp.json",
+    "settings.json",
     "skills-manifest.json",
-    "REFERENCE.md",
     "AGENTS.md",
     "CLAUDE.md",
+    "GEMINI.md",
     "README.md",
     "LICENSE"
   ],
   "scripts": {
-    "setup": "node cli/index.mjs",
-    "setup:dry": "node cli/index.mjs --dry-run",
-    "setup:auto": "node cli/index.mjs -y --force",
-    "doctor": "node cli/index.mjs doctor",
-    "postinstall": "node cli/postinstall.mjs",
-    "validate": "node cli/lib/validate.mjs",
-    "validate:content": "node cli/lib/validate-content.mjs",
-    "validate:content:verbose": "node cli/lib/validate-content.mjs --verbose",
-    "validate:all": "npm run validate && npm run validate:content",
     "build": "npm run docs:build",
     "preview": "npm run docs:preview",
+    "validate": "node bin/adk-validate",
+    "validate:sync": "node bin/adk-sync-contracts --check",
+    "sync-contracts": "node bin/adk-sync-contracts",
+    "doctor": "node bin/adk-doctor",
+    "setup": "node bin/adk-setup",
+    "install:local": "node bin/adk-install",
+    "install:mcp": "node bin/adk-mcp-install",
+    "install:memory": "node bin/adk-update-memory",
+    "skills:manifest": "node bin/internal/manifest.mjs",
     "docs:dev": "pagesmith-docs dev",
     "docs:build": "npm run docs:skills && pagesmith-docs build",
     "docs:preview": "pagesmith-docs preview",
-    "docs:skills": "node cli/lib/generate-skill-docs.mjs",
-    "skills:manifest": "node cli/lib/manifest.mjs"
+    "docs:skills": "node bin/internal/generate-skill-docs.mjs"
   },
   "dependencies": {
     "@clack/prompts": "^0.7.0",
+    "@pagesmith/site": "^0.9.9",
+    "diagramkit": "^0.3.3",
     "json5": "^2.2.3"
   },
   "devDependencies": {
     "@pagesmith/docs": "^0.9.4"
   },
   "keywords": [
+    "claude-code",
+    "claude-plugin",
     "agents",
     "skills",
-    "claude",
-    "cursor",
-    "codex",
     "ai",
     "mcp",
     "developer-tools",
-    "cli"
+    "code-review",
+    "ci-cd",
+    "browser-validation"
   ],
   "repository": {
     "type": "git",

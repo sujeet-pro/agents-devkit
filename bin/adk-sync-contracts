@@ -1,0 +1,91 @@
+#!/usr/bin/env node
+/**
+ * adk-sync-contracts
+ *
+ * Propagates byte-identical copies of every file in `bin/canonical/`
+ * into every `skills/<name>/references/`. Idempotent. Run by `bin/adk-validate`
+ * before each validation pass; safe to run by hand any time.
+ *
+ * Usage:
+ *   bin/adk-sync-contracts            # propagate
+ *   bin/adk-sync-contracts --check    # exit non-zero if any copy is out-of-sync
+ *   bin/adk-sync-contracts --verbose  # show every file copied
+ */
+
+import { readdirSync, statSync, readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
+import { join, dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const __filename = fileURLToPath(import.meta.url);
+const PLUGIN_ROOT = resolve(dirname(__filename), "..");
+const CANONICAL_DIR = join(PLUGIN_ROOT, "bin", "canonical");
+const SKILLS_DIR = join(PLUGIN_ROOT, "skills");
+
+const args = new Set(process.argv.slice(2));
+const CHECK_ONLY = args.has("--check");
+const VERBOSE = args.has("--verbose");
+
+function listCanonicalFiles() {
+  if (!existsSync(CANONICAL_DIR)) {
+    console.error(`adk-sync-contracts: canonical dir not found at ${CANONICAL_DIR}`);
+    process.exit(2);
+  }
+  return readdirSync(CANONICAL_DIR)
+    .filter((f) => statSync(join(CANONICAL_DIR, f)).isFile())
+    .sort();
+}
+
+function listSkillDirs() {
+  if (!existsSync(SKILLS_DIR)) return [];
+  return readdirSync(SKILLS_DIR)
+    .filter((name) => statSync(join(SKILLS_DIR, name)).isDirectory())
+    .sort();
+}
+
+function syncOne(canonicalFile, skillName) {
+  const src = join(CANONICAL_DIR, canonicalFile);
+  const dstDir = join(SKILLS_DIR, skillName, "references");
+  const dst = join(dstDir, canonicalFile);
+
+  const srcBuf = readFileSync(src);
+  let dstBuf = null;
+  if (existsSync(dst)) dstBuf = readFileSync(dst);
+
+  const inSync = dstBuf && Buffer.compare(srcBuf, dstBuf) === 0;
+  if (inSync) return { skill: skillName, file: canonicalFile, action: "in-sync" };
+
+  if (CHECK_ONLY) return { skill: skillName, file: canonicalFile, action: "out-of-sync" };
+
+  if (!existsSync(dstDir)) mkdirSync(dstDir, { recursive: true });
+  writeFileSync(dst, srcBuf);
+  return { skill: skillName, file: canonicalFile, action: dstBuf ? "updated" : "created" };
+}
+
+const canonicalFiles = listCanonicalFiles();
+const skills = listSkillDirs();
+
+let updated = 0;
+let created = 0;
+let outOfSync = 0;
+let inSync = 0;
+
+for (const skill of skills) {
+  for (const file of canonicalFiles) {
+    const r = syncOne(file, skill);
+    if (r.action === "updated") updated++;
+    else if (r.action === "created") created++;
+    else if (r.action === "out-of-sync") outOfSync++;
+    else if (r.action === "in-sync") inSync++;
+    if (VERBOSE || r.action === "out-of-sync") {
+      console.log(`  ${r.action.padEnd(11)} ${r.skill}/references/${r.file}`);
+    }
+  }
+}
+
+const summary = `adk-sync-contracts: ${skills.length} skills × ${canonicalFiles.length} canonical files | in-sync=${inSync} updated=${updated} created=${created} out-of-sync=${outOfSync}`;
+console.log(summary);
+
+if (CHECK_ONLY && outOfSync > 0) {
+  console.error("FAIL: out-of-sync copies detected. Run `bin/adk-sync-contracts` to propagate.");
+  process.exit(1);
+}

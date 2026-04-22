@@ -1,0 +1,17 @@
+{
+  displayName: "Agents",
+  collapsed: false,
+  orderBy: "manual",
+  items: [
+    "brainstorm-facilitator",
+    "code-reviewer",
+    "debugger",
+    "dispatcher",
+    "doc-writer",
+    "implementer",
+    "plan-reviewer",
+    "research-agent",
+    "security-reviewer",
+    "test-engineer",
+  ],
+}

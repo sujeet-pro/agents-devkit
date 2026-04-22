@@ -1,6 +1,9 @@
 {
   displayName: "Guide",
   items: [
+    "getting-started",
+    "installation",
+    "first-skill",
     "code-reviews",
     "development",
     "documentation",
@@ -10,7 +13,12 @@
   ],
   series: [
     {
-      displayName: "Use Cases",
+      displayName: "Start here",
+      slug: "start-here",
+      articles: ["getting-started", "installation", "first-skill"],
+    },
+    {
+      displayName: "Use cases",
       slug: "use-cases",
       articles: ["code-reviews", "development", "documentation", "diagrams", "research-planning", "audits-quality"],
     },

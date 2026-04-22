@@ -1,0 +1,130 @@
+#!/usr/bin/env node
+/**
+ * adk-install
+ *
+ * Local symlink installer for non-Claude agents (Cursor, Codex, Gemini, Antigravity, generic).
+ * Symlinks `agents-skills/adk-<name>` from this plugin into the user's agent skill folders.
+ *
+ * macOS only.
+ *
+ * Usage:
+ *   bin/adk-install                          # auto-detect installed agents, link into all of them
+ *   bin/adk-install --target cursor          # only Cursor
+ *   bin/adk-install --target cursor,codex    # multiple
+ *   bin/adk-install --mode global            # link into ~/.cursor/skills/ etc. (default)
+ *   bin/adk-install --mode project           # link into <cwd>/.cursor/skills/ etc.
+ *   bin/adk-install --dry-run                # preview, no writes
+ */
+
+import { existsSync, mkdirSync, readdirSync, statSync, symlinkSync, lstatSync, unlinkSync, readlinkSync } from "node:fs";
+import { join, resolve, dirname, relative } from "node:path";
+import { fileURLToPath } from "node:url";
+import { homedir, platform } from "node:os";
+
+const __filename = fileURLToPath(import.meta.url);
+const PLUGIN_ROOT = resolve(dirname(__filename), "..");
+const SOURCE = join(PLUGIN_ROOT, "agents-skills");
+
+const args = process.argv.slice(2);
+const get = (k) => {
+  const i = args.indexOf(k);
+  return i >= 0 ? args[i + 1] : null;
+};
+const has = (k) => args.includes(k);
+
+const TARGETS = (get("--target") || "auto").split(",");
+const MODE = get("--mode") || "global";
+const DRY = has("--dry-run");
+
+if (platform() !== "darwin") {
+  console.error("adk-install: macOS only. On other platforms install via the Claude plugin marketplace or copy agents-skills/ manually.");
+  process.exit(2);
+}
+
+if (!existsSync(SOURCE)) {
+  console.error(`adk-install: source missing at ${SOURCE}. Did the plugin install correctly?`);
+  process.exit(1);
+}
+
+// Per-target destination resolver
+const ROOT = MODE === "project" ? process.cwd() : homedir();
+const DESTINATIONS = {
+  cursor:      join(ROOT, MODE === "project" ? ".cursor/skills" : ".cursor/skills"),
+  codex:       join(ROOT, MODE === "project" ? ".codex/skills"  : ".codex/skills"),
+  gemini:      join(ROOT, MODE === "project" ? ".gemini/skills" : ".gemini/skills"),
+  antigravity: join(ROOT, MODE === "project" ? ".antigravity/skills" : ".antigravity/skills"),
+  agents:      join(ROOT, MODE === "project" ? ".agents/skills" : ".agents/skills"),
+};
+
+function detectInstalled() {
+  const detected = [];
+  // Cursor: ~/.cursor exists OR ~/Library/Application Support/Cursor
+  if (existsSync(join(homedir(), ".cursor")) || existsSync(join(homedir(), "Library/Application Support/Cursor"))) detected.push("cursor");
+  // Codex: ~/.codex
+  if (existsSync(join(homedir(), ".codex"))) detected.push("codex");
+  // Gemini CLI: ~/.gemini
+  if (existsSync(join(homedir(), ".gemini"))) detected.push("gemini");
+  // Antigravity: ~/.antigravity
+  if (existsSync(join(homedir(), ".antigravity"))) detected.push("antigravity");
+  // generic: always link to .agents
+  detected.push("agents");
+  return detected;
+}
+
+const targets = TARGETS[0] === "auto" ? detectInstalled() : TARGETS;
+
+let linked = 0, replaced = 0, skipped = 0, missingTarget = 0;
+const summary = [];
+
+for (const t of targets) {
+  const dest = DESTINATIONS[t];
+  if (!dest) {
+    console.warn(`adk-install: unknown target '${t}', skipping.`);
+    continue;
+  }
+  if (!existsSync(dirname(dest))) {
+    if (DRY) {
+      summary.push(`[would skip ${t}] parent dir ${dirname(dest)} does not exist`);
+      missingTarget++;
+      continue;
+    }
+    mkdirSync(dirname(dest), { recursive: true });
+  }
+  if (!existsSync(dest)) {
+    if (DRY) summary.push(`[would mkdir] ${dest}`);
+    else mkdirSync(dest, { recursive: true });
+  }
+
+  for (const skillEntry of readdirSync(SOURCE)) {
+    const src = join(SOURCE, skillEntry);
+    const dst = join(dest, skillEntry);
+    // Resolve absolute src target (since agents-skills/<x> is itself a symlink to ../skills/<x>)
+    const absSrc = resolve(src);
+
+    if (existsSync(dst)) {
+      // If it's already a symlink to the same place, skip; else replace
+      if (lstatSync(dst).isSymbolicLink()) {
+        const cur = readlinkSync(dst);
+        const curResolved = resolve(dirname(dst), cur);
+        if (curResolved === absSrc) { skipped++; continue; }
+        if (DRY) { summary.push(`[would replace] ${dst}`); replaced++; continue; }
+        unlinkSync(dst);
+        symlinkSync(absSrc, dst);
+        replaced++;
+      } else {
+        // Don't overwrite a real folder/file
+        summary.push(`[skip — exists as non-symlink] ${dst}`);
+        skipped++;
+      }
+    } else {
+      if (DRY) { summary.push(`[would link] ${dst} -> ${absSrc}`); linked++; continue; }
+      symlinkSync(absSrc, dst);
+      linked++;
+    }
+  }
+}
+
+console.log(`adk-install: targets=${targets.join(",")} mode=${MODE} dry=${DRY}`);
+console.log(`  linked=${linked} replaced=${replaced} skipped=${skipped} missing-target-dir=${missingTarget}`);
+if (summary.length) console.log("  details:\n   " + summary.slice(0, 20).join("\n   "));
+if (DRY) console.log("\n(dry-run: no changes written)");

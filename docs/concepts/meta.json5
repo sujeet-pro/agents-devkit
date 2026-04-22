@@ -2,10 +2,11 @@
   displayName: "Concepts",
   collapsed: false,
   items: [
-    "philosophy",
+"philosophy",
     "skill-anatomy",
     "agents",
     "hooks",
     "mcp",
+    "memory-files",
   ],
 }

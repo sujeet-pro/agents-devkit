@@ -1,0 +1,18 @@
+{
+  "$schema": "https://docs.claude.com/schemas/plugin-marketplace.json",
+  "name": "sujeet-pro-adk",
+  "version": "1.0.0",
+  "description": "Sujeet's private marketplace exposing the adk plugin.",
+  "owner": {
+    "name": "Sujeet Kumar Jaiswal",
+    "url": "https://github.com/sujeet-pro"
+  },
+  "plugins": [
+    {
+      "name": "adk",
+      "source": "github:sujeet-pro/agents-devkit",
+      "description": "Agent Development Kit - 50+ composable skills for the developer loop, optimized for Claude Code.",
+      "homepage": "https://github.com/sujeet-pro/agents-devkit"
+    }
+  ]
+}

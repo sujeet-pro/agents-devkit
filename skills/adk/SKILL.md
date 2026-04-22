@@ -1,6 +1,11 @@
 ---
 name: adk
 description: Top-level router for the ADK (Agents Devkit) skill family. Use this whenever a non-trivial coding, planning, review, documentation, audit, publishing, visualization, or frontend task lands in the conversation, even if the user does not name an ADK skill. It picks the right category router (adk-plan, adk-build, adk-review, adk-docs, adk-audit, adk-publish, adk-visualize, adk-frontend) and tells the agent which adk-[category]-[task] skill to load next.
+metadata:
+  category: meta
+  kind: top
+  layer: 0
+  modes: [auto]
 ---
 
 # ADK Router
@@ -25,7 +30,7 @@ Do not use `adk` for trivial single-step requests with an obvious tool answer (r
 ## Routing protocol
 
 1. Read the user's intent in plain language. Match it against the categories in the table below.
-2. Activate the matching category router skill (`adk-plan`, `adk-build`, `adk-review`, `adk-docs`, `adk-audit`, `adk-publish`, `adk-visualize`, or `adk-frontend`).
+2. Activate the matching category router skill (`@adk:plan` (a.k.a. `adk-plan`), `@adk:build` (a.k.a. `adk-build`), `@adk:review` (a.k.a. `adk-review`), `@adk:docs` (a.k.a. `adk-docs`), `@adk:audit` (a.k.a. `adk-audit`), `@adk:publish` (a.k.a. `adk-publish`), `@adk:visualize` (a.k.a. `adk-visualize`), or `@adk:frontend` (a.k.a. `adk-frontend`)).
 3. The category router will present its task list and select one specific `adk-[category]-[task]` skill to load.
 4. Follow that task skill end to end. Do not implement directly from this router or from the category router.
 
@@ -41,7 +46,7 @@ If the intent spans multiple categories (e.g. "plan and build a feature"), pick 
 | `adk-docs` | Writing or reviewing technical documentation, runbooks, ADRs, READMEs | Spec authoring -> `adk-plan`; commit/PR text -> `adk-publish` |
 | `adk-audit` | Systematic audit of a repo or a public website (security, performance, quality, accessibility) | Single PR/local review -> `adk-review` |
 | `adk-publish` | Commit messages, PR descriptions, changelogs, GitHub/Bitbucket/Confluence/Google Drive publishing | Drafting docs -> `adk-docs`; building code -> `adk-build` |
-| `adk-visualize` | Producing diagrams (mermaid, drawio, excalidraw, graphviz) or charts from data | UI / component design -> `adk-frontend-design` |
+| `adk-visualize` | Producing diagrams (mermaid, drawio, excalidraw, graphviz) or charts from data | UI / component design -> `@adk:frontend-design` (a.k.a. `adk-frontend-design`) |
 | `adk-frontend` | UI/UX design, frontend component work, React 19 client-side sample apps | Backend or non-UI code -> `adk-build` |
 
 ## Lifecycle picture
@@ -91,17 +96,17 @@ Task skills tailor each step to their domain but do not skip any.
 
 | User says | Route to | Then to task |
 | --- | --- | --- |
-| "Help me decide whether to switch to TanStack Router" | `adk-plan` | `adk-plan-brainstorm` |
-| "How does Postgres LISTEN/NOTIFY work?" | `adk-plan` | `adk-plan-research` |
-| "Add retry logic to the HTTP client" | `adk-build` | `adk-build-feature` |
-| "Move us off Webpack to Vite" | `adk-build` | `adk-build-migrate` |
-| "Review PR #842" | `adk-review` | `adk-review-pr` |
-| "Look at my unstaged changes before I commit" | `adk-review` | `adk-review-local` |
-| "Write a runbook for the deploy script" | `adk-docs` | `adk-docs-write` |
-| "Audit this repo's security and dep health" | `adk-audit` | `adk-audit-repo` |
-| "Draft a commit message for these changes" | `adk-publish` | `adk-publish-commit` |
-| "Open a PR on GitHub for this branch" | `adk-publish` | `adk-publish-github` |
-| "Make a sequence diagram of the auth flow" | `adk-visualize` | `adk-visualize-diagram` |
+| "Help me decide whether to switch to TanStack Router" | `adk-plan` | `@adk:plan-brainstorm` (a.k.a. `adk-plan-brainstorm`) |
+| "How does Postgres LISTEN/NOTIFY work?" | `adk-plan` | `@adk:plan-research` (a.k.a. `adk-plan-research`) |
+| "Add retry logic to the HTTP client" | `adk-build` | `@adk:build-feature` (a.k.a. `adk-build-feature`) |
+| "Move us off Webpack to Vite" | `adk-build` | `@adk:build-migrate` (a.k.a. `adk-build-migrate`) |
+| "Review PR #842" | `adk-review` | `@adk:review-pr` (a.k.a. `adk-review-pr`) |
+| "Look at my unstaged changes before I commit" | `adk-review` | `@adk:review-local` (a.k.a. `adk-review-local`) |
+| "Write a runbook for the deploy script" | `adk-docs` | `@adk:docs-write` (a.k.a. `adk-docs-write`) |
+| "Audit this repo's security and dep health" | `adk-audit` | `@adk:audit-repo` (a.k.a. `adk-audit-repo`) |
+| "Draft a commit message for these changes" | `adk-publish` | `@adk:publish-commit` (a.k.a. `adk-publish-commit`) |
+| "Open a PR on GitHub for this branch" | `adk-publish` | `@adk:publish-github` (a.k.a. `adk-publish-github`) |
+| "Make a sequence diagram of the auth flow" | `adk-visualize` | `@adk:visualize-diagram` (a.k.a. `adk-visualize-diagram`) |
 | "Design a settings page UI" | `adk-frontend` | `adk-frontend-design` |
 
 ## Anti-patterns
