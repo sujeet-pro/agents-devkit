@@ -6,15 +6,13 @@ The validator has four phases. Each phase has explicit checks with `BLOCKER` / `
 
 ## Phase 1: Pre-execution gate
 
-Run before doing any meaningful work.
+Run before doing any meaningful work. Every check below either passes (`OK`), surfaces a warning (`WARN` — proceed with note), or blocks (`BLOCKER` — stop until resolved).
 
 | Check | Pass criteria | If fail |
 | --- | --- | --- |
-| Inputs resolved | Every required input from `SKILL.md` "Inputs" table is present and well-formed | BLOCKER — ask the user (default-ask) or stop with a clear message (under `--auto`) |
-| Permissions / dependencies | Tools, MCP servers, or auth required to do the work are reachable | BLOCKER — point at the install pointer in this skill's mcp-fallback (if present) or ask the user |
-| Working tree state | Acceptable for the operation (no in-progress merge if a write is planned, etc.) | BLOCKER — surface the conflict |
-| Approval gate (default-ask) | If the operation is non-trivial: user has approved the plan | BLOCKER — wait for approval |
-| Scope sanity | The work is bounded; if user-input scope is huge, propose batching | WARN — surface and proceed (or block under explicit user direction) |
+| Repo target valid | Path exists; is a git repo; readable | BLOCKER otherwise |
+| Dimensions chosen | Security / performance / code-quality / deps / tests / architecture — explicit list | BLOCKER if `all` blindly without scoping a huge repo |
+| Dependencies for tooling | If perf / security tools needed: present or fallback documented | WARN with workaround |
 
 ## Phase 2: Mid-flow gates
 
@@ -28,17 +26,17 @@ Insert one gate between each major workflow phase from `SKILL.md`. Each gate con
 
 (Skills with more or fewer phases may add or drop gates as appropriate; the principle is "no phase advances without evidence the prior phase finished".)
 
-## Phase 3: Pre-report / pre-post validation
+## Phase 3: Pre-report validation (audit completeness)
 
-Run after the dimension passes complete but before issuing the report (or posting comments, if applicable).
+Run after dimension passes complete; verify each dimension was actually inspected and findings are evidence-anchored.
 
 | Check | Pass criteria | Evidence captured |
 | --- | --- | --- |
-| Output shape compliance | The deliverable matches the shape from this skill's `*-output-format.md` and `*-artifact-format.md` | Per-section presence map |
-| Repo-native validation runs | Lint / typecheck / test (or this skill's analogues) executed; output captured | Command output (stored in validator log) |
-| No silent skips | Every input and every advertised step has an outcome (done / skipped-with-reason / blocked) | Outcome table |
-| Verdict / status honest | The status banner matches the actual state of the work | Verdict justification |
-| Side-effecting actions gated | Any push / publish / posting requires explicit approval (or `--auto`) AND has been logged | Approval log |
+| Every chosen dimension covered | One pass per dimension; not silently skipped | Coverage map (one row per dimension) |
+| Findings have evidence | Every finding cites file:line + quoted snippet OR command output + retrieval date | Per-finding evidence |
+| Severity honest | Severity tier matches actual impact; no inflation, no deflation | Per-finding severity justification |
+| No duplicate findings | Same root cause filed once with sub-issues consolidated | Consolidation check |
+| Out-of-scope flagged | Anything noticed but intentionally not audited surfaces in `## Out of scope` | Out-of-scope list |
 
 ## Phase 4: Post-execution validation
 
@@ -46,10 +44,9 @@ Run after Phase 3; finalize the deliverable.
 
 | Check | Pass criteria | Evidence |
 | --- | --- | --- |
-| Final artifact present | The deliverable from `*-artifact-format.md` is at the documented path (or remote location) | Artifact path / remote ID |
-| Report written | `.temp/reports/audit-repo-<slug>.md` (or this skill's analogue) exists with full content | File path + size |
-| Validator log written | `.temp/notes/audit-repo-<slug>-validator.md` exists with all four phases' outcomes | File path + size |
-| Manual follow-up captured | Every WARN from Phases 1-3 is in the manual follow-up list | Follow-up list |
+| Audit report written | `.temp/reports/audit-repo-<slug>.md` in the documented shape | File path + size |
+| Per-finding artifacts | Any captured raw output (lint, sca, perf trace) lives in `.temp/notes/` | Artifact list |
+| Validator log written | All four phases captured | File path + size |
 
 ## Failure / rollback
 
@@ -60,13 +57,7 @@ Run after Phase 3; finalize the deliverable.
 
 ## Status banner
 
-The validator sets the run's status banner from this skill's `*-persona.md`. Common shapes:
-
-- `<TASK>-DRAFT` — Phases 1-2 passed; mid-flow / report-only.
-- `<TASK>-DONE` — Phases 1-4 passed; deliverable shipped.
-- `AWAITING-APPROVAL` — Phase 2 `plan-approved` is pending user input.
-
-(Use the actual status labels from this skill's persona; the four-phase contract is the same.)
+The validator sets the run's status banner from this skill's `*-persona.md`. Use the actual status labels from this skill's persona; the four-phase contract is the same.
 
 ## Evidence written to .temp/
 

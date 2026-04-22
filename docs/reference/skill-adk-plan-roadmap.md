@@ -4,13 +4,6 @@ description: 'Turn a settled goal into an ordered, file-aware implementation pla
 skill_name: adk-plan-roadmap
 category: task
 ---
-
-# adk-plan-roadmap
-
-Turn a settled goal into an ordered, file-aware implementation plan with milestones, dependencies, and validation gates. Use when direction and design are settled and the next step is to execute work in slices that can be reviewed, validated, and committed independently. Do not use when direction is still open (use adk-plan-brainstorm) or when an architecture write-up is needed (use adk-plan-design).
-
-## Skill body
-
 # ADK Plan / Roadmap
 
 Standalone task skill under the `adk-plan` category router. Produces an ordered, file-aware implementation plan that an engineer (or `adk-build-feature`) can execute slice by slice.
@@ -45,7 +38,8 @@ Standalone task skill under the `adk-plan` category router. Produces an ordered,
 3. **Slice** - cut the work into vertical slices that each leave the codebase buildable, testable, and (ideally) committable.
 4. **Order** - sequence slices by dependency; mark parallel-safe groups.
 5. **Gate** - for each slice define the validation that proves it is done (test command, lint, type-check, manual check).
-6. **Risk pass** - mark slices that touch risky areas, third parties, or migrations.
+6. **Validate (per `plan-roadmap-validator.md`)** - run the four-phase validator gate; capture evidence in `.temp/notes/plan-roadmap-<slug>-validator.md` before the final report.
+7. **Risk pass** - mark slices that touch risky areas, third parties, or migrations.
 7. **Report** - return the plan path, slice count, parallel groups, and the first slice with its files.
 
 ## Plan template
@@ -123,6 +117,40 @@ Ready to hand off to `adk-build-feature`?
 | "Add SSO to the admin panel" | Slices: discover identity provider, add config, wire login flow, gate routes, tests, rollout flag. |
 | "Migrate from Express 4 to 5" | Slices: pin Express 5, fix breaking middlewares per file group, regenerate types, run integration suite, remove shims. Mark middlewares group as parallel-safe. |
 
+## Clarifying questions (default-ask)
+
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/plan-roadmap-clarifying-questions.md`) and reports the choices.
+
+1. **What is the source spec or design we are planning from?** — _How to pick:_ Pass a path to the spec/design markdown. If none, ask the user to run adk-plan-spec or adk-plan-design first.
+2. **What is the slice size you want: thin vertical slices (one user-visible behavior at a time) or layered (model → API → UI)?** — _How to pick:_ Vertical = ship value continuously, simpler review, harder coordination. Layered = easier per-team handoff, slower user value, riskier integration. Default = vertical for ≤5 engineers.
+3. **Are there hard deadlines or external dependencies to respect?** — _How to pick:_ List them. Steps that depend on external parties get marked with a blocker tag and a fallback path.
+
+**Default report:** Ordered step list (id, summary, files, validation, dependencies, effort).
+
+**Detailed report (on request or `--verbose`):** Add: per-step risks, rollback strategy per step, parallelization graph (which steps can run concurrently), test-coverage delta per step.
+
+**Artifact:** `implementation-roadmap` — Markdown roadmap. Sections: Source (spec/design link), Goals, Steps (numbered table: id/summary/files/validation/dependencies/effort), Parallelization, Open Risks, Rollback Strategy.
+
+**Artifact path:** .temp/plans/roadmap-<slug>.md
+
+## Clarifying questions (default-ask)
+
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/plan-roadmap-clarifying-questions.md`) and reports the choices.
+
+1. **What is the source spec or design we are planning from?** — _How to pick:_ Pass a path to the spec/design markdown. If none, ask the user to run adk-plan-spec or adk-plan-design first.
+2. **What is the slice size you want: thin vertical slices (one user-visible behavior at a time) or layered (model → API → UI)?** — _How to pick:_ Vertical = ship value continuously, simpler review, harder coordination. Layered = easier per-team handoff, slower user value, riskier integration. Default = vertical for ≤5 engineers.
+3. **Are there hard deadlines or external dependencies to respect?** — _How to pick:_ List them. Steps that depend on external parties get marked with a blocker tag and a fallback path.
+
+## Default vs detailed output
+
+**Default report:** Ordered step list (id, summary, files, validation, dependencies, effort).
+
+**Detailed report (on request or `--verbose`):** Add: per-step risks, rollback strategy per step, parallelization graph (which steps can run concurrently), test-coverage delta per step.
+
+**Artifact:** `implementation-roadmap` — Markdown roadmap. Sections: Source (spec/design link), Goals, Steps (numbered table: id/summary/files/validation/dependencies/effort), Parallelization, Open Risks, Rollback Strategy.
+
+**Artifact path:** .temp/plans/roadmap-<slug>.md
+
 <!-- adk:references:start -->
 
 ## References shipped with this skill
@@ -131,20 +159,16 @@ These files live in `references/` next to this `SKILL.md`. Read them when the sk
 
 | File | Purpose |
 | --- | --- |
-| `references/anti-patterns.md` | Things to avoid when running this skill. |
-| `references/constitution.md` | Non-negotiable rules and working/communication discipline. |
-| `references/examples.md` | Example trigger phrases, invocation, and report shape. |
-| `references/output-format.md` | Verbosity modes, result shape, severity labels. |
-| `references/persona.md` | The agent persona that drives this skill. |
-| `references/working-artifacts.md` | The .temp/ rule for intermediate artifacts. |
+| `references/plan-roadmap-anti-patterns.md` | Things to avoid when running this skill. |
+| `references/plan-roadmap-artifact-format.md` | The deliverable's format and where it lives (.temp/ contract). |
+| `references/plan-roadmap-clarifying-questions.md` | The default-ask questions for this skill, with how-to-pick rubrics. |
+| `references/plan-roadmap-constitution.md` | Non-negotiable rules and working/communication discipline. |
+| `references/plan-roadmap-examples.md` | Example trigger phrases, invocation, and report shape. |
+| `references/interaction-contract.md` | Default-ask, explained-options, --auto contract every skill must follow. |
+| `references/plan-roadmap-output-format.md` | Default vs detailed report shapes; severity labels; verbosity rules. |
+| `references/plan-roadmap-persona.md` | The agent persona that drives this skill. |
+| `references/plan-roadmap-research-protocol.md` | Source ordering, stop conditions, evidence buckets, citation discipline. |
+| `references/plan-roadmap-working-artifacts.md` | Legacy: superseded by artifact-format.md; kept for back-compat. |
+| `references/plan-roadmap-validator.md` | The four-phase validator gate (pre-execution, mid-flow, pre-handoff, post-execution) this skill MUST run. |
 
 <!-- adk:references:end -->
-
-## References shipped with this skill
-
-- `references/anti-patterns.md`
-- `references/constitution.md`
-- `references/examples.md`
-- `references/output-format.md`
-- `references/persona.md`
-- `references/working-artifacts.md`

@@ -4,13 +4,6 @@ description: 'Publish a markdown document as a Confluence page (create or update
 skill_name: adk-publish-confluence
 category: task
 ---
-
-# adk-publish-confluence
-
-Publish a markdown document as a Confluence page (create or update) via the atlassian-confluence MCP server, with parent-page placement, label management, and post-publish verification. Use when the destination is Confluence and the source is markdown produced by adk-docs-write or by hand. Do not use to author the markdown source (use adk-docs-write) or to publish to Google Drive (use adk-publish-gdrive).
-
-## Skill body
-
 # ADK Publish / Confluence
 
 Standalone task skill under the `adk-publish` category router. Publishes markdown to Confluence via the `atlassian-confluence` MCP server (preferred) or REST API, then verifies the page landed correctly.
@@ -56,7 +49,7 @@ Standalone task skill under the `adk-publish` category router. Publishes markdow
    - inline code, emphasis, strong
    - images (uploaded as attachments and referenced - flag if the source path is missing)
 5. **Apply action** - create or update the page; place under parent if specified; set labels.
-6. **Verify** - re-fetch the page and confirm: title matches, body content present, parent matches, labels present, version incremented.
+6. **Verify (per `publish-confluence-validator.md`)** - re-fetch the page and confirm: title matches, body content present, parent matches, labels present, version incremented.
 7. **Report** - lead with the page URL; include action, version, verification status.
 
 ## Action playbooks
@@ -160,6 +153,40 @@ adk-publish-confluence page-update \
   --page-id 123456789
 ```
 
+## Clarifying questions (default-ask)
+
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/publish-confluence-clarifying-questions.md`) and reports the choices.
+
+1. **What is the source markdown (path)?** — _How to pick:_ Required. Should already be authored via adk-docs-write or adk-plan-spec.
+2. **What space and parent page?** — _How to pick:_ Space = required. Parent = pick the existing topical parent; create one only with explicit approval.
+3. **New page or update existing?** — _How to pick:_ If a same-titled page exists under the parent, default to update (with version bump) rather than duplicate.
+
+**Default report:** Page URL + create/update verdict + version number + verification (title/body match expected).
+
+**Detailed report (on request or `--verbose`):** Add: storage-format diff vs prior version, attachment list, links from the new page that resolve.
+
+**Artifact:** `confluence-page` — The Confluence page is the artifact. Conversion log + diff in .temp/.
+
+**Artifact path:** .temp/notes/publish-confluence-<slug>.md (conversion + diff log)
+
+## Clarifying questions (default-ask)
+
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/publish-confluence-clarifying-questions.md`) and reports the choices.
+
+1. **What is the source markdown (path)?** — _How to pick:_ Required. Should already be authored via adk-docs-write or adk-plan-spec.
+2. **What space and parent page?** — _How to pick:_ Space = required. Parent = pick the existing topical parent; create one only with explicit approval.
+3. **New page or update existing?** — _How to pick:_ If a same-titled page exists under the parent, default to update (with version bump) rather than duplicate.
+
+## Default vs detailed output
+
+**Default report:** Page URL + create/update verdict + version number + verification (title/body match expected).
+
+**Detailed report (on request or `--verbose`):** Add: storage-format diff vs prior version, attachment list, links from the new page that resolve.
+
+**Artifact:** `confluence-page` — The Confluence page is the artifact. Conversion log + diff in .temp/.
+
+**Artifact path:** .temp/notes/publish-confluence-<slug>.md (conversion + diff log)
+
 <!-- adk:references:start -->
 
 ## References shipped with this skill
@@ -168,20 +195,16 @@ These files live in `references/` next to this `SKILL.md`. Read them when the sk
 
 | File | Purpose |
 | --- | --- |
-| `references/anti-patterns.md` | Things to avoid when running this skill. |
-| `references/constitution.md` | Non-negotiable rules and working/communication discipline. |
-| `references/examples.md` | Example trigger phrases, invocation, and report shape. |
-| `references/mcp-fallback.md` | Preferred MCP server and the manual fallback when it is missing. |
-| `references/output-format.md` | Verbosity modes, result shape, severity labels. |
-| `references/persona.md` | The agent persona that drives this skill. |
+| `references/publish-confluence-anti-patterns.md` | Things to avoid when running this skill. |
+| `references/publish-confluence-artifact-format.md` | The deliverable's format and where it lives (.temp/ contract). |
+| `references/publish-confluence-clarifying-questions.md` | The default-ask questions for this skill, with how-to-pick rubrics. |
+| `references/publish-confluence-constitution.md` | Non-negotiable rules and working/communication discipline. |
+| `references/publish-confluence-examples.md` | Example trigger phrases, invocation, and report shape. |
+| `references/interaction-contract.md` | Default-ask, explained-options, --auto contract every skill must follow. |
+| `references/publish-confluence-mcp-fallback.md` | Preferred MCP server and the manual fallback when it is missing. |
+| `references/publish-confluence-output-format.md` | Default vs detailed report shapes; severity labels; verbosity rules. |
+| `references/publish-confluence-persona.md` | The agent persona that drives this skill. |
+| `references/publish-confluence-research-protocol.md` | Source ordering, stop conditions, evidence buckets, citation discipline. |
+| `references/publish-confluence-validator.md` | The four-phase validator gate (pre-execution, mid-flow, pre-publish, post-publish) this skill MUST run. |
 
 <!-- adk:references:end -->
-
-## References shipped with this skill
-
-- `references/anti-patterns.md`
-- `references/constitution.md`
-- `references/examples.md`
-- `references/mcp-fallback.md`
-- `references/output-format.md`
-- `references/persona.md`

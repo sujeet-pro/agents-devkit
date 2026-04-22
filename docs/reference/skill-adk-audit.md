@@ -4,13 +4,6 @@ description: 'Category router for systematic audits of an entire codebase or a p
 skill_name: adk-audit
 category: router
 ---
-
-# adk-audit
-
-Category router for systematic audits of an entire codebase or a public website - covering security, performance, code quality, dependency health, accessibility, SEO, and UX as relevant. Use when the deliverable is an audit report (not a single PR review). Picks one of adk-audit-repo, adk-audit-site.
-
-## Skill body
-
 # ADK Audit (Category Router)
 
 Routes any "produce a structured audit report" intent to the right audit task. Activate one of the listed task skills below; do not audit directly from this router.
@@ -74,6 +67,36 @@ Once you have picked a task, load `adk-audit-<task>` and follow it. Each task sk
 - "Best practice" findings the codebase does not actually need.
 - Mixing implementation work into the audit. Audits report; fixes happen in `adk-build-*`.
 
+## Clarifying questions (default-ask)
+
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/audit-clarifying-questions.md`) and reports the choices.
+
+1. **Is the target a code repo (local checkout) or a deployed website (URL)?** — _How to pick:_ Repo → adk-audit-repo. Website → adk-audit-site.
+
+**Default report:** Routed task + why.
+
+**Detailed report (on request or `--verbose`):** (n/a — small router)
+
+**Artifact:** `audit-routing-decision` — Inline message.
+
+**Artifact path:** (none)
+
+## Clarifying questions (default-ask)
+
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/audit-clarifying-questions.md`) and reports the choices.
+
+1. **Is the target a code repo (local checkout) or a deployed website (URL)?** — _How to pick:_ Repo → adk-audit-repo. Website → adk-audit-site.
+
+## Default vs detailed output
+
+**Default report:** Routed task + why.
+
+**Detailed report (on request or `--verbose`):** (n/a — small router)
+
+**Artifact:** `audit-routing-decision` — Inline message.
+
+**Artifact path:** (none)
+
 <!-- adk:references:start -->
 
 ## References shipped with this skill
@@ -82,12 +105,13 @@ These files live in `references/` next to this `SKILL.md`. Read them when the sk
 
 | File | Purpose |
 | --- | --- |
-| `references/anti-patterns.md` | Things to avoid when running this skill. |
-| `references/constitution.md` | Non-negotiable rules and working/communication discipline. |
+| `references/audit-anti-patterns.md` | Things to avoid when running this skill. |
+| `references/audit-artifact-format.md` | The deliverable's format and where it lives (.temp/ contract). |
+| `references/audit-clarifying-questions.md` | The default-ask questions for this skill, with how-to-pick rubrics. |
+| `references/audit-constitution.md` | Non-negotiable rules and working/communication discipline. |
+| `references/interaction-contract.md` | Default-ask, explained-options, --auto contract every skill must follow. |
+| `references/audit-output-format.md` | Default vs detailed report shapes; severity labels; verbosity rules. |
+| `references/audit-persona.md` | The agent persona that drives this skill. |
+| `references/audit-validator.md` | The four-phase validator gate (pre-execution, mid-flow, pre-handoff, post-execution) this skill MUST run. |
 
 <!-- adk:references:end -->
-
-## References shipped with this skill
-
-- `references/anti-patterns.md`
-- `references/constitution.md`

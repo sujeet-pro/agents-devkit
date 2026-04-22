@@ -73,6 +73,50 @@ function stripQuotes(v) {
 
 /* ────────────────────────────── markdown ────────────────────────────── */
 
+/**
+ * Strip fenced code blocks AND inline code spans from a Markdown body so the
+ * heading / link extractors do not flag content inside code as broken.
+ *
+ * Handles:
+ *   - Triple-or-more backtick fences (```, ````, etc.) with optional language
+ *     tags. The fence's closing line must use at least the same number of
+ *     backticks.
+ *   - Triple-or-more tilde fences (~~~).
+ *   - Inline code spans (`x` and ``x``) on a single line.
+ *
+ * Lines inside code are replaced with empty lines so line numbers and offsets
+ * stay aligned for downstream regex error messages.
+ */
+function stripCodeBlocks(body) {
+  const lines = body.split("\n");
+  let inFence = false;
+  let fenceMarker = ""; // the opening fence string (e.g., "```" or "~~~~")
+  for (let i = 0; i < lines.length; i++) {
+    const raw = lines[i];
+    const trimmed = raw.trimStart();
+    const fenceOpen = /^(`{3,}|~{3,})/.exec(trimmed);
+    if (!inFence && fenceOpen) {
+      inFence = true;
+      fenceMarker = fenceOpen[1];
+      lines[i] = "";
+      continue;
+    }
+    if (inFence) {
+      // Closing fence: same character class, length >= opening.
+      if (fenceOpen && fenceOpen[1][0] === fenceMarker[0] && fenceOpen[1].length >= fenceMarker.length) {
+        inFence = false;
+        fenceMarker = "";
+      }
+      lines[i] = "";
+      continue;
+    }
+    // Outside fence: strip inline code spans so `[text](path)` inside backticks
+    // is also ignored.
+    lines[i] = raw.replace(/`+[^`\n]*`+/g, "");
+  }
+  return lines.join("\n");
+}
+
 function checkMarkdownStructure(file, body, errors, warnings) {
   // Balanced fenced code blocks (``` openers must equal closers).
   const fences = [...body.matchAll(/^```/gm)];
@@ -84,8 +128,9 @@ function checkMarkdownStructure(file, body, errors, warnings) {
     errors.push(`${file}: body is empty`);
     return;
   }
-  // ATX headings: '# foo' good; '#foo' (no space) is broken.
-  for (const m of body.matchAll(/^(#{1,6})([^ \t#\n].*)$/gm)) {
+  // ATX headings: '# foo' good; '#foo' (no space) is broken. Skip code blocks.
+  const proseOnly = stripCodeBlocks(body);
+  for (const m of proseOnly.matchAll(/^(#{1,6})([^ \t#\n].*)$/gm)) {
     warnings.push(`${file}: heading '${m[0].trim()}' missing space after '${m[1]}'`);
   }
 }
@@ -95,9 +140,12 @@ function checkMarkdownStructure(file, body, errors, warnings) {
 const URL_RE = /^(https?:|mailto:|#|<)/i;
 
 function extractLocalLinks(body) {
+  // Strip fenced code blocks and inline code spans first; example links inside
+  // code are documentation, not real link targets.
+  const proseOnly = stripCodeBlocks(body);
   const links = [];
   // Markdown links: [text](target)  — only the target part.
-  for (const m of body.matchAll(/\[([^\]]*)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g)) {
+  for (const m of proseOnly.matchAll(/\[([^\]]*)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g)) {
     const target = m[2];
     if (URL_RE.test(target)) continue;
     // Skip template placeholders: `<name>`, `<other>`, etc. These are
@@ -106,7 +154,7 @@ function extractLocalLinks(body) {
     links.push({ kind: "md-link", target });
   }
   // Bare `references/foo.md` mentions in prose / lists.
-  for (const m of body.matchAll(/(?<![.\w/])references\/([\w.-]+)/g)) {
+  for (const m of proseOnly.matchAll(/(?<![.\w/])references\/([\w.-]+)/g)) {
     links.push({ kind: "ref-mention", target: `references/${m[1]}` });
   }
   return links;

@@ -4,13 +4,6 @@ description: 'Self-review uncommitted, staged, or branch-vs-base changes before 
 skill_name: adk-review-local
 category: task
 ---
-
-# adk-review-local
-
-Self-review uncommitted, staged, or branch-vs-base changes before pushing or committing - with severity-tiered findings and explicit evidence. Use when the change has not yet been pushed and the goal is to catch issues before they land in a remote PR. Do not use for an existing remote PR (use adk-review-pr) or for addressing reviewer feedback (use adk-review-feedback).
-
-## Skill body
-
 # ADK Review / Local
 
 Standalone task skill under the `adk-review` category router. Produces a findings-first self-review of local working-tree changes (unstaged, staged, or branch-vs-base).
@@ -141,6 +134,40 @@ adk-review-local --target staged --focus correctness,security
 adk-review-local --target branch --base origin/main --scope src/auth/
 ```
 
+## Clarifying questions (default-ask)
+
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/review-local-clarifying-questions.md`) and reports the choices.
+
+1. **What is the base for comparison (origin/<branch>, main, last commit, custom)?** — _How to pick:_ Default = upstream of current branch; fallback to main. Custom = pass an explicit base ref.
+2. **Scope: full diff or only staged changes?** — _How to pick:_ Default = full diff (catches unstaged forgotten work). Staged-only when preparing a commit.
+3. **Focus: correctness, security, performance, style, all?** — _How to pick:_ All by default; narrow when re-reviewing after fixes.
+
+**Default report:** Verdict + severity-grouped findings + commit-readiness call.
+
+**Detailed report (on request or `--verbose`):** Add: per-file diff summary, lint/typecheck output, test-coverage delta vs base, suggested patches.
+
+**Artifact:** `local-review-report` — Markdown report. The working tree is unchanged.
+
+**Artifact path:** .temp/reports/review-local-<slug>.md
+
+## Clarifying questions (default-ask)
+
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/review-local-clarifying-questions.md`) and reports the choices.
+
+1. **What is the base for comparison (origin/<branch>, main, last commit, custom)?** — _How to pick:_ Default = upstream of current branch; fallback to main. Custom = pass an explicit base ref.
+2. **Scope: full diff or only staged changes?** — _How to pick:_ Default = full diff (catches unstaged forgotten work). Staged-only when preparing a commit.
+3. **Focus: correctness, security, performance, style, all?** — _How to pick:_ All by default; narrow when re-reviewing after fixes.
+
+## Default vs detailed output
+
+**Default report:** Verdict + severity-grouped findings + commit-readiness call.
+
+**Detailed report (on request or `--verbose`):** Add: per-file diff summary, lint/typecheck output, test-coverage delta vs base, suggested patches.
+
+**Artifact:** `local-review-report` — Markdown report. The working tree is unchanged.
+
+**Artifact path:** .temp/reports/review-local-<slug>.md
+
 <!-- adk:references:start -->
 
 ## References shipped with this skill
@@ -149,20 +176,16 @@ These files live in `references/` next to this `SKILL.md`. Read them when the sk
 
 | File | Purpose |
 | --- | --- |
-| `references/anti-patterns.md` | Things to avoid when running this skill. |
-| `references/constitution.md` | Non-negotiable rules and working/communication discipline. |
-| `references/examples.md` | Example trigger phrases, invocation, and report shape. |
-| `references/output-format.md` | Verbosity modes, result shape, severity labels. |
-| `references/persona.md` | The agent persona that drives this skill. |
-| `references/review-comment-format.md` | Standard finding format with stable IDs and severities. |
+| `references/review-local-anti-patterns.md` | Things to avoid when running this skill. |
+| `references/review-local-artifact-format.md` | The deliverable's format and where it lives (.temp/ contract). |
+| `references/review-local-clarifying-questions.md` | The default-ask questions for this skill, with how-to-pick rubrics. |
+| `references/review-local-constitution.md` | Non-negotiable rules and working/communication discipline. |
+| `references/review-local-examples.md` | Example trigger phrases, invocation, and report shape. |
+| `references/interaction-contract.md` | Default-ask, explained-options, --auto contract every skill must follow. |
+| `references/review-local-output-format.md` | Default vs detailed report shapes; severity labels; verbosity rules. |
+| `references/review-local-persona.md` | The agent persona that drives this skill. |
+| `references/review-local-research-protocol.md` | Source ordering, stop conditions, evidence buckets, citation discipline. |
+| `references/review-local-review-comment-format.md` | Standard finding format with stable IDs and severities. |
+| `references/review-local-validator.md` | The four-phase validator gate (pre-execution, mid-flow, pre-handoff, post-execution) this skill MUST run. |
 
 <!-- adk:references:end -->
-
-## References shipped with this skill
-
-- `references/anti-patterns.md`
-- `references/constitution.md`
-- `references/examples.md`
-- `references/output-format.md`
-- `references/persona.md`
-- `references/review-comment-format.md`

@@ -6,15 +6,13 @@ The validator has four phases. Each phase has explicit checks with `BLOCKER` / `
 
 ## Phase 1: Pre-execution gate
 
-Run before doing any meaningful work.
+Run before doing any meaningful work. Every check below either passes (`OK`), surfaces a warning (`WARN` — proceed with note), or blocks (`BLOCKER` — stop until resolved).
 
 | Check | Pass criteria | If fail |
 | --- | --- | --- |
-| Inputs resolved | Every required input from `SKILL.md` "Inputs" table is present and well-formed | BLOCKER — ask the user (default-ask) or stop with a clear message (under `--auto`) |
-| Permissions / dependencies | Tools, MCP servers, or auth required to do the work are reachable | BLOCKER — point at the install pointer in this skill's mcp-fallback (if present) or ask the user |
-| Working tree state | Acceptable for the operation (no in-progress merge if a write is planned, etc.) | BLOCKER — surface the conflict |
-| Approval gate (default-ask) | If the operation is non-trivial: user has approved the plan | BLOCKER — wait for approval |
-| Scope sanity | The work is bounded; if user-input scope is huge, propose batching | WARN — surface and proceed (or block under explicit user direction) |
+| Diff fetched | `git diff --staged` or `git diff <base>...HEAD` succeeded | BLOCKER otherwise |
+| Repo convention detected | Conventional commits / plain / repo-specific style — detected from `git log` | BLOCKER if no signal — ask user |
+| No mixed concerns | Diff is a single logical change (one feat / one fix / one refactor) | WARN if mixed — propose splitting |
 
 ## Phase 2: Mid-flow gates
 
@@ -28,28 +26,26 @@ Insert one gate between each major workflow phase from `SKILL.md`. Each gate con
 
 (Skills with more or fewer phases may add or drop gates as appropriate; the principle is "no phase advances without evidence the prior phase finished".)
 
-## Phase 3: Pre-publish validation
+## Phase 3: Pre-publish validation (message quality)
 
-Run immediately before publishing to the remote destination. EVERY check must pass before any side-effecting publish.
+Run after the message is drafted; verify it follows the repo's convention and accurately reflects the diff.
 
 | Check | Pass criteria | Evidence captured |
 | --- | --- | --- |
-| Output shape compliance | The deliverable matches the shape from this skill's `*-output-format.md` and `*-artifact-format.md` | Per-section presence map |
-| Repo-native validation runs | Lint / typecheck / test (or this skill's analogues) executed; output captured | Command output (stored in validator log) |
-| No silent skips | Every input and every advertised step has an outcome (done / skipped-with-reason / blocked) | Outcome table |
-| Verdict / status honest | The status banner matches the actual state of the work | Verdict justification |
-| Side-effecting actions gated | Any push / publish / posting requires explicit approval (or `--auto`) AND has been logged | Approval log |
+| Message follows convention | Subject line + body match the detected convention | Per-rule check |
+| Subject ≤ 72 chars | Subject line length verified | Length count |
+| Body explains the why | Body explains motivation, not just the what (which the diff already shows) | Body content review |
+| Breaking changes flagged | If diff has breaking changes: `BREAKING CHANGE:` / `!:` / repo's marker present | Breaking-change flag |
+| No secrets in message | No tokens / passwords / API keys in subject or body | Secret-scan grep |
 
 ## Phase 4: Post-publish validation
 
-Run after the publish completes; verify the remote destination's actual state.
+Run after Phase 3; finalize the deliverable.
 
 | Check | Pass criteria | Evidence |
 | --- | --- | --- |
-| Final artifact present | The deliverable from `*-artifact-format.md` is at the documented path (or remote location) | Artifact path / remote ID |
-| Report written | `.temp/reports/publish-commit-<slug>.md` (or this skill's analogue) exists with full content | File path + size |
-| Validator log written | `.temp/notes/publish-commit-<slug>-validator.md` exists with all four phases' outcomes | File path + size |
-| Manual follow-up captured | Every WARN from Phases 1-3 is in the manual follow-up list | Follow-up list |
+| Message returned to user (or written to `.temp/`) | User can see the message before committing | Message text |
+| Validator log written | All four phases captured | File path + size |
 
 ## Failure / rollback
 
@@ -60,13 +56,7 @@ Run after the publish completes; verify the remote destination's actual state.
 
 ## Status banner
 
-The validator sets the run's status banner from this skill's `*-persona.md`. Common shapes:
-
-- `<TASK>-DRAFT` — Phases 1-2 passed; mid-flow / report-only.
-- `<TASK>-DONE` — Phases 1-4 passed; deliverable shipped.
-- `AWAITING-APPROVAL` — Phase 2 `plan-approved` is pending user input.
-
-(Use the actual status labels from this skill's persona; the four-phase contract is the same.)
+The validator sets the run's status banner from this skill's `*-persona.md`. Use the actual status labels from this skill's persona; the four-phase contract is the same.
 
 ## Evidence written to .temp/
 

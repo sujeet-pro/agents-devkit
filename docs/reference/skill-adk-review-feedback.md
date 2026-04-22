@@ -4,13 +4,6 @@ description: 'Triage existing PR review comments, address each in code with trac
 skill_name: adk-review-feedback
 category: task
 ---
-
-# adk-review-feedback
-
-Triage existing PR review comments, address each in code with traceable replies, and produce a single response summary. Use when reviewer comments already exist on a PR (GitHub or Bitbucket) and the goal is to act on them - apply changes, push back with rationale, or accept and defer - while keeping every comment thread answered. Do not use to author the original review (use adk-review-pr) or to review your own local changes (use adk-review-local).
-
-## Skill body
-
 # ADK Review / Feedback
 
 Standalone task skill under the `adk-review` category router. Walks every reviewer comment, classifies it, addresses it in code or with a reply, and produces a single response summary with traceability.
@@ -151,6 +144,40 @@ adk-review-feedback https://github.com/org/repo/pull/842
 adk-review-feedback https://bitbucket.org/org/repo/pull-requests/17 --filter unresolved --scope src/
 ```
 
+## Clarifying questions (default-ask)
+
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/review-feedback-clarifying-questions.md`) and reports the choices.
+
+1. **What is the PR URL?** — _How to pick:_ Required. Provider auto-detected from host.
+2. **Filter: address all, only Blockers/Critical, or only specific comment IDs?** — _How to pick:_ All = default. Severity-only = use when many comments and we want to ship core fixes first. Specific IDs = surgical follow-up.
+3. **Reply style: terse ('Fixed in <sha>') or explanatory (one-paragraph 'why this fix')?** — _How to pick:_ Terse for nits, explanatory for design comments and pushbacks.
+
+**Default report:** Comment-by-comment table (id / severity / status / fix commit / reply preview).
+
+**Detailed report (on request or `--verbose`):** Add: per-comment plan before fix, evidence each fix actually addresses the issue, residual disagreement notes.
+
+**Artifact:** `feedback-resolution-comments` — PR replies + commits. Plan + evidence in .temp/.
+
+**Artifact path:** .temp/reports/feedback-<provider>-<number>.md (resolution log). Replies + commits land on the remote PR.
+
+## Clarifying questions (default-ask)
+
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/review-feedback-clarifying-questions.md`) and reports the choices.
+
+1. **What is the PR URL?** — _How to pick:_ Required. Provider auto-detected from host.
+2. **Filter: address all, only Blockers/Critical, or only specific comment IDs?** — _How to pick:_ All = default. Severity-only = use when many comments and we want to ship core fixes first. Specific IDs = surgical follow-up.
+3. **Reply style: terse ('Fixed in <sha>') or explanatory (one-paragraph 'why this fix')?** — _How to pick:_ Terse for nits, explanatory for design comments and pushbacks.
+
+## Default vs detailed output
+
+**Default report:** Comment-by-comment table (id / severity / status / fix commit / reply preview).
+
+**Detailed report (on request or `--verbose`):** Add: per-comment plan before fix, evidence each fix actually addresses the issue, residual disagreement notes.
+
+**Artifact:** `feedback-resolution-comments` — PR replies + commits. Plan + evidence in .temp/.
+
+**Artifact path:** .temp/reports/feedback-<provider>-<number>.md (resolution log). Replies + commits land on the remote PR.
+
 <!-- adk:references:start -->
 
 ## References shipped with this skill
@@ -159,20 +186,16 @@ These files live in `references/` next to this `SKILL.md`. Read them when the sk
 
 | File | Purpose |
 | --- | --- |
-| `references/anti-patterns.md` | Things to avoid when running this skill. |
-| `references/constitution.md` | Non-negotiable rules and working/communication discipline. |
-| `references/examples.md` | Example trigger phrases, invocation, and report shape. |
-| `references/output-format.md` | Verbosity modes, result shape, severity labels. |
-| `references/persona.md` | The agent persona that drives this skill. |
-| `references/review-comment-format.md` | Standard finding format with stable IDs and severities. |
+| `references/review-feedback-anti-patterns.md` | Things to avoid when running this skill. |
+| `references/review-feedback-artifact-format.md` | The deliverable's format and where it lives (.temp/ contract). |
+| `references/review-feedback-clarifying-questions.md` | The default-ask questions for this skill, with how-to-pick rubrics. |
+| `references/review-feedback-constitution.md` | Non-negotiable rules and working/communication discipline. |
+| `references/review-feedback-examples.md` | Example trigger phrases, invocation, and report shape. |
+| `references/interaction-contract.md` | Default-ask, explained-options, --auto contract every skill must follow. |
+| `references/review-feedback-output-format.md` | Default vs detailed report shapes; severity labels; verbosity rules. |
+| `references/review-feedback-persona.md` | The agent persona that drives this skill. |
+| `references/review-feedback-research-protocol.md` | Source ordering, stop conditions, evidence buckets, citation discipline. |
+| `references/review-feedback-review-comment-format.md` | Standard finding format with stable IDs and severities. |
+| `references/review-feedback-validator.md` | The four-phase validator gate (pre-execution, mid-flow, pre-handoff, post-execution) this skill MUST run. |
 
 <!-- adk:references:end -->
-
-## References shipped with this skill
-
-- `references/anti-patterns.md`
-- `references/constitution.md`
-- `references/examples.md`
-- `references/output-format.md`
-- `references/persona.md`
-- `references/review-comment-format.md`

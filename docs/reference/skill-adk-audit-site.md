@@ -4,13 +4,6 @@ description: 'Audit a publicly reachable website or web app across performance, 
 skill_name: adk-audit-site
 category: task
 ---
-
-# adk-audit-site
-
-Audit a publicly reachable website or web app across performance, accessibility, SEO, UX, and basic security headers - producing a single severity-tiered report with URL/selector evidence per finding. Use when the deliverable is a multi-dimensional health report on a deployed site, not a code repo. Do not use to audit a checked-out repo (use adk-audit-repo) or to fix the issues found (use adk-build-* / adk-frontend-* skills).
-
-## Skill body
-
 # ADK Audit / Site
 
 Standalone task skill under the `adk-audit` category router. Inspects a deployed website across multiple dimensions and produces one consolidated report with severity-tiered findings, each anchored to a URL or DOM selector.
@@ -157,6 +150,40 @@ adk-audit-site https://example.com --dimensions performance,accessibility --view
 adk-audit-site https://shop.example.com --depth deep --output .temp/reports/audit-site-shop-2026-04.md
 ```
 
+## Clarifying questions (default-ask)
+
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/audit-site-clarifying-questions.md`) and reports the choices.
+
+1. **Which URL(s) to audit? Single page, top N pages, or full crawl?** — _How to pick:_ Single = focused investigation. Top N = sample (home + 5-10 high-traffic pages). Full crawl = comprehensive but slow; only with explicit approval.
+2. **Dimensions: performance / accessibility / SEO / UX / security-headers / all?** — _How to pick:_ All by default. Narrow when retesting a specific dimension.
+3. **Devices and connection profiles?** — _How to pick:_ Default = desktop + mobile, fast 3G + cable. Match real user distribution if known.
+
+**Default report:** Per-page Lighthouse score table + severity-grouped findings + screenshot references.
+
+**Detailed report (on request or `--verbose`):** Add: full Lighthouse JSON archived, axe full report, network waterfall analysis, page-weight breakdown, contrast-ratio table for any flagged colors.
+
+**Artifact:** `site-audit-report` — Markdown report + screenshots/artifacts in .temp/notes/audit-site-<slug>/.
+
+**Artifact path:** .temp/reports/audit-site-<host>-<date>.md (raw lighthouse JSON + screenshots in .temp/notes/audit-site-<slug>/)
+
+## Clarifying questions (default-ask)
+
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/audit-site-clarifying-questions.md`) and reports the choices.
+
+1. **Which URL(s) to audit? Single page, top N pages, or full crawl?** — _How to pick:_ Single = focused investigation. Top N = sample (home + 5-10 high-traffic pages). Full crawl = comprehensive but slow; only with explicit approval.
+2. **Dimensions: performance / accessibility / SEO / UX / security-headers / all?** — _How to pick:_ All by default. Narrow when retesting a specific dimension.
+3. **Devices and connection profiles?** — _How to pick:_ Default = desktop + mobile, fast 3G + cable. Match real user distribution if known.
+
+## Default vs detailed output
+
+**Default report:** Per-page Lighthouse score table + severity-grouped findings + screenshot references.
+
+**Detailed report (on request or `--verbose`):** Add: full Lighthouse JSON archived, axe full report, network waterfall analysis, page-weight breakdown, contrast-ratio table for any flagged colors.
+
+**Artifact:** `site-audit-report` — Markdown report + screenshots/artifacts in .temp/notes/audit-site-<slug>/.
+
+**Artifact path:** .temp/reports/audit-site-<host>-<date>.md (raw lighthouse JSON + screenshots in .temp/notes/audit-site-<slug>/)
+
 <!-- adk:references:start -->
 
 ## References shipped with this skill
@@ -165,20 +192,16 @@ These files live in `references/` next to this `SKILL.md`. Read them when the sk
 
 | File | Purpose |
 | --- | --- |
-| `references/anti-patterns.md` | Things to avoid when running this skill. |
-| `references/constitution.md` | Non-negotiable rules and working/communication discipline. |
-| `references/output-format.md` | Verbosity modes, result shape, severity labels. |
-| `references/persona.md` | The agent persona that drives this skill. |
-| `references/review-comment-format.md` | Standard finding format with stable IDs and severities. |
-| `references/working-artifacts.md` | The .temp/ rule for intermediate artifacts. |
+| `references/audit-site-anti-patterns.md` | Things to avoid when running this skill. |
+| `references/audit-site-artifact-format.md` | The deliverable's format and where it lives (.temp/ contract). |
+| `references/audit-site-clarifying-questions.md` | The default-ask questions for this skill, with how-to-pick rubrics. |
+| `references/audit-site-constitution.md` | Non-negotiable rules and working/communication discipline. |
+| `references/interaction-contract.md` | Default-ask, explained-options, --auto contract every skill must follow. |
+| `references/audit-site-output-format.md` | Default vs detailed report shapes; severity labels; verbosity rules. |
+| `references/audit-site-persona.md` | The agent persona that drives this skill. |
+| `references/audit-site-research-protocol.md` | Source ordering, stop conditions, evidence buckets, citation discipline. |
+| `references/audit-site-review-comment-format.md` | Standard finding format with stable IDs and severities. |
+| `references/audit-site-working-artifacts.md` | Legacy: superseded by artifact-format.md; kept for back-compat. |
+| `references/audit-site-validator.md` | The four-phase validator gate (pre-execution, mid-flow, pre-handoff, post-execution) this skill MUST run. |
 
 <!-- adk:references:end -->
-
-## References shipped with this skill
-
-- `references/anti-patterns.md`
-- `references/constitution.md`
-- `references/output-format.md`
-- `references/persona.md`
-- `references/review-comment-format.md`
-- `references/working-artifacts.md`

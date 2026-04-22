@@ -4,13 +4,6 @@ description: 'Category router for implementing, refactoring, migrating, testing,
 skill_name: adk-build
 category: router
 ---
-
-# adk-build
-
-Category router for implementing, refactoring, migrating, testing, or analyzing dependencies. Use when the next step is to change code (new feature, bug fix, refactor, framework migration, test authoring, or dependency hygiene). Picks one of adk-build-feature, adk-build-refactor, adk-build-migrate, adk-build-test, adk-build-deps.
-
-## Skill body
-
 # ADK Build (Category Router)
 
 Routes any "change the code" intent to the right implementation task. Activate one of the listed task skills below; do not implement directly from this router.
@@ -87,6 +80,42 @@ Once you have picked a task, load `adk-build-<task>` and follow it. Each task sk
 - Writing >100 lines without a validation run.
 - Claiming "fix" without reproducing the original failure first.
 
+## Clarifying questions (default-ask)
+
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/build-clarifying-questions.md`) and reports the choices.
+
+1. **Does behavior change (new feature, bug fix, enhancement) or is it pure restructure?** — _How to pick:_ Behavior change → feature. Pure restructure → refactor.
+2. **Is this a framework/library upgrade across the codebase?** — _How to pick:_ Yes → migrate. No → feature or refactor.
+3. **Is the work test-only?** — _How to pick:_ Yes → test. No → other.
+4. **Is the work dependency-only (upgrade/audit/prune deps)?** — _How to pick:_ Yes → deps. No → other.
+
+**Default report:** Routed task + why.
+
+**Detailed report (on request or `--verbose`):** Lifecycle table showing where the work fits in the build category.
+
+**Artifact:** `build-routing-decision` — Inline message.
+
+**Artifact path:** (none)
+
+## Clarifying questions (default-ask)
+
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/build-clarifying-questions.md`) and reports the choices.
+
+1. **Does behavior change (new feature, bug fix, enhancement) or is it pure restructure?** — _How to pick:_ Behavior change → feature. Pure restructure → refactor.
+2. **Is this a framework/library upgrade across the codebase?** — _How to pick:_ Yes → migrate. No → feature or refactor.
+3. **Is the work test-only?** — _How to pick:_ Yes → test. No → other.
+4. **Is the work dependency-only (upgrade/audit/prune deps)?** — _How to pick:_ Yes → deps. No → other.
+
+## Default vs detailed output
+
+**Default report:** Routed task + why.
+
+**Detailed report (on request or `--verbose`):** Lifecycle table showing where the work fits in the build category.
+
+**Artifact:** `build-routing-decision` — Inline message.
+
+**Artifact path:** (none)
+
 <!-- adk:references:start -->
 
 ## References shipped with this skill
@@ -95,12 +124,13 @@ These files live in `references/` next to this `SKILL.md`. Read them when the sk
 
 | File | Purpose |
 | --- | --- |
-| `references/anti-patterns.md` | Things to avoid when running this skill. |
-| `references/constitution.md` | Non-negotiable rules and working/communication discipline. |
+| `references/build-anti-patterns.md` | Things to avoid when running this skill. |
+| `references/build-artifact-format.md` | The deliverable's format and where it lives (.temp/ contract). |
+| `references/build-clarifying-questions.md` | The default-ask questions for this skill, with how-to-pick rubrics. |
+| `references/build-constitution.md` | Non-negotiable rules and working/communication discipline. |
+| `references/interaction-contract.md` | Default-ask, explained-options, --auto contract every skill must follow. |
+| `references/build-output-format.md` | Default vs detailed report shapes; severity labels; verbosity rules. |
+| `references/build-persona.md` | The agent persona that drives this skill. |
+| `references/build-validator.md` | The four-phase validator gate (pre-execution, mid-flow, pre-handoff, post-execution) this skill MUST run. |
 
 <!-- adk:references:end -->
-
-## References shipped with this skill
-
-- `references/anti-patterns.md`
-- `references/constitution.md`

@@ -6,15 +6,13 @@ The validator has four phases. Each phase has explicit checks with `BLOCKER` / `
 
 ## Phase 1: Pre-execution gate
 
-Run before doing any meaningful work.
+Run before doing any meaningful work. Every check below either passes (`OK`), surfaces a warning (`WARN` — proceed with note), or blocks (`BLOCKER` — stop until resolved).
 
 | Check | Pass criteria | If fail |
 | --- | --- | --- |
-| Inputs resolved | Every required input from `SKILL.md` "Inputs" table is present and well-formed | BLOCKER — ask the user (default-ask) or stop with a clear message (under `--auto`) |
-| Permissions / dependencies | Tools, MCP servers, or auth required to do the work are reachable | BLOCKER — point at the install pointer in this skill's mcp-fallback (if present) or ask the user |
-| Working tree state | Acceptable for the operation (no in-progress merge if a write is planned, etc.) | BLOCKER — surface the conflict |
-| Approval gate (default-ask) | If the operation is non-trivial: user has approved the plan | BLOCKER — wait for approval |
-| Scope sanity | The work is bounded; if user-input scope is huge, propose batching | WARN — surface and proceed (or block under explicit user direction) |
+| Mode chosen | new / feature / audit — explicit | BLOCKER if unclear |
+| Versions researched | Current stable version of every locked-stack library captured to `.temp/notes/.../versions-<date>.md` | BLOCKER — no version is known a priori |
+| Design system loaded / planned | `design-system/MASTER.md` exists (existing app) OR will be generated (new app) | BLOCKER if missing for `feature` / `audit` |
 
 ## Phase 2: Mid-flow gates
 
@@ -28,17 +26,22 @@ Insert one gate between each major workflow phase from `SKILL.md`. Each gate con
 
 (Skills with more or fewer phases may add or drop gates as appropriate; the principle is "no phase advances without evidence the prior phase finished".)
 
-## Phase 3: Pre-merge validation
+## Phase 3: Pre-handoff validation (React 19 CSR app)
 
-Run after the implementation is complete and tests are passing locally; verify the work meets the smallest-correct-change bar before declaring done.
+Run after setup / feature / audit; verify the locked-stack + theme grid + Lighthouse + a11y bars are met.
 
 | Check | Pass criteria | Evidence captured |
 | --- | --- | --- |
-| Output shape compliance | The deliverable matches the shape from this skill's `*-output-format.md` and `*-artifact-format.md` | Per-section presence map |
-| Repo-native validation runs | Lint / typecheck / test (or this skill's analogues) executed; output captured | Command output (stored in validator log) |
-| No silent skips | Every input and every advertised step has an outcome (done / skipped-with-reason / blocked) | Outcome table |
-| Verdict / status honest | The status banner matches the actual state of the work | Verdict justification |
-| Side-effecting actions gated | Any push / publish / posting requires explicit approval (or `--auto`) AND has been logged | Approval log |
+| `npm run check` green | Lint + format + typecheck all pass | Command output |
+| `npm test` green | Unit suite green; no skipped tests added | Test output |
+| `npm run build` green | Production build succeeds | Build output |
+| axe pass | Automated axe pass green on the built app | axe report |
+| Manual keyboard pass | Every interactive surface reachable + operable via keyboard only | Keyboard-pass note |
+| Theme-grid screenshots captured | 12-cell grid: paper × high-contrast × light × dark × small/base/large | Screenshot artifact paths |
+| Lighthouse on `dist/` | Lighthouse run via browser MCP; CWV thresholds met (LCP < 2.5s, INP < 200ms, CLS < 0.1) | Lighthouse report |
+| No off-stack libs introduced | `package.json` deps still match the locked stack (or new dep has documented justification) | Dep diff |
+| Industry anti-patterns avoided | Cross-checked against `<task>-industry-anti-patterns.md` | Anti-pattern grep |
+| Pre-delivery checklist walked | Every item from `<task>-pre-delivery-checklist.md` checked or surfaced | Checklist coverage |
 
 ## Phase 4: Post-execution validation
 
@@ -46,10 +49,9 @@ Run after Phase 3; finalize the deliverable.
 
 | Check | Pass criteria | Evidence |
 | --- | --- | --- |
-| Final artifact present | The deliverable from `*-artifact-format.md` is at the documented path (or remote location) | Artifact path / remote ID |
-| Report written | `.temp/reports/frontend-react-csr-<slug>.md` (or this skill's analogue) exists with full content | File path + size |
-| Validator log written | `.temp/notes/frontend-react-csr-<slug>-validator.md` exists with all four phases' outcomes | File path + size |
-| Manual follow-up captured | Every WARN from Phases 1-3 is in the manual follow-up list | Follow-up list |
+| Validation matrix in report | Per-row evidence for each Phase 3 check | Validation matrix |
+| Deploy URL (if mode=new + deploy enabled) | GitHub Pages or equivalent deploy succeeded; URL returned | Deploy URL |
+| Validator log written | All four phases captured | File path + size |
 
 ## Failure / rollback
 
@@ -60,13 +62,7 @@ Run after Phase 3; finalize the deliverable.
 
 ## Status banner
 
-The validator sets the run's status banner from this skill's `*-persona.md`. Common shapes:
-
-- `<TASK>-DRAFT` — Phases 1-2 passed; mid-flow / report-only.
-- `<TASK>-DONE` — Phases 1-4 passed; deliverable shipped.
-- `AWAITING-APPROVAL` — Phase 2 `plan-approved` is pending user input.
-
-(Use the actual status labels from this skill's persona; the four-phase contract is the same.)
+The validator sets the run's status banner from this skill's `*-persona.md`. Use the actual status labels from this skill's persona; the four-phase contract is the same.
 
 ## Evidence written to .temp/
 

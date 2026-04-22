@@ -4,13 +4,6 @@ description: 'Inventory, upgrade, deduplicate, audit, or remove dependencies in 
 skill_name: adk-build-deps
 category: task
 ---
-
-# adk-build-deps
-
-Inventory, upgrade, deduplicate, audit, or remove dependencies in the repo with explicit risk per change and per-package validation. Use when the deliverable is a dependency hygiene change - patch / minor upgrades, lockfile cleanups, security advisories, unused-dep removal. Do not use for major-version migrations with API changes (use adk-build-migrate).
-
-## Skill body
-
 # ADK Build / Deps
 
 Standalone task skill under the `adk-build` category router. Produces a focused dependency change with explicit per-package risk, lockfile correctness, and validated outcomes.
@@ -142,6 +135,40 @@ adk-build-deps audit-fix --scope packages/api
 adk-build-deps remove-unused --scope ./
 ```
 
+## Clarifying questions (default-ask)
+
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/build-deps-clarifying-questions.md`) and reports the choices.
+
+1. **Mode: inventory, upgrade, audit, dedupe, or remove-unused?** — _How to pick:_ Inventory = list-only, no changes. Upgrade = bump versions. Audit = flag security/license/staleness. Dedupe = collapse multiple installs of the same package. Remove-unused = prune deps with zero call sites.
+2. **Upgrade scope: patch only, minor, major (breaking)?** — _How to pick:_ Patch = always safe to auto-apply with tests. Minor = safe with tests + changelog scan. Major = read every changelog, expect breakage, plan migration.
+3. **Are there pinned-version constraints (peer deps, runtime, monorepo)?** — _How to pick:_ List them up front. The plan must respect every constraint or explicitly justify breaking one.
+
+**Default report:** Dependency table (name / current / target / reason / risk) + recommended action per row + advisories list.
+
+**Detailed report (on request or `--verbose`):** Add: per-dep changelog summary for upgrades, transitive-dep diff, license report, supply-chain risk per package, removal blast radius for prune.
+
+**Artifact:** `dependency-report-or-diff` — Markdown report (audit/inventory mode) OR lockfile diff + changed files (upgrade/dedupe/remove mode).
+
+**Artifact path:** .temp/reports/deps-<slug>.md (report), repo lockfile + manifests for actual changes.
+
+## Clarifying questions (default-ask)
+
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/build-deps-clarifying-questions.md`) and reports the choices.
+
+1. **Mode: inventory, upgrade, audit, dedupe, or remove-unused?** — _How to pick:_ Inventory = list-only, no changes. Upgrade = bump versions. Audit = flag security/license/staleness. Dedupe = collapse multiple installs of the same package. Remove-unused = prune deps with zero call sites.
+2. **Upgrade scope: patch only, minor, major (breaking)?** — _How to pick:_ Patch = always safe to auto-apply with tests. Minor = safe with tests + changelog scan. Major = read every changelog, expect breakage, plan migration.
+3. **Are there pinned-version constraints (peer deps, runtime, monorepo)?** — _How to pick:_ List them up front. The plan must respect every constraint or explicitly justify breaking one.
+
+## Default vs detailed output
+
+**Default report:** Dependency table (name / current / target / reason / risk) + recommended action per row + advisories list.
+
+**Detailed report (on request or `--verbose`):** Add: per-dep changelog summary for upgrades, transitive-dep diff, license report, supply-chain risk per package, removal blast radius for prune.
+
+**Artifact:** `dependency-report-or-diff` — Markdown report (audit/inventory mode) OR lockfile diff + changed files (upgrade/dedupe/remove mode).
+
+**Artifact path:** .temp/reports/deps-<slug>.md (report), repo lockfile + manifests for actual changes.
+
 <!-- adk:references:start -->
 
 ## References shipped with this skill
@@ -150,18 +177,15 @@ These files live in `references/` next to this `SKILL.md`. Read them when the sk
 
 | File | Purpose |
 | --- | --- |
-| `references/anti-patterns.md` | Things to avoid when running this skill. |
-| `references/constitution.md` | Non-negotiable rules and working/communication discipline. |
-| `references/examples.md` | Example trigger phrases, invocation, and report shape. |
-| `references/output-format.md` | Verbosity modes, result shape, severity labels. |
-| `references/persona.md` | The agent persona that drives this skill. |
+| `references/build-deps-anti-patterns.md` | Things to avoid when running this skill. |
+| `references/build-deps-artifact-format.md` | The deliverable's format and where it lives (.temp/ contract). |
+| `references/build-deps-clarifying-questions.md` | The default-ask questions for this skill, with how-to-pick rubrics. |
+| `references/build-deps-constitution.md` | Non-negotiable rules and working/communication discipline. |
+| `references/build-deps-examples.md` | Example trigger phrases, invocation, and report shape. |
+| `references/interaction-contract.md` | Default-ask, explained-options, --auto contract every skill must follow. |
+| `references/build-deps-output-format.md` | Default vs detailed report shapes; severity labels; verbosity rules. |
+| `references/build-deps-persona.md` | The agent persona that drives this skill. |
+| `references/build-deps-research-protocol.md` | Source ordering, stop conditions, evidence buckets, citation discipline. |
+| `references/build-deps-validator.md` | The four-phase validator gate (pre-execution, mid-flow, pre-handoff, post-execution) this skill MUST run. |
 
 <!-- adk:references:end -->
-
-## References shipped with this skill
-
-- `references/anti-patterns.md`
-- `references/constitution.md`
-- `references/examples.md`
-- `references/output-format.md`
-- `references/persona.md`

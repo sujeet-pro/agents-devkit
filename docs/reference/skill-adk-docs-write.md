@@ -4,13 +4,6 @@ description: 'Author or refresh a technical document - README, runbook, API refe
 skill_name: adk-docs-write
 category: task
 ---
-
-# adk-docs-write
-
-Author or refresh a technical document - README, runbook, API reference, ADR, onboarding guide, migration guide, tech-radar entry - grounded in the actual code and configs of the repo. Use when the deliverable is a markdown doc that real engineers will read and follow. Do not use for product specs (use adk-plan-spec), architecture write-ups (use adk-plan-design), or commit/PR text (use adk-publish-commit).
-
-## Skill body
-
 # ADK Docs / Write
 
 Standalone task skill under the `adk-docs` category router. Produces engineer-grade docs grounded in the actual code, with verifiable examples and minimal padding.
@@ -31,13 +24,15 @@ Standalone task skill under the `adk-docs` category router. Produces engineer-gr
 
 ## Inputs
 
-| Input | Required | Notes |
-| --- | --- | --- |
-| `<doc type>` | yes | `readme` / `runbook` / `api` / `adr` / `onboarding` / `migration` / `tech-radar` / `changelog` / `custom` |
-| `<topic>` | yes | What the doc is about |
-| `<output path>` | optional | Defaults to a sensible place (`README.md`, `docs/runbooks/<slug>.md`, `docs/adr/NNN-<slug>.md`, etc.) |
-| `<scope>` | optional | Path to limit reads |
-| `--auto` | optional | Skip approval gates |
+
+| Input           | Required | Notes                                                                                                     |
+| --------------- | -------- | --------------------------------------------------------------------------------------------------------- |
+| `<doc type>`    | yes      | `readme` / `runbook` / `api` / `adr` / `onboarding` / `migration` / `tech-radar` / `changelog` / `custom` |
+| `<topic>`       | yes      | What the doc is about                                                                                     |
+| `<output path>` | optional | Defaults to a sensible place (`README.md`, `docs/runbooks/<slug>.md`, `docs/adr/NNN-<slug>.md`, etc.)     |
+| `<scope>`       | optional | Path to limit reads                                                                                       |
+| `--auto`        | optional | Skip approval gates                                                                                       |
+
 
 ## Workflow
 
@@ -63,26 +58,34 @@ Standalone task skill under the `adk-docs` category router. Produces engineer-gr
 ```
 
 ## Features
-- <bullet>
+
+- 
 
 ## Install
-<concrete steps with version requirements>
+
+
 
 ## Usage
-<minimal worked example>
+
+
 
 ## Configuration
+
+
 | Var | Required | Default | Purpose |
-| --- | --- | --- | --- |
+| --- | -------- | ------- | ------- |
+
 
 ## Development
+
 <setup, tests, lint, scripts>
 
 ## Contributing
-<link to CONTRIBUTING.md or short policy>
+
+
 
 ## License
-<spdx identifier or link>
+
 ```
 
 ### Runbook
@@ -240,28 +243,65 @@ Want a deeper look at any section?
 - Splitting the doc across many tiny files when one would be clearer.
 - Missing language tags on code blocks.
 
-<!-- adk:references:start -->
+## Clarifying questions (default-ask)
+
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/docs-write-clarifying-questions.md`) and reports the choices.
+
+1. **Doc type: README / runbook / API / ADR / onboarding / migration / tech-radar / changelog / custom?** — *How to pick:* README = first-touch repo intro. Runbook = on-call mitigation. API = developer reference. ADR = single decision record. Onboarding = day-1 to first-PR. Migration = move from A to B. Tech-radar = ring placement. Changelog = release notes. Custom = anything else.
+2. **Audience and the action they take after reading?** — *How to pick:* On-call → mitigation steps. New hire → setup commands. Consumer → API signatures + examples. Decision-maker → trade-offs + recommendation.
+3. **Where will it live so it stays discoverable?** — *How to pick:* Pick a path inside the repo's existing docs structure. Avoid orphan files at the root.
+4. **Are there extra repos that supply context (clones to read, paths to local checkouts)?** — *How to pick:* Pass URLs to clone or paths to local clones. Useful for cross-repo migration guides, integration docs, multi-service onboarding.
+
+**Default report:** Final doc markdown + 3-bullet TL;DR + validation results (commands run, links checked).
+
+**Detailed report (on request or `--verbose`):** Add: outline before the draft, source-evidence per section (file:line), drift-from-code log if refreshing, follow-up TODOs by section.
+
+**Artifact:** `documentation-page` — Markdown file at the chosen path inside the repo. Outline + working notes mirrored in .temp/drafts/.
+
+**Artifact path:** .temp/drafts/docs-.md (working draft). Final lands at the repo path the user chose (README.md, docs/runbooks/.md, docs/adr/NNN-.md, etc.).
+
+Pass extra repos via `--repo <url-or-path>` (repeatable). URLs are cloned into `.temp/reference-repos/<owner>__<repo>/`; paths are read in place. Each repo is processed independently and findings/citations are tagged with the repo of origin. See `references/docs-write-multi-repo.md` for full handling.
+
+## Clarifying questions (default-ask)
+
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/docs-write-clarifying-questions.md`) and reports the choices.
+
+1. **Doc type: README / runbook / API / ADR / onboarding / migration / tech-radar / changelog / custom?** — *How to pick:* README = first-touch repo intro. Runbook = on-call mitigation. API = developer reference. ADR = single decision record. Onboarding = day-1 to first-PR. Migration = move from A to B. Tech-radar = ring placement. Changelog = release notes. Custom = anything else.
+2. **Audience and the action they take after reading?** — *How to pick:* On-call → mitigation steps. New hire → setup commands. Consumer → API signatures + examples. Decision-maker → trade-offs + recommendation.
+3. **Where will it live so it stays discoverable?** — *How to pick:* Pick a path inside the repo's existing docs structure. Avoid orphan files at the root.
+4. **Are there extra repos that supply context (clones to read, paths to local checkouts)?** — *How to pick:* Pass URLs to clone or paths to local clones. Useful for cross-repo migration guides, integration docs, multi-service onboarding.
+
+## Default vs detailed output
+
+**Default report:** Final doc markdown + 3-bullet TL;DR + validation results (commands run, links checked).
+
+**Detailed report (on request or `--verbose`):** Add: outline before the draft, source-evidence per section (file:line), drift-from-code log if refreshing, follow-up TODOs by section.
+
+**Artifact:** `documentation-page` — Markdown file at the chosen path inside the repo. Outline + working notes mirrored in .temp/drafts/.
+
+**Artifact path:** .temp/drafts/docs-.md (working draft). Final lands at the repo path the user chose (README.md, docs/runbooks/.md, docs/adr/NNN-.md, etc.).
+
+## Multi-repo context
+
+Pass extra repos via `--repo <url-or-path>` (repeatable). URLs are cloned into `.temp/reference-repos/<owner>__<repo>/`; paths are read in place. Each repo is processed independently and findings/citations are tagged with the repo of origin. See `references/docs-write-multi-repo.md` for full handling.
+
+
 
 ## References shipped with this skill
 
 These files live in `references/` next to this `SKILL.md`. Read them when the skill activates; they are inlined here so the skill is fully self-contained (no cross-skill or shared sources).
 
-| File | Purpose |
-| --- | --- |
-| `references/anti-patterns.md` | Things to avoid when running this skill. |
-| `references/constitution.md` | Non-negotiable rules and working/communication discipline. |
-| `references/examples.md` | Example trigger phrases, invocation, and report shape. |
-| `references/output-format.md` | Verbosity modes, result shape, severity labels. |
-| `references/persona.md` | The agent persona that drives this skill. |
-| `references/working-artifacts.md` | The .temp/ rule for intermediate artifacts. |
 
-<!-- adk:references:end -->
-
-## References shipped with this skill
-
-- `references/anti-patterns.md`
-- `references/constitution.md`
-- `references/examples.md`
-- `references/output-format.md`
-- `references/persona.md`
-- `references/working-artifacts.md`
+| File                                 | Purpose                                                                  |
+| ------------------------------------ | ------------------------------------------------------------------------ |
+| `references/docs-write-anti-patterns.md`        | Things to avoid when running this skill.                                 |
+| `references/docs-write-artifact-format.md`      | The deliverable's format and where it lives (.temp/ contract).           |
+| `references/docs-write-clarifying-questions.md` | The default-ask questions for this skill, with how-to-pick rubrics.      |
+| `references/docs-write-constitution.md`         | Non-negotiable rules and working/communication discipline.               |
+| `references/docs-write-examples.md`             | Example trigger phrases, invocation, and report shape.                   |
+| `references/interaction-contract.md` | Default-ask, explained-options, --auto contract every skill must follow. |
+| `references/docs-write-multi-repo.md`           | How to consume context from extra cloned or local-path repos.            |
+| `references/docs-write-output-format.md`        | Default vs detailed report shapes; severity labels; verbosity rules.     |
+| `references/docs-write-persona.md`              | The agent persona that drives this skill.                                |
+| `references/docs-write-research-protocol.md`    | Source ordering, stop conditions, evidence buckets, citation discipline. |
+| `references/docs-write-working-artifacts.md`    | Legacy: superseded by artifact-format.md; kept for back-compat.          |

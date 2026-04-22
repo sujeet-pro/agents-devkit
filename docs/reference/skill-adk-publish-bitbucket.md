@@ -4,13 +4,6 @@ description: 'Run Bitbucket Cloud PR/issue/comment/merge actions via REST API or
 skill_name: adk-publish-bitbucket
 category: task
 ---
-
-# adk-publish-bitbucket
-
-Run Bitbucket Cloud PR/issue/comment/merge actions via REST API or the bitbucket MCP server - create or update a PR, post a comment, request review, label, transition status, merge with the right strategy. Use when the destination is bitbucket.org and the deliverable is a remote action with verification. Do not use for GitHub (use adk-publish-github), drafting the message itself (use adk-publish-commit), or reviewing the PR (use adk-review-pr).
-
-## Skill body
-
 # ADK Publish / Bitbucket
 
 Standalone task skill under the `adk-publish` category router. Executes Bitbucket Cloud actions through the `bitbucket` MCP server (preferred) or direct REST API, then verifies the action landed.
@@ -47,7 +40,7 @@ Standalone task skill under the `adk-publish` category router. Executes Bitbucke
 2. **Check tooling** - prefer the `bitbucket` MCP server; fall back to direct REST (`https://api.bitbucket.org/2.0/`) with `BITBUCKET_USERNAME` + `BITBUCKET_APP_PASSWORD` from env. Stop with a clear install/config message if neither is available.
 3. **Resolve workspace/repo** - detect `<workspace>/<repo>` from `git remote get-url origin` (must be a bitbucket.org host) or from the URL in `<target>`.
 4. **Execute** - call the MCP or REST endpoint. Capture the returned PR/issue id and URL.
-5. **Verify** - re-fetch the artifact via the same provider to confirm the change landed (title, description, reviewers, state).
+5. **Verify (per `publish-bitbucket-validator.md`)** - re-fetch the artifact via the same provider to confirm the change landed (title, description, reviewers, state).
 6. **Report** - lead with the URL; include action, key changes, and verification status.
 
 ## Action playbooks
@@ -183,6 +176,40 @@ adk-publish-bitbucket pr-comment 17 --body-file .temp/drafts/comment.md
 adk-publish-bitbucket pr-merge 17 --merge-strategy squash
 ```
 
+## Clarifying questions (default-ask)
+
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/publish-bitbucket-clarifying-questions.md`) and reports the choices.
+
+1. **Action: pr-create / pr-update / pr-comment / pr-task / pr-merge / issue-create / issue-comment?** — _How to pick:_ Comments are discussion; tasks are blocking checklist items the author must resolve. Pick deliberately.
+2. **Target: PR/issue ID or URL?** — _How to pick:_ Required for actions on existing artifacts.
+3. **Body source: file path or auto-generate?** — _How to pick:_ Prefer file (drafted upstream). Auto-generate only when no body exists.
+
+**Default report:** Action result URL + verification block + tool used (REST / MCP).
+
+**Detailed report (on request or `--verbose`):** Add: full HTTP request/response JSON archived, follow-up suggestions (assign reviewers, link to spec page).
+
+**Artifact:** `bitbucket-action-result` — The remote PR/issue/comment/task is the artifact. Action log in .temp/notes/.
+
+**Artifact path:** .temp/notes/publish-bitbucket-<action>-<target>.md
+
+## Clarifying questions (default-ask)
+
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/publish-bitbucket-clarifying-questions.md`) and reports the choices.
+
+1. **Action: pr-create / pr-update / pr-comment / pr-task / pr-merge / issue-create / issue-comment?** — _How to pick:_ Comments are discussion; tasks are blocking checklist items the author must resolve. Pick deliberately.
+2. **Target: PR/issue ID or URL?** — _How to pick:_ Required for actions on existing artifacts.
+3. **Body source: file path or auto-generate?** — _How to pick:_ Prefer file (drafted upstream). Auto-generate only when no body exists.
+
+## Default vs detailed output
+
+**Default report:** Action result URL + verification block + tool used (REST / MCP).
+
+**Detailed report (on request or `--verbose`):** Add: full HTTP request/response JSON archived, follow-up suggestions (assign reviewers, link to spec page).
+
+**Artifact:** `bitbucket-action-result` — The remote PR/issue/comment/task is the artifact. Action log in .temp/notes/.
+
+**Artifact path:** .temp/notes/publish-bitbucket-<action>-<target>.md
+
 <!-- adk:references:start -->
 
 ## References shipped with this skill
@@ -191,20 +218,16 @@ These files live in `references/` next to this `SKILL.md`. Read them when the sk
 
 | File | Purpose |
 | --- | --- |
-| `references/anti-patterns.md` | Things to avoid when running this skill. |
-| `references/constitution.md` | Non-negotiable rules and working/communication discipline. |
-| `references/examples.md` | Example trigger phrases, invocation, and report shape. |
-| `references/mcp-fallback.md` | Preferred MCP server and the manual fallback when it is missing. |
-| `references/output-format.md` | Verbosity modes, result shape, severity labels. |
-| `references/persona.md` | The agent persona that drives this skill. |
+| `references/publish-bitbucket-anti-patterns.md` | Things to avoid when running this skill. |
+| `references/publish-bitbucket-artifact-format.md` | The deliverable's format and where it lives (.temp/ contract). |
+| `references/publish-bitbucket-clarifying-questions.md` | The default-ask questions for this skill, with how-to-pick rubrics. |
+| `references/publish-bitbucket-constitution.md` | Non-negotiable rules and working/communication discipline. |
+| `references/publish-bitbucket-examples.md` | Example trigger phrases, invocation, and report shape. |
+| `references/interaction-contract.md` | Default-ask, explained-options, --auto contract every skill must follow. |
+| `references/publish-bitbucket-mcp-fallback.md` | Preferred MCP server and the manual fallback when it is missing. |
+| `references/publish-bitbucket-output-format.md` | Default vs detailed report shapes; severity labels; verbosity rules. |
+| `references/publish-bitbucket-persona.md` | The agent persona that drives this skill. |
+| `references/publish-bitbucket-research-protocol.md` | Source ordering, stop conditions, evidence buckets, citation discipline. |
+| `references/publish-bitbucket-validator.md` | The four-phase validator gate (pre-execution, mid-flow, pre-publish, post-publish) this skill MUST run. |
 
 <!-- adk:references:end -->
-
-## References shipped with this skill
-
-- `references/anti-patterns.md`
-- `references/constitution.md`
-- `references/examples.md`
-- `references/mcp-fallback.md`
-- `references/output-format.md`
-- `references/persona.md`

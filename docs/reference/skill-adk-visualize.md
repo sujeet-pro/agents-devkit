@@ -4,13 +4,6 @@ description: 'Category router for producing diagrams and charts from text descri
 skill_name: adk-visualize
 category: router
 ---
-
-# adk-visualize
-
-Category router for producing diagrams and charts from text descriptions or data - sequence/flow/architecture diagrams via mermaid/drawio/excalidraw/graphviz, and bar/line/pie/scatter charts from CSV/JSON/inline data. Use when the deliverable is a visual (image, SVG, or markdown-embedded diagram), not prose. Picks one of adk-visualize-diagram, adk-visualize-chart.
-
-## Skill body
-
 # ADK Visualize (Category Router)
 
 Routes any "make a picture from this" intent to the right visualization task. Activate one of the listed task skills below; do not draft directly from this router.
@@ -66,6 +59,36 @@ Once you have picked a task, load `adk-visualize-<task>` and follow it. Each tas
 - Charts without labeled axes or units.
 - Diagrams with more than ~12 nodes per view; split into layered diagrams instead.
 
+## Clarifying questions (default-ask)
+
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/visualize-clarifying-questions.md`) and reports the choices.
+
+1. **Is the goal a structural diagram (boxes + arrows showing relationships) or a data chart (numeric values plotted)?** — _How to pick:_ Diagram → adk-visualize-diagram. Chart → adk-visualize-chart.
+
+**Default report:** Routed task + why.
+
+**Detailed report (on request or `--verbose`):** (n/a — small router)
+
+**Artifact:** `visualize-routing-decision` — Inline message.
+
+**Artifact path:** (none)
+
+## Clarifying questions (default-ask)
+
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/visualize-clarifying-questions.md`) and reports the choices.
+
+1. **Is the goal a structural diagram (boxes + arrows showing relationships) or a data chart (numeric values plotted)?** — _How to pick:_ Diagram → adk-visualize-diagram. Chart → adk-visualize-chart.
+
+## Default vs detailed output
+
+**Default report:** Routed task + why.
+
+**Detailed report (on request or `--verbose`):** (n/a — small router)
+
+**Artifact:** `visualize-routing-decision` — Inline message.
+
+**Artifact path:** (none)
+
 <!-- adk:references:start -->
 
 ## References shipped with this skill
@@ -74,12 +97,13 @@ These files live in `references/` next to this `SKILL.md`. Read them when the sk
 
 | File | Purpose |
 | --- | --- |
-| `references/anti-patterns.md` | Things to avoid when running this skill. |
-| `references/constitution.md` | Non-negotiable rules and working/communication discipline. |
+| `references/visualize-anti-patterns.md` | Things to avoid when running this skill. |
+| `references/visualize-artifact-format.md` | The deliverable's format and where it lives (.temp/ contract). |
+| `references/visualize-clarifying-questions.md` | The default-ask questions for this skill, with how-to-pick rubrics. |
+| `references/visualize-constitution.md` | Non-negotiable rules and working/communication discipline. |
+| `references/interaction-contract.md` | Default-ask, explained-options, --auto contract every skill must follow. |
+| `references/visualize-output-format.md` | Default vs detailed report shapes; severity labels; verbosity rules. |
+| `references/visualize-persona.md` | The agent persona that drives this skill. |
+| `references/visualize-validator.md` | The four-phase validator gate (pre-execution, mid-flow, pre-handoff, post-execution) this skill MUST run. |
 
 <!-- adk:references:end -->
-
-## References shipped with this skill
-
-- `references/anti-patterns.md`
-- `references/constitution.md`

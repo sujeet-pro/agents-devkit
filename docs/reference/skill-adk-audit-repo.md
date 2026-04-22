@@ -4,13 +4,6 @@ description: 'Audit a code repository across security, performance, code quality
 skill_name: adk-audit-repo
 category: task
 ---
-
-# adk-audit-repo
-
-Audit a code repository across security, performance, code quality, dependencies, test coverage, and architecture - producing a single severity-tiered report with file-anchored evidence per finding. Use when the deliverable is a multi-dimensional health report on a checked-out repo, not a single-PR review or a doc review. Do not use to audit a deployed website (use adk-audit-site) or to fix the issues found (use adk-build-* skills).
-
-## Skill body
-
 # ADK Audit / Repo
 
 Standalone task skill under the `adk-audit` category router. Inspects a checked-out repository across multiple dimensions in parallel and produces one consolidated report with severity-tiered findings, each anchored to a file path.
@@ -148,6 +141,46 @@ adk-audit-repo --dimensions security,dependencies --depth standard
 adk-audit-repo /path/to/repo --depth deep --output .temp/reports/audit-repo-acme-2026-04.md
 ```
 
+## Clarifying questions (default-ask)
+
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/audit-repo-clarifying-questions.md`) and reports the choices.
+
+1. **Which dimensions to audit (security / performance / quality / dependencies / tests / architecture / all)?** — _How to pick:_ All for new audits. Narrow when re-auditing a specific area or under time pressure.
+2. **Depth: quick / standard / deep?** — _How to pick:_ Quick = surface scan, ~30 min. Standard = run available analyzers (linter/typechecker/audit). Deep = sample-based code review of hot files + per-package metrics.
+3. **Are there extra repos to clone for cross-repo context (mono-repo subprojects, shared libs)?** — _How to pick:_ Pass URLs or paths. Each gets its own findings section in the report.
+
+**Default report:** Top-of-file summary (counts per severity, top 3 risks) + severity-grouped findings + per-dimension notes + out-of-scope.
+
+**Detailed report (on request or `--verbose`):** Add: file tree + LOC/language inventory, every analyzer command + output, suppressed findings list with reason, recommended fix order with effort estimate.
+
+**Artifact:** `audit-report` — Markdown report.
+
+**Artifact path:** .temp/reports/audit-repo-<slug>-<date>.md (raw analyzer output in .temp/notes/audit-<slug>/<dimension>.txt)
+
+Pass extra repos via `--repo <url-or-path>` (repeatable). URLs are cloned into `.temp/reference-repos/<owner>__<repo>/`; paths are read in place. Each repo is processed independently and findings/citations are tagged with the repo of origin. See `references/audit-repo-multi-repo.md` for full handling.
+
+## Clarifying questions (default-ask)
+
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/audit-repo-clarifying-questions.md`) and reports the choices.
+
+1. **Which dimensions to audit (security / performance / quality / dependencies / tests / architecture / all)?** — _How to pick:_ All for new audits. Narrow when re-auditing a specific area or under time pressure.
+2. **Depth: quick / standard / deep?** — _How to pick:_ Quick = surface scan, ~30 min. Standard = run available analyzers (linter/typechecker/audit). Deep = sample-based code review of hot files + per-package metrics.
+3. **Are there extra repos to clone for cross-repo context (mono-repo subprojects, shared libs)?** — _How to pick:_ Pass URLs or paths. Each gets its own findings section in the report.
+
+## Default vs detailed output
+
+**Default report:** Top-of-file summary (counts per severity, top 3 risks) + severity-grouped findings + per-dimension notes + out-of-scope.
+
+**Detailed report (on request or `--verbose`):** Add: file tree + LOC/language inventory, every analyzer command + output, suppressed findings list with reason, recommended fix order with effort estimate.
+
+**Artifact:** `audit-report` — Markdown report.
+
+**Artifact path:** .temp/reports/audit-repo-<slug>-<date>.md (raw analyzer output in .temp/notes/audit-<slug>/<dimension>.txt)
+
+## Multi-repo context
+
+Pass extra repos via `--repo <url-or-path>` (repeatable). URLs are cloned into `.temp/reference-repos/<owner>__<repo>/`; paths are read in place. Each repo is processed independently and findings/citations are tagged with the repo of origin. See `references/audit-repo-multi-repo.md` for full handling.
+
 <!-- adk:references:start -->
 
 ## References shipped with this skill
@@ -156,22 +189,17 @@ These files live in `references/` next to this `SKILL.md`. Read them when the sk
 
 | File | Purpose |
 | --- | --- |
-| `references/anti-patterns.md` | Things to avoid when running this skill. |
-| `references/constitution.md` | Non-negotiable rules and working/communication discipline. |
-| `references/output-format.md` | Verbosity modes, result shape, severity labels. |
-| `references/persona.md` | The agent persona that drives this skill. |
-| `references/research-protocol.md` | Default research order and evidence buckets. |
-| `references/review-comment-format.md` | Standard finding format with stable IDs and severities. |
-| `references/working-artifacts.md` | The .temp/ rule for intermediate artifacts. |
+| `references/audit-repo-anti-patterns.md` | Things to avoid when running this skill. |
+| `references/audit-repo-artifact-format.md` | The deliverable's format and where it lives (.temp/ contract). |
+| `references/audit-repo-clarifying-questions.md` | The default-ask questions for this skill, with how-to-pick rubrics. |
+| `references/audit-repo-constitution.md` | Non-negotiable rules and working/communication discipline. |
+| `references/interaction-contract.md` | Default-ask, explained-options, --auto contract every skill must follow. |
+| `references/audit-repo-multi-repo.md` | How to consume context from extra cloned or local-path repos. |
+| `references/audit-repo-output-format.md` | Default vs detailed report shapes; severity labels; verbosity rules. |
+| `references/audit-repo-persona.md` | The agent persona that drives this skill. |
+| `references/audit-repo-research-protocol.md` | Source ordering, stop conditions, evidence buckets, citation discipline. |
+| `references/audit-repo-review-comment-format.md` | Standard finding format with stable IDs and severities. |
+| `references/audit-repo-working-artifacts.md` | Legacy: superseded by artifact-format.md; kept for back-compat. |
+| `references/audit-repo-validator.md` | The four-phase validator gate (pre-execution, mid-flow, pre-handoff, post-execution) this skill MUST run. |
 
 <!-- adk:references:end -->
-
-## References shipped with this skill
-
-- `references/anti-patterns.md`
-- `references/constitution.md`
-- `references/output-format.md`
-- `references/persona.md`
-- `references/research-protocol.md`
-- `references/review-comment-format.md`
-- `references/working-artifacts.md`

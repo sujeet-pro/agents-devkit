@@ -104,20 +104,22 @@ Workflows in `workflows/*.yaml` chain skills. They are optional convenience pres
 ## Validation commands
 
 ```bash
-npm run validate            # all skills, agents, hooks
-node cli/lib/validate.mjs   # same, called directly
-npm run skills:manifest     # regenerate manifest from skills/
-npm run setup:dry           # interactive plan, no writes
-npm run docs:build          # build the public docs site
+npm run validate            # validates SKILL.md frontmatter, agent shape, hook JSON
+npm run validate:content    # stricter: code-fence balance, link integrity, fence-aware heading + link checks
+npm run validate:all        # both of the above
+npm run skills:manifest     # regenerate skills-manifest.json from skills/
+npm run docs:skills         # regenerate docs/reference/skill-*.md mirrors from each SKILL.md (run before docs:build; included in docs:build)
+npm run docs:build          # docs:skills + pagesmith-docs build
+npm run setup:dry           # interactive installer plan, no writes
 ```
 
 ## Release checklist
 
-1. `npm run validate` — must be `0 error(s)`.
+1. `npm run validate:all` — must be `0 error(s), 0 warning(s)`.
 2. `npm run skills:manifest` — commit the regenerated manifest.
-3. `npm run setup:dry` from a temp dir against both a global and a project install — confirm the plan summary lists every skill, agent, hook, and MCP server.
-4. Bump `package.json` `version`. Update the skill count anywhere it changed.
-5. `npm run docs:build` and commit `gh-pages/`.
+3. `npm run docs:build` — runs `docs:skills` first so the `docs/reference/skill-*.md` mirrors are in sync; commit `gh-pages/`.
+4. `npm run setup:dry` from a temp dir against both a global and a project install — confirm the plan summary lists every skill, agent, hook, and MCP server.
+5. Bump `package.json` `version`. Update the skill count anywhere it changed.
 6. `git tag v<version> && git push --tags`.
 7. `npm publish`.
 

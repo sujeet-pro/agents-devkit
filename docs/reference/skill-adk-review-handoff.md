@@ -4,13 +4,6 @@ description: 'Capture a structured session-handoff document so a paused or trans
 skill_name: adk-review-handoff
 category: task
 ---
-
-# adk-review-handoff
-
-Capture a structured session-handoff document so a paused or transferred task can resume without information loss - covering task summary, decisions with rationale, work completed, remaining work, blockers, key files, git state, and environment. Use when pausing long-running work, switching contexts, transferring to another developer or session, or preparing async collaboration. Do not use for project documentation (use adk-docs-write) or commit messages (use adk-publish-commit).
-
-## Skill body
-
 # ADK Review / Handoff
 
 Standalone task skill under the `adk-review` category router. Produces a self-contained handoff document that any session or person can resume without consulting the original chat.
@@ -49,7 +42,8 @@ Standalone task skill under the `adk-review` category router. Produces a self-co
    - Open questions still unresolved.
 3. **Structure** - place the captured state into the handoff template below.
 4. **Preview** - show the document summary to the user for confirmation. Skip when `--auto`.
-5. **Deliver** - write the handoff file; print the file path, progress summary, and the recommended next step.
+5. **Validate (per `review-handoff-validator.md`)** - run the four-phase validator gate; capture evidence in `.temp/notes/review-handoff-<slug>-validator.md` before the final report.
+6. **Deliver** - write the handoff file; print the file path, progress summary, and the recommended next step.
 
 For `resume`:
 
@@ -182,6 +176,38 @@ adk-review-handoff --action resume --output .handoff/handoff-2026-04-14-1030.md
 adk-review-handoff --action status
 ```
 
+## Clarifying questions (default-ask)
+
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/review-handoff-clarifying-questions.md`) and reports the choices.
+
+1. **What is the next intended owner (yourself later, another agent, a human)?** — _How to pick:_ Adjust verbosity: terse for self, full context for stranger handoff.
+2. **Should the handoff include suggested commands to resume, or only state?** — _How to pick:_ Include commands when the next owner is an agent or a junior dev. State-only when the owner already knows the workflow.
+
+**Default report:** Status block (done / in-flight / blocked) + open questions + artifact map + recommended next step.
+
+**Detailed report (on request or `--verbose`):** Add: chronological session log, every decision made and its rationale, environment snapshot (branch, dirty files, env vars set).
+
+**Artifact:** `handoff-document` — Markdown handoff. Sections: Context, Status (Done / In-Flight / Blocked), Artifacts (paths + purpose), Open Questions, Recommended Next Step (skill + inputs), Environment Snapshot.
+
+**Artifact path:** .temp/reports/handoff-<date>-<slug>.md
+
+## Clarifying questions (default-ask)
+
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/review-handoff-clarifying-questions.md`) and reports the choices.
+
+1. **What is the next intended owner (yourself later, another agent, a human)?** — _How to pick:_ Adjust verbosity: terse for self, full context for stranger handoff.
+2. **Should the handoff include suggested commands to resume, or only state?** — _How to pick:_ Include commands when the next owner is an agent or a junior dev. State-only when the owner already knows the workflow.
+
+## Default vs detailed output
+
+**Default report:** Status block (done / in-flight / blocked) + open questions + artifact map + recommended next step.
+
+**Detailed report (on request or `--verbose`):** Add: chronological session log, every decision made and its rationale, environment snapshot (branch, dirty files, env vars set).
+
+**Artifact:** `handoff-document` — Markdown handoff. Sections: Context, Status (Done / In-Flight / Blocked), Artifacts (paths + purpose), Open Questions, Recommended Next Step (skill + inputs), Environment Snapshot.
+
+**Artifact path:** .temp/reports/handoff-<date>-<slug>.md
+
 <!-- adk:references:start -->
 
 ## References shipped with this skill
@@ -190,18 +216,14 @@ These files live in `references/` next to this `SKILL.md`. Read them when the sk
 
 | File | Purpose |
 | --- | --- |
-| `references/anti-patterns.md` | Things to avoid when running this skill. |
-| `references/constitution.md` | Non-negotiable rules and working/communication discipline. |
-| `references/output-format.md` | Verbosity modes, result shape, severity labels. |
-| `references/persona.md` | The agent persona that drives this skill. |
-| `references/working-artifacts.md` | The .temp/ rule for intermediate artifacts. |
+| `references/review-handoff-anti-patterns.md` | Things to avoid when running this skill. |
+| `references/review-handoff-artifact-format.md` | The deliverable's format and where it lives (.temp/ contract). |
+| `references/review-handoff-clarifying-questions.md` | The default-ask questions for this skill, with how-to-pick rubrics. |
+| `references/review-handoff-constitution.md` | Non-negotiable rules and working/communication discipline. |
+| `references/interaction-contract.md` | Default-ask, explained-options, --auto contract every skill must follow. |
+| `references/review-handoff-output-format.md` | Default vs detailed report shapes; severity labels; verbosity rules. |
+| `references/review-handoff-persona.md` | The agent persona that drives this skill. |
+| `references/review-handoff-working-artifacts.md` | Legacy: superseded by artifact-format.md; kept for back-compat. |
+| `references/review-handoff-validator.md` | The four-phase validator gate (pre-execution, mid-flow, pre-handoff, post-execution) this skill MUST run. |
 
 <!-- adk:references:end -->
-
-## References shipped with this skill
-
-- `references/anti-patterns.md`
-- `references/constitution.md`
-- `references/output-format.md`
-- `references/persona.md`
-- `references/working-artifacts.md`
