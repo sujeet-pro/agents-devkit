@@ -75,7 +75,7 @@ Once you have picked a task, load `adk-frontend-<task>` and follow it. Each task
 
 ## Clarifying questions (default-ask)
 
-When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/clarifying-questions.md`) and reports the choices.
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/frontend-clarifying-questions.md`) and reports the choices.
 
 1. **Is the work UI/UX design (decisions, mocks, copy) or implementation (code)?** — _How to pick:_ Design → adk-frontend-design. Implementation → frontend-feature or frontend-react-csr.
 2. **If implementation: is the project on the locked React 19 + Vite + TanStack stack, or another stack?** — _How to pick:_ Locked stack → adk-frontend-react-csr. Other → adk-frontend-feature.
@@ -90,7 +90,7 @@ When running without `--auto`, the skill asks these questions in order, one at a
 
 ## Clarifying questions (default-ask)
 
-When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/clarifying-questions.md`) and reports the choices.
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/frontend-clarifying-questions.md`) and reports the choices.
 
 1. **Is the work UI/UX design (decisions, mocks, copy) or implementation (code)?** — _How to pick:_ Design → adk-frontend-design. Implementation → frontend-feature or frontend-react-csr.
 2. **If implementation: is the project on the locked React 19 + Vite + TanStack stack, or another stack?** — _How to pick:_ Locked stack → adk-frontend-react-csr. Other → adk-frontend-feature.
@@ -113,12 +113,13 @@ These files live in `references/` next to this `SKILL.md`. Read them when the sk
 
 | File | Purpose |
 | --- | --- |
-| `references/anti-patterns.md` | Things to avoid when running this skill. |
-| `references/artifact-format.md` | The deliverable's format and where it lives (.temp/ contract). |
-| `references/clarifying-questions.md` | The default-ask questions for this skill, with how-to-pick rubrics. |
-| `references/constitution.md` | Non-negotiable rules and working/communication discipline. |
+| `references/frontend-anti-patterns.md` | Things to avoid when running this skill. |
+| `references/frontend-artifact-format.md` | The deliverable's format and where it lives (.temp/ contract). |
+| `references/frontend-clarifying-questions.md` | The default-ask questions for this skill, with how-to-pick rubrics. |
+| `references/frontend-constitution.md` | Non-negotiable rules and working/communication discipline. |
 | `references/interaction-contract.md` | Default-ask, explained-options, --auto contract every skill must follow. |
-| `references/output-format.md` | Default vs detailed report shapes; severity labels; verbosity rules. |
-| `references/persona.md` | The agent persona that drives this skill. |
+| `references/frontend-output-format.md` | Default vs detailed report shapes; severity labels; verbosity rules. |
+| `references/frontend-persona.md` | The agent persona that drives this skill. |
+| `references/frontend-validator.md` | The four-phase validator gate (pre-execution, mid-flow, pre-handoff, post-execution) this skill MUST run. |
 
 <!-- adk:references:end -->

@@ -1,13 +1,13 @@
 {
-  "version": "3.0.0",
-  "generated": "2026-04-21",
+  "version": "0.0.1",
+  "generated": "2026-04-22",
   "distribution": "npx-skills",
   "model": "standalone-skill",
-  "skill_count": 38,
+  "skill_count": 39,
   "categories": {
     "top": 1,
     "router": 8,
-    "task": 29
+    "task": 30
   },
   "adk_categories": [
     "audit",
@@ -29,6 +29,20 @@
       "invocation": {
         "default": "/adk",
         "npx_skills": "/adk"
+      },
+      "has_references": true,
+      "has_scripts": false,
+      "has_assets": false
+    },
+    {
+      "name": "adk-adopt-ai-in-repo",
+      "description": "Analyze the current repository deeply, detect its stack and collaboration conventions, research stack-specific best practices, and bootstrap cross-agent AI guidance — `ai-guidelines/` (canonical knowledge), `AGENTS.md` (neutral router), `CLAUDE.md` (Claude-specific delta), repo-local task skills under `.claude/skills/` and `.cursor/skills/`, and Python-based maintenance hooks. Use when onboarding AI to an existing repo or refreshing repo-aware agent scaffolding after the codebase has changed. Do not use for greenfield project scaffolding (use the repo's own templates) or for adopting a single skill into an already-scaffolded repo (just edit the file).",
+      "kind": "task",
+      "category": "adopt",
+      "path": "skills/adk-adopt-ai-in-repo",
+      "invocation": {
+        "default": "/adk-adopt-ai-in-repo",
+        "npx_skills": "/adk-adopt-ai-in-repo"
       },
       "has_references": true,
       "has_scripts": false,
@@ -190,7 +204,7 @@
     },
     {
       "name": "adk-docs-review",
-      "description": "Review an existing technical document for accuracy, freshness, structure, completeness, and readability - producing severity-tiered findings against the actual code or configs the doc claims to describe. Use when the deliverable is a critique with actionable fixes for a doc that already exists. Do not use to write a new doc (use adk-docs-write) or to review code (use adk-review-pr / adk-review-local).",
+      "description": "Review an existing technical document (Markdown file, fetched URL, or Confluence page) for accuracy, freshness, structure, completeness, and readability — producing severity-tiered findings against the actual code or configs the doc claims to describe. With `--mode confluence`, posts inline + footer comments back to the live page (with reconciliation against existing comments). Use when the deliverable is a critique with actionable fixes for a doc that already exists. Do not use to write a new doc (use adk-docs-write), publish a doc (use adk-publish-confluence), or review code (use adk-review-pr / adk-review-local).",
       "kind": "task",
       "category": "docs",
       "path": "skills/adk-docs-review",
@@ -498,7 +512,7 @@
     },
     {
       "name": "adk-review-pr",
-      "description": "Review a remote pull request with severity-tiered findings, evidence per finding, and posted-back comments via the appropriate provider (GitHub, Bitbucket). Use when a PR URL is the target and the deliverable is a structured review (findings + optional posted comments). Do not use for local uncommitted changes (use adk-review-local), addressing existing reviewer feedback (use adk-review-feedback), or auditing the whole repo (use adk-audit-repo).",
+      "description": "Review a remote pull request with severity-tiered findings, evidence per finding, existing-comment reconciliation, and posted-back comments via the appropriate provider (GitHub, Bitbucket). On Bitbucket, manages tasks for Blocker / Critical findings. Use when a PR URL is the target and the deliverable is a structured review (findings + optional posted comments). Do not use for local uncommitted changes (use adk-review-local), addressing existing reviewer feedback (use adk-review-feedback), doc-only review (use adk-docs-review), or auditing the whole repo (use adk-audit-repo).",
       "kind": "task",
       "category": "review",
       "path": "skills/adk-review-pr",

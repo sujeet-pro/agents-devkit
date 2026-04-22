@@ -36,7 +36,8 @@ Standalone task skill under the `adk-plan` category router. Turns a settled dire
 1. **Confirm intent** - restate topic, spec type, target audience, and destination. Approval gate unless `--auto`.
 2. **Gather context** - read related code, prior specs, design docs, and any brainstorm outputs. Capture `currentState` and `targetState` from evidence.
 3. **Draft** - write the spec section by section using the template below. Mark unknowns explicitly.
-4. **Self-review** - check against the validation list below.
+4. **Validate (per `plan-spec-validator.md`)** - run the four-phase validator gate; capture evidence in `.temp/notes/plan-spec-<slug>-validator.md` before the final report.
+5. **Self-review** - check against the validation list below.
 5. **Report** - return the file path, a 3-bullet TL;DR, and the list of remaining open questions.
 
 ## Spec templates
@@ -176,7 +177,7 @@ Want a deeper look at any section?
 
 ## Clarifying questions (default-ask)
 
-When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/clarifying-questions.md`) and reports the choices.
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/plan-spec-clarifying-questions.md`) and reports the choices.
 
 1. **Which spec type do you need: PRD (product), RFC (engineering proposal), functional spec (what), or technical spec (how)?** — _How to pick:_ PRD = stakeholder-facing, focuses on user value + acceptance criteria. RFC = peer-reviewed proposal, focuses on trade-offs. Functional = what behavior. Technical = how to build it.
 2. **Who is the audience and what decision will they make?** — _How to pick:_ Engineering implementers → technical detail. PMs/leadership → outcome and trade-offs. Reviewers → comparison vs alternatives.
@@ -190,11 +191,11 @@ When running without `--auto`, the skill asks these questions in order, one at a
 
 **Artifact path:** .temp/drafts/spec-<slug>.md (promote to docs/specs/ or a confluence page when signed off)
 
-Pass extra repos via `--repo <url-or-path>` (repeatable). URLs are cloned into `.temp/reference-repos/<owner>__<repo>/`; paths are read in place. Each repo is processed independently and findings/citations are tagged with the repo of origin. See `references/multi-repo.md` for full handling.
+Pass extra repos via `--repo <url-or-path>` (repeatable). URLs are cloned into `.temp/reference-repos/<owner>__<repo>/`; paths are read in place. Each repo is processed independently and findings/citations are tagged with the repo of origin. See `references/plan-spec-multi-repo.md` for full handling.
 
 ## Clarifying questions (default-ask)
 
-When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/clarifying-questions.md`) and reports the choices.
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/plan-spec-clarifying-questions.md`) and reports the choices.
 
 1. **Which spec type do you need: PRD (product), RFC (engineering proposal), functional spec (what), or technical spec (how)?** — _How to pick:_ PRD = stakeholder-facing, focuses on user value + acceptance criteria. RFC = peer-reviewed proposal, focuses on trade-offs. Functional = what behavior. Technical = how to build it.
 2. **Who is the audience and what decision will they make?** — _How to pick:_ Engineering implementers → technical detail. PMs/leadership → outcome and trade-offs. Reviewers → comparison vs alternatives.
@@ -212,7 +213,7 @@ When running without `--auto`, the skill asks these questions in order, one at a
 
 ## Multi-repo context
 
-Pass extra repos via `--repo <url-or-path>` (repeatable). URLs are cloned into `.temp/reference-repos/<owner>__<repo>/`; paths are read in place. Each repo is processed independently and findings/citations are tagged with the repo of origin. See `references/multi-repo.md` for full handling.
+Pass extra repos via `--repo <url-or-path>` (repeatable). URLs are cloned into `.temp/reference-repos/<owner>__<repo>/`; paths are read in place. Each repo is processed independently and findings/citations are tagged with the repo of origin. See `references/plan-spec-multi-repo.md` for full handling.
 
 <!-- adk:references:start -->
 
@@ -222,16 +223,17 @@ These files live in `references/` next to this `SKILL.md`. Read them when the sk
 
 | File | Purpose |
 | --- | --- |
-| `references/anti-patterns.md` | Things to avoid when running this skill. |
-| `references/artifact-format.md` | The deliverable's format and where it lives (.temp/ contract). |
-| `references/clarifying-questions.md` | The default-ask questions for this skill, with how-to-pick rubrics. |
-| `references/constitution.md` | Non-negotiable rules and working/communication discipline. |
-| `references/examples.md` | Example trigger phrases, invocation, and report shape. |
+| `references/plan-spec-anti-patterns.md` | Things to avoid when running this skill. |
+| `references/plan-spec-artifact-format.md` | The deliverable's format and where it lives (.temp/ contract). |
+| `references/plan-spec-clarifying-questions.md` | The default-ask questions for this skill, with how-to-pick rubrics. |
+| `references/plan-spec-constitution.md` | Non-negotiable rules and working/communication discipline. |
+| `references/plan-spec-examples.md` | Example trigger phrases, invocation, and report shape. |
 | `references/interaction-contract.md` | Default-ask, explained-options, --auto contract every skill must follow. |
-| `references/multi-repo.md` | How to consume context from extra cloned or local-path repos. |
-| `references/output-format.md` | Default vs detailed report shapes; severity labels; verbosity rules. |
-| `references/persona.md` | The agent persona that drives this skill. |
-| `references/research-protocol.md` | Source ordering, stop conditions, evidence buckets, citation discipline. |
-| `references/working-artifacts.md` | Legacy: superseded by artifact-format.md; kept for back-compat. |
+| `references/plan-spec-multi-repo.md` | How to consume context from extra cloned or local-path repos. |
+| `references/plan-spec-output-format.md` | Default vs detailed report shapes; severity labels; verbosity rules. |
+| `references/plan-spec-persona.md` | The agent persona that drives this skill. |
+| `references/plan-spec-research-protocol.md` | Source ordering, stop conditions, evidence buckets, citation discipline. |
+| `references/plan-spec-working-artifacts.md` | Legacy: superseded by artifact-format.md; kept for back-compat. |
+| `references/plan-spec-validator.md` | The four-phase validator gate (pre-execution, mid-flow, pre-handoff, post-execution) this skill MUST run. |
 
 <!-- adk:references:end -->

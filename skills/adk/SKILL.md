@@ -113,7 +113,7 @@ Task skills tailor each step to their domain but do not skip any.
 
 ## Clarifying questions (default-ask)
 
-When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/clarifying-questions.md`) and reports the choices.
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/adk-clarifying-questions.md`) and reports the choices.
 
 1. **Which lifecycle stage are you in: planning, building, reviewing, documenting, auditing, publishing, visualizing, or frontend?** — _How to pick:_ Pick the earliest stage that still applies. If the direction is locked → skip planning. If code is already written → reviewing/auditing. If you want to ship something out of the repo → publishing.
 2. **Is this a one-off question or a multi-step task?** — _How to pick:_ One-off → skip the router and answer directly. Multi-step → continue routing.
@@ -128,7 +128,7 @@ When running without `--auto`, the skill asks these questions in order, one at a
 
 ## Clarifying questions (default-ask)
 
-When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/clarifying-questions.md`) and reports the choices.
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/adk-clarifying-questions.md`) and reports the choices.
 
 1. **Which lifecycle stage are you in: planning, building, reviewing, documenting, auditing, publishing, visualizing, or frontend?** — _How to pick:_ Pick the earliest stage that still applies. If the direction is locked → skip planning. If code is already written → reviewing/auditing. If you want to ship something out of the repo → publishing.
 2. **Is this a one-off question or a multi-step task?** — _How to pick:_ One-off → skip the router and answer directly. Multi-step → continue routing.
@@ -151,12 +151,13 @@ These files live in `references/` next to this `SKILL.md`. Read them when the sk
 
 | File | Purpose |
 | --- | --- |
-| `references/anti-patterns.md` | Things to avoid when running this skill. |
-| `references/artifact-format.md` | The deliverable's format and where it lives (.temp/ contract). |
-| `references/clarifying-questions.md` | The default-ask questions for this skill, with how-to-pick rubrics. |
-| `references/constitution.md` | Non-negotiable rules and working/communication discipline. |
+| `references/adk-anti-patterns.md` | Things to avoid when running this skill. |
+| `references/adk-artifact-format.md` | The deliverable's format and where it lives (.temp/ contract). |
+| `references/adk-clarifying-questions.md` | The default-ask questions for this skill, with how-to-pick rubrics. |
+| `references/adk-constitution.md` | Non-negotiable rules and working/communication discipline. |
 | `references/interaction-contract.md` | Default-ask, explained-options, --auto contract every skill must follow. |
-| `references/output-format.md` | Default vs detailed report shapes; severity labels; verbosity rules. |
-| `references/persona.md` | The agent persona that drives this skill. |
+| `references/adk-output-format.md` | Default vs detailed report shapes; severity labels; verbosity rules. |
+| `references/adk-persona.md` | The agent persona that drives this skill. |
+| `references/adk-validator.md` | The four-phase validator gate (pre-execution, mid-flow, pre-handoff, post-execution) this skill MUST run. |
 
 <!-- adk:references:end -->

@@ -41,7 +41,8 @@ Standalone task skill under the `adk-review` category router. Produces a self-co
    - Open questions still unresolved.
 3. **Structure** - place the captured state into the handoff template below.
 4. **Preview** - show the document summary to the user for confirmation. Skip when `--auto`.
-5. **Deliver** - write the handoff file; print the file path, progress summary, and the recommended next step.
+5. **Validate (per `review-handoff-validator.md`)** - run the four-phase validator gate; capture evidence in `.temp/notes/review-handoff-<slug>-validator.md` before the final report.
+6. **Deliver** - write the handoff file; print the file path, progress summary, and the recommended next step.
 
 For `resume`:
 
@@ -176,7 +177,7 @@ adk-review-handoff --action status
 
 ## Clarifying questions (default-ask)
 
-When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/clarifying-questions.md`) and reports the choices.
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/review-handoff-clarifying-questions.md`) and reports the choices.
 
 1. **What is the next intended owner (yourself later, another agent, a human)?** — _How to pick:_ Adjust verbosity: terse for self, full context for stranger handoff.
 2. **Should the handoff include suggested commands to resume, or only state?** — _How to pick:_ Include commands when the next owner is an agent or a junior dev. State-only when the owner already knows the workflow.
@@ -191,7 +192,7 @@ When running without `--auto`, the skill asks these questions in order, one at a
 
 ## Clarifying questions (default-ask)
 
-When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/clarifying-questions.md`) and reports the choices.
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/review-handoff-clarifying-questions.md`) and reports the choices.
 
 1. **What is the next intended owner (yourself later, another agent, a human)?** — _How to pick:_ Adjust verbosity: terse for self, full context for stranger handoff.
 2. **Should the handoff include suggested commands to resume, or only state?** — _How to pick:_ Include commands when the next owner is an agent or a junior dev. State-only when the owner already knows the workflow.
@@ -214,13 +215,14 @@ These files live in `references/` next to this `SKILL.md`. Read them when the sk
 
 | File | Purpose |
 | --- | --- |
-| `references/anti-patterns.md` | Things to avoid when running this skill. |
-| `references/artifact-format.md` | The deliverable's format and where it lives (.temp/ contract). |
-| `references/clarifying-questions.md` | The default-ask questions for this skill, with how-to-pick rubrics. |
-| `references/constitution.md` | Non-negotiable rules and working/communication discipline. |
+| `references/review-handoff-anti-patterns.md` | Things to avoid when running this skill. |
+| `references/review-handoff-artifact-format.md` | The deliverable's format and where it lives (.temp/ contract). |
+| `references/review-handoff-clarifying-questions.md` | The default-ask questions for this skill, with how-to-pick rubrics. |
+| `references/review-handoff-constitution.md` | Non-negotiable rules and working/communication discipline. |
 | `references/interaction-contract.md` | Default-ask, explained-options, --auto contract every skill must follow. |
-| `references/output-format.md` | Default vs detailed report shapes; severity labels; verbosity rules. |
-| `references/persona.md` | The agent persona that drives this skill. |
-| `references/working-artifacts.md` | Legacy: superseded by artifact-format.md; kept for back-compat. |
+| `references/review-handoff-output-format.md` | Default vs detailed report shapes; severity labels; verbosity rules. |
+| `references/review-handoff-persona.md` | The agent persona that drives this skill. |
+| `references/review-handoff-working-artifacts.md` | Legacy: superseded by artifact-format.md; kept for back-compat. |
+| `references/review-handoff-validator.md` | The four-phase validator gate (pre-execution, mid-flow, pre-handoff, post-execution) this skill MUST run. |
 
 <!-- adk:references:end -->

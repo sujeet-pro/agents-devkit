@@ -11,7 +11,11 @@ Read [AGENTS.md](AGENTS.md) first; it is the canonical contract for any agent wo
 
 ## Interaction contract
 
-Every ADK skill is highly interactive by default and supports `--auto` for unattended runs. See `global-prompts/interaction-contract.md` and any skill's `references/interaction-contract.md` for the full text. Default mode asks one question at a time with explained options (`Pros / Cons / Best when / Blast radius / Reversibility`); `--auto` picks the documented `(default)` at every fork.
+Every ADK skill is highly interactive by default and supports `--auto` for unattended runs. See `global-prompts/interaction-contract.md` and any skill's `references/interaction-contract.md` for the full text. Default mode asks one question at a time with explained options (`Pros / Cons / Best when / Blast radius / Reversibility`); `--auto` picks the documented `(default)` at every fork. Every skill also runs a four-phase validator gate (`<task>-validator.md`) at every phase boundary — pre-execution, mid-flow, pre-handoff/pre-publish, post-execution — before declaring success.
+
+## Reference filename convention
+
+References under each skill's `references/` are **task-prefixed** by the skill's task token (the suffix after `adk-`): e.g., `pr-reviewer-persona.md` and `pr-review-validator.md` for `adk-review-pr`; `feature-persona.md` and `feature-validator.md` for `adk-build-feature`. The single file shared verbatim across all skills is `interaction-contract.md`.
 
 ## Working artifacts
 

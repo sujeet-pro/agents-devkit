@@ -40,7 +40,8 @@ Standalone task skill under the `adk-plan` category router. Closes design ambigu
 3. **Research unknowns** - for each direction-changing unknown, gather repo evidence first, then primary external sources. Mark each finding `Verified` / `Inferred` / `Open`.
 4. **Surface options** - present 2-3 viable paths with one-line trade-offs each. Approval gate unless `--auto`.
 5. **Iterate questions** - ask follow-up questions until remaining ambiguity is no longer direction-changing.
-6. **Finalize direction** - check confidence against the target. Either finalize or explicitly accept the gap with the user.
+6. **Validate (per `plan-brainstorm-validator.md`)** - run the four-phase validator gate; capture evidence in `.temp/notes/plan-brainstorm-<slug>-validator.md` before the final report.
+7. **Finalize direction** - check confidence against the target. Either finalize or explicitly accept the gap with the user.
 7. **Recommend route** - name the next skill (`adk-plan-spec`, `adk-plan-design`, `adk-plan-roadmap`, `adk-build-feature`, `adk-build-refactor`, `adk-build-migrate`, `adk-frontend-design`, `adk-docs-write`).
 
 ## Required state
@@ -126,7 +127,7 @@ If a `brainstorming` MCP server is configured, prefer it as the session store - 
 
 ## Clarifying questions (default-ask)
 
-When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/clarifying-questions.md`) and reports the choices.
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/plan-brainstorm-clarifying-questions.md`) and reports the choices.
 
 1. **What is the current state today, with one piece of evidence?** — _How to pick:_ Cite a file path, URL, command output, or screenshot. Without evidence the brainstorm is speculative.
 2. **What change tolerance is acceptable: surgical, bounded, or transformative?** — _How to pick:_ Surgical = touch only what must change; reversible in <1h. Bounded = touch one subsystem; reversible in <1d. Transformative = touch many subsystems; reversibility hard. Pick the smallest that still meets the goal.
@@ -143,7 +144,7 @@ When running without `--auto`, the skill asks these questions in order, one at a
 
 ## Clarifying questions (default-ask)
 
-When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/clarifying-questions.md`) and reports the choices.
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/plan-brainstorm-clarifying-questions.md`) and reports the choices.
 
 1. **What is the current state today, with one piece of evidence?** — _How to pick:_ Cite a file path, URL, command output, or screenshot. Without evidence the brainstorm is speculative.
 2. **What change tolerance is acceptable: surgical, bounded, or transformative?** — _How to pick:_ Surgical = touch only what must change; reversible in <1h. Bounded = touch one subsystem; reversible in <1d. Transformative = touch many subsystems; reversibility hard. Pick the smallest that still meets the goal.
@@ -168,17 +169,18 @@ These files live in `references/` next to this `SKILL.md`. Read them when the sk
 
 | File | Purpose |
 | --- | --- |
-| `references/anti-patterns.md` | Things to avoid when running this skill. |
-| `references/artifact-format.md` | The deliverable's format and where it lives (.temp/ contract). |
-| `references/brainstorming-workflow.md` | Required inputs, confidence defaults, iteration loop, artifact routing. |
-| `references/clarifying-questions.md` | The default-ask questions for this skill, with how-to-pick rubrics. |
-| `references/constitution.md` | Non-negotiable rules and working/communication discipline. |
-| `references/examples.md` | Example trigger phrases, invocation, and report shape. |
+| `references/plan-brainstorm-anti-patterns.md` | Things to avoid when running this skill. |
+| `references/plan-brainstorm-artifact-format.md` | The deliverable's format and where it lives (.temp/ contract). |
+| `references/plan-brainstorm-brainstorming-workflow.md` | Required inputs, confidence defaults, iteration loop, artifact routing. |
+| `references/plan-brainstorm-clarifying-questions.md` | The default-ask questions for this skill, with how-to-pick rubrics. |
+| `references/plan-brainstorm-constitution.md` | Non-negotiable rules and working/communication discipline. |
+| `references/plan-brainstorm-examples.md` | Example trigger phrases, invocation, and report shape. |
 | `references/interaction-contract.md` | Default-ask, explained-options, --auto contract every skill must follow. |
-| `references/mcp-fallback.md` | Preferred MCP server and the manual fallback when it is missing. |
-| `references/output-format.md` | Default vs detailed report shapes; severity labels; verbosity rules. |
-| `references/persona.md` | The agent persona that drives this skill. |
-| `references/research-protocol.md` | Source ordering, stop conditions, evidence buckets, citation discipline. |
-| `references/working-artifacts.md` | Legacy: superseded by artifact-format.md; kept for back-compat. |
+| `references/plan-brainstorm-mcp-fallback.md` | Preferred MCP server and the manual fallback when it is missing. |
+| `references/plan-brainstorm-output-format.md` | Default vs detailed report shapes; severity labels; verbosity rules. |
+| `references/plan-brainstorm-persona.md` | The agent persona that drives this skill. |
+| `references/plan-brainstorm-research-protocol.md` | Source ordering, stop conditions, evidence buckets, citation discipline. |
+| `references/plan-brainstorm-working-artifacts.md` | Legacy: superseded by artifact-format.md; kept for back-compat. |
+| `references/plan-brainstorm-validator.md` | The four-phase validator gate (pre-execution, mid-flow, pre-handoff, post-execution) this skill MUST run. |
 
 <!-- adk:references:end -->

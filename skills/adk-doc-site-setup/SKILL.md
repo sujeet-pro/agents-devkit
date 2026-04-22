@@ -36,7 +36,7 @@ Standalone task skill that turns any repo into a working documentation site back
 
 ## Clarifying questions (default-ask)
 
-When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/clarifying-questions.md`) and reports the choices.
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/doc-site-setup-clarifying-questions.md`) and reports the choices.
 
 1. **Is there already a pagesmith.config.json5? Should we overwrite it?** — _How to pick:_ Default = no, never silent. Yes = explicit user approval needed.
 2. **What is the base path (GitHub Pages style `/<repo>/` or custom-domain root `/`)?** — _How to pick:_ GitHub Pages without custom domain → `/<repo>/`. Custom domain → `/`. Subpath hosting → explicit.
@@ -327,7 +327,7 @@ For GitHub Pages, write `.github/workflows/gh-pages.yml` per `references/pagesmi
 
 ### 12. Report
 
-Use the format in `references/output-format.md`. Include:
+Use the format in `references/doc-site-setup-output-format.md`. Include:
 
 - File paths created or modified (config, scaffold, scripts, prj-* skills, deploy workflow).
 - The `prj-doc-site-*` skills installed and the harnesses they were mirrored into.
@@ -345,7 +345,7 @@ Use the format in `references/output-format.md`. Include:
 
 ## Clarifying questions (default-ask)
 
-When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/clarifying-questions.md`) and reports the choices.
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/doc-site-setup-clarifying-questions.md`) and reports the choices.
 
 1. **Is there already a pagesmith.config.json5? Should we overwrite it?** — _How to pick:_ Default = no, never silent. Yes = explicit user approval needed.
 2. **What is the base path (GitHub Pages style `/<repo>/` or custom-domain root `/`)?** — _How to pick:_ GitHub Pages without custom domain → `/<repo>/`. Custom domain → `/`. Subpath hosting → explicit.
@@ -362,7 +362,7 @@ When running without `--auto`, the skill asks these questions in order, one at a
 
 ## Clarifying questions (default-ask)
 
-When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/clarifying-questions.md`) and reports the choices.
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/doc-site-setup-clarifying-questions.md`) and reports the choices.
 
 1. **Is there already a pagesmith.config.json5? Should we overwrite it?** — _How to pick:_ Default = no, never silent. Yes = explicit user approval needed.
 2. **What is the base path (GitHub Pages style `/<repo>/` or custom-domain root `/`)?** — _How to pick:_ GitHub Pages without custom domain → `/<repo>/`. Custom domain → `/`. Subpath hosting → explicit.
@@ -387,15 +387,16 @@ These files live in `references/` next to this `SKILL.md`. Read them when the sk
 
 | File | Purpose |
 | --- | --- |
-| `references/anti-patterns.md` | Things to avoid when running this skill. |
-| `references/artifact-format.md` | The deliverable's format and where it lives (.temp/ contract). |
-| `references/clarifying-questions.md` | The default-ask questions for this skill, with how-to-pick rubrics. |
-| `references/constitution.md` | Non-negotiable rules and working/communication discipline. |
+| `references/doc-site-setup-anti-patterns.md` | Things to avoid when running this skill. |
+| `references/doc-site-setup-artifact-format.md` | The deliverable's format and where it lives (.temp/ contract). |
+| `references/doc-site-setup-clarifying-questions.md` | The default-ask questions for this skill, with how-to-pick rubrics. |
+| `references/doc-site-setup-constitution.md` | Non-negotiable rules and working/communication discipline. |
 | `references/interaction-contract.md` | Default-ask, explained-options, --auto contract every skill must follow. |
-| `references/output-format.md` | Default vs detailed report shapes; severity labels; verbosity rules. |
-| `references/persona.md` | The agent persona that drives this skill. |
-| `references/research-protocol.md` | Source ordering, stop conditions, evidence buckets, citation discipline. |
-| `references/working-artifacts.md` | Legacy: superseded by artifact-format.md; kept for back-compat. |
+| `references/doc-site-setup-output-format.md` | Default vs detailed report shapes; severity labels; verbosity rules. |
+| `references/doc-site-setup-persona.md` | The agent persona that drives this skill. |
+| `references/doc-site-setup-research-protocol.md` | Source ordering, stop conditions, evidence buckets, citation discipline. |
+| `references/doc-site-setup-working-artifacts.md` | Legacy: superseded by artifact-format.md; kept for back-compat. |
+| `references/doc-site-setup-validator.md` | The four-phase validator gate (pre-execution, mid-flow, pre-handoff, post-execution) this skill MUST run. |
 
 <!-- adk:references:end -->
 

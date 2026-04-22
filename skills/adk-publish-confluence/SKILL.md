@@ -48,7 +48,7 @@ Standalone task skill under the `adk-publish` category router. Publishes markdow
    - inline code, emphasis, strong
    - images (uploaded as attachments and referenced - flag if the source path is missing)
 5. **Apply action** - create or update the page; place under parent if specified; set labels.
-6. **Verify** - re-fetch the page and confirm: title matches, body content present, parent matches, labels present, version incremented.
+6. **Verify (per `publish-confluence-validator.md`)** - re-fetch the page and confirm: title matches, body content present, parent matches, labels present, version incremented.
 7. **Report** - lead with the page URL; include action, version, verification status.
 
 ## Action playbooks
@@ -154,7 +154,7 @@ adk-publish-confluence page-update \
 
 ## Clarifying questions (default-ask)
 
-When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/clarifying-questions.md`) and reports the choices.
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/publish-confluence-clarifying-questions.md`) and reports the choices.
 
 1. **What is the source markdown (path)?** — _How to pick:_ Required. Should already be authored via adk-docs-write or adk-plan-spec.
 2. **What space and parent page?** — _How to pick:_ Space = required. Parent = pick the existing topical parent; create one only with explicit approval.
@@ -170,7 +170,7 @@ When running without `--auto`, the skill asks these questions in order, one at a
 
 ## Clarifying questions (default-ask)
 
-When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/clarifying-questions.md`) and reports the choices.
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/publish-confluence-clarifying-questions.md`) and reports the choices.
 
 1. **What is the source markdown (path)?** — _How to pick:_ Required. Should already be authored via adk-docs-write or adk-plan-spec.
 2. **What space and parent page?** — _How to pick:_ Space = required. Parent = pick the existing topical parent; create one only with explicit approval.
@@ -194,15 +194,16 @@ These files live in `references/` next to this `SKILL.md`. Read them when the sk
 
 | File | Purpose |
 | --- | --- |
-| `references/anti-patterns.md` | Things to avoid when running this skill. |
-| `references/artifact-format.md` | The deliverable's format and where it lives (.temp/ contract). |
-| `references/clarifying-questions.md` | The default-ask questions for this skill, with how-to-pick rubrics. |
-| `references/constitution.md` | Non-negotiable rules and working/communication discipline. |
-| `references/examples.md` | Example trigger phrases, invocation, and report shape. |
+| `references/publish-confluence-anti-patterns.md` | Things to avoid when running this skill. |
+| `references/publish-confluence-artifact-format.md` | The deliverable's format and where it lives (.temp/ contract). |
+| `references/publish-confluence-clarifying-questions.md` | The default-ask questions for this skill, with how-to-pick rubrics. |
+| `references/publish-confluence-constitution.md` | Non-negotiable rules and working/communication discipline. |
+| `references/publish-confluence-examples.md` | Example trigger phrases, invocation, and report shape. |
 | `references/interaction-contract.md` | Default-ask, explained-options, --auto contract every skill must follow. |
-| `references/mcp-fallback.md` | Preferred MCP server and the manual fallback when it is missing. |
-| `references/output-format.md` | Default vs detailed report shapes; severity labels; verbosity rules. |
-| `references/persona.md` | The agent persona that drives this skill. |
-| `references/research-protocol.md` | Source ordering, stop conditions, evidence buckets, citation discipline. |
+| `references/publish-confluence-mcp-fallback.md` | Preferred MCP server and the manual fallback when it is missing. |
+| `references/publish-confluence-output-format.md` | Default vs detailed report shapes; severity labels; verbosity rules. |
+| `references/publish-confluence-persona.md` | The agent persona that drives this skill. |
+| `references/publish-confluence-research-protocol.md` | Source ordering, stop conditions, evidence buckets, citation discipline. |
+| `references/publish-confluence-validator.md` | The four-phase validator gate (pre-execution, mid-flow, pre-publish, post-publish) this skill MUST run. |
 
 <!-- adk:references:end -->

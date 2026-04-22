@@ -7,7 +7,7 @@ This file is meant for **coding agents** (Claude Code, Cursor, Codex CLI, Codex 
 ADK ships a catalog of self-contained `adk-*` skills covering planning, research, implementation, review, documentation, audits, publishing, visualization, frontend work, and docs-site bootstrapping. Every skill is a single folder with:
 
 - `SKILL.md` — YAML frontmatter (`name`, `description`, optional `compatibility` / `metadata` / `license` / `allowed-tools`) plus a thin orchestration body.
-- `references/` — flat list of supporting files. Standard set on every skill: `persona.md` (skill-specific role + mission + hard rules + status banner), `constitution.md` (shared baseline + skill-specific non-negotiables), `interaction-contract.md` (default-ask + `--auto` rules), `clarifying-questions.md` (the questions the skill asks in default-ask mode, with how-to-pick rubrics), `output-format.md` (default vs detailed report shape), `artifact-format.md` (the deliverable's format and where it lands; e.g. PR comments, audit reports, code diffs, Confluence pages), `anti-patterns.md` (skill-specific). Skills that need primary-source research add `research-protocol.md`; skills that consume cross-repo context add `multi-repo.md`. Some skills also keep `examples.md`, `mcp-fallback.md`, `review-comment-format.md`, or `brainstorming-workflow.md`. No `_shared/`. No subdirs.
+- `references/` — flat list of supporting files. **Filenames are task-prefixed** by the skill's task token (the suffix after `adk-`); the only exception is `interaction-contract.md`, which is the global propagated copy and keeps its generic name. Standard set on every skill: `<task>-persona.md`, `<task>-constitution.md` (or `<task>-standards.md` for review-style skills), `interaction-contract.md`, `<task>-clarifying-questions.md`, `<task>-output-format.md`, `<task>-artifact-format.md`, `<task>-anti-patterns.md`, `<task>-validator.md` (the four-phase gate the skill MUST run). Skills that need primary-source research add `<task>-research-protocol.md`; skills that consume cross-repo context add `<task>-multi-repo.md`. Some skills also keep `<task>-examples.md`, `<task>-mcp-fallback.md`. Review-style skills (`adk-review-pr`, `adk-docs-review`, `adk-audit-repo`, `adk-audit-site`) add `<task>-comment-format.md`, `<task>-reply-templates.md`, `<task>-comment-reconciliation.md`, `<task>-postback-protocol.md` for the bold-label posted-comment shape and reply protocols. Frontend skills add `<task>-design-system-master.md`, `<task>-pre-delivery-checklist.md`, `<task>-industry-anti-patterns.md`. No `_shared/`. No subdirs.
 
 Each skill is independently copy-able; nothing it needs lives outside its own folder.
 
@@ -77,7 +77,7 @@ Activate the top-level router first if intent is non-trivial:
 | Address review feedback | `adk-review` | `adk-review-feedback` |
 | Capture a session handoff | `adk-review` | `adk-review-handoff` |
 | Author docs | `adk-docs` | `adk-docs-write` |
-| Review docs | `adk-docs` | `adk-docs-review` |
+| Review docs (Markdown OR Confluence with `--mode confluence`) | `adk-docs` | `adk-docs-review` |
 | Audit a repository | `adk-audit` | `adk-audit-repo` |
 | Audit a public site | `adk-audit` | `adk-audit-site` |
 | Draft a commit message | `adk-publish` | `adk-publish-commit` |
@@ -91,12 +91,13 @@ Activate the top-level router first if intent is non-trivial:
 | Frontend feature work | `adk-frontend` | `adk-frontend-feature` |
 | Build a React 19 client-side sample | `adk-frontend` | `adk-frontend-react-csr` |
 | Bootstrap a docs site (`@pagesmith/docs` + `diagramkit`) in any repo | (no router) | `adk-doc-site-setup` |
+| Bootstrap AI scaffolding (`ai-guidelines/`, `AGENTS.md`, `CLAUDE.md`, skill wrappers, hooks) in any repo | (no router) | `adk-adopt-ai-in-repo` |
 
 Each skill's own `SKILL.md` carries the authoritative "When to use" / "When NOT to use"; prefer it when this table conflicts.
 
 ## How to activate
 
-1. **File-read activation** — read the matching `SKILL.md`. Then read each file in `references/` listed in the managed block at the bottom. Read in this order so behavior is consistent: `persona.md` → `constitution.md` → `interaction-contract.md` → `clarifying-questions.md` → `artifact-format.md` → `output-format.md` → (`research-protocol.md` if present) → (`multi-repo.md` if present) → any skill-specific file (`examples.md`, `mcp-fallback.md`, `review-comment-format.md`, `brainstorming-workflow.md`) → `anti-patterns.md` last.
+1. **File-read activation** — read the matching `SKILL.md`. Then read each file in `references/` listed in the managed block at the bottom. Filenames are task-prefixed (e.g., `pr-reviewer-persona.md`, `feature-validator.md`); only `interaction-contract.md` keeps its generic name. Read in this order so behavior is consistent: `<task>-persona.md` → `<task>-constitution.md` (or `<task>-standards.md`) → `interaction-contract.md` → `<task>-clarifying-questions.md` → `<task>-artifact-format.md` → `<task>-output-format.md` → (`<task>-research-protocol.md` if present) → (`<task>-multi-repo.md` if present) → any skill-specific file (examples, mcp-fallback, comment-format, reply-templates, postback-protocol, comment-reconciliation, design-system-master, pre-delivery-checklist, industry-anti-patterns, brainstorming-workflow) → `<task>-anti-patterns.md` → `<task>-validator.md` last (since the validator references the others).
 2. **Skill-tool activation** — if the runtime has a dedicated skill-activation tool, call it with the skill name.
 
 After activation, resolve any `references/<file>` paths relative to the skill's directory.

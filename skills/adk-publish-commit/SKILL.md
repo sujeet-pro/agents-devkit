@@ -42,7 +42,8 @@ This is a quick-action skill. The workflow is intentionally lightweight.
 2. **Match repo convention** - read recent `git log` to detect convention (conventional commits, plain subjects, scoped prefixes). Use that, not personal preference.
 3. **Classify** - identify change type (`feat`, `fix`, `refactor`, `docs`, `chore`, `perf`, `test`, `build`, `ci`, `revert`), scope, breaking changes, validation status.
 4. **Draft** - write the smallest accurate text that explains *why* the change exists. Approval gate unless `--auto`.
-5. **Execute** -
+5. **Validate (per `publish-commit-validator.md`)** - run the four-phase validator gate; capture evidence in `.temp/notes/publish-commit-<slug>-validator.md` before the final report.
+6. **Execute** -
    - `commit`: run `git commit -F <tmpfile>` with the approved message.
    - `pr-describe`: output the PR description as markdown (does not create the PR; that is `adk-publish-github` / `adk-publish-bitbucket`).
    - `changelog`: output the changelog entry as markdown (does not edit `CHANGELOG.md` unless the user asks).
@@ -198,7 +199,7 @@ adk-publish-commit --action changelog --range v1.4.0..HEAD
 
 ## Clarifying questions (default-ask)
 
-When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/clarifying-questions.md`) and reports the choices.
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/publish-commit-clarifying-questions.md`) and reports the choices.
 
 1. **What artifact: commit message, PR description, or changelog entry?** — _How to pick:_ Commit = single change. PR = aggregate of branch commits. Changelog = release-scoped summary.
 2. **Convention: detect from git log, conventional commits, or project template?** — _How to pick:_ Default = detect from last 20 commits. Override only if the user states otherwise.
@@ -214,7 +215,7 @@ When running without `--auto`, the skill asks these questions in order, one at a
 
 ## Clarifying questions (default-ask)
 
-When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/clarifying-questions.md`) and reports the choices.
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/publish-commit-clarifying-questions.md`) and reports the choices.
 
 1. **What artifact: commit message, PR description, or changelog entry?** — _How to pick:_ Commit = single change. PR = aggregate of branch commits. Changelog = release-scoped summary.
 2. **Convention: detect from git log, conventional commits, or project template?** — _How to pick:_ Default = detect from last 20 commits. Override only if the user states otherwise.
@@ -238,14 +239,15 @@ These files live in `references/` next to this `SKILL.md`. Read them when the sk
 
 | File | Purpose |
 | --- | --- |
-| `references/anti-patterns.md` | Things to avoid when running this skill. |
-| `references/artifact-format.md` | The deliverable's format and where it lives (.temp/ contract). |
-| `references/clarifying-questions.md` | The default-ask questions for this skill, with how-to-pick rubrics. |
-| `references/constitution.md` | Non-negotiable rules and working/communication discipline. |
-| `references/examples.md` | Example trigger phrases, invocation, and report shape. |
+| `references/publish-commit-anti-patterns.md` | Things to avoid when running this skill. |
+| `references/publish-commit-artifact-format.md` | The deliverable's format and where it lives (.temp/ contract). |
+| `references/publish-commit-clarifying-questions.md` | The default-ask questions for this skill, with how-to-pick rubrics. |
+| `references/publish-commit-constitution.md` | Non-negotiable rules and working/communication discipline. |
+| `references/publish-commit-examples.md` | Example trigger phrases, invocation, and report shape. |
 | `references/interaction-contract.md` | Default-ask, explained-options, --auto contract every skill must follow. |
-| `references/output-format.md` | Default vs detailed report shapes; severity labels; verbosity rules. |
-| `references/persona.md` | The agent persona that drives this skill. |
-| `references/research-protocol.md` | Source ordering, stop conditions, evidence buckets, citation discipline. |
+| `references/publish-commit-output-format.md` | Default vs detailed report shapes; severity labels; verbosity rules. |
+| `references/publish-commit-persona.md` | The agent persona that drives this skill. |
+| `references/publish-commit-research-protocol.md` | Source ordering, stop conditions, evidence buckets, citation discipline. |
+| `references/publish-commit-validator.md` | The four-phase validator gate (pre-execution, mid-flow, pre-publish, post-publish) this skill MUST run. |
 
 <!-- adk:references:end -->

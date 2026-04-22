@@ -69,7 +69,7 @@ Once you have picked a task, load `adk-docs-<task>` and follow it. Each task ski
 
 ## Clarifying questions (default-ask)
 
-When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/clarifying-questions.md`) and reports the choices.
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/docs-clarifying-questions.md`) and reports the choices.
 
 1. **Is the doc new or existing?** — _How to pick:_ New → adk-docs-write. Existing (suspect drift, want quality bar, audit) → adk-docs-review.
 
@@ -83,7 +83,7 @@ When running without `--auto`, the skill asks these questions in order, one at a
 
 ## Clarifying questions (default-ask)
 
-When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/clarifying-questions.md`) and reports the choices.
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/docs-clarifying-questions.md`) and reports the choices.
 
 1. **Is the doc new or existing?** — _How to pick:_ New → adk-docs-write. Existing (suspect drift, want quality bar, audit) → adk-docs-review.
 
@@ -105,12 +105,13 @@ These files live in `references/` next to this `SKILL.md`. Read them when the sk
 
 | File | Purpose |
 | --- | --- |
-| `references/anti-patterns.md` | Things to avoid when running this skill. |
-| `references/artifact-format.md` | The deliverable's format and where it lives (.temp/ contract). |
-| `references/clarifying-questions.md` | The default-ask questions for this skill, with how-to-pick rubrics. |
-| `references/constitution.md` | Non-negotiable rules and working/communication discipline. |
+| `references/docs-anti-patterns.md` | Things to avoid when running this skill. |
+| `references/docs-artifact-format.md` | The deliverable's format and where it lives (.temp/ contract). |
+| `references/docs-clarifying-questions.md` | The default-ask questions for this skill, with how-to-pick rubrics. |
+| `references/docs-constitution.md` | Non-negotiable rules and working/communication discipline. |
 | `references/interaction-contract.md` | Default-ask, explained-options, --auto contract every skill must follow. |
-| `references/output-format.md` | Default vs detailed report shapes; severity labels; verbosity rules. |
-| `references/persona.md` | The agent persona that drives this skill. |
+| `references/docs-output-format.md` | Default vs detailed report shapes; severity labels; verbosity rules. |
+| `references/docs-persona.md` | The agent persona that drives this skill. |
+| `references/docs-validator.md` | The four-phase validator gate (pre-execution, mid-flow, pre-handoff, post-execution) this skill MUST run. |
 
 <!-- adk:references:end -->

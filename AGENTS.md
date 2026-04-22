@@ -18,7 +18,7 @@ The Node CLI under [cli/](cli/) is the only installer. It is fully idempotent �
 
 | Path | Purpose | Notes |
 | --- | --- | --- |
-| [skills/](skills/) | 38 public `adk-*` skills, each one self-contained | `SKILL.md` + flat `references/` |
+| [skills/](skills/) | 39 public `adk-*` skills, each one self-contained | `SKILL.md` + flat `references/` (filenames task-prefixed; only `interaction-contract.md` is shared verbatim) |
 | [agents-claude/](agents-claude/) | Self-contained Claude custom subagents (Markdown + YAML) | One file per agent |
 | [agents-cursor/](agents-cursor/) | Self-contained Cursor custom subagents (Markdown + YAML) | One file per agent |
 | [agents-codex/](agents-codex/) | Self-contained Codex custom agents (TOML) | One file per agent |
@@ -29,7 +29,7 @@ The Node CLI under [cli/](cli/) is the only installer. It is fully idempotent �
 | [cli/](cli/) | Node installer (`adk-install`) | Only install path; pure ESM, no Python anywhere |
 | [docs/](docs/), [gh-pages/](gh-pages/) | Pagesmith docs source + built site | `npm run docs:build` |
 
-There is no `ai-guidelines/`, no `agent-personas/`, no `prj-*` skill folder, no projection script, no Python anywhere. Each skill carries its own persona, constitution, interaction-contract, clarifying-questions, output-format, artifact-format, anti-patterns, and (when relevant) research-protocol and multi-repo guidance, inline. All 38 skills' references are unique — there is no shared boilerplate at runtime.
+There is no `ai-guidelines/`, no `agent-personas/`, no `prj-*` skill folder, no projection script, no Python anywhere. Each skill carries its own task-prefixed persona, constitution (or standards), clarifying-questions, output-format, artifact-format, anti-patterns, validator (mandatory four-phase gate), and (when relevant) research-protocol, multi-repo, comment-format, reply-templates, postback-protocol, and design-system references inline. The single global file is `interaction-contract.md` — every skill ships an identical copy; the source of truth is `global-prompts/interaction-contract.md`. All 39 skills' references are unique — there is no shared boilerplate at runtime.
 
 ## Self-containment rules
 
@@ -58,13 +58,14 @@ All intermediate agent output goes under `.temp/`. Never write plans, drafts, re
 
 Every skill ships `references/interaction-contract.md` (the global, identical contract) and `references/clarifying-questions.md` (the skill-specific questions the agent must ask in default-ask mode, with how-to-pick rubrics for each option). Default mode is **highly interactive**: each meaningful decision is presented as 2-3 options with `Pros / Cons / Best when / Blast radius / Reversibility`, one is marked `(default)`, the user picks. `--auto` skips all approval gates and uses the documented defaults; the skill still validates and still produces a final report. The same contract is mirrored in `global-prompts/interaction-contract.md` so it lands in every runtime's memory file.
 
-When you author or edit a skill in this repo, keep these in sync:
+When you author or edit a skill in this repo, keep these in sync (all task-prefixed except `interaction-contract.md`):
 - `references/interaction-contract.md` (identical copy across all skills — update via the global prompt at `global-prompts/interaction-contract.md` and propagate).
-- `references/clarifying-questions.md` (skill-specific — every option has a "How to pick" rubric).
-- `references/persona.md` (skill-specific role / mission / hard rules / status banner).
-- `references/constitution.md` (shared baseline + skill-specific non-negotiables; status banner mirrored from persona).
-- `references/artifact-format.md` (the deliverable's actual format and where it lives).
-- `references/output-format.md` (default vs detailed report shape).
+- `references/<task>-clarifying-questions.md` (skill-specific — every option has a "How to pick" rubric).
+- `references/<task>-persona.md` (skill-specific role / mission / hard rules / status banner).
+- `references/<task>-constitution.md` (shared baseline + skill-specific non-negotiables; status banner mirrored from persona). Some skills use `<task>-standards.md` for this role.
+- `references/<task>-artifact-format.md` (the deliverable's actual format and where it lives).
+- `references/<task>-output-format.md` (default vs detailed report shape).
+- `references/<task>-validator.md` (the four-phase validator gate the skill MUST run; required for every skill).
 
 ## Maintenance commands
 
@@ -87,19 +88,20 @@ Both files are managed by `adk-install`. The user file also stores `knownPackage
 
 ## Skill catalog
 
-38 public skills: 1 top router (`adk`) + 8 category routers + 29 task skills. See [skills-manifest.json](skills-manifest.json) for the full list and `skills/<name>/SKILL.md` for each skill's contract.
+39 public skills: 1 top router (`adk`) + 8 category routers + 30 task skills. See [skills-manifest.json](skills-manifest.json) for the full list and `skills/<name>/SKILL.md` for each skill's contract.
 
 | Lifecycle stage | Category router | Task skills |
 | --- | --- | --- |
 | Plan, research, spec, design | `adk-plan` | `adk-plan-brainstorm`, `adk-plan-research`, `adk-plan-spec`, `adk-plan-design`, `adk-plan-roadmap` |
 | Implement code | `adk-build` | `adk-build-feature`, `adk-build-refactor`, `adk-build-migrate`, `adk-build-test`, `adk-build-deps` |
 | Review existing changes | `adk-review` | `adk-review-pr`, `adk-review-local`, `adk-review-feedback`, `adk-review-handoff` |
-| Author or check docs | `adk-docs` | `adk-docs-write`, `adk-docs-review` |
+| Author or check docs | `adk-docs` | `adk-docs-write`, `adk-docs-review` (with `--mode confluence` for inline + footer comments on Confluence pages) |
 | Audit a repo or site | `adk-audit` | `adk-audit-repo`, `adk-audit-site` |
 | Ship to a destination | `adk-publish` | `adk-publish-commit`, `adk-publish-github`, `adk-publish-bitbucket`, `adk-publish-confluence`, `adk-publish-gdrive` |
 | Make a picture | `adk-visualize` | `adk-visualize-diagram`, `adk-visualize-chart` |
 | Frontend / UI work | `adk-frontend` | `adk-frontend-design`, `adk-frontend-feature`, `adk-frontend-react-csr` |
 | Bootstrap a docs site | (no router) | `adk-doc-site-setup` |
+| Bootstrap AI in a repo | (no router) | `adk-adopt-ai-in-repo` |
 
 ## Provider-specific notes
 

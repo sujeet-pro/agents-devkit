@@ -18,7 +18,7 @@ npm run docs:build          # build gh-pages/ from docs/
 
 | Path | Contents |
 | --- | --- |
-| `skills/adk-*` | 38 public, self-contained skills (`SKILL.md` + flat `references/`) |
+| `skills/adk-*` | 39 public, self-contained skills (`SKILL.md` + flat `references/`) |
 | `agents-claude/*.md` | Claude custom subagent sources (Markdown + YAML frontmatter) |
 | `agents-cursor/*.md` | Cursor custom subagent sources (Markdown + Cursor frontmatter) |
 | `agents-codex/*.toml` | Codex custom agent sources (TOML) |
@@ -29,7 +29,7 @@ npm run docs:build          # build gh-pages/ from docs/
 | `cli/` | The Node installer (`adk-install`) — pure ESM, no Python |
 | `docs/`, `gh-pages/` | Pagesmith docs source + built site |
 
-There are **no** shared-source folders. A skill's `references/` is flat: every supporting file (`persona.md`, `workflow.md`, `output-format.md`, `constitution.md`, `interaction-contract.md`, `working-artifacts.md`, etc.) lives next to the `SKILL.md` and is the canonical text for that skill.
+There are **no** shared-source folders. A skill's `references/` is flat: every supporting file lives next to the `SKILL.md` and is the canonical text for that skill. Reference filenames are **task-prefixed** by the skill's task token (e.g., `pr-reviewer-persona.md` and `pr-review-validator.md` for `adk-review-pr`; `feature-persona.md` and `feature-validator.md` for `adk-build-feature`). The single exception is `interaction-contract.md`, which is the global propagated copy and keeps its generic name in every skill.
 
 ## Hard rules for skills
 
@@ -45,24 +45,27 @@ There are **no** shared-source folders. A skill's `references/` is flat: every s
 
 ## Adding or updating a skill
 
-1. Create `skills/adk-<name>/` with `SKILL.md` and `references/`.
-2. Author the `SKILL.md`: `When to use`, `When NOT to use`, `Inputs` (mark `--auto` row), `Workflow` (numbered phases with explicit "Approval gate unless `--auto`" calls), `Output format`, `Anti-patterns`, plus the managed `<!-- adk:references:start --> ... <!-- adk:references:end -->` block listing every reference file.
-3. Author the **standard skill-specific reference set** (every reference except `interaction-contract.md` MUST carry skill-specific content — no generic templates):
-   - `persona.md` — role, mission, focus areas, hard rules, status reporting banner. The hard rules are the source of truth for the constitution's skill-specific section.
-   - `constitution.md` — shared ADK baseline + skill-specific non-negotiables (typically mirrors persona's hard rules).
-   - `interaction-contract.md` — the global default-ask + `--auto` contract. Identical across all skills; copy from `global-prompts/interaction-contract.md`.
-   - `clarifying-questions.md` — the questions this skill asks in default-ask mode, each with a how-to-pick rubric. Under `--auto` the skill picks the safest documented option for each.
-   - `output-format.md` — default vs detailed report shape, status banner, severity ladder where applicable.
-   - `artifact-format.md` — the deliverable's format and where it lives (PR comments, audit report markdown, code diff, design doc, page, chart, etc.) plus the `.temp/` path matrix.
-   - `anti-patterns.md` — skill-specific anti-patterns.
-4. Add **task-specific** references when relevant:
-   - `research-protocol.md` for any skill that consults primary sources (research, design, spec, audit, docs-write, docs-review, etc.). Lists sources in priority order, stop condition, evidence buckets, citation discipline.
-   - `multi-repo.md` for skills that benefit from cross-repo context (research, spec, design, docs-write, docs-review, audit-repo). Documents `--repo <url-or-path>` and clone layout.
-   - `examples.md`, `mcp-fallback.md`, `review-comment-format.md`, `brainstorming-workflow.md` where present.
-4. Run `npm run validate` and fix any error.
-5. Run `npm run skills:manifest` so `skills-manifest.json` reflects the new entry.
-6. Update the catalog tables in `README.md`, `AGENTS.md`, `REFERENCE.md`, and `llms.txt` (skill count, category table, intent → task mapping).
-7. Run `npm run docs:build` to confirm the docs site still renders.
+1. Create `skills/adk-<name>/` with `SKILL.md` and `references/`. Decide the **task token** — the suffix after `adk-` (e.g., `feature` for `adk-build-feature`, `pr` for `adk-review-pr`, `audit-repo` for `adk-audit-repo`). Every reference filename in this skill (except `interaction-contract.md`) carries this token as a prefix.
+2. Author the `SKILL.md`: `When to use`, `When NOT to use`, `Inputs` (mark `--auto` row), `Workflow` (numbered phases with explicit "Approval gate unless `--auto`" calls AND an explicit `Validate (per <task>-validator.md)` step before the final report), `Output format`, `Anti-patterns`, plus the managed `<!-- adk:references:start --> ... <!-- adk:references:end -->` block listing every reference file.
+3. Author the **standard skill-specific reference set** (every reference except `interaction-contract.md` MUST carry skill-specific content — no generic templates). All filenames task-prefixed:
+   - `<task>-persona.md` — role, mission, focus areas, hard rules, status reporting banner. The hard rules are the source of truth for the constitution's skill-specific section.
+   - `<task>-constitution.md` (or `<task>-standards.md` for review-style skills) — shared ADK baseline + skill-specific non-negotiables.
+   - `interaction-contract.md` — the global default-ask + `--auto` contract. Identical across all skills; copy from `global-prompts/interaction-contract.md`. **This file is NOT renamed.**
+   - `<task>-clarifying-questions.md` — the questions this skill asks in default-ask mode, each with a how-to-pick rubric.
+   - `<task>-output-format.md` — default vs detailed report shape, status banner, severity ladder where applicable.
+   - `<task>-artifact-format.md` — the deliverable's format and where it lives plus the `.temp/` path matrix.
+   - `<task>-anti-patterns.md` — skill-specific anti-patterns.
+   - `<task>-validator.md` — the four-phase validator gate (pre-execution, mid-flow, pre-handoff/pre-publish, post-execution) the skill MUST run. **Required for every skill.**
+4. Add **task-specific** references when relevant (also task-prefixed):
+   - `<task>-research-protocol.md` for any skill that consults primary sources.
+   - `<task>-multi-repo.md` for skills that benefit from cross-repo context.
+   - `<task>-examples.md`, `<task>-mcp-fallback.md`, `<task>-review-comment-format.md`, etc.
+   - For review-style skills (PR review, doc review, audit): `<task>-comment-format.md`, `<task>-reply-templates.md`, `<task>-comment-reconciliation.md`, `<task>-postback-protocol.md` — the bold-label canonical comment shape (see `skills/adk-review-pr/references/pr-review-comment-format.md` for the reference implementation).
+   - For frontend skills: `<task>-design-system-master.md`, `<task>-pre-delivery-checklist.md`, `<task>-industry-anti-patterns.md`.
+5. Run `npm run validate && npm run validate:content` and fix any error.
+6. Run `npm run skills:manifest` so `skills-manifest.json` reflects the new entry.
+7. Update the catalog tables in `README.md`, `AGENTS.md`, `REFERENCE.md`, and `llms.txt` (skill count, category table, intent → task mapping).
+8. Run `npm run docs:build` to confirm the docs site still renders.
 
 ## Adding or updating a custom subagent
 

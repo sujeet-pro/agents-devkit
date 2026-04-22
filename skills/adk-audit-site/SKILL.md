@@ -151,7 +151,7 @@ adk-audit-site https://shop.example.com --depth deep --output .temp/reports/audi
 
 ## Clarifying questions (default-ask)
 
-When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/clarifying-questions.md`) and reports the choices.
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/audit-site-clarifying-questions.md`) and reports the choices.
 
 1. **Which URL(s) to audit? Single page, top N pages, or full crawl?** — _How to pick:_ Single = focused investigation. Top N = sample (home + 5-10 high-traffic pages). Full crawl = comprehensive but slow; only with explicit approval.
 2. **Dimensions: performance / accessibility / SEO / UX / security-headers / all?** — _How to pick:_ All by default. Narrow when retesting a specific dimension.
@@ -167,7 +167,7 @@ When running without `--auto`, the skill asks these questions in order, one at a
 
 ## Clarifying questions (default-ask)
 
-When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/clarifying-questions.md`) and reports the choices.
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/audit-site-clarifying-questions.md`) and reports the choices.
 
 1. **Which URL(s) to audit? Single page, top N pages, or full crawl?** — _How to pick:_ Single = focused investigation. Top N = sample (home + 5-10 high-traffic pages). Full crawl = comprehensive but slow; only with explicit approval.
 2. **Dimensions: performance / accessibility / SEO / UX / security-headers / all?** — _How to pick:_ All by default. Narrow when retesting a specific dimension.
@@ -191,15 +191,16 @@ These files live in `references/` next to this `SKILL.md`. Read them when the sk
 
 | File | Purpose |
 | --- | --- |
-| `references/anti-patterns.md` | Things to avoid when running this skill. |
-| `references/artifact-format.md` | The deliverable's format and where it lives (.temp/ contract). |
-| `references/clarifying-questions.md` | The default-ask questions for this skill, with how-to-pick rubrics. |
-| `references/constitution.md` | Non-negotiable rules and working/communication discipline. |
+| `references/audit-site-anti-patterns.md` | Things to avoid when running this skill. |
+| `references/audit-site-artifact-format.md` | The deliverable's format and where it lives (.temp/ contract). |
+| `references/audit-site-clarifying-questions.md` | The default-ask questions for this skill, with how-to-pick rubrics. |
+| `references/audit-site-constitution.md` | Non-negotiable rules and working/communication discipline. |
 | `references/interaction-contract.md` | Default-ask, explained-options, --auto contract every skill must follow. |
-| `references/output-format.md` | Default vs detailed report shapes; severity labels; verbosity rules. |
-| `references/persona.md` | The agent persona that drives this skill. |
-| `references/research-protocol.md` | Source ordering, stop conditions, evidence buckets, citation discipline. |
-| `references/review-comment-format.md` | Standard finding format with stable IDs and severities. |
-| `references/working-artifacts.md` | Legacy: superseded by artifact-format.md; kept for back-compat. |
+| `references/audit-site-output-format.md` | Default vs detailed report shapes; severity labels; verbosity rules. |
+| `references/audit-site-persona.md` | The agent persona that drives this skill. |
+| `references/audit-site-research-protocol.md` | Source ordering, stop conditions, evidence buckets, citation discipline. |
+| `references/audit-site-review-comment-format.md` | Standard finding format with stable IDs and severities. |
+| `references/audit-site-working-artifacts.md` | Legacy: superseded by artifact-format.md; kept for back-compat. |
+| `references/audit-site-validator.md` | The four-phase validator gate (pre-execution, mid-flow, pre-handoff, post-execution) this skill MUST run. |
 
 <!-- adk:references:end -->

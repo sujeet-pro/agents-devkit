@@ -136,7 +136,7 @@ adk-build-deps remove-unused --scope ./
 
 ## Clarifying questions (default-ask)
 
-When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/clarifying-questions.md`) and reports the choices.
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/build-deps-clarifying-questions.md`) and reports the choices.
 
 1. **Mode: inventory, upgrade, audit, dedupe, or remove-unused?** — _How to pick:_ Inventory = list-only, no changes. Upgrade = bump versions. Audit = flag security/license/staleness. Dedupe = collapse multiple installs of the same package. Remove-unused = prune deps with zero call sites.
 2. **Upgrade scope: patch only, minor, major (breaking)?** — _How to pick:_ Patch = always safe to auto-apply with tests. Minor = safe with tests + changelog scan. Major = read every changelog, expect breakage, plan migration.
@@ -152,7 +152,7 @@ When running without `--auto`, the skill asks these questions in order, one at a
 
 ## Clarifying questions (default-ask)
 
-When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/clarifying-questions.md`) and reports the choices.
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/build-deps-clarifying-questions.md`) and reports the choices.
 
 1. **Mode: inventory, upgrade, audit, dedupe, or remove-unused?** — _How to pick:_ Inventory = list-only, no changes. Upgrade = bump versions. Audit = flag security/license/staleness. Dedupe = collapse multiple installs of the same package. Remove-unused = prune deps with zero call sites.
 2. **Upgrade scope: patch only, minor, major (breaking)?** — _How to pick:_ Patch = always safe to auto-apply with tests. Minor = safe with tests + changelog scan. Major = read every changelog, expect breakage, plan migration.
@@ -176,14 +176,15 @@ These files live in `references/` next to this `SKILL.md`. Read them when the sk
 
 | File | Purpose |
 | --- | --- |
-| `references/anti-patterns.md` | Things to avoid when running this skill. |
-| `references/artifact-format.md` | The deliverable's format and where it lives (.temp/ contract). |
-| `references/clarifying-questions.md` | The default-ask questions for this skill, with how-to-pick rubrics. |
-| `references/constitution.md` | Non-negotiable rules and working/communication discipline. |
-| `references/examples.md` | Example trigger phrases, invocation, and report shape. |
+| `references/build-deps-anti-patterns.md` | Things to avoid when running this skill. |
+| `references/build-deps-artifact-format.md` | The deliverable's format and where it lives (.temp/ contract). |
+| `references/build-deps-clarifying-questions.md` | The default-ask questions for this skill, with how-to-pick rubrics. |
+| `references/build-deps-constitution.md` | Non-negotiable rules and working/communication discipline. |
+| `references/build-deps-examples.md` | Example trigger phrases, invocation, and report shape. |
 | `references/interaction-contract.md` | Default-ask, explained-options, --auto contract every skill must follow. |
-| `references/output-format.md` | Default vs detailed report shapes; severity labels; verbosity rules. |
-| `references/persona.md` | The agent persona that drives this skill. |
-| `references/research-protocol.md` | Source ordering, stop conditions, evidence buckets, citation discipline. |
+| `references/build-deps-output-format.md` | Default vs detailed report shapes; severity labels; verbosity rules. |
+| `references/build-deps-persona.md` | The agent persona that drives this skill. |
+| `references/build-deps-research-protocol.md` | Source ordering, stop conditions, evidence buckets, citation discipline. |
+| `references/build-deps-validator.md` | The four-phase validator gate (pre-execution, mid-flow, pre-handoff, post-execution) this skill MUST run. |
 
 <!-- adk:references:end -->

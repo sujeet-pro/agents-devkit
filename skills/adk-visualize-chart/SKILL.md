@@ -148,7 +148,7 @@ adk-visualize-chart line --data api-latency.json --x ts --y p99 --series endpoin
 
 ## Clarifying questions (default-ask)
 
-When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/clarifying-questions.md`) and reports the choices.
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/visualize-chart-clarifying-questions.md`) and reports the choices.
 
 1. **What is the data source (file path, URL, query)?** — _How to pick:_ File = csv/json/parquet. URL = HTTP fetch (cache to .temp/notes/). Query = SQL/PromQL/etc., capture the query string.
 2. **What story does the chart tell — what should the reader take away?** — _How to pick:_ One sentence. The chart type and design follow from this.
@@ -164,7 +164,7 @@ When running without `--auto`, the skill asks these questions in order, one at a
 
 ## Clarifying questions (default-ask)
 
-When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/clarifying-questions.md`) and reports the choices.
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/visualize-chart-clarifying-questions.md`) and reports the choices.
 
 1. **What is the data source (file path, URL, query)?** — _How to pick:_ File = csv/json/parquet. URL = HTTP fetch (cache to .temp/notes/). Query = SQL/PromQL/etc., capture the query string.
 2. **What story does the chart tell — what should the reader take away?** — _How to pick:_ One sentence. The chart type and design follow from this.
@@ -188,14 +188,15 @@ These files live in `references/` next to this `SKILL.md`. Read them when the sk
 
 | File | Purpose |
 | --- | --- |
-| `references/anti-patterns.md` | Things to avoid when running this skill. |
-| `references/artifact-format.md` | The deliverable's format and where it lives (.temp/ contract). |
-| `references/clarifying-questions.md` | The default-ask questions for this skill, with how-to-pick rubrics. |
-| `references/constitution.md` | Non-negotiable rules and working/communication discipline. |
-| `references/examples.md` | Example trigger phrases, invocation, and report shape. |
+| `references/visualize-chart-anti-patterns.md` | Things to avoid when running this skill. |
+| `references/visualize-chart-artifact-format.md` | The deliverable's format and where it lives (.temp/ contract). |
+| `references/visualize-chart-clarifying-questions.md` | The default-ask questions for this skill, with how-to-pick rubrics. |
+| `references/visualize-chart-constitution.md` | Non-negotiable rules and working/communication discipline. |
+| `references/visualize-chart-examples.md` | Example trigger phrases, invocation, and report shape. |
 | `references/interaction-contract.md` | Default-ask, explained-options, --auto contract every skill must follow. |
-| `references/output-format.md` | Default vs detailed report shapes; severity labels; verbosity rules. |
-| `references/persona.md` | The agent persona that drives this skill. |
-| `references/research-protocol.md` | Source ordering, stop conditions, evidence buckets, citation discipline. |
+| `references/visualize-chart-output-format.md` | Default vs detailed report shapes; severity labels; verbosity rules. |
+| `references/visualize-chart-persona.md` | The agent persona that drives this skill. |
+| `references/visualize-chart-research-protocol.md` | Source ordering, stop conditions, evidence buckets, citation discipline. |
+| `references/visualize-chart-validator.md` | The four-phase validator gate (pre-execution, mid-flow, pre-handoff, post-execution) this skill MUST run. |
 
 <!-- adk:references:end -->

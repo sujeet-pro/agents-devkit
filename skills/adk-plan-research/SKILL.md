@@ -39,7 +39,8 @@ Standalone task skill under the `adk-plan` category router. Resolves uncertainty
    - `Verified` - directly supported by code, config, official docs, or runtime output.
    - `Inferred` - strong conclusion from partial evidence; mark explicitly as inference.
    - `Open` - not yet verified; needs follow-up.
-5. **Synthesize** - produce a recommendation with confidence (high / medium / low) and supporting evidence.
+5. **Validate (per `plan-research-validator.md`)** - run the four-phase validator gate; capture evidence in `.temp/notes/plan-research-<slug>-validator.md` before the final report.
+6. **Synthesize** - produce a recommendation with confidence (high / medium / low) and supporting evidence.
 6. **Report** - findings-first markdown with citations, validation plan, and open questions.
 
 ## Evidence hierarchy
@@ -111,7 +112,7 @@ Need more detail on any section?
 
 ## Clarifying questions (default-ask)
 
-When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/clarifying-questions.md`) and reports the choices.
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/plan-research-clarifying-questions.md`) and reports the choices.
 
 1. **What is the single question you want answered, in one sentence?** — _How to pick:_ If it cannot be put in one sentence it is multiple questions — split them and pick the one that blocks progress.
 2. **What confidence do you need: a quick scan (≤30 min, 80%) or thorough (90-95%)?** — _How to pick:_ Quick = decision is reversible. Thorough = decision is hard to reverse or affects production.
@@ -125,11 +126,11 @@ When running without `--auto`, the skill asks these questions in order, one at a
 
 **Artifact path:** .temp/reports/research-<slug>.md (raw notes in .temp/notes/research-<slug>-notes.md, cloned repos in .temp/reference-repos/<owner>__<repo>/)
 
-Pass extra repos via `--repo <url-or-path>` (repeatable). URLs are cloned into `.temp/reference-repos/<owner>__<repo>/`; paths are read in place. Each repo is processed independently and findings/citations are tagged with the repo of origin. See `references/multi-repo.md` for full handling.
+Pass extra repos via `--repo <url-or-path>` (repeatable). URLs are cloned into `.temp/reference-repos/<owner>__<repo>/`; paths are read in place. Each repo is processed independently and findings/citations are tagged with the repo of origin. See `references/plan-research-multi-repo.md` for full handling.
 
 ## Clarifying questions (default-ask)
 
-When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/clarifying-questions.md`) and reports the choices.
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/plan-research-clarifying-questions.md`) and reports the choices.
 
 1. **What is the single question you want answered, in one sentence?** — _How to pick:_ If it cannot be put in one sentence it is multiple questions — split them and pick the one that blocks progress.
 2. **What confidence do you need: a quick scan (≤30 min, 80%) or thorough (90-95%)?** — _How to pick:_ Quick = decision is reversible. Thorough = decision is hard to reverse or affects production.
@@ -147,7 +148,7 @@ When running without `--auto`, the skill asks these questions in order, one at a
 
 ## Multi-repo context
 
-Pass extra repos via `--repo <url-or-path>` (repeatable). URLs are cloned into `.temp/reference-repos/<owner>__<repo>/`; paths are read in place. Each repo is processed independently and findings/citations are tagged with the repo of origin. See `references/multi-repo.md` for full handling.
+Pass extra repos via `--repo <url-or-path>` (repeatable). URLs are cloned into `.temp/reference-repos/<owner>__<repo>/`; paths are read in place. Each repo is processed independently and findings/citations are tagged with the repo of origin. See `references/plan-research-multi-repo.md` for full handling.
 
 <!-- adk:references:start -->
 
@@ -157,16 +158,17 @@ These files live in `references/` next to this `SKILL.md`. Read them when the sk
 
 | File | Purpose |
 | --- | --- |
-| `references/anti-patterns.md` | Things to avoid when running this skill. |
-| `references/artifact-format.md` | The deliverable's format and where it lives (.temp/ contract). |
-| `references/clarifying-questions.md` | The default-ask questions for this skill, with how-to-pick rubrics. |
-| `references/constitution.md` | Non-negotiable rules and working/communication discipline. |
-| `references/examples.md` | Example trigger phrases, invocation, and report shape. |
+| `references/plan-research-anti-patterns.md` | Things to avoid when running this skill. |
+| `references/plan-research-artifact-format.md` | The deliverable's format and where it lives (.temp/ contract). |
+| `references/plan-research-clarifying-questions.md` | The default-ask questions for this skill, with how-to-pick rubrics. |
+| `references/plan-research-constitution.md` | Non-negotiable rules and working/communication discipline. |
+| `references/plan-research-examples.md` | Example trigger phrases, invocation, and report shape. |
 | `references/interaction-contract.md` | Default-ask, explained-options, --auto contract every skill must follow. |
-| `references/multi-repo.md` | How to consume context from extra cloned or local-path repos. |
-| `references/output-format.md` | Default vs detailed report shapes; severity labels; verbosity rules. |
-| `references/persona.md` | The agent persona that drives this skill. |
-| `references/research-protocol.md` | Source ordering, stop conditions, evidence buckets, citation discipline. |
-| `references/working-artifacts.md` | Legacy: superseded by artifact-format.md; kept for back-compat. |
+| `references/plan-research-multi-repo.md` | How to consume context from extra cloned or local-path repos. |
+| `references/plan-research-output-format.md` | Default vs detailed report shapes; severity labels; verbosity rules. |
+| `references/plan-research-persona.md` | The agent persona that drives this skill. |
+| `references/plan-research-research-protocol.md` | Source ordering, stop conditions, evidence buckets, citation discipline. |
+| `references/plan-research-working-artifacts.md` | Legacy: superseded by artifact-format.md; kept for back-compat. |
+| `references/plan-research-validator.md` | The four-phase validator gate (pre-execution, mid-flow, pre-handoff, post-execution) this skill MUST run. |
 
 <!-- adk:references:end -->

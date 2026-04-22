@@ -39,13 +39,15 @@ This skill **does not** ship a frozen template. On every run it instructs the ag
 
 1. **Confirm intent** - restate task, mode, target, base path, and constraints. Approval gate unless `--auto`.
 2. **Research** - look up current stable versions of every pinned library (table below). Capture the result to `.temp/notes/adk-frontend-react-csr-versions-<date>.md`. **Mandatory every run.** No version is known a priori.
-3. **Plan** - for `new` or any multi-file change, write `.temp/plans/adk-frontend-react-csr-<slug>.md` with file list, design direction, and validation gates. Approval gate unless `--auto`.
-4. **Setup or extend**:
-   - `new`: create the repo skeleton (config, theme system, fonts, router, sample accessible page, CI). Reach for the stack defaults below.
+3. **Load / generate design system** - for `new`: generate `design-system/MASTER.md` per `frontend-react-csr-design-system-master.md` from product type + industry + audience. For `feature` / `audit`: read the existing `design-system/MASTER.md` (and any `pages/<page>.md` overrides). Industry anti-patterns from `frontend-react-csr-industry-anti-patterns.md` filter out no-go choices.
+4. **Plan** - for `new` or any multi-file change, write `.temp/plans/adk-frontend-react-csr-<slug>.md` with file list, design direction, and validation gates. Approval gate unless `--auto`.
+5. **Setup or extend**:
+   - `new`: create the repo skeleton (config, theme system, fonts, router, sample accessible page, CI, `design-system/MASTER.md`). Reach for the stack defaults below.
    - `feature`: implement the smallest correct change behind the existing tokens, themes, and patterns. Surface stack drift if you find it.
    - `audit`: read-only - produce findings only.
-5. **Validate** - `npm run check` (lint + format + typecheck), `npm test`, `npm run build`, automated `axe` pass, manual keyboard pass, theme-grid screenshot pass (paper x high-contrast x light x dark x small/base/large = 12 cells), Lighthouse on `dist/` via a browser MCP.
-6. **Report** - changed files, version table from research, validation matrix with per-row evidence, design notes, deploy URL, remaining risk, next steps.
+6. **Pre-delivery checklist** - walk every item in `frontend-react-csr-pre-delivery-checklist.md`; surface unfinished items in the report.
+7. **Validate (per `frontend-react-csr-validator.md`)** - `npm run check` (lint + format + typecheck), `npm test`, `npm run build`, automated `axe` pass, manual keyboard pass, theme-grid screenshot pass (paper x high-contrast x light x dark x small/base/large = 12 cells), Lighthouse on `dist/` via a browser MCP. Run the four-phase validator gate; capture evidence in `.temp/notes/frontend-react-csr-<slug>-validator.md`.
+8. **Report** - changed files, version table from research, validation matrix with per-row evidence, design notes, deploy URL, remaining risk, next steps.
 
 ## Locked stack
 
@@ -189,7 +191,7 @@ adk-frontend-react-csr "audit accessibility and bundle size" --mode audit
 
 ## Clarifying questions (default-ask)
 
-When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/clarifying-questions.md`) and reports the choices.
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/frontend-react-csr-clarifying-questions.md`) and reports the choices.
 
 1. **Mode: new (bootstrap), feature (extend existing), audit (read-only)?** — _How to pick:_ Inferred from the request when omitted. New = create dir + scaffold. Feature = inside an existing app on the stack. Audit = read-only findings.
 2. **Target directory + repo name + base path?** — _How to pick:_ Repo name → Pages URL `/<repo-name>/`. Custom domain → base = `/`. Subpath hosting → explicit base.
@@ -205,7 +207,7 @@ When running without `--auto`, the skill asks these questions in order, one at a
 
 ## Clarifying questions (default-ask)
 
-When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/clarifying-questions.md`) and reports the choices.
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/frontend-react-csr-clarifying-questions.md`) and reports the choices.
 
 1. **Mode: new (bootstrap), feature (extend existing), audit (read-only)?** — _How to pick:_ Inferred from the request when omitted. New = create dir + scaffold. Feature = inside an existing app on the stack. Audit = read-only findings.
 2. **Target directory + repo name + base path?** — _How to pick:_ Repo name → Pages URL `/<repo-name>/`. Custom domain → base = `/`. Subpath hosting → explicit base.
@@ -229,15 +231,19 @@ These files live in `references/` next to this `SKILL.md`. Read them when the sk
 
 | File | Purpose |
 | --- | --- |
-| `references/anti-patterns.md` | Things to avoid when running this skill. |
-| `references/artifact-format.md` | The deliverable's format and where it lives (.temp/ contract). |
-| `references/clarifying-questions.md` | The default-ask questions for this skill, with how-to-pick rubrics. |
-| `references/constitution.md` | Non-negotiable rules and working/communication discipline. |
-| `references/examples.md` | Example trigger phrases, invocation, and report shape. |
+| `references/frontend-react-csr-anti-patterns.md` | Things to avoid when running this skill. |
+| `references/frontend-react-csr-artifact-format.md` | The deliverable's format and where it lives (.temp/ contract). |
+| `references/frontend-react-csr-clarifying-questions.md` | The default-ask questions for this skill, with how-to-pick rubrics. |
+| `references/frontend-react-csr-constitution.md` | Non-negotiable rules and working/communication discipline. |
+| `references/frontend-react-csr-examples.md` | Example trigger phrases, invocation, and report shape. |
 | `references/interaction-contract.md` | Default-ask, explained-options, --auto contract every skill must follow. |
-| `references/output-format.md` | Default vs detailed report shapes; severity labels; verbosity rules. |
-| `references/persona.md` | The agent persona that drives this skill. |
-| `references/research-protocol.md` | Source ordering, stop conditions, evidence buckets, citation discipline. |
-| `references/working-artifacts.md` | Legacy: superseded by artifact-format.md; kept for back-compat. |
+| `references/frontend-react-csr-output-format.md` | Default vs detailed report shapes; severity labels; verbosity rules. |
+| `references/frontend-react-csr-persona.md` | The agent persona that drives this skill. |
+| `references/frontend-react-csr-research-protocol.md` | Source ordering, stop conditions, evidence buckets, citation discipline. |
+| `references/frontend-react-csr-working-artifacts.md` | Legacy: superseded by artifact-format.md; kept for back-compat. |
+| `references/frontend-react-csr-validator.md` | The four-phase validator gate (pre-execution, mid-flow, pre-handoff, post-execution) this skill MUST run. |
+| `references/frontend-react-csr-design-system-master.md` | The MASTER + page-overrides pattern for the app's design system (colors, typography, spacing, components). |
+| `references/frontend-react-csr-pre-delivery-checklist.md` | Mandatory checklist (visual, interaction, accessibility, light/dark, layout, performance) before "ready for review". |
+| `references/frontend-react-csr-industry-anti-patterns.md` | Industry-specific design no-gos used to filter aesthetic + implementation choices. |
 
 <!-- adk:references:end -->

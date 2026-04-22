@@ -69,7 +69,7 @@ Once you have picked a task, load `adk-review-<task>` and follow it. Each task s
 
 ## Clarifying questions (default-ask)
 
-When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/clarifying-questions.md`) and reports the choices.
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/review-clarifying-questions.md`) and reports the choices.
 
 1. **Where do the changes live: a remote PR, local working tree, or already-pushed branch?** — _How to pick:_ Remote PR → adk-review-pr. Local uncommitted → adk-review-local. Already-pushed but no PR yet → adk-review-local first, then publish.
 2. **Are there existing reviewer comments to address?** — _How to pick:_ Yes → adk-review-feedback. No → adk-review-pr or adk-review-local.
@@ -85,7 +85,7 @@ When running without `--auto`, the skill asks these questions in order, one at a
 
 ## Clarifying questions (default-ask)
 
-When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/clarifying-questions.md`) and reports the choices.
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/review-clarifying-questions.md`) and reports the choices.
 
 1. **Where do the changes live: a remote PR, local working tree, or already-pushed branch?** — _How to pick:_ Remote PR → adk-review-pr. Local uncommitted → adk-review-local. Already-pushed but no PR yet → adk-review-local first, then publish.
 2. **Are there existing reviewer comments to address?** — _How to pick:_ Yes → adk-review-feedback. No → adk-review-pr or adk-review-local.
@@ -109,12 +109,13 @@ These files live in `references/` next to this `SKILL.md`. Read them when the sk
 
 | File | Purpose |
 | --- | --- |
-| `references/anti-patterns.md` | Things to avoid when running this skill. |
-| `references/artifact-format.md` | The deliverable's format and where it lives (.temp/ contract). |
-| `references/clarifying-questions.md` | The default-ask questions for this skill, with how-to-pick rubrics. |
-| `references/constitution.md` | Non-negotiable rules and working/communication discipline. |
+| `references/review-anti-patterns.md` | Things to avoid when running this skill. |
+| `references/review-artifact-format.md` | The deliverable's format and where it lives (.temp/ contract). |
+| `references/review-clarifying-questions.md` | The default-ask questions for this skill, with how-to-pick rubrics. |
+| `references/review-constitution.md` | Non-negotiable rules and working/communication discipline. |
 | `references/interaction-contract.md` | Default-ask, explained-options, --auto contract every skill must follow. |
-| `references/output-format.md` | Default vs detailed report shapes; severity labels; verbosity rules. |
-| `references/persona.md` | The agent persona that drives this skill. |
+| `references/review-output-format.md` | Default vs detailed report shapes; severity labels; verbosity rules. |
+| `references/review-persona.md` | The agent persona that drives this skill. |
+| `references/review-validator.md` | The four-phase validator gate (pre-execution, mid-flow, pre-handoff, post-execution) this skill MUST run. |
 
 <!-- adk:references:end -->

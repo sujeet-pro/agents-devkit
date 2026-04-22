@@ -135,7 +135,7 @@ adk-review-local --target branch --base origin/main --scope src/auth/
 
 ## Clarifying questions (default-ask)
 
-When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/clarifying-questions.md`) and reports the choices.
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/review-local-clarifying-questions.md`) and reports the choices.
 
 1. **What is the base for comparison (origin/<branch>, main, last commit, custom)?** — _How to pick:_ Default = upstream of current branch; fallback to main. Custom = pass an explicit base ref.
 2. **Scope: full diff or only staged changes?** — _How to pick:_ Default = full diff (catches unstaged forgotten work). Staged-only when preparing a commit.
@@ -151,7 +151,7 @@ When running without `--auto`, the skill asks these questions in order, one at a
 
 ## Clarifying questions (default-ask)
 
-When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/clarifying-questions.md`) and reports the choices.
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/review-local-clarifying-questions.md`) and reports the choices.
 
 1. **What is the base for comparison (origin/<branch>, main, last commit, custom)?** — _How to pick:_ Default = upstream of current branch; fallback to main. Custom = pass an explicit base ref.
 2. **Scope: full diff or only staged changes?** — _How to pick:_ Default = full diff (catches unstaged forgotten work). Staged-only when preparing a commit.
@@ -175,15 +175,16 @@ These files live in `references/` next to this `SKILL.md`. Read them when the sk
 
 | File | Purpose |
 | --- | --- |
-| `references/anti-patterns.md` | Things to avoid when running this skill. |
-| `references/artifact-format.md` | The deliverable's format and where it lives (.temp/ contract). |
-| `references/clarifying-questions.md` | The default-ask questions for this skill, with how-to-pick rubrics. |
-| `references/constitution.md` | Non-negotiable rules and working/communication discipline. |
-| `references/examples.md` | Example trigger phrases, invocation, and report shape. |
+| `references/review-local-anti-patterns.md` | Things to avoid when running this skill. |
+| `references/review-local-artifact-format.md` | The deliverable's format and where it lives (.temp/ contract). |
+| `references/review-local-clarifying-questions.md` | The default-ask questions for this skill, with how-to-pick rubrics. |
+| `references/review-local-constitution.md` | Non-negotiable rules and working/communication discipline. |
+| `references/review-local-examples.md` | Example trigger phrases, invocation, and report shape. |
 | `references/interaction-contract.md` | Default-ask, explained-options, --auto contract every skill must follow. |
-| `references/output-format.md` | Default vs detailed report shapes; severity labels; verbosity rules. |
-| `references/persona.md` | The agent persona that drives this skill. |
-| `references/research-protocol.md` | Source ordering, stop conditions, evidence buckets, citation discipline. |
-| `references/review-comment-format.md` | Standard finding format with stable IDs and severities. |
+| `references/review-local-output-format.md` | Default vs detailed report shapes; severity labels; verbosity rules. |
+| `references/review-local-persona.md` | The agent persona that drives this skill. |
+| `references/review-local-research-protocol.md` | Source ordering, stop conditions, evidence buckets, citation discipline. |
+| `references/review-local-review-comment-format.md` | Standard finding format with stable IDs and severities. |
+| `references/review-local-validator.md` | The four-phase validator gate (pre-execution, mid-flow, pre-handoff, post-execution) this skill MUST run. |
 
 <!-- adk:references:end -->

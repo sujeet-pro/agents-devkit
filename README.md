@@ -2,7 +2,7 @@
 
 Self-contained engineering skills, runtime-specific custom subagents, hooks, MCP server configurations, and global prompts for coding agents. Works with Claude Code, Claude Desktop, Cursor (App + CLI), Codex CLI, Codex Desktop, Gemini CLI, Antigravity, and Junie.
 
-**38 self-contained skills** covering planning, building, reviewing, documenting, auditing, publishing, visualization, and frontend work — every skill ships its own complete `references/` (no shared sources, no cross-skill file refs). Every skill is **highly interactive by default** and supports `--auto` for fully unattended runs.
+**39 self-contained skills** covering planning, building, reviewing, documenting, auditing, publishing, visualization, frontend work, and AI-bootstrap — every skill ships its own complete `references/` (no shared sources, no cross-skill file refs). Every skill is **highly interactive by default**, supports `--auto` for fully unattended runs, and runs a four-phase validator gate (`<task>-validator.md`) at every phase boundary. Reference filenames are task-prefixed by skill (e.g., `pr-review-validator.md`, `feature-persona.md`); the only file shared verbatim across skills is `interaction-contract.md`.
 
 ## Install
 
@@ -134,7 +134,7 @@ The same contract is mirrored as a global prompt (`global-prompts/interaction-co
 
 ```
 agents-devkit/
-├── skills/                    # 38 self-contained adk-* skills (SKILL.md + flat references/)
+├── skills/                    # 39 self-contained adk-* skills (SKILL.md + flat references/, task-prefixed)
 ├── agents-claude/             # self-contained Claude custom subagents (Markdown)
 ├── agents-cursor/             # self-contained Cursor custom subagents (Markdown)
 ├── agents-codex/              # self-contained Codex custom agents (TOML)
@@ -150,26 +150,27 @@ agents-devkit/
 
 ## Skill catalog
 
-38 public skills: 1 top router (`adk`) + 8 category routers + 29 task skills. Activate `adk` first for any non-trivial task; it routes to a category and then to a specific task skill.
+39 public skills: 1 top router (`adk`) + 8 category routers + 30 task skills. Activate `adk` first for any non-trivial task; it routes to a category and then to a specific task skill.
 
 | Category | Use when | Task skills |
 | --- | --- | --- |
 | `adk-plan` | Close ambiguity, research, write spec / design / roadmap | `adk-plan-brainstorm`, `adk-plan-research`, `adk-plan-spec`, `adk-plan-design`, `adk-plan-roadmap` |
 | `adk-build` | Implement a feature or fix, refactor, migrate, write tests, manage deps | `adk-build-feature`, `adk-build-refactor`, `adk-build-migrate`, `adk-build-test`, `adk-build-deps` |
 | `adk-review` | Review PR, review local changes, address feedback, capture handoff | `adk-review-pr`, `adk-review-local`, `adk-review-feedback`, `adk-review-handoff` |
-| `adk-docs` | Write or review a technical document | `adk-docs-write`, `adk-docs-review` |
+| `adk-docs` | Write or review a technical document (Markdown OR Confluence with `--mode confluence`) | `adk-docs-write`, `adk-docs-review` |
 | `adk-audit` | Multi-dimensional audit of a repo or site | `adk-audit-repo`, `adk-audit-site` |
 | `adk-publish` | Commit messages, PRs on GitHub / Bitbucket, Confluence / Google Drive | `adk-publish-commit`, `adk-publish-github`, `adk-publish-bitbucket`, `adk-publish-confluence`, `adk-publish-gdrive` |
 | `adk-visualize` | Diagrams or charts | `adk-visualize-diagram`, `adk-visualize-chart` |
 | `adk-frontend` | UI design, frontend feature work, React 19 client-side sample apps | `adk-frontend-design`, `adk-frontend-feature`, `adk-frontend-react-csr` |
 
-Plus one standalone setup skill that does not belong to a category router:
+Plus standalone setup skills that do not belong to a category router:
 
 | Skill | Purpose |
 | --- | --- |
 | `adk-doc-site-setup` | Bootstrap a `@pagesmith/docs` + `diagramkit` documentation site in any repo and install `prj-doc-site-*` project skills so future agents can keep extending it |
+| `adk-adopt-ai-in-repo` | Inspect a target repo deeply, generate `ai-guidelines/` canonical knowledge + `AGENTS.md` + `CLAUDE.md` + thin per-agent skill wrappers + Python maintenance hooks; refresh-safe via `--refresh` |
 
-Every skill is fully standalone: a single folder with `SKILL.md` and a flat `references/` carrying its own copy of the persona, workflow, output format, constitution subset, interaction contract, and any other supporting material. There is no `_shared/`, no auto-propagation, no cross-skill file references.
+Every skill is fully standalone: a single folder with `SKILL.md` and a flat `references/` carrying its own copy of the persona, workflow, output format, constitution, anti-patterns, four-phase validator, and any other supporting material. References are **task-prefixed** by the skill's task token (e.g., `pr-reviewer-persona.md`, `feature-validator.md`); only `interaction-contract.md` is shared verbatim across skills.
 
 ## Custom subagents (per provider)
 

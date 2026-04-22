@@ -38,7 +38,8 @@ Standalone task skill under the `adk-plan` category router. Produces an architec
 3. **Draft** - write the design section by section using the template below. Include at least one diagram in mermaid (delegate to `adk-visualize-diagram` if the diagram is complex).
 4. **Trade-off pass** - explicitly list 2-3 alternatives considered and why each was rejected.
 5. **Failure-mode pass** - list how the design fails, what observable signals appear, and how recovery works.
-6. **Self-review** - check against the validation list below.
+6. **Validate (per `plan-design-validator.md`)** - run the four-phase validator gate; capture evidence in `.temp/notes/plan-design-<slug>-validator.md` before the final report.
+7. **Self-review** - check against the validation list below.
 7. **Report** - return the file path, a 3-bullet TL;DR, and the list of open decisions.
 
 ## Doc templates
@@ -174,7 +175,7 @@ Want a deeper look at any section?
 
 ## Clarifying questions (default-ask)
 
-When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/clarifying-questions.md`) and reports the choices.
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/plan-design-clarifying-questions.md`) and reports the choices.
 
 1. **What artifact: HLD (system overview), LLD (component-level detail), ADR (single decision), or migration plan?** — _How to pick:_ HLD = new service or major rewrite. LLD = inside an existing service. ADR = single irreversible decision (DB choice, framework swap). Migration = move from A to B.
 2. **Which non-functional requirements are hard constraints (latency, throughput, availability, cost, regulatory)?** — _How to pick:_ List the top 3 with numeric thresholds. Anything below the threshold is a constraint; anything above is a target.
@@ -188,11 +189,11 @@ When running without `--auto`, the skill asks these questions in order, one at a
 
 **Artifact path:** .temp/drafts/design-<slug>.md (promote to docs/architecture/ or docs/adr/NNN-<slug>.md when signed off)
 
-Pass extra repos via `--repo <url-or-path>` (repeatable). URLs are cloned into `.temp/reference-repos/<owner>__<repo>/`; paths are read in place. Each repo is processed independently and findings/citations are tagged with the repo of origin. See `references/multi-repo.md` for full handling.
+Pass extra repos via `--repo <url-or-path>` (repeatable). URLs are cloned into `.temp/reference-repos/<owner>__<repo>/`; paths are read in place. Each repo is processed independently and findings/citations are tagged with the repo of origin. See `references/plan-design-multi-repo.md` for full handling.
 
 ## Clarifying questions (default-ask)
 
-When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/clarifying-questions.md`) and reports the choices.
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/plan-design-clarifying-questions.md`) and reports the choices.
 
 1. **What artifact: HLD (system overview), LLD (component-level detail), ADR (single decision), or migration plan?** — _How to pick:_ HLD = new service or major rewrite. LLD = inside an existing service. ADR = single irreversible decision (DB choice, framework swap). Migration = move from A to B.
 2. **Which non-functional requirements are hard constraints (latency, throughput, availability, cost, regulatory)?** — _How to pick:_ List the top 3 with numeric thresholds. Anything below the threshold is a constraint; anything above is a target.
@@ -210,7 +211,7 @@ When running without `--auto`, the skill asks these questions in order, one at a
 
 ## Multi-repo context
 
-Pass extra repos via `--repo <url-or-path>` (repeatable). URLs are cloned into `.temp/reference-repos/<owner>__<repo>/`; paths are read in place. Each repo is processed independently and findings/citations are tagged with the repo of origin. See `references/multi-repo.md` for full handling.
+Pass extra repos via `--repo <url-or-path>` (repeatable). URLs are cloned into `.temp/reference-repos/<owner>__<repo>/`; paths are read in place. Each repo is processed independently and findings/citations are tagged with the repo of origin. See `references/plan-design-multi-repo.md` for full handling.
 
 <!-- adk:references:start -->
 
@@ -220,16 +221,17 @@ These files live in `references/` next to this `SKILL.md`. Read them when the sk
 
 | File | Purpose |
 | --- | --- |
-| `references/anti-patterns.md` | Things to avoid when running this skill. |
-| `references/artifact-format.md` | The deliverable's format and where it lives (.temp/ contract). |
-| `references/clarifying-questions.md` | The default-ask questions for this skill, with how-to-pick rubrics. |
-| `references/constitution.md` | Non-negotiable rules and working/communication discipline. |
-| `references/examples.md` | Example trigger phrases, invocation, and report shape. |
+| `references/plan-design-anti-patterns.md` | Things to avoid when running this skill. |
+| `references/plan-design-artifact-format.md` | The deliverable's format and where it lives (.temp/ contract). |
+| `references/plan-design-clarifying-questions.md` | The default-ask questions for this skill, with how-to-pick rubrics. |
+| `references/plan-design-constitution.md` | Non-negotiable rules and working/communication discipline. |
+| `references/plan-design-examples.md` | Example trigger phrases, invocation, and report shape. |
 | `references/interaction-contract.md` | Default-ask, explained-options, --auto contract every skill must follow. |
-| `references/multi-repo.md` | How to consume context from extra cloned or local-path repos. |
-| `references/output-format.md` | Default vs detailed report shapes; severity labels; verbosity rules. |
-| `references/persona.md` | The agent persona that drives this skill. |
-| `references/research-protocol.md` | Source ordering, stop conditions, evidence buckets, citation discipline. |
-| `references/working-artifacts.md` | Legacy: superseded by artifact-format.md; kept for back-compat. |
+| `references/plan-design-multi-repo.md` | How to consume context from extra cloned or local-path repos. |
+| `references/plan-design-output-format.md` | Default vs detailed report shapes; severity labels; verbosity rules. |
+| `references/plan-design-persona.md` | The agent persona that drives this skill. |
+| `references/plan-design-research-protocol.md` | Source ordering, stop conditions, evidence buckets, citation discipline. |
+| `references/plan-design-working-artifacts.md` | Legacy: superseded by artifact-format.md; kept for back-compat. |
+| `references/plan-design-validator.md` | The four-phase validator gate (pre-execution, mid-flow, pre-handoff, post-execution) this skill MUST run. |
 
 <!-- adk:references:end -->

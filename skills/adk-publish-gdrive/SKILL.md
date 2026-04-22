@@ -45,7 +45,7 @@ Standalone task skill under the `adk-publish` category router. Publishes markdow
    - `markdown`: upload as-is with `text/markdown` MIME.
    - `pdf`: render markdown -> PDF (via the MCP or a local renderer) and upload.
 5. **Apply action** - create the new file in the chosen folder, update the existing file, or set permissions.
-6. **Verify** - re-fetch metadata to confirm: title matches, MIME correct, parent folder correct, version newer (for update), permissions present (for share).
+6. **Verify (per `publish-gdrive-validator.md`)** - re-fetch metadata to confirm: title matches, MIME correct, parent folder correct, version newer (for update), permissions present (for share).
 7. **Report** - lead with the Drive URL; include action, format, verification status.
 
 ## Action playbooks
@@ -141,7 +141,7 @@ adk-publish-gdrive file-upload \
 
 ## Clarifying questions (default-ask)
 
-When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/clarifying-questions.md`) and reports the choices.
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/publish-gdrive-clarifying-questions.md`) and reports the choices.
 
 1. **Source path (markdown or already-formatted file)?** — _How to pick:_ Required.
 2. **Target folder (URL or folder ID)?** — _How to pick:_ Required. Use My Drive root only with explicit confirmation.
@@ -158,7 +158,7 @@ When running without `--auto`, the skill asks these questions in order, one at a
 
 ## Clarifying questions (default-ask)
 
-When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/clarifying-questions.md`) and reports the choices.
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/publish-gdrive-clarifying-questions.md`) and reports the choices.
 
 1. **Source path (markdown or already-formatted file)?** — _How to pick:_ Required.
 2. **Target folder (URL or folder ID)?** — _How to pick:_ Required. Use My Drive root only with explicit confirmation.
@@ -183,15 +183,16 @@ These files live in `references/` next to this `SKILL.md`. Read them when the sk
 
 | File | Purpose |
 | --- | --- |
-| `references/anti-patterns.md` | Things to avoid when running this skill. |
-| `references/artifact-format.md` | The deliverable's format and where it lives (.temp/ contract). |
-| `references/clarifying-questions.md` | The default-ask questions for this skill, with how-to-pick rubrics. |
-| `references/constitution.md` | Non-negotiable rules and working/communication discipline. |
-| `references/examples.md` | Example trigger phrases, invocation, and report shape. |
+| `references/publish-gdrive-anti-patterns.md` | Things to avoid when running this skill. |
+| `references/publish-gdrive-artifact-format.md` | The deliverable's format and where it lives (.temp/ contract). |
+| `references/publish-gdrive-clarifying-questions.md` | The default-ask questions for this skill, with how-to-pick rubrics. |
+| `references/publish-gdrive-constitution.md` | Non-negotiable rules and working/communication discipline. |
+| `references/publish-gdrive-examples.md` | Example trigger phrases, invocation, and report shape. |
 | `references/interaction-contract.md` | Default-ask, explained-options, --auto contract every skill must follow. |
-| `references/mcp-fallback.md` | Preferred MCP server and the manual fallback when it is missing. |
-| `references/output-format.md` | Default vs detailed report shapes; severity labels; verbosity rules. |
-| `references/persona.md` | The agent persona that drives this skill. |
-| `references/research-protocol.md` | Source ordering, stop conditions, evidence buckets, citation discipline. |
+| `references/publish-gdrive-mcp-fallback.md` | Preferred MCP server and the manual fallback when it is missing. |
+| `references/publish-gdrive-output-format.md` | Default vs detailed report shapes; severity labels; verbosity rules. |
+| `references/publish-gdrive-persona.md` | The agent persona that drives this skill. |
+| `references/publish-gdrive-research-protocol.md` | Source ordering, stop conditions, evidence buckets, citation discipline. |
+| `references/publish-gdrive-validator.md` | The four-phase validator gate (pre-execution, mid-flow, pre-publish, post-publish) this skill MUST run. |
 
 <!-- adk:references:end -->

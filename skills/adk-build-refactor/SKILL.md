@@ -38,7 +38,8 @@ Standalone task skill under the `adk-build` category router. Improves code struc
 3. **Map** - inventory call sites, public APIs, and dependents that the refactor will touch. Read; do not guess.
 4. **Plan** - cut into small behavior-preserving steps (rename -> move -> extract -> inline). Each step ends with passing tests.
 5. **Step-by-step execute** - apply one step, run tests, commit (or stage), repeat. Never batch two structural changes between validations.
-6. **Diff review** - re-read the cumulative diff for accidental behavior changes (extra checks added, error messages changed, defaults changed).
+6. **Validate (per `build-refactor-validator.md`)** - run the four-phase validator gate; capture evidence in `.temp/notes/build-refactor-<slug>-validator.md` before the final report.
+7. **Diff review** - re-read the cumulative diff for accidental behavior changes (extra checks added, error messages changed, defaults changed).
 7. **Report** - changed files; final test status; what was renamed / moved / extracted; what callers must update if any public API changed.
 
 ## Behavior-preservation rules
@@ -107,7 +108,7 @@ adk-build-refactor "Inline the single-call AuthFacade and delete it" --scope src
 
 ## Clarifying questions (default-ask)
 
-When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/clarifying-questions.md`) and reports the choices.
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/build-refactor-clarifying-questions.md`) and reports the choices.
 
 1. **What is the single concern of this refactor: rename, extract, inline, dedupe, simplify, restructure modules?** — _How to pick:_ Pick exactly one. Multi-concern refactors hide regressions. If multiple are needed, run the skill multiple times in series.
 2. **Is the touched code covered by tests today?** — _How to pick:_ Yes → proceed. No → write characterization tests first (capture current behavior even if quirky), then refactor.
@@ -123,7 +124,7 @@ When running without `--auto`, the skill asks these questions in order, one at a
 
 ## Clarifying questions (default-ask)
 
-When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/clarifying-questions.md`) and reports the choices.
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/build-refactor-clarifying-questions.md`) and reports the choices.
 
 1. **What is the single concern of this refactor: rename, extract, inline, dedupe, simplify, restructure modules?** — _How to pick:_ Pick exactly one. Multi-concern refactors hide regressions. If multiple are needed, run the skill multiple times in series.
 2. **Is the touched code covered by tests today?** — _How to pick:_ Yes → proceed. No → write characterization tests first (capture current behavior even if quirky), then refactor.
@@ -147,15 +148,16 @@ These files live in `references/` next to this `SKILL.md`. Read them when the sk
 
 | File | Purpose |
 | --- | --- |
-| `references/anti-patterns.md` | Things to avoid when running this skill. |
-| `references/artifact-format.md` | The deliverable's format and where it lives (.temp/ contract). |
-| `references/clarifying-questions.md` | The default-ask questions for this skill, with how-to-pick rubrics. |
-| `references/constitution.md` | Non-negotiable rules and working/communication discipline. |
-| `references/examples.md` | Example trigger phrases, invocation, and report shape. |
+| `references/build-refactor-anti-patterns.md` | Things to avoid when running this skill. |
+| `references/build-refactor-artifact-format.md` | The deliverable's format and where it lives (.temp/ contract). |
+| `references/build-refactor-clarifying-questions.md` | The default-ask questions for this skill, with how-to-pick rubrics. |
+| `references/build-refactor-constitution.md` | Non-negotiable rules and working/communication discipline. |
+| `references/build-refactor-examples.md` | Example trigger phrases, invocation, and report shape. |
 | `references/interaction-contract.md` | Default-ask, explained-options, --auto contract every skill must follow. |
-| `references/output-format.md` | Default vs detailed report shapes; severity labels; verbosity rules. |
-| `references/persona.md` | The agent persona that drives this skill. |
-| `references/research-protocol.md` | Source ordering, stop conditions, evidence buckets, citation discipline. |
-| `references/working-artifacts.md` | Legacy: superseded by artifact-format.md; kept for back-compat. |
+| `references/build-refactor-output-format.md` | Default vs detailed report shapes; severity labels; verbosity rules. |
+| `references/build-refactor-persona.md` | The agent persona that drives this skill. |
+| `references/build-refactor-research-protocol.md` | Source ordering, stop conditions, evidence buckets, citation discipline. |
+| `references/build-refactor-working-artifacts.md` | Legacy: superseded by artifact-format.md; kept for back-compat. |
+| `references/build-refactor-validator.md` | The four-phase validator gate (pre-execution, mid-flow, pre-handoff, post-execution) this skill MUST run. |
 
 <!-- adk:references:end -->

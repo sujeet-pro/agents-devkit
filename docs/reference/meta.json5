@@ -61,6 +61,10 @@
     "skill-adk-frontend-design",
     "skill-adk-frontend-feature",
     "skill-adk-frontend-react-csr",
+
+    // Standalone skills (no router)
+    "skill-adk-doc-site-setup",
+    "skill-adk-adopt-ai-in-repo",
   ],
   series: [
     {
@@ -92,6 +96,7 @@
         "skill-adk-publish-confluence", "skill-adk-publish-gdrive",
         "skill-adk-visualize-diagram", "skill-adk-visualize-chart",
         "skill-adk-frontend-design", "skill-adk-frontend-feature", "skill-adk-frontend-react-csr",
+        "skill-adk-doc-site-setup", "skill-adk-adopt-ai-in-repo",
       ],
     },
   ],

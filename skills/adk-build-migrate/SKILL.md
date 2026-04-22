@@ -39,7 +39,7 @@ Standalone task skill under the `adk-build` category router. Replaces a framewor
 5. **Pin and prepare** - update the package version (or runtime), add any required compatibility shims, run baseline tests to capture starting state.
 6. **Migrate group by group** - apply per-group changes; run validation; commit before moving on.
 7. **Remove shims** - once all groups are migrated, remove temporary compat layers.
-8. **Final validation** - full test suite, type-check, build, smoke checks for behavior parity.
+8. **Final validation (per `build-migrate-validator.md`)** - full test suite, type-check, build, smoke checks for behavior parity.
 9. **Report** - what changed, what behavior changed (intentionally), what risk remains, rollback steps.
 
 ## Breaking-change inventory template
@@ -120,7 +120,7 @@ adk-build-migrate "Webpack 5 -> Vite 5" --scope ./
 
 ## Clarifying questions (default-ask)
 
-When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/clarifying-questions.md`) and reports the choices.
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/build-migrate-clarifying-questions.md`) and reports the choices.
 
 1. **What is the source and target (framework, version, runtime)?** — _How to pick:_ Be specific: 'React 17 → React 19', 'Node 18 → Node 22', 'Webpack → Vite'. Vague targets cause vague plans.
 2. **Is downtime acceptable, or does the system stay live throughout?** — _How to pick:_ Downtime allowed → simpler cutover. Live → compatibility shims + dual-write/dual-read for stateful systems.
@@ -136,7 +136,7 @@ When running without `--auto`, the skill asks these questions in order, one at a
 
 ## Clarifying questions (default-ask)
 
-When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/clarifying-questions.md`) and reports the choices.
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/build-migrate-clarifying-questions.md`) and reports the choices.
 
 1. **What is the source and target (framework, version, runtime)?** — _How to pick:_ Be specific: 'React 17 → React 19', 'Node 18 → Node 22', 'Webpack → Vite'. Vague targets cause vague plans.
 2. **Is downtime acceptable, or does the system stay live throughout?** — _How to pick:_ Downtime allowed → simpler cutover. Live → compatibility shims + dual-write/dual-read for stateful systems.
@@ -160,15 +160,16 @@ These files live in `references/` next to this `SKILL.md`. Read them when the sk
 
 | File | Purpose |
 | --- | --- |
-| `references/anti-patterns.md` | Things to avoid when running this skill. |
-| `references/artifact-format.md` | The deliverable's format and where it lives (.temp/ contract). |
-| `references/clarifying-questions.md` | The default-ask questions for this skill, with how-to-pick rubrics. |
-| `references/constitution.md` | Non-negotiable rules and working/communication discipline. |
-| `references/examples.md` | Example trigger phrases, invocation, and report shape. |
+| `references/build-migrate-anti-patterns.md` | Things to avoid when running this skill. |
+| `references/build-migrate-artifact-format.md` | The deliverable's format and where it lives (.temp/ contract). |
+| `references/build-migrate-clarifying-questions.md` | The default-ask questions for this skill, with how-to-pick rubrics. |
+| `references/build-migrate-constitution.md` | Non-negotiable rules and working/communication discipline. |
+| `references/build-migrate-examples.md` | Example trigger phrases, invocation, and report shape. |
 | `references/interaction-contract.md` | Default-ask, explained-options, --auto contract every skill must follow. |
-| `references/output-format.md` | Default vs detailed report shapes; severity labels; verbosity rules. |
-| `references/persona.md` | The agent persona that drives this skill. |
-| `references/research-protocol.md` | Source ordering, stop conditions, evidence buckets, citation discipline. |
-| `references/working-artifacts.md` | Legacy: superseded by artifact-format.md; kept for back-compat. |
+| `references/build-migrate-output-format.md` | Default vs detailed report shapes; severity labels; verbosity rules. |
+| `references/build-migrate-persona.md` | The agent persona that drives this skill. |
+| `references/build-migrate-research-protocol.md` | Source ordering, stop conditions, evidence buckets, citation discipline. |
+| `references/build-migrate-working-artifacts.md` | Legacy: superseded by artifact-format.md; kept for back-compat. |
+| `references/build-migrate-validator.md` | The four-phase validator gate (pre-execution, mid-flow, pre-handoff, post-execution) this skill MUST run. |
 
 <!-- adk:references:end -->

@@ -167,7 +167,7 @@ adk-visualize-diagram architecture --format drawio --render svg --output docs/di
 
 ## Clarifying questions (default-ask)
 
-When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/clarifying-questions.md`) and reports the choices.
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/visualize-diagram-clarifying-questions.md`) and reports the choices.
 
 1. **Diagram type: sequence / flowchart / class / state / entity-relationship / architecture / dependency-graph / mind-map / freeform UX?** — _How to pick:_ Sequence/flowchart/class/state/ER/mind → mermaid. Large dependency graph → graphviz. Architecture with rich shapes → drawio. UX sketch → excalidraw.
 2. **Source-of-truth for the diagram content (code path, spec, ticket, manual description)?** — _How to pick:_ Code/spec for engineering diagrams (must verify). Manual description for UX sketches.
@@ -183,7 +183,7 @@ When running without `--auto`, the skill asks these questions in order, one at a
 
 ## Clarifying questions (default-ask)
 
-When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/clarifying-questions.md`) and reports the choices.
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/visualize-diagram-clarifying-questions.md`) and reports the choices.
 
 1. **Diagram type: sequence / flowchart / class / state / entity-relationship / architecture / dependency-graph / mind-map / freeform UX?** — _How to pick:_ Sequence/flowchart/class/state/ER/mind → mermaid. Large dependency graph → graphviz. Architecture with rich shapes → drawio. UX sketch → excalidraw.
 2. **Source-of-truth for the diagram content (code path, spec, ticket, manual description)?** — _How to pick:_ Code/spec for engineering diagrams (must verify). Manual description for UX sketches.
@@ -207,14 +207,15 @@ These files live in `references/` next to this `SKILL.md`. Read them when the sk
 
 | File | Purpose |
 | --- | --- |
-| `references/anti-patterns.md` | Things to avoid when running this skill. |
-| `references/artifact-format.md` | The deliverable's format and where it lives (.temp/ contract). |
-| `references/clarifying-questions.md` | The default-ask questions for this skill, with how-to-pick rubrics. |
-| `references/constitution.md` | Non-negotiable rules and working/communication discipline. |
-| `references/examples.md` | Example trigger phrases, invocation, and report shape. |
+| `references/visualize-diagram-anti-patterns.md` | Things to avoid when running this skill. |
+| `references/visualize-diagram-artifact-format.md` | The deliverable's format and where it lives (.temp/ contract). |
+| `references/visualize-diagram-clarifying-questions.md` | The default-ask questions for this skill, with how-to-pick rubrics. |
+| `references/visualize-diagram-constitution.md` | Non-negotiable rules and working/communication discipline. |
+| `references/visualize-diagram-examples.md` | Example trigger phrases, invocation, and report shape. |
 | `references/interaction-contract.md` | Default-ask, explained-options, --auto contract every skill must follow. |
-| `references/output-format.md` | Default vs detailed report shapes; severity labels; verbosity rules. |
-| `references/persona.md` | The agent persona that drives this skill. |
-| `references/research-protocol.md` | Source ordering, stop conditions, evidence buckets, citation discipline. |
+| `references/visualize-diagram-output-format.md` | Default vs detailed report shapes; severity labels; verbosity rules. |
+| `references/visualize-diagram-persona.md` | The agent persona that drives this skill. |
+| `references/visualize-diagram-research-protocol.md` | Source ordering, stop conditions, evidence buckets, citation discipline. |
+| `references/visualize-diagram-validator.md` | The four-phase validator gate (pre-execution, mid-flow, pre-handoff, post-execution) this skill MUST run. |
 
 <!-- adk:references:end -->

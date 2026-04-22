@@ -145,7 +145,7 @@ adk-review-feedback https://bitbucket.org/org/repo/pull-requests/17 --filter unr
 
 ## Clarifying questions (default-ask)
 
-When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/clarifying-questions.md`) and reports the choices.
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/review-feedback-clarifying-questions.md`) and reports the choices.
 
 1. **What is the PR URL?** — _How to pick:_ Required. Provider auto-detected from host.
 2. **Filter: address all, only Blockers/Critical, or only specific comment IDs?** — _How to pick:_ All = default. Severity-only = use when many comments and we want to ship core fixes first. Specific IDs = surgical follow-up.
@@ -161,7 +161,7 @@ When running without `--auto`, the skill asks these questions in order, one at a
 
 ## Clarifying questions (default-ask)
 
-When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/clarifying-questions.md`) and reports the choices.
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/review-feedback-clarifying-questions.md`) and reports the choices.
 
 1. **What is the PR URL?** — _How to pick:_ Required. Provider auto-detected from host.
 2. **Filter: address all, only Blockers/Critical, or only specific comment IDs?** — _How to pick:_ All = default. Severity-only = use when many comments and we want to ship core fixes first. Specific IDs = surgical follow-up.
@@ -185,15 +185,16 @@ These files live in `references/` next to this `SKILL.md`. Read them when the sk
 
 | File | Purpose |
 | --- | --- |
-| `references/anti-patterns.md` | Things to avoid when running this skill. |
-| `references/artifact-format.md` | The deliverable's format and where it lives (.temp/ contract). |
-| `references/clarifying-questions.md` | The default-ask questions for this skill, with how-to-pick rubrics. |
-| `references/constitution.md` | Non-negotiable rules and working/communication discipline. |
-| `references/examples.md` | Example trigger phrases, invocation, and report shape. |
+| `references/review-feedback-anti-patterns.md` | Things to avoid when running this skill. |
+| `references/review-feedback-artifact-format.md` | The deliverable's format and where it lives (.temp/ contract). |
+| `references/review-feedback-clarifying-questions.md` | The default-ask questions for this skill, with how-to-pick rubrics. |
+| `references/review-feedback-constitution.md` | Non-negotiable rules and working/communication discipline. |
+| `references/review-feedback-examples.md` | Example trigger phrases, invocation, and report shape. |
 | `references/interaction-contract.md` | Default-ask, explained-options, --auto contract every skill must follow. |
-| `references/output-format.md` | Default vs detailed report shapes; severity labels; verbosity rules. |
-| `references/persona.md` | The agent persona that drives this skill. |
-| `references/research-protocol.md` | Source ordering, stop conditions, evidence buckets, citation discipline. |
-| `references/review-comment-format.md` | Standard finding format with stable IDs and severities. |
+| `references/review-feedback-output-format.md` | Default vs detailed report shapes; severity labels; verbosity rules. |
+| `references/review-feedback-persona.md` | The agent persona that drives this skill. |
+| `references/review-feedback-research-protocol.md` | Source ordering, stop conditions, evidence buckets, citation discipline. |
+| `references/review-feedback-review-comment-format.md` | Standard finding format with stable IDs and severities. |
+| `references/review-feedback-validator.md` | The four-phase validator gate (pre-execution, mid-flow, pre-handoff, post-execution) this skill MUST run. |
 
 <!-- adk:references:end -->

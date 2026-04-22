@@ -141,7 +141,7 @@ adk-build-feature "Confirm the pagination fix works" --mode verify --scope src/a
 
 ## Clarifying questions (default-ask)
 
-When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/clarifying-questions.md`) and reports the choices.
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/build-feature-clarifying-questions.md`) and reports the choices.
 
 1. **Is this an implement, debug, or verify task?** — _How to pick:_ Implement = building from spec/roadmap. Debug = a failure exists and we need root cause + fix. Verify = no code change, prove a prior change is correct.
 2. **What is the validation target (tests to pass, behavior to demonstrate, metric to hit)?** — _How to pick:_ Pick the smallest signal that proves correctness. Prefer existing tests > new test > manual repro.
@@ -157,7 +157,7 @@ When running without `--auto`, the skill asks these questions in order, one at a
 
 ## Clarifying questions (default-ask)
 
-When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/clarifying-questions.md`) and reports the choices.
+When running without `--auto`, the skill asks these questions in order, one at a time. Under `--auto`, the skill picks the safest option for each (see `references/build-feature-clarifying-questions.md`) and reports the choices.
 
 1. **Is this an implement, debug, or verify task?** — _How to pick:_ Implement = building from spec/roadmap. Debug = a failure exists and we need root cause + fix. Verify = no code change, prove a prior change is correct.
 2. **What is the validation target (tests to pass, behavior to demonstrate, metric to hit)?** — _How to pick:_ Pick the smallest signal that proves correctness. Prefer existing tests > new test > manual repro.
@@ -181,15 +181,16 @@ These files live in `references/` next to this `SKILL.md`. Read them when the sk
 
 | File | Purpose |
 | --- | --- |
-| `references/anti-patterns.md` | Things to avoid when running this skill. |
-| `references/artifact-format.md` | The deliverable's format and where it lives (.temp/ contract). |
-| `references/clarifying-questions.md` | The default-ask questions for this skill, with how-to-pick rubrics. |
-| `references/constitution.md` | Non-negotiable rules and working/communication discipline. |
-| `references/examples.md` | Example trigger phrases, invocation, and report shape. |
+| `references/build-feature-anti-patterns.md` | Things to avoid when running this skill. |
+| `references/build-feature-artifact-format.md` | The deliverable's format and where it lives (.temp/ contract). |
+| `references/build-feature-clarifying-questions.md` | The default-ask questions for this skill, with how-to-pick rubrics. |
+| `references/build-feature-constitution.md` | Non-negotiable rules and working/communication discipline. |
+| `references/build-feature-examples.md` | Example trigger phrases, invocation, and report shape. |
 | `references/interaction-contract.md` | Default-ask, explained-options, --auto contract every skill must follow. |
-| `references/output-format.md` | Default vs detailed report shapes; severity labels; verbosity rules. |
-| `references/persona.md` | The agent persona that drives this skill. |
-| `references/research-protocol.md` | Source ordering, stop conditions, evidence buckets, citation discipline. |
-| `references/working-artifacts.md` | Legacy: superseded by artifact-format.md; kept for back-compat. |
+| `references/build-feature-output-format.md` | Default vs detailed report shapes; severity labels; verbosity rules. |
+| `references/build-feature-persona.md` | The agent persona that drives this skill. |
+| `references/build-feature-research-protocol.md` | Source ordering, stop conditions, evidence buckets, citation discipline. |
+| `references/build-feature-working-artifacts.md` | Legacy: superseded by artifact-format.md; kept for back-compat. |
+| `references/build-feature-validator.md` | The four-phase validator gate (pre-execution, mid-flow, pre-handoff, post-execution) this skill MUST run. |
 
 <!-- adk:references:end -->
