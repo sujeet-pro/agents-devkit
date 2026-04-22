@@ -1,113 +1,114 @@
 ---
-title: Custom Subagents (per provider)
-description: How ADK ships custom subagents independently for Claude, Cursor, and Codex.
+
+## title: Subagents
+description: How ADK ships specialist subagents under the Claude plugin agents/ folder, and the supported frontmatter surface for plugin-shipped agents.
 order: 4
----
 
-# Custom Subagents (per provider)
+# Subagents
 
-Skills are playbooks. **Custom subagents** are the specialists a skill dispatches when the work is too big, too parallel, or too specialized to handle inline. The brainstorming facilitator, the code reviewer, the test engineer, and the debugger are all subagents.
+Skills are playbooks. **Subagents** are the specialists a skill dispatches when the work is too big, too parallel, or too specialized to handle inline. The brainstorming facilitator, the code reviewer, the test engineer, and the debugger are all subagents.
 
-ADK ships subagent definitions independently per provider. There is **no shared canonical source**. Each runtime's folder is the source of truth for its own files because each harness supports a different schema and a different feature surface.
+The `adk` Claude Code plugin ships **one Markdown file per subagent** under `[agents/](https://github.com/sujeet-pro/agents-devkit/tree/main/agents)`, referenced from `.claude-plugin/plugin.json` as `"agents": "./agents/"`. The schema follows the [Claude Code plugins reference — Agents](https://code.claude.com/docs/en/plugins-reference#agents) section.
 
 ## Roster
 
-These are the subagents currently shipped (lists may grow or differ per provider over time):
+10 subagents currently ship with the plugin:
 
-| Subagent | Role |
-| --- | --- |
-| `adk-brainstorm-facilitator` | Iterative brainstorming and route selection |
-| `adk-code-reviewer` | Code review with severity-ordered findings |
-| `adk-security-reviewer` | Security-focused vulnerability analysis |
-| `adk-test-engineer` | Test writing, execution, and coverage |
-| `adk-doc-writer` | Documentation authoring from code evidence |
-| `adk-research-agent` | Deep technical research with citations |
-| `adk-plan-reviewer` | Plan critique and gap analysis |
-| `adk-implementer` | Focused code implementation |
-| `adk-debugger` | Systematic root-cause debugging |
 
-Each subagent declares its mission, scope, hard rules, output format, and anti-patterns inside its file.
+| Subagent                                                                                                           | Role                                                                              |
+| ------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------- |
+| `[brainstorm-facilitator](https://github.com/sujeet-pro/agents-devkit/blob/main/agents/brainstorm-facilitator.md)` | Iterative brainstorming and route selection (paired with the `brainstorming` MCP) |
+| `[code-reviewer](https://github.com/sujeet-pro/agents-devkit/blob/main/agents/code-reviewer.md)`                   | Code review with severity-ordered findings                                        |
+| `[security-reviewer](https://github.com/sujeet-pro/agents-devkit/blob/main/agents/security-reviewer.md)`           | Security-focused vulnerability analysis                                           |
+| `[test-engineer](https://github.com/sujeet-pro/agents-devkit/blob/main/agents/test-engineer.md)`                   | Test writing, execution, and coverage                                             |
+| `[doc-writer](https://github.com/sujeet-pro/agents-devkit/blob/main/agents/doc-writer.md)`                         | Documentation authoring from code evidence                                        |
+| `[research-agent](https://github.com/sujeet-pro/agents-devkit/blob/main/agents/research-agent.md)`                 | Deep technical research with citations                                            |
+| `[plan-reviewer](https://github.com/sujeet-pro/agents-devkit/blob/main/agents/plan-reviewer.md)`                   | Plan critique and gap analysis                                                    |
+| `[implementer](https://github.com/sujeet-pro/agents-devkit/blob/main/agents/implementer.md)`                       | Focused code implementation                                                       |
+| `[debugger](https://github.com/sujeet-pro/agents-devkit/blob/main/agents/debugger.md)`                             | Systematic root-cause debugging                                                   |
+| `[dispatcher](https://github.com/sujeet-pro/agents-devkit/blob/main/agents/dispatcher.md)`                         | Routes a classified task to the right downstream subagent (used by `/adk:auto`)   |
+
+
+In Claude's `/agents` UI, these appear with the plugin namespace prefix: `adk:code-reviewer`, `adk:dispatcher`, etc.
+
+## Frontmatter contract
+
+Per the plugins reference, **plugin-shipped agents support a restricted set of frontmatter fields** for security reasons. ADK uses these and only these:
+
+
+| Field                       | Used for                                                                      |
+| --------------------------- | ----------------------------------------------------------------------------- |
+| `name`                      | Required. Becomes the invocation name.                                        |
+| `description`               | Required. What the agent specializes in and when Claude should invoke it.     |
+| `model`                     | Pin a specific model (e.g. `claude-opus-4-7` for review-grade work).          |
+| `effort`                    | `low` / `medium` / `high` reasoning budget.                                   |
+| `maxTurns`                  | Hard cap on the agent's turn count.                                           |
+| `tools` / `disallowedTools` | Allow- or deny-list specific tools (e.g. reviewers disable `Write`/`Edit`).   |
+| `skills`                    | The ADK skills this agent may invoke.                                         |
+| `memory`                    | Per-agent memory toggle.                                                      |
+| `background`                | Run as a background subagent so the main conversation keeps its token budget. |
+| `isolation`                 | Only `"worktree"` is supported per spec.                                      |
+
+
+> [!IMPORTANT]
+> The plugins reference [explicitly excludes](https://code.claude.com/docs/en/plugins-reference#agents) `hooks`, `mcpServers`, and `permissionMode` from plugin-shipped agents. ADK does not set these. The `bin/adk-validate` script catches accidental usage.
+
+A typical ADK agent file:
+
+```yaml
+---
+name: "code-reviewer"
+description: "Review code for correctness, regressions, and missing validation. Use proactively after implementation, before commit, and before merge."
+model: "claude-opus-4-7"
+disallowedTools:
+  - "Write"
+  - "Edit"
+maxTurns: 20
+skills:
+  - "review-local-changes"
+  - "review-pr"
+effort: "high"
+background: true
+---
+
+# Code Reviewer
+...
+```
 
 ## Status protocol
 
-All subagents report one of four statuses back to the calling skill:
+All ADK subagents report one of four statuses back to the calling skill:
 
-| Status | Meaning |
-| --- | --- |
-| `DONE` | Work complete, ready for the next phase |
-| `DONE_WITH_CONCERNS` | Complete but with flagged issues the caller must read |
-| `NEEDS_CONTEXT` | Missing information; caller must provide it and re-dispatch |
-| `BLOCKED` | Cannot continue; escalate to the user or break the task smaller |
+
+| Status               | Meaning                                                         |
+| -------------------- | --------------------------------------------------------------- |
+| `DONE`               | Work complete, ready for the next phase                         |
+| `DONE_WITH_CONCERNS` | Complete but with flagged issues the caller must read           |
+| `NEEDS_CONTEXT`      | Missing information; caller must provide it and re-dispatch     |
+| `BLOCKED`            | Cannot continue; escalate to the user or break the task smaller |
+
 
 The calling skill is required to handle these statuses. It cannot silently retry a `BLOCKED` subagent or ignore `DONE_WITH_CONCERNS`.
 
-## Per-provider files
-
-The same subagent name (`adk-implementer`, etc.) appears in three independent files when supported by all three providers:
-
-- [`agents-claude/<name>.md`](https://github.com/sujeet-pro/agents-devkit/tree/main/agents-claude) — Markdown with Claude-flavored YAML frontmatter
-- [`agents-cursor/<name>.md`](https://github.com/sujeet-pro/agents-devkit/tree/main/agents-cursor) — Markdown with Cursor-flavored YAML frontmatter
-- [`agents-codex/<name>.toml`](https://github.com/sujeet-pro/agents-devkit/tree/main/agents-codex) — standalone TOML
-
-Each file is fully self-contained: frontmatter (or TOML keys) plus the body inlined. Edit the file in the provider's folder; nothing propagates anywhere else.
-
-### Claude
-
-Claude Code custom subagents accept Markdown with rich YAML frontmatter. Verified fields include:
-
-`name`, `description`, `tools`, `disallowedTools`, `model`, `permissionMode`, `maxTurns`, `skills`, `mcpServers`, `hooks`, `memory`, `background`, `effort`, `isolation`, `color`, `initialPrompt`.
-
-ADK uses this surface to pin a model, declare which skills the subagent may invoke, enable `memory`, set `effort`, and hint UI color.
-
-### Cursor
-
-Cursor custom subagents use Markdown with a much smaller frontmatter:
-
-`name`, `description`, `model`, `readonly`, `is_background`.
-
-`readonly: true` is how a reviewer subagent signals it will not write files. `is_background: true` moves the subagent into a background slot so the main conversation keeps its token budget.
-
-### Codex
-
-Codex custom agents are TOML files, not Markdown. Required:
-
-`name`, `description`, `developer_instructions`.
-
-Common optional fields: `nickname_candidates`, `model`, `model_reasoning_effort`, `sandbox_mode`, `mcp_servers`.
-
-Codex wraps the body inside a `developer_instructions = """..."""` block. It uses `sandbox_mode` to pick read-only vs workspace-write behavior.
-
-## Why independent per provider
-
-Forcing a single canonical source through a projection script meant either lossy projections (drop fields not supported everywhere) or an awkward extension model. The independent-per-provider model:
-
-- Lets each runtime use the full surface its harness provides.
-- Removes auto-propagation drift.
-- Makes it easy to omit a subagent in a runtime that does not benefit from it.
-- Matches the standalone-skill contract used elsewhere in this repo.
-
-The trade-off: if you want the same persona text in all three providers, you have to update three files. That is a deliberate cost.
-
-## Install
-
-`adk-install` symlinks each chosen subagent file into the runtime's agents directory:
-
-- `agents-claude/<name>.md` → `<root>/.claude/agents/<name>.md`
-- `agents-cursor/<name>.md` → `<root>/.cursor/agents/<name>.md`
-- `agents-codex/<name>.toml` → `<root>/.codex/agents/<name>.toml`
-
-Re-runs prune stale links and recreate the currently-selected ones.
-
 ## Subagent vs skill — when to use which
 
-| Situation | Use |
-| --- | --- |
-| Invoke a workflow end-to-end (plan → build → validate → report) | A **skill** (`/adk-build-feature`, `/adk-review-pr`, ...) |
-| Want a focused specialist inside a workflow | A **subagent** (dispatched by the skill) |
-| Add a new specialist role | Author the file in each provider's folder you want to support |
+
+| Situation                                                       | Use                                                                                             |
+| --------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| Invoke a workflow end-to-end (plan → build → validate → report) | A **skill** (`/adk:build-feature`, `/adk:review-pr`, ...)                                       |
+| Want a focused specialist inside a workflow                     | A **subagent** (dispatched by the skill)                                                        |
+| Add a new specialist role                                       | Author one Markdown file under `agents/` and add it to the relevant skill's `agents:` allowlist |
+
+
+## Non-Claude harnesses
+
+Cursor, Codex, Gemini, and Antigravity each have their own subagent format. The `adk` Claude plugin does **not** project these agents into other harnesses — they are Claude-only. If you want the same persona in a non-Claude harness, author it natively in that harness's agent format.
+
+The `agents-skills/adk-<name>` symlink farm projects **skills** to other harnesses, not agents.
 
 ## Related
 
 - [Skill Anatomy](./skill-anatomy.md) — how skills decide to dispatch a subagent.
 - [Hooks](./hooks.md) — safety and lifecycle checks for both skills and subagents.
-- [Agent Reference](../reference/agents/) — per-provider format cheat-sheet.
+- [Plugins reference — Agents](https://code.claude.com/docs/en/plugins-reference#agents) — Anthropic's authoritative spec for plugin-shipped agents.
+

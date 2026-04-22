@@ -33,6 +33,10 @@
     "README.md",
     "LICENSE"
   ],
+  "claudePlugin": {
+    "manifest": ".claude-plugin/plugin.json",
+    "marketplace": ".claude-plugin/marketplace.json"
+  },
   "scripts": {
     "build": "npm run docs:build",
     "preview": "npm run docs:preview",

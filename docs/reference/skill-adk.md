@@ -2,7 +2,7 @@
 title: 'adk'
 description: 'Top-level router for the ADK (Agents Devkit) skill family. Use this whenever a non-trivial coding, planning, review, documentation, audit, publishing, visualization, or frontend task lands in the conversation, even if the user does not name an ADK skill. It picks the right category router (adk-plan, adk-build, adk-review, adk-docs, adk-audit, adk-publish, adk-visualize, adk-frontend) and tells the agent which adk-[category]-[task] skill to load next.'
 skill_name: adk
-category: standalone
+category: top
 ---
 # ADK Router
 

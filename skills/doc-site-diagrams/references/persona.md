@@ -13,6 +13,8 @@
 ## Status banner
 
 Each turn opens with:
+
 ```
 [adk:doc-site-diagrams] mode=<auto|review|fix> auto-flag=<on|off> phase=<1|2|3|4>
 ```
+

@@ -18,6 +18,8 @@ One reference page per skill in `skills/<name>/SKILL.md`. Pages are auto-generat
 - **Top router** — `adk`
 - **Category routers** — `audit`, `build`, `docs`, `frontend`, `plan`, `publish`, `review`, `visualize`
 - **Task skills** — every other skill, scoped to one well-defined responsibility.
+- **Diagram skills** — `diagram-mermaid`, `diagram-graphviz`, `diagram-excalidraw`, `diagram-drawio`, `diagram-review`. Self-contained and pinned to `diagramkit@0.3.3`. Each ships a `scripts/render-and-validate.sh` that auto-installs `diagramkit` globally (with permission), runs `render --force --json`, then `validate --recursive --json`, and fails on any `error`-severity issue, `LOW_CONTRAST_TEXT`, `ASPECT_RATIO_EXTREME`, or `SVG_VIEWBOX_TOO_WIDE` warning.
+- **Markdown skill** — `markdown`. Self-contained and pinned to `@pagesmith/core@0.9.9`. Covers the entire built-in pipeline (GFM, alerts, math, code tabs, themed light/dark image pairs, Shiki dual themes, language aliases) and ships a `scripts/validate-markdown.sh` that auto-installs `@pagesmith/core` globally and runs `pagesmith-core validate`.
 
 ## Source
 

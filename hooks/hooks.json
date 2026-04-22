@@ -34,11 +34,10 @@
     ],
     "SessionStart": [
       {
-        "matcher": "compact",
         "hooks": [
           {
             "type": "command",
-            "command": "echo '[adk] plugin loaded. Skills under skills/<name>; invoke as /adk:<name>. Run /adk:auto for the prompt-routing dispatcher.'"
+            "command": "cat \"${CLAUDE_PLUGIN_ROOT}/bin/canonical/system-prompt.md\""
           }
         ]
       }

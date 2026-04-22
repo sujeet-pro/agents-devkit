@@ -1,6 +1,6 @@
 ---
 title: Agent Development Kit
-description: A Claude Code plugin shipping 50+ self-contained, highly-interactive skills covering the full developer loop — also installable via npm, repo clone, or npx skills for Cursor, Codex, Gemini, and other harnesses.
+description: A Claude Code plugin shipping 65 self-contained, highly-interactive skills covering the full developer loop — planning, building, reviewing, documenting, auditing, publishing, observability, frontend work, plus version-pinned diagram (Mermaid / Graphviz / Excalidraw / Drawio) and Pagesmith-flavored markdown skills. Also installable via npm, repo clone, or npx skills for Cursor, Codex, Gemini, and other harnesses.
 layout: home
 tagline: Principal-engineer-grade skills for software development agents.
 install: 
@@ -22,6 +22,10 @@ features:
     details: 'Every skill brainstorms with the user, surfaces 2-3 explained options, and asks one question at a time. Pass --auto for unattended runs. Many skills also support --mode review | fix.'
   - title: One setup command, every harness
     details: 'After install, run the setup skill (or npx adk). It installs CLI deps via Homebrew, registers MCP servers from .mcp.json against ~/.zshenv, and writes a managed block into the user-level memory file of every detected harness so each one auto-discovers ADK.'
+  - title: Version-pinned diagrams
+    details: 'Five engine-specific diagram skills (mermaid / graphviz / excalidraw / drawio / review) ship the diagramkit@0.3.3 authoring rules verbatim and bundle a render-and-validate.sh that auto-installs diagramkit globally (with permission), enforces WCAG 2.2 AA contrast, and fails on ASPECT_RATIO_EXTREME / SVG_VIEWBOX_TOO_WIDE.'
+  - title: Pagesmith-grade markdown
+    details: 'A self-contained markdown skill pinned to @pagesmith/core@0.9.9 — full feature surface (GFM, alerts, math, code tabs, themed light/dark image pairs, Shiki dual themes, language aliases) plus a validate-markdown.sh that auto-installs @pagesmith/core globally and runs pagesmith-core validate against your content.'
 ---
 
 ## Install
@@ -132,7 +136,7 @@ npx skills add sujeet-pro/agents-devkit -s adk-plan-brainstorm -s adk-review-pr 
 
 ## What you get
 
-- **59 self-contained skills** — top router (`adk`), 8 category routers, 50 task skills covering planning, building, reviewing, documenting, auditing, publishing, observability, and frontend work. Full catalog at [`skills-manifest.json`](https://github.com/sujeet-pro/agents-devkit/blob/main/skills-manifest.json).
+- **65 self-contained skills** — top router (`adk`), 8 category routers, 56 task skills covering planning, building, reviewing, documenting, auditing, publishing, observability, frontend, version-pinned diagram authoring (`diagram-mermaid` / `diagram-graphviz` / `diagram-excalidraw` / `diagram-drawio` / `diagram-review`), and Pagesmith-flavored markdown (`markdown`). Full catalog at [`skills-manifest.json`](https://github.com/sujeet-pro/agents-devkit/blob/main/skills-manifest.json).
 - **10 Claude Code subagents** — `dispatcher`, `implementer`, `code-reviewer`, `debugger`, `doc-writer`, `plan-reviewer`, `research-agent`, `security-reviewer`, `test-engineer`, `brainstorm-facilitator`. See [Agents](./reference/agents/README.md).
 - **Plugin hooks** — `PreToolUse:Bash` (block destructive git/rm), `PostToolUse:Edit|Write` (validate SKILL.md frontmatter), `Stop` (validator gate), `SessionStart` (announce plugin loaded). See [hooks](./reference/config/hooks.md).
 - **13 pre-wired MCP servers** — GitHub, Bitbucket, Jira, Confluence, Google Drive, Gmail, Slack, Datadog, Mixpanel, Chrome DevTools, Cursor IDE Browser, Playwright, Brainstorming. Env vars resolved from `~/.zshenv`. See [MCP](./reference/config/README.md).

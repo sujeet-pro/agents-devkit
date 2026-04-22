@@ -1,11 +1,12 @@
 {
+  "$schema": "https://docs.claude.com/schemas/plugin.json",
   "name": "adk",
   "version": "1.0.0",
   "description": "Agent Development Kit (ADK) - a Claude Code plugin with 50+ composable, self-contained skills covering the full developer loop: discovery, brainstorm, requirements, scoping, planning, design, frontend, build, review, browser-based validation, docs, audits, publishing, CI/CD, and observability. Every skill is highly interactive by default with --auto for unattended runs and --mode review|fix where applicable.",
   "author": {
     "name": "Sujeet Kumar Jaiswal",
     "url": "https://github.com/sujeet-pro"
-    },
+  },
   "homepage": "https://github.com/sujeet-pro/agents-devkit",
   "repository": "https://github.com/sujeet-pro/agents-devkit",
   "license": "MIT",
@@ -20,5 +21,10 @@
     "code-review",
     "ci-cd",
     "browser-validation"
-  ]
+  ],
+  "skills": "./skills/",
+  "agents": "./agents/",
+  "hooks": "./hooks/hooks.json",
+  "mcpServers": "./.mcp.json",
+  "monitors": "./monitors/monitors.json"
 }

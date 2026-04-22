@@ -15,7 +15,9 @@ Every skill:
 
 > Whichever path you pick, finish with **`/adk:setup`** (Claude) or **`npx adk`** (any other harness) to install CLI deps, register MCP servers, and write the managed block into your user-level memory file.
 
-### 1. Claude Code plugin (primary)
+### 1. Claude Code plugin from GitHub (primary — tracks `main`)
+
+The default `adk` entry uses a `github` plugin source with no pinned `ref`/`sha`, so it always tracks the latest commit on the `main` branch. Run `/plugin marketplace update sujeet-pro-adk` to pull new commits.
 
 ```text
 # In Claude Code:
@@ -25,13 +27,53 @@ Every skill:
 /adk:setup            # interactive — wires MCP, CLI deps, and user memory
 ```
 
-Local development against a clone:
+### 1b. Claude Code plugin from a local clone (contributor marketplace)
+
+Clone the repo and add it as a **local marketplace** so the standard `/plugin install`, `/plugin update`, and `/reload-plugins` commands all operate on your working tree:
+
+```bash
+git clone https://github.com/sujeet-pro/agents-devkit.git ~/code/agents-devkit
+cd ~/code/agents-devkit
+npm install
+```
+
+```text
+# Inside Claude Code:
+/plugin marketplace add ~/code/agents-devkit
+/plugin install adk@sujeet-pro-adk
+/reload-plugins
+/adk:setup
+```
+
+After editing skills, agents, hooks, MCP, or monitors:
+
+```text
+/reload-plugins
+```
+
+After `git pull`:
+
+```text
+/plugin marketplace update sujeet-pro-adk
+/reload-plugins
+```
+
+### 1c. Claude Code plugin via `--plugin-dir` (no marketplace)
 
 ```bash
 git clone https://github.com/sujeet-pro/agents-devkit.git
 cd agents-devkit
 npm install
 claude --plugin-dir "$(pwd)"
+```
+
+### 1d. Claude Code plugin from npm (pinned versions)
+
+Same plugin, but installed from the [`agents-devkit` npm package](https://www.npmjs.com/package/agents-devkit) so you can lock to a semver release:
+
+```text
+/plugin marketplace add sujeet-pro/agents-devkit
+/plugin install adk-npm@sujeet-pro-adk
 ```
 
 ### 2. npm module (works for every harness)

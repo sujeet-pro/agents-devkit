@@ -1,5 +1,7 @@
 ---
-name: doc-site-diagrams
+
+## name: doc-site-diagrams
+
 description: |
   Wrap `diagramkit` (mermaid / graphviz / drawio / excalidraw rendering with light+dark mode pairs) for use inside a pagesmith docs site. Installs `diagramkit` as a dev-dep, wires the build to render `.mermaid` / `.dot` / `.gv` / `.excalidraw` / `.drawio` files into SVG/PNG next to their source, and delegates ongoing diagram authoring to `diagramkit-mermaid`, `diagramkit-graphviz`, `diagramkit-draw-io`, `diagramkit-excalidraw`, and `diagramkit-auto`. Use after `@adk:doc-site-setup` (a.k.a. `adk-doc-site-setup`) when the user wants diagrams in their docs. Do not use to build standalone diagrams (use `@adk:visualize-diagram` (a.k.a. `adk-visualize-diagram`)).
 metadata:
@@ -7,7 +9,6 @@ metadata:
   kind: task
   layer: 6
   modes: [auto]
----
 
 # doc-site-diagrams — wrap diagramkit for pagesmith docs
 
@@ -54,29 +55,32 @@ Thin wrapper. Installs `diagramkit` and delegates to its skill pack.
 
 ## Delegation
 
-| Want to | Use |
-| --- | --- |
-| Draft a mermaid diagram | `diagramkit-mermaid` |
-| Draft a graphviz dot diagram | `diagramkit-graphviz` |
-| Draft a drawio diagram | `diagramkit-draw-io` |
-| Draft an excalidraw diagram | `diagramkit-excalidraw` |
-| Let diagramkit choose by extension | `diagramkit-auto` |
-| Review diagrams in a repo | `diagramkit-review` |
-| First-time diagramkit setup outside pagesmith | `diagramkit-setup` |
+
+| Want to                                       | Use                     |
+| --------------------------------------------- | ----------------------- |
+| Draft a mermaid diagram                       | `diagramkit-mermaid`    |
+| Draft a graphviz dot diagram                  | `diagramkit-graphviz`   |
+| Draft a drawio diagram                        | `diagramkit-draw-io`    |
+| Draft an excalidraw diagram                   | `diagramkit-excalidraw` |
+| Let diagramkit choose by extension            | `diagramkit-auto`       |
+| Review diagrams in a repo                     | `diagramkit-review`     |
+| First-time diagramkit setup outside pagesmith | `diagramkit-setup`      |
+
 
 ## References
 
-| File | Purpose |
-| --- | --- |
-| `references/how-it-works.md` | Wire-up flow |
-| `references/modes.md` | auto only |
-| `references/persona.md` | The diagram-pipeline bootstrapper |
-| `references/workflow.md` | Detailed steps |
-| `references/clarifying-questions.md` | Sample diagram opt-in |
-| `references/output-format.md` | Final report |
-| `references/artifact-format.md` | Files created in consumer repo |
-| `references/validator.md` | Build/render smoke test |
-| `references/anti-patterns.md` | What NOT to do |
+
+| File                                  | Purpose                              |
+| ------------------------------------- | ------------------------------------ |
+| `references/how-it-works.md`          | Wire-up flow                         |
+| `references/modes.md`                 | auto only                            |
+| `references/persona.md`               | The diagram-pipeline bootstrapper    |
+| `references/workflow.md`              | Detailed steps                       |
+| `references/clarifying-questions.md`  | Sample diagram opt-in                |
+| `references/output-format.md`         | Final report                         |
+| `references/artifact-format.md`       | Files created in consumer repo       |
+| `references/validator.md`             | Build/render smoke test              |
+| `references/anti-patterns.md`         | What NOT to do                       |
 | `references/diagramkit-skill-pack.md` | List of diagramkit skills with usage |
-| `references/examples.md` | Sample setup output |
-| `references/interaction-contract.md` | Synced from canonical |
+| `references/examples.md`              | Sample setup output                  |
+| `references/interaction-contract.md`  | Synced from canonical                |
