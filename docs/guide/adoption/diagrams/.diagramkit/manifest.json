@@ -3,7 +3,7 @@
   "diagrams": {
     "adoption-flow.mermaid": {
       "hash": "sha256:cfcd7473871027c2",
-      "generatedAt": "2026-04-22T17:40:28.644Z",
+      "generatedAt": "2026-04-23T23:42:27.165Z",
       "outputs": [
         {
           "file": "adoption-flow-light.svg",

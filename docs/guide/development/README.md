@@ -21,6 +21,9 @@ Add features, fix bugs, restructure code without behavior changes, upgrade frame
 | `/adk:build-migrate` | Upgrade a framework, library, or runtime; codemod where possible. | [Details](../../reference/skill-build-migrate.md) |
 | `/adk:build-test` | Author or expand tests (unit, integration, E2E) for a chosen surface. | [Details](../../reference/skill-build-test.md) |
 | `/adk:build-deps` | Audit, upgrade, or prune dependencies; surface CVEs and license issues. | [Details](../../reference/skill-build-deps.md) |
+| `/adk:build-api` | Design or evolve a stable interface (REST/RPC/library export/CLI) using contract-first discipline. | [Details](../../reference/skill-build-api.md) |
+| `/adk:build-perf` | Diagnose and fix a performance regression with measure-first discipline; add a guardrail. | [Details](../../reference/skill-build-perf.md) |
+| `/adk:build-security` | Implement a security-hardening change with a three-tier boundary system + secret scanning. | [Details](../../reference/skill-build-security.md) |
 
 ## How it works internally
 
@@ -37,7 +40,7 @@ The `@adk:auto` top router will invoke `@adk:build` automatically when the promp
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="./diagrams/.diagramkit/build-routing-dark.svg" />
     <source media="(prefers-color-scheme: light)" srcset="./diagrams/.diagramkit/build-routing-light.svg" />
-    <img alt="Routing tree for @adk:build: branches on goal (new/extend, fix bug, restructure, upgrade, tests, deps) into build-feature, build-bugfix, build-refactor, build-migrate, build-test, or build-deps. All converge to plan -> implement -> validate, then hand off to review-local." src="./diagrams/.diagramkit/build-routing-light.svg" />
+    <img alt="Routing tree for @adk:build: branches on goal (new/extend, fix bug, restructure, upgrade, tests, deps, interface design, performance, security harden) into build-feature, build-bugfix, build-refactor, build-migrate, build-test, build-deps, build-api, build-perf, or build-security. All converge to plan -> implement -> validate, then hand off to review-local." src="./diagrams/.diagramkit/build-routing-light.svg" />
   </picture>
   <figcaption><i>How <code>@adk:build</code> routes by goal. Every task skill terminates by handing off to <code>/adk:review-local</code> for a self-review pass before commit.</i></figcaption>
 </figure>

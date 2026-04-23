@@ -2,16 +2,10 @@
 flowchart TD
   A["Change-the-code\nintent"] --> B["@adk:build\n(router)"]
   B --> C{"Goal?"}
-  C -- "New / extend" --> D["build-feature"]
-  C -- "Fix bug" --> E["build-bugfix"]
-  C -- "Restructure" --> F["build-refactor"]
-  C -- "Upgrade" --> G["build-migrate"]
-  C -- "Tests" --> H["build-test"]
-  C -- "Deps" --> I["build-deps"]
-  D --> J["plan -> implement\n-> validate"]
-  E --> J
-  F --> J
-  G --> J
-  H --> J
-  I --> J
+  C -- "Behaviour change" --> CB["build-feature\nbuild-bugfix\nbuild-perf\nbuild-security"]
+  C -- "Structure / shape" --> CS["build-refactor\nbuild-migrate\nbuild-api"]
+  C -- "Maintenance" --> CM["build-test\nbuild-deps"]
+  CB --> J["plan -> implement\n-> validate"]
+  CS --> J
+  CM --> J
   J --> K["Hand off to\nreview-local"]

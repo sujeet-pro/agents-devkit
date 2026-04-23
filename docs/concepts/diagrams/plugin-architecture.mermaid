@@ -1,0 +1,11 @@
+%%{init: {'htmlLabels': false}}%%
+flowchart TD
+  U["User in\nClaude Code"] --> CC["Claude Code\nplugin host"]
+  CC -->|loads| MF[".claude-plugin/\nplugin.json"]
+  MF --> SA["Skills\n+ Subagents"]
+  MF --> HM["Hooks\n+ MCP servers"]
+  MF --> BM["Bin scripts\n+ Monitors"]
+  SA -->|"/adk:&lt;name&gt;"| W["6-phase workflow\nplan -> implement\n-> validate -> report"]
+  W -->|external systems| HM
+  HM -. "${ENV_VAR}" .-> ENV["~/.zshenv"]
+  HM -. "PreToolUse / Stop\nSessionStart" .-> CC

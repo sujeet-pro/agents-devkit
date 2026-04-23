@@ -7,8 +7,14 @@ flowchart TD
   C -- "PR feedback" --> F["review-feedback"]
   C -- "Pause / handoff" --> G["review-handoff"]
   C -- "Doc only" --> H["docs-review"]
-  D --> I["Findings +\nposted comments"]
+  D --> O{"Ownership?"}
+  O -- "not-mine" --> I["Path A: review +\nposted comments"]
+  O -- "mine" --> P["Path B: validate +\ndraft replies\n(via review-feedback)"]
+  P --> Q{"--fix?"}
+  Q -- "yes" --> R["adk-build-bugfix /\nadk-build-refactor /\nadk-build-feature"]
+  Q -- "no" --> S["replies only\n(no code edits)"]
+  R --> T["Local commits staged\n+ replies posted\n(push gated on user)"]
   E --> J["Self-review\nbefore commit"]
   F --> K["Triaged threads\n+ replies"]
   G --> L["Handoff brief"]
-  H --> M["Doc findings"]
+  H --> M["Doc findings\n(post or md report)"]

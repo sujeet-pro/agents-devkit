@@ -48,6 +48,7 @@ Run after Postback (or after the report in dry-run mode).
 | All reconciliation replies posted | Reply count matches reconciliation pipeline count | Provider-returned reply IDs |
 | Summary comment posted (or N/A) | Summary present at the PR-level OR explicit dry-run mode | Provider-returned summary ID |
 | Tasks reconciled (Bitbucket) | Task counts in postback summary match planned counts | Task IDs + states |
+| Post-confirmation pass | After waiting 5s, every receipt ID re-appears in a fresh fetch of PR comments / replies / tasks. On miss, retry at 10s and 20s (3 attempts total, 35s budget). All receipts confirmed → OK. Any unconfirmed after the budget → WARN with the ID + html_url surfaced in the report. Per `pr-postback-protocol.md` "Post-confirmation". | Per-receipt match map (`confirmed` / `missing`), wall-clock spent, retry count |
 | `.temp/reports/review-pr-<provider>-<n>.md` written | File exists, contains the full report | File path + size |
 | No silent skips | Every finding flagged in Phase 3 has a posting outcome (posted / failed / dropped with reason) | Outcome table |
 
@@ -57,6 +58,7 @@ Run after Postback (or after the report in dry-run mode).
 - **Phase 2 BLOCKER**: STOP at the gate. Fix the prerequisite (e.g., finish reading code) and re-enter the gate.
 - **Phase 3 BLOCKER**: STOP. Do not post. Surface the failing check, fix it, re-run Phase 3 from the top.
 - **Phase 4 partial failure**: Record what posted; offer `retry-remaining` per `pr-postback-protocol.md`. Never re-post a successful comment.
+- **Phase 4 post-confirmation WARN**: Do NOT re-post the unconfirmed entries — the API said 2xx; a duplicate post would create real duplicates if propagation is just lagged. Surface the unconfirmed IDs in the report; the user can re-run the skill (which will reconcile via `pr-comment-reconciliation.md` and detect the duplicate) if they want to retry.
 
 ## Status banner
 
@@ -89,5 +91,7 @@ The validator writes its check log to `.temp/notes/review-pr-<provider>-<n>-vali
 
 ## Phase 4
 - Inline posted: 6 (IDs: ...)
+- Post-confirmation: OK after 1 retry (5s), 6/6 receipts re-appeared
+   | WARN: 1 unconfirmed after 35s — id=12345 kind=inline url=https://github.com/...#discussion_r12345
 - ...
 ```

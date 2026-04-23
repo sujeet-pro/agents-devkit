@@ -32,13 +32,16 @@ Hooks fire automatically inside Claude Code when the plugin is enabled — there
 
 ### `SessionStart`
 
-- **Event**: `SessionStart` (matcher: `compact`)
+- **Event**: `SessionStart`
   - Type: `command`
   - Command:
 
     ```bash
-    echo '[adk] plugin loaded. Skills under skills/<name>; invoke as /adk:<name>. Run /adk:auto for the prompt-routing dispatcher.'
+    cat "${CLAUDE_PLUGIN_ROOT}/bin/canonical/system-prompt.md"
     ```
+
+    Streams the canonical ADK system prompt at session start so every conversation begins
+    with the same `bin/canonical/system-prompt.md` constitution as in-skill calls.
 
 ### `Stop`
 

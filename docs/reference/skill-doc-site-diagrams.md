@@ -2,7 +2,7 @@
 title: 'doc-site-diagrams'
 description: '|'
 skill_name: doc-site-diagrams
-category: standalone
+category: task
 ---
 # doc-site-diagrams — wrap diagramkit for pagesmith docs
 
@@ -49,7 +49,6 @@ Thin wrapper. Installs `diagramkit` and delegates to its skill pack.
 
 ## Delegation
 
-
 | Want to                                       | Use                     |
 | --------------------------------------------- | ----------------------- |
 | Draft a mermaid diagram                       | `diagramkit-mermaid`    |
@@ -60,9 +59,7 @@ Thin wrapper. Installs `diagramkit` and delegates to its skill pack.
 | Review diagrams in a repo                     | `diagramkit-review`     |
 | First-time diagramkit setup outside pagesmith | `diagramkit-setup`      |
 
-
 ## References
-
 
 | File                                  | Purpose                              |
 | ------------------------------------- | ------------------------------------ |

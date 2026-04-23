@@ -49,7 +49,9 @@ Each check returns `pass` / `warn` / `fail` plus a one-line evidence.
 3. For each check (parallel where possible), run; capture result.
 4. Aggregate to a `audit.md` table.
 5. (`fix` mode): for fixable findings (lint auto-fix, license-header insertion, doc TOC regen), apply via a follow-up commit. Push.
-6. Phase 4 validator. Report.
+6. (Optional) Post a single inline summary comment on the PR if requested. Capture the provider-returned ID into the in-session post receipt set.
+7. **Verify posted comment (post-confirmation, if any comment was posted):** wait 5s, re-fetch the PR's comment graph, confirm the receipt ID re-appears. On miss, retry at 10s and 20s (3-attempt total budget, 35s wall-clock). Final result is `OK` or `WARN: unconfirmed` — surface the unconfirmed ID + html_url in the report. Do NOT re-post on a miss; propagation lag would create real duplicates.
+8. Phase 4 validator. Report.
 
 ## Mode
 
@@ -70,6 +72,8 @@ Each check returns `pass` / `warn` / `fail` plus a one-line evidence.
 - Failing the audit on style nits (those are Nitpicks; do not block).
 - Pushing autofix commits without an explicit `--mode fix`.
 - Auto-fixing license issues silently — always flag for human review of the new dep.
+- Treating "the API returned 2xx" as proof the inline summary comment is on the PR. If a comment was posted, always run the post-confirmation re-fetch + retry budget (5s → 10s → 20s) before declaring Phase 4 done.
+- Re-posting on a post-confirmation miss. Log a `WARN` with the receipt ID + html_url and let the user check; never re-post automatically.
 
 ## References
 

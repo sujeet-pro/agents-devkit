@@ -102,8 +102,8 @@
     },
     "chrome-devtools": {
       "command": "npx",
-      "args": ["-y", "@anthropic/chrome-devtools-mcp"],
-      "description": "Anthropic's Chrome DevTools MCP for Claude Code — PREFERRED backend for validate-browser. Drives a real Chrome via the DevTools protocol. No env vars required (uses local Chrome install)."
+      "args": ["-y", "@anthropic/chrome-devtools-mcp@latest"],
+      "description": "Anthropic's Chrome DevTools MCP for Claude Code — PREFERRED backend for validate-browser and browser-testing-with-devtools. Drives a real Chrome via the DevTools protocol; exposes DOM inspection, console logs, network traces, performance profiling, screenshot, and Lighthouse-style audits. No env vars required (uses local Chrome install). Always pinned to @latest so the local Chrome tooling stays current."
     },
     "cursor-ide-browser": {
       "command": "npx",

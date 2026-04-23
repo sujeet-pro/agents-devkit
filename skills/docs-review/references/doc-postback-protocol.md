@@ -81,6 +81,27 @@ If the post step fails partway through (network, rate limit, permission), record
 
 Track posted comments by their Confluence-returned IDs in the in-session state so retries are idempotent.
 
+## Post-confirmation (mandatory)
+
+Posting is not "done" the moment the create-comment API returns 2xx. Confluence (and the Atlassian MCP / REST surface in front of it) can take several seconds to make a freshly-created inline or footer comment visible on the page's read API (eventual consistency, search-index lag). Every post run MUST end with a confirmation pass that re-fetches the page's comment graph and verifies each posted item shows up.
+
+**Procedure (run after the Postback step, before declaring Phase 4 complete):**
+
+1. **Capture the post receipt** — for every successful post call, record the Confluence-returned ID, the kind (`inline` / `reply` / `footer`), the parent thread ID where applicable, and the `_links.webui` URL the API returns. Store the set in `.temp/notes/doc-review-<slug>-post-receipt.json`.
+2. **Wait, then re-fetch.** Sleep 5 seconds, then re-fetch the page's full inline + footer comment graph (the same Atlassian MCP / REST call used in the Fetch context step). Do NOT use cached state from before the post.
+3. **Match every receipt ID against the fetched data.** For each entry in the receipt set, confirm the same ID is present (and, where applicable, on the expected anchor text / under the expected parent thread). Build a `confirmed` / `missing` table.
+4. **Retry on miss.** If any entries are `missing`:
+    - Wait 10 seconds, re-fetch, re-match.
+    - If still missing, wait 20 seconds, re-fetch, re-match.
+    - Total retry budget: 3 attempts (5s + 10s + 20s = 35s wall-clock).
+5. **Final outcome.**
+    - All confirmed → write `Post-confirmation: OK` into the validator log and the report's `## Postback summary` block.
+    - Some still missing after the full retry budget → record each unconfirmed entry as `WARN` in the validator log AND in the report's `## Postback summary` block (with the receipt ID, kind, and `_links.webui` URL). Surface the suggestion to manually open the page and confirm. Do NOT re-post — the API said 2xx; a duplicate post would create real duplicates if the comment is just lagged.
+
+**Why we don't auto-re-post on a miss:** Confluence's most common cause of "I can't see my comment" is propagation lag on the read side, not a failed write. Re-posting would create real duplicates if the original comment lands a moment later. Surfacing the WARN is the safer default; the user can re-run the skill (which will reconcile via `doc-comment-reconciliation.md` and detect the duplicate) if they want to retry.
+
+**Special case — 5xx / network drop on the original post call:** treat that as a failed post (not a confirmation miss). Use the `retry-remaining` flow above, NOT the post-confirmation retry budget.
+
 ## After posting
 
 The report MUST end with:
@@ -92,6 +113,8 @@ The report MUST end with:
 - Footer summary comment posted: <YES | N/A>
 - Verdict posted: <ready-to-publish | needs-fixes | needs-rewrite>
 - Failed to post (with reason): <list or none>
+- Post-confirmation: <OK after <retries> retry / WARN: <n> entries unconfirmed after 35s — see validator log>
+- Unconfirmed (if any): <id> (<kind>) <_links.webui>
 ```
 
 ## Confluence-specific gotchas

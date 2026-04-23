@@ -3,7 +3,7 @@
   "diagrams": {
     "plan-routing.mermaid": {
       "hash": "sha256:992e4bbe620dc711",
-      "generatedAt": "2026-04-22T17:40:28.647Z",
+      "generatedAt": "2026-04-23T23:42:27.215Z",
       "outputs": [
         {
           "file": "plan-routing-light.svg",

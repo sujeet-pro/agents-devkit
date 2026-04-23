@@ -47,6 +47,7 @@ Run after Postback (Confluence mode) or after the report is written (local mode)
 | All approved findings posted (Confluence) | Postback summary count matches accepted-findings count | Confluence-returned comment IDs |
 | All reconciliation replies posted (Confluence) | Reply count matches reconciliation pipeline count | Confluence-returned reply IDs |
 | Footer summary posted (Confluence) | Summary present at page level OR explicit dry-run mode | Confluence-returned summary ID |
+| Post-confirmation pass (Confluence) | After waiting 5s, every receipt ID re-appears in a fresh fetch of the page's inline + footer comment graph. On miss, retry at 10s and 20s (3 attempts total, 35s budget). All receipts confirmed → OK. Any unconfirmed after the budget → WARN with the ID + `_links.webui` surfaced in the report. Per `doc-postback-protocol.md` "Post-confirmation". | Per-receipt match map (`confirmed` / `missing`), wall-clock spent, retry count |
 | `.temp/reports/doc-review-<slug>.md` written | File exists, contains the full report | File path + size |
 | No silent skips | Every finding flagged in Phase 3 has a posting outcome (posted / failed / dropped with reason) | Outcome table |
 | (Local mode) Markdown report renders | The local report parses as valid Markdown; all finding cards present | Render check |
@@ -57,6 +58,7 @@ Run after Postback (Confluence mode) or after the report is written (local mode)
 - **Phase 2 BLOCKER**: STOP at the gate. Fix the prerequisite (e.g., finish reading source) and re-enter the gate.
 - **Phase 3 BLOCKER** (Confluence): STOP. Do not post. Surface the failing check, fix it, re-run Phase 3 from the top.
 - **Phase 4 partial failure** (Confluence): Record what posted; offer `retry-remaining` per `doc-postback-protocol.md`. Never re-post a successful comment.
+- **Phase 4 post-confirmation WARN** (Confluence): Do NOT re-post the unconfirmed entries — the API said 2xx; a duplicate post would create real duplicates if propagation is just lagged. Surface the unconfirmed IDs in the report; the user can re-run the skill (which will reconcile via `doc-comment-reconciliation.md` and detect the duplicate) if they want to retry.
 
 ## Status banner
 
@@ -92,6 +94,9 @@ The validator writes its check log to `.temp/notes/doc-review-<slug>-validator.m
 
 ## Phase 4
 - Inline posted: 8 (IDs: ...)  | N/A (local mode / dry-run)
+- Post-confirmation: OK after 1 retry (5s), 8/8 receipts re-appeared
+   | WARN: 1 unconfirmed after 35s — id=98765 kind=inline url=https://acme.atlassian.net/wiki/spaces/.../comment/98765
+   | N/A (local mode / dry-run)
 - ...
 - Markdown report: .temp/reports/doc-review-<slug>.md
 ```

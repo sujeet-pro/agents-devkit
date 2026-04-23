@@ -42,7 +42,7 @@
     "json5": "^2.2.3"
   },
   "devDependencies": {
-    "@pagesmith/docs": "^0.9.4"
+    "@pagesmith/docs": "^0.10.0"
   },
   "keywords": [
     "claude-code",

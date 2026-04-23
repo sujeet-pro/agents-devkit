@@ -8,14 +8,14 @@ order: 1
 
 Review PRs, address reviewer feedback, self-review local changes before pushing, capture clean handoffs, and audit documentation — all routed through the `@adk:review` category router.
 
-> **Quick start:** `/adk:review-pr <url>` for a remote PR; `/adk:review-local` for branch / uncommitted changes.
+> **Quick start:** `/adk:review-pr <url>` for a remote PR (ownership auto-detected — review-and-post if it's not yours, validate-and-reply if it is); `/adk:review-local` for branch / uncommitted changes.
 
 ## Included Skills
 
 | Skill | Purpose | Reference |
 | --- | --- | --- |
 | `/adk:review` | Category router. Picks one of the task skills below based on what you are reviewing. | [Details](../../reference/skill-review.md) |
-| `/adk:review-pr` | Review a remote PR (GitHub, Bitbucket) with severity-tiered findings + posted comments. | [Details](../../reference/skill-review-pr.md) |
+| `/adk:review-pr` | Review a remote PR (GitHub, Bitbucket). Auto-detects ownership: posts review comments on someone else's PR; validates + drafts replies on your own PR (with `--fix`, locally applies fixes via the `adk-build` family). | [Details](../../reference/skill-review-pr.md) |
 | `/adk:review-local` | Self-review uncommitted or branch changes before push / commit. | [Details](../../reference/skill-review-local.md) |
 | `/adk:review-feedback` | Address reviewer comments on your own PR with traceable code replies. | [Details](../../reference/skill-review-feedback.md) |
 | `/adk:review-handoff` | Pause a long task or hand off to another reviewer / session without losing context. | [Details](../../reference/skill-review-handoff.md) |
@@ -44,11 +44,12 @@ Each downstream task skill is self-contained:
 ## Example invocations
 
 ```text
-/adk:review                                   # interactive — router asks what you're reviewing
-/adk:review-pr https://github.com/o/r/pull/42 # review a specific PR
-/adk:review-local                             # self-review branch + uncommitted
-/adk:review-feedback                          # address comments on my own PR
-/adk:review-handoff                           # save state, write a handoff brief
+/adk:review                                          # interactive — router asks what you're reviewing
+/adk:review-pr https://github.com/o/r/pull/42        # ownership auto-detected
+/adk:review-pr https://github.com/o/my-repo/pull/19 --fix   # YOUR PR → also locally fix Apply'd comments via adk-build-*
+/adk:review-local                                    # self-review branch + uncommitted
+/adk:review-feedback                                 # address comments on my own PR (called directly)
+/adk:review-handoff                                  # save state, write a handoff brief
 ```
 
 ## Outputs

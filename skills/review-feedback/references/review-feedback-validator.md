@@ -44,6 +44,7 @@ Run after Phase 3; finalize the deliverable.
 | --- | --- | --- |
 | Replies posted to remote | Every reply landed; comment IDs returned | Provider-returned reply IDs |
 | Tasks reconciled (Bitbucket) | Tasks resolved / reopened / created per plan | Task action log |
+| Post-confirmation pass | After waiting 5s, every reply / summary receipt ID re-appears in a fresh fetch of the PR's comment + reply graph. On miss, retry at 10s and 20s (3 attempts total, 35s budget). All confirmed → OK. Any unconfirmed after the budget → WARN with the ID + html_url surfaced in the report. NEVER re-post a missing reply automatically — the API said 2xx; a re-post would create a real duplicate if the comment is just propagation-lagged. The user can re-run this skill (which will re-classify and detect the duplicate) if they want to retry. | Per-receipt match map (`confirmed` / `missing`), wall-clock spent, retry count |
 | Validator log written | All four phases captured | File path + size |
 
 ## Failure / rollback
@@ -76,6 +77,9 @@ The validator writes its check log to `.temp/notes/review-feedback-<slug>-valida
 
 ## Phase 4
 - <check>: OK | WARN (<evidence>)
+- Replies posted: 5 (IDs: ...)
+- Post-confirmation: OK after 1 retry (5s), 5/5 receipts re-appeared
+   | WARN: 1 unconfirmed after 35s — id=12345 kind=reply url=https://github.com/...#discussion_r12345
 - ...
 
 Final report: .temp/reports/review-feedback-<slug>.md

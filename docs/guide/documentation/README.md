@@ -21,7 +21,7 @@ Author new docs (READMEs, runbooks, ADRs, API references, onboarding guides) or 
 | --- | --- | --- |
 | `/adk:docs` | Category router. Picks `docs-write` or `docs-review` based on direction. | [Details](../../reference/skill-docs.md) |
 | `/adk:docs-write` | Author or update a single documentation artifact (any markdown shape). | [Details](../../reference/skill-docs-write.md) |
-| `/adk:docs-review` | Critique an existing doc against its source code; produces severity-tiered findings. | [Details](../../reference/skill-docs-review.md) |
+| `/adk:docs-review` | Critique an existing doc against its source code; produces severity-tiered findings. By default, posts comments back when the source supports it (Confluence) or writes a Markdown review file. With `--fix`, hands the auto-fixable findings to `/adk:docs-write`. | [Details](../../reference/skill-docs-review.md) |
 
 ## How it works internally
 
@@ -39,7 +39,11 @@ Author new docs (READMEs, runbooks, ADRs, API references, onboarding guides) or 
 1. Read the existing doc + the source it claims to describe.
 2. Run a claim audit — every assertion in the doc must be backed by a source line, command, or schema.
 3. Emit severity-tiered findings (critical / error / warn / info).
-4. Under `--mode fix`, hand off the auto-fixable findings to `/adk:docs-write`. Under `--mode review` (or `auto` without `--mode fix`), produce only `review.md` and stop.
+4. **Source-aware default delivery:**
+   - **Confluence pages** → post inline + footer comments back to the live page (the source supports comments — that IS the deliverable).
+   - **Local Markdown / fetched URLs** → write a Markdown review file under `.temp/reports/doc-review-<slug>.md` (no live posting target exists).
+   - `--mode review` forces dry-run on Confluence too.
+5. Under `--fix` (or `--mode fix`), hand off the auto-fixable findings to `/adk:docs-write` to land the corrections in the source Markdown, then re-validate. Confluence pages cannot be auto-edited; `--fix` only applies to Markdown sources.
 
 Both paths share the same `docs-write` engine for actual prose generation, so style and validation rules are identical across writing and fix-mode reviewing.
 
@@ -55,17 +59,19 @@ Both paths share the same `docs-write` engine for actual prose generation, so st
 ## Example invocations
 
 ```text
-/adk:docs                                  # router — asks direction
-/adk:docs-write "README for @scope/foo"    # author / update
-/adk:docs-review docs/runbooks/oncall.md   # critique an existing doc
-/adk:docs-review --mode fix docs/api.md    # critique + auto-apply fixes
+/adk:docs                                              # router — asks direction
+/adk:docs-write "README for @scope/foo"                # author / update
+/adk:docs-review docs/runbooks/oncall.md               # critique a local doc → Markdown report
+/adk:docs-review https://acme.atlassian.net/wiki/...   # auto-detects Confluence; defaults to posting comments
+/adk:docs-review docs/api.md --fix                     # critique + hand off auto-fixes to docs-write
 ```
 
 ## Outputs
 
 - `/adk:docs-write` — a markdown artifact at the target path (or in `.temp/drafts/<slug>.md` until promoted).
-- `/adk:docs-review` (review mode) — `.temp/task-<slug>/review.md` with severity-tiered findings.
-- `/adk:docs-review --mode fix` — applies auto-fixable findings to the source doc + writes the residual report.
+- `/adk:docs-review` against a local file / URL — `.temp/reports/doc-review-<slug>.md` with severity-tiered findings.
+- `/adk:docs-review` against a Confluence page (default) — inline + footer comments posted on the live page, plus a Markdown mirror under `.temp/`.
+- `/adk:docs-review --fix` — also applies auto-fixable findings to the source Markdown via `/adk:docs-write` + writes the residual report.
 
 ## How To Use This Guide
 

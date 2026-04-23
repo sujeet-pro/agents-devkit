@@ -1,15 +1,16 @@
 {
   "version": "1.1.0",
-  "generated": "2026-04-22",
+  "generated": "2026-04-23",
   "distribution": "claude-code-plugin",
   "model": "claude-plugin-skill",
-  "skill_count": 65,
+  "skill_count": 69,
   "categories": {
     "top": 1,
-    "router": 46,
+    "router": 50,
     "task": 18
   },
   "adk_categories": [
+    "api",
     "bitbucket",
     "brainstorm",
     "browser",
@@ -41,6 +42,7 @@
     "mixpanel",
     "mockup",
     "monitor",
+    "perf",
     "pr",
     "proposal",
     "refactor",
@@ -48,6 +50,8 @@
     "research",
     "review",
     "roadmap",
+    "security",
+    "ship",
     "site",
     "spec",
     "test",
@@ -151,6 +155,17 @@
       "has_assets": false
     },
     {
+      "name": "build-api",
+      "description": "|",
+      "kind": "router",
+      "category": "api",
+      "path": "skills/build-api",
+      "invocation": "/adk:build-api",
+      "has_references": true,
+      "has_scripts": false,
+      "has_assets": false
+    },
+    {
       "name": "build-bugfix",
       "description": "|",
       "kind": "router",
@@ -195,12 +210,34 @@
       "has_assets": false
     },
     {
+      "name": "build-perf",
+      "description": "|",
+      "kind": "router",
+      "category": "perf",
+      "path": "skills/build-perf",
+      "invocation": "/adk:build-perf",
+      "has_references": true,
+      "has_scripts": false,
+      "has_assets": false
+    },
+    {
       "name": "build-refactor",
       "description": "Restructure code without changing observable behavior - rename, extract, inline, dedupe, simplify, reshape modules - while keeping tests green throughout. Use when the goal is a cleaner shape, not a new behavior or bug fix. Do not use when behavior changes (use adk-build-feature), framework versions change (use adk-build-migrate), or only tests change (use adk-build-test).",
       "kind": "router",
       "category": "refactor",
       "path": "skills/build-refactor",
       "invocation": "/adk:build-refactor",
+      "has_references": true,
+      "has_scripts": false,
+      "has_assets": false
+    },
+    {
+      "name": "build-security",
+      "description": "|",
+      "kind": "router",
+      "category": "security",
+      "path": "skills/build-security",
+      "invocation": "/adk:build-security",
       "has_references": true,
       "has_scripts": false,
       "has_assets": false
@@ -306,7 +343,7 @@
     },
     {
       "name": "doc-site-diagrams",
-      "description": "",
+      "description": "|",
       "kind": "task",
       "category": "site",
       "path": "skills/doc-site-diagrams",
@@ -338,7 +375,7 @@
     },
     {
       "name": "docs-review",
-      "description": "Review an existing technical document (Markdown file, fetched URL, or Confluence page) for accuracy, freshness, structure, completeness, and readability — producing severity-tiered findings against the actual code or configs the doc claims to describe. With `--mode confluence`, posts inline + footer comments back to the live page (with reconciliation against existing comments). Use when the deliverable is a critique with actionable fixes for a doc that already exists. Do not use to write a new doc (use adk-docs-write), publish a doc (use adk-publish-confluence), or review code (use adk-review-pr / adk-review-local).",
+      "description": "Review an existing technical document (Markdown file, fetched URL, or Confluence page) for accuracy, freshness, structure, completeness, and readability — producing severity-tiered findings against the actual code or configs the doc claims to describe. By default, posts comments back when the source supports it (Confluence inline + footer) and otherwise writes a Markdown review file under `.temp/reports/`. With `--fix`, finalizes the findings then hands off to `adk-docs-write` to apply the auto-fixable ones in the source doc. Use when the deliverable is a critique with actionable fixes for a doc that already exists. Do not use to write a new doc from scratch (use adk-docs-write directly), publish a doc (use adk-publish-confluence), or review code (use adk-review-pr / adk-review-local).",
       "kind": "router",
       "category": "review",
       "path": "skills/docs-review",
@@ -608,6 +645,17 @@
       "has_assets": false
     },
     {
+      "name": "publish-ship",
+      "description": "|",
+      "kind": "router",
+      "category": "ship",
+      "path": "skills/publish-ship",
+      "invocation": "/adk:publish-ship",
+      "has_references": true,
+      "has_scripts": false,
+      "has_assets": false
+    },
+    {
       "name": "requirements",
       "description": "|",
       "kind": "task",
@@ -673,7 +721,7 @@
     },
     {
       "name": "review-pr",
-      "description": "Review a remote pull request with severity-tiered findings, evidence per finding, existing-comment reconciliation, and posted-back comments via the appropriate provider (GitHub, Bitbucket). On Bitbucket, manages tasks for Blocker / Critical findings. Use when a PR URL is the target and the deliverable is a structured review (findings + optional posted comments). Do not use for local uncommitted changes (use adk-review-local), addressing existing reviewer feedback (use adk-review-feedback), doc-only review (use adk-docs-review), or auditing the whole repo (use adk-audit-repo).",
+      "description": "Review a remote pull request with severity-tiered findings, evidence per finding, existing-comment reconciliation, and posted-back comments via the appropriate provider (GitHub, Bitbucket). Auto-detects ownership of the PR — if the PR is NOT yours, defaults to posting review comments (and Bitbucket tasks for Blocker / Critical); if the PR IS yours, defaults to validating + replying to existing reviewer comments (delegating to adk-review-feedback) and, with `--fix`, locally applying the agreed-on fixes via the adk-build family before pushing. Use when a PR URL is the target and the deliverable is a structured review or a fix pass on your own PR. Do not use for local uncommitted changes (use adk-review-local) or doc-only review (use adk-docs-review).",
       "kind": "router",
       "category": "pr",
       "path": "skills/review-pr",

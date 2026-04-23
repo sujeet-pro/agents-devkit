@@ -65,7 +65,7 @@ disallowedTools:
   - "Edit"
 maxTurns: 20
 skills:
-  - "review-local-changes"
+  - "review-local"
   - "review-pr"
 effort: "high"
 background: true

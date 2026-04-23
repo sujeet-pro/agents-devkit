@@ -33,12 +33,12 @@ Under `--auto`, the skill picks the option marked `(default)` in each question w
 
 ### Question 5 (Confluence mode only)
 
-**Q:** Post mode: dry-run (report only) or post (inline + footer)?
+**Q:** Post mode: post (inline + footer) or dry-run (report only)?
 
 **How to pick:**
 
-- `dry-run` `(default)` — first run, so the user can inspect findings before they hit the page.
-- `post` — after explicit approval, OR when `--auto` is set, OR after iterating on the dry-run findings.
+- `post` `(default)` — the source is a live Confluence page that supports comments, so the comments ARE the deliverable. Approval gate still applies before anything is posted unless `--auto`.
+- `dry-run` — pick when you want to inspect findings before they hit the page, or when you only want the Markdown report mirror. Equivalent to `--mode review`.
 
 ### Question 6 (Confluence mode only)
 
@@ -49,6 +49,15 @@ Under `--auto`, the skill picks the option marked `(default)` in each question w
 - `validate-then-keep` `(default)` — re-validate every existing thread; reply on the ones that drifted; do not unilaterally close anything.
 - `aggressive-cleanup` — also dismiss threads that are clearly no-longer-applicable. Use when the page has been edited many times and old threads are noise.
 - `read-only` — do NOT reply on existing threads at all; just produce new findings. Use when re-reviewing without authority over the previous reviewer's comments.
+
+### Question 7
+
+**Q:** Apply auto-fixes to the source doc (`--fix`)?
+
+**How to pick:**
+
+- `no` `(default)` — produce findings only. Pick when this is a critique pass and you want the author to take the fixes.
+- `yes` — finalize the findings and then hand off auto-fixable ones to `adk-docs-write` to edit the source. Pick when the doc is a Markdown file you own and the goal is to LAND the corrections in the same run, not just file them. Confluence pages cannot be auto-edited; `--fix` only applies to Markdown sources. Equivalent to passing `--fix` (or `--mode fix`) on the CLI.
 
 ## Standard option-presentation shape
 

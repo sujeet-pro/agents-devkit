@@ -1,6 +1,6 @@
 ---
 name: docs-review
-description: Review an existing technical document (Markdown file, fetched URL, or Confluence page) for accuracy, freshness, structure, completeness, and readability — producing severity-tiered findings against the actual code or configs the doc claims to describe. With `--mode confluence`, posts inline + footer comments back to the live page (with reconciliation against existing comments). Use when the deliverable is a critique with actionable fixes for a doc that already exists. Do not use to write a new doc (use adk-docs-write), publish a doc (use adk-publish-confluence), or review code (use adk-review-pr / adk-review-local).
+description: Review an existing technical document (Markdown file, fetched URL, or Confluence page) for accuracy, freshness, structure, completeness, and readability — producing severity-tiered findings against the actual code or configs the doc claims to describe. By default, posts comments back when the source supports it (Confluence inline + footer) and otherwise writes a Markdown review file under `.temp/reports/`. With `--fix`, finalizes the findings then hands off to `adk-docs-write` to apply the auto-fixable ones in the source doc. Use when the deliverable is a critique with actionable fixes for a doc that already exists. Do not use to write a new doc from scratch (use adk-docs-write directly), publish a doc (use adk-publish-confluence), or review code (use adk-review-pr / adk-review-local).
 metadata:
   category: review
   kind: task
@@ -10,7 +10,14 @@ metadata:
 
 # ADK Docs / Review
 
-Standalone task skill under the `@adk:docs` (a.k.a. `adk-docs`) category router. Produces a findings-first review of an existing document with each finding anchored to the doc and to the source-of-truth it claims to describe. In `--mode confluence`, also reconciles existing comments and posts inline + footer comments back to the live page.
+Standalone task skill under the `@adk:docs` (a.k.a. `adk-docs`) category router. Produces a findings-first review of an existing document with each finding anchored to the doc and to the source-of-truth it claims to describe.
+
+**Default delivery is automatic, based on the source:**
+
+- **Confluence pages** (`*.atlassian.net/wiki/...`) → reconcile existing threads and post inline + footer comments back to the live page.
+- **Local Markdown files / fetched URLs** → write a Markdown review file under `.temp/reports/doc-review-<slug>.md` (no live posting target exists, so the review IS the deliverable).
+
+`--mode review` forces dry-run (report only, even on Confluence). `--mode fix` finalizes the findings and then delegates to `adk-docs-write` to apply the auto-fixable ones to the source doc, with the residual report attached.
 
 ## When to use
 
@@ -36,8 +43,9 @@ Standalone task skill under the `@adk:docs` (a.k.a. `adk-docs`) category router.
 | `<mode>` | optional | `local` (default for files / public URLs) / `confluence` (default for `*.atlassian.net/wiki/...`) |
 | `<focus>` | optional | `accuracy` / `freshness` / `structure` / `completeness` / `readability` / `all` (default) |
 | `<source-of-truth>` | optional | Path or URL the doc must agree with (default: inferred from doc — surfaces a WARN) |
-| `<post-mode>` | optional | Confluence only: `dry-run` (default) / `post` (post inline + footer) |
+| `<post-mode>` | optional | Confluence only: `post` (default — post inline + footer) / `dry-run` (force review-only) |
 | `<reconciliation>` | optional | Confluence only: `validate-then-keep` (default) / `aggressive-cleanup` / `read-only` |
+| `--fix` | optional | After findings are approved, hand off auto-fixable ones to `adk-docs-write` to edit the source doc, then re-validate. Equivalent to `--mode fix`. |
 | `--repo <url-or-path>` | optional | Repeatable; extra repos for source-of-truth (per `doc-review-multi-repo.md`) |
 | `--auto` | optional | Skip approval gates (still validates per `doc-review-validator.md`) |
 
@@ -59,11 +67,18 @@ Standalone task skill under the `@adk:docs` (a.k.a. `adk-docs`) category router.
    - **Readability**: lead, scannability, jargon vs defined terms, length.
 10. **Tier and shape findings** — assign each finding Type (Blocker / Critical / Issue / Suggestion / Nitpick / Question / Praise), Severity (Blocker > Critical > Should Have > May Have > Nitpick > Question), Confidence (0-100), Dimension, doc anchor, source anchor, quoted evidence, suggested fix. Render every drafted comment in the canonical shape from `doc-review-comment-format.md`.
 11. **Validator gate (Phase 2: `findings-tiered`)** — every finding has all required fields.
-12. **Decide post-mode** (Confluence) — present findings + reconciliation map; if `post` (or `--auto`), proceed to Validate. Otherwise emit dry-run report and stop.
-13. **Validate (Phase 3: pre-post)** (Confluence) — every check in `doc-review-validator.md` Phase 3: findings reproducible from current page + source, comment shape compliant, anchors stable, no duplicates, verdict honest, posting permission confirmed. STOP and fix on any BLOCKER.
-14. **Postback** (Confluence) — per `doc-postback-protocol.md`: inline comments first, then reconciliation replies, then footer summary. Each piece uses templates from `doc-review-comment-format.md` and `doc-reply-templates.md`.
-15. **Validate (Phase 4: post-execution)** — every approved finding posted (or report written, in local mode), validator log written to `.temp/notes/`.
-16. **Report** — final report per `doc-review-output-format.md`: status banner, verdict, reconciliation summary (Confluence), findings ordered by severity, validation block, postback summary (Confluence), recommended next step.
+12. **Decide delivery** — auto-pick based on source:
+    - **Confluence**: default to `post-mode=post` (post inline + footer). Override to `dry-run` only when `--mode review` was passed or the user opted into dry-run during clarifying questions.
+    - **Local file / fetched URL**: write the Markdown review file to `.temp/reports/doc-review-<slug>.md` (this IS the delivery — there is no live source to post into).
+    Present findings + reconciliation map (Confluence) for approval unless `--auto`.
+13. **Validate (Phase 3: pre-post)** (Confluence post-mode only) — every check in `doc-review-validator.md` Phase 3: findings reproducible from current page + source, comment shape compliant, anchors stable, no duplicates, verdict honest, posting permission confirmed. STOP and fix on any BLOCKER.
+14. **Deliver** — per `doc-postback-protocol.md`:
+    - Confluence post: inline comments first, then reconciliation replies, then footer summary. Each piece uses templates from `doc-review-comment-format.md` and `doc-reply-templates.md`. Capture every Confluence-returned ID into the in-session post receipt set.
+    - Local mode: write the Markdown review file. Report path is part of the final report.
+15. **Verify posted comments (post-confirmation, Confluence post-mode only)** — per `doc-postback-protocol.md` "Post-confirmation": wait 5s, re-fetch the page's full inline + footer comment graph, and confirm every receipt ID re-appears (and, for inline comments, on the expected anchor text). On miss, retry at 10s and 20s (3-attempt total budget, 35s wall-clock). Final result is `OK` (all confirmed) or `WARN: <n> entries unconfirmed` — surface the unconfirmed IDs (with `_links.webui`) in the report. Do NOT re-post on a miss; the API said 2xx and a re-post would create duplicates if the comment is just propagation-lagged. Skipped entirely in `--mode local` and dry-run.
+16. **Validate (Phase 4: post-execution)** — every approved finding posted (or report written, in local mode), post-confirmation pass logged (OK or WARN, or N/A in local / dry-run), validator log written to `.temp/notes/`.
+17. **Report** — final report per `doc-review-output-format.md`: status banner, verdict, reconciliation summary (Confluence), findings ordered by severity, validation block, postback summary (Confluence; with the post-confirmation outcome) or report path (local), recommended next step.
+18. **(`--fix` only) Hand off to `adk-docs-write`** — for every finding marked auto-fixable in step 10, dispatch `adk-docs-write` with the doc path + the `Suggested Fix` block as the change spec. After `docs-write` finishes, re-run this skill in `--mode review` against the same target to confirm the residual finding set shrank as expected. Residual findings are appended to the original report under a `## After auto-fix pass` section.
 
 ## Severity ladder
 
@@ -143,13 +158,27 @@ Full report shape lives in `doc-review-output-format.md`. Default report leads w
 | Migration guide | Source/target versions still relevant; rollback path concrete; "how to verify" steps present |
 | Tech radar | Dates and signals not stale; ring movement justified |
 
-## Posting rules (Confluence mode)
+## Delivery rules
+
+**Confluence (default `post-mode=post`):**
 
 - Inline comments anchor to a verbatim text snippet from the current page (one finding per inline comment).
 - Footer summary comment lists Blockers + Critical only by name; everything else as counts.
 - Reconciliation replies posted per `doc-comment-reconciliation.md` and `doc-reply-templates.md`.
 - Idempotent: validator log records Confluence-returned IDs so re-runs do NOT duplicate.
-- Never edit page content. This skill ONLY comments.
+- This skill never edits page content directly — it ONLY comments. Use `--fix` to delegate edits to `adk-docs-write` (which works on Markdown sources only; Confluence page edits still happen out-of-band).
+- **Always run post-confirmation.** A successful API call is not the same as a visible comment. After every postback, wait 5s, re-fetch the page's inline + footer comment graph, verify each receipt ID re-appears (retry at 10s and 20s on miss). Surface unconfirmed IDs as a `WARN` in the report; never re-post automatically — Confluence propagation lag would turn a re-post into a real duplicate.
+
+**Local Markdown / fetched URL:**
+
+- The Markdown review file at `.temp/reports/doc-review-<slug>.md` IS the deliverable — there is no live posting target.
+- The doc itself is unchanged unless `--fix` is passed.
+
+**`--fix` (any source):**
+
+- Only auto-fixable findings (those whose `Suggested Fix` is a concrete replacement block, not a question or a "discuss") are handed off.
+- Edits go through `adk-docs-write` so style + validation rules stay identical to fresh authoring.
+- After the fix pass, this skill re-runs in `--mode review` and appends residuals to the original report under `## After auto-fix pass`.
 
 ## Anti-patterns
 
@@ -161,8 +190,12 @@ See `doc-review-anti-patterns.md` for the full list. Key ones:
 - Findings without doc anchors AND source anchors.
 - Verdict of "looks good" with zero validation runs against the source.
 - (Confluence) Skipping `doc-comment-reconciliation.md` and producing duplicates.
-- (Confluence) Editing page content (this skill only comments).
+- (Confluence) Editing page content directly (this skill only comments — `--fix` delegates to `adk-docs-write`).
 - Posting before the user approves (unless `--auto`).
+- Skipping the live posting target on Confluence by defaulting to dry-run when the source clearly supports it (post is the default; dry-run is the override).
+- Calling `adk-docs-write` under `--fix` for findings that aren't auto-fixable (questions, discuss, design feedback).
+- Treating "the API returned 2xx" as proof a comment is on the page. Always run the post-confirmation re-fetch + retry budget (5s → 10s → 20s) before declaring Phase 4 done.
+- Re-posting on a post-confirmation miss. A re-post would create real duplicates if the original is just propagation-lagged; the only correct action is to log a `WARN` with the receipt ID + `_links.webui` and let the user check (or re-run the skill, which will reconcile via `doc-comment-reconciliation.md`).
 
 ## Examples
 
@@ -175,7 +208,15 @@ adk-docs-review docs/runbooks/oncall.md --focus accuracy,freshness --source src/
 ```
 
 ```
-adk-docs-review https://your-org.atlassian.net/wiki/spaces/ENG/pages/12345 --mode confluence --post-mode post --auto
+adk-docs-review https://your-org.atlassian.net/wiki/spaces/ENG/pages/12345           # auto-detects Confluence; defaults to post
+```
+
+```
+adk-docs-review https://your-org.atlassian.net/wiki/spaces/ENG/pages/12345 --mode review   # force dry-run on Confluence
+```
+
+```
+adk-docs-review docs/runbooks/oncall.md --fix                                          # review + hand off auto-fixes to adk-docs-write
 ```
 
 ```
@@ -192,8 +233,9 @@ When running without `--auto`, the skill asks these questions in order, one at a
 2. **Where is the source-of-truth (path, URL, or 'inferred from doc')?** — _How to pick:_ Explicit > inferred. State the file/dir that the doc claims to describe.
 3. **Mode: local (Markdown report only) or confluence (post inline + footer comments)?** — _How to pick:_ Auto-detected from target shape; override only when the auto-detect is wrong.
 4. **Focus: accuracy / freshness / structure / completeness / readability / all?** — _How to pick:_ All for first review. Narrow when iterating after a fix pass.
-5. **(Confluence only) Post mode: dry-run (report only) or post (inline + footer)?** — _How to pick:_ Default dry-run on first run. Post after explicit approval (or pass `--auto`).
+5. **(Confluence only) Post mode: post (inline + footer) or dry-run (report only)?** — _How to pick:_ `post` is the default — the source supports comments, so the comments ARE the deliverable. Pick `dry-run` (or pass `--mode review`) only when you want to inspect findings before they hit the page.
 6. **(Confluence only) Reconciliation aggressiveness on existing comments?** — _How to pick:_ `validate-then-keep` (default), `aggressive-cleanup`, or `read-only`.
+7. **Apply auto-fixes to the source doc (`--fix`)?** — _How to pick:_ Default `no`. Pick `yes` (or pass `--fix`) when the doc is a Markdown file you own and the goal is to land the corrections, not just file them. Confluence pages cannot be auto-edited; `--fix` only applies to Markdown sources.
 
 ## Default vs detailed output
 
@@ -202,8 +244,9 @@ When running without `--auto`, the skill asks these questions in order, one at a
 **Detailed report (on request or `--verbose`):** Add drift map (doc claim → actual code state), readability metrics (Flesch, sentence length), missing sections by doc-type template.
 
 **Artifact:**
-- Local mode: `doc-review-report` — Markdown report. The doc itself is unchanged.
-- Confluence mode: `doc-review-comments` — inline + footer comments on the live Confluence page, plus a Markdown mirror under `.temp/`.
+- Local mode: `doc-review-report` — Markdown report under `.temp/reports/`. The doc itself is unchanged unless `--fix` is passed.
+- Confluence mode (default `post`): `doc-review-comments` — inline + footer comments on the live Confluence page, plus a Markdown mirror under `.temp/`.
+- Any mode with `--fix`: same as above, plus an `adk-docs-write` edit pass against the source Markdown (Confluence pages cannot be auto-edited) and a residual review appended to the report.
 
 See `doc-review-artifact-format.md`.
 

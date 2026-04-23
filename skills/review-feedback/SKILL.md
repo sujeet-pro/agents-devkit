@@ -50,7 +50,8 @@ Standalone task skill under the `@adk:review` (a.k.a. `adk-review`) category rou
    - states the class (`Applied`, `Discussing`, `Deferring`, `Declining`, `Already fixed`),
    - links to the commit / line / follow-up,
    - explains the reasoning when not `Applied`.
-8. **Post** - approval gate unless `--auto`; then post replies to each thread plus a single summary comment.
+8. **Post** - approval gate unless `--auto`; then post replies to each thread plus a single summary comment. Capture every provider-returned reply / summary ID into the in-session post receipt set.
+9. **Verify posted replies (post-confirmation)** - wait 5 seconds, re-fetch the PR's full comment + reply graph (the same API as in step 2), and confirm every receipt ID re-appears (and, where applicable, against the expected parent thread). On miss, retry at 10s and 20s (3-attempt total budget, 35s wall-clock). Final result is `OK` (all confirmed) or `WARN: <n> entries unconfirmed` - surface the unconfirmed IDs (with html_url) in the report. **Never re-post on a miss** - the API said 2xx and a re-post would create real duplicates if the comment is just propagation-lagged; the user can re-run this skill (which will re-classify the duplicate via the reconciliation pass) if they want to retry.
 
 ## Reply templates
 
@@ -119,6 +120,10 @@ Re-request review when ready.
 - <count> inline replies drafted
 - 1 summary comment drafted
 
+## Post-confirmation
+- Status: <OK after <retries> retry / WARN: <n> entries unconfirmed after 35s>
+- Unconfirmed (if any): <id> (<kind>) <html_url>
+
 Ready to post (or already posted if --auto)?
 ```
 
@@ -129,6 +134,7 @@ Ready to post (or already posted if --auto)?
 - `Decline` requires rationale; `Defer` requires a follow-up link or task.
 - Validation runs before replies are posted.
 - No bulk "addressed all comments" replies; each thread gets its own.
+- **Always run post-confirmation.** A successful API call is not the same as a visible reply on the PR. After every postback, wait 5s, re-fetch, verify each receipt ID re-appears (retry at 10s and 20s on miss). Surface unconfirmed IDs as a `WARN` in the report; never re-post automatically — propagation lag would turn a re-post into a real duplicate.
 
 ## Anti-patterns
 
@@ -137,6 +143,8 @@ Ready to post (or already posted if --auto)?
 - Re-requesting review before validation runs.
 - Bundling new feature work into the feedback pass. Defer it.
 - Silently force-pushing in a way that detaches existing review comments.
+- Treating "the API returned 2xx" as proof a reply is on the PR. Always run the post-confirmation re-fetch + retry budget (5s → 10s → 20s).
+- Re-posting on a post-confirmation miss. A re-post would create real duplicates if the original is just propagation-lagged; log a `WARN` with the receipt ID + html_url instead.
 
 ## Examples
 
