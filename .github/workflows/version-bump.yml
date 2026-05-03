@@ -20,15 +20,23 @@ concurrency:
   group: version-bump-${{ github.workflow }}
   cancel-in-progress: false
 
+# Opt every job into the Node.js 24 runtime for JavaScript-based actions so any
+# third-party action that has not yet shipped a Node 24 build still runs on
+# Node 24 instead of the deprecated Node 20 runtime. Drop this once GitHub flips
+# the runner default to Node 24 (planned for June 2, 2026). All first-party
+# `actions/*` used here are already pinned to Node-24-default majors.
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   bump:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: 24
           cache: npm
