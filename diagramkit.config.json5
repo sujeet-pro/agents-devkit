@@ -1,5 +1,0 @@
-{
-  // diagramkit configuration
-  // Docs: https://projects.sujeet.pro/diagramkit/guide/configuration
-  $schema: './node_modules/diagramkit/schemas/diagramkit-config.v1.json',
-}

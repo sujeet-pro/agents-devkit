@@ -1,0 +1,25 @@
+{
+  displayName: "Plugins",
+  orderBy: "manual",
+  collapsed: false,
+  items: [
+    "adk-core",
+    "adk-code",
+    "adk-review",
+    "adk-docs",
+    "adk-investigate"
+  ],
+  series: [
+    {
+      slug: "plugins",
+      displayName: "Plugins",
+      articles: [
+        "adk-core",
+        "adk-code",
+        "adk-review",
+        "adk-docs",
+        "adk-investigate"
+      ],
+    }
+  ],
+}

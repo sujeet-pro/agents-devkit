@@ -1,0 +1,14 @@
+{
+  "$schema": "https://www.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "adk-core",
+  "version": "2.0.0",
+  "description": "adk universal baseline: prompt routing (auto), setup of ~/.config/adk/*.md, meta-info reader, mode contract, .temp/ layout, the universal Bash safety hook, and the canonical interaction contract. Required by every other adk plugin.",
+  "author": {
+    "name": "Sujeet Kumar Jaiswal",
+    "url": "https://github.com/sujeet-pro"
+  },
+  "homepage": "https://github.com/sujeet-pro/agents-devkit/tree/main/plugins/adk-core",
+  "repository": "https://github.com/sujeet-pro/agents-devkit",
+  "license": "MIT",
+  "keywords": ["adk", "core", "auto", "router", "setup", "meta-info"]
+}

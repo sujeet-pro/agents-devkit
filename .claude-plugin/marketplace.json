@@ -1,57 +1,96 @@
 {
-  "$schema": "https://docs.claude.com/schemas/plugin-marketplace.json",
-  "name": "sujeet-pro-adk",
+  "$schema": "https://www.schemastore.org/claude-code-marketplace.json",
+  "name": "adk",
   "owner": {
     "name": "Sujeet Kumar Jaiswal",
     "url": "https://github.com/sujeet-pro"
   },
   "metadata": {
-    "description": "Sujeet's marketplace exposing the adk plugin (Agent Development Kit) for Claude Code. Two install paths: the default 'adk' entry tracks the latest commit on the main branch on GitHub; the 'adk-npm' entry installs the plugin from the npm registry so you can pin to a semver release. Refresh with `/plugin marketplace update sujeet-pro-adk`.",
-    "version": "1.1.0"
+    "description": "adk (Agent Development Kit) — a Principal-Engineer-shaped Claude Code marketplace. Five focused plugins (adk-core, adk-code, adk-review, adk-docs, adk-investigate) covering 37 single-action skills for code writing, code review, documentation, and production investigations across Datadog, Mixpanel, Statsig, Snowflake, GitHub, Confluence, Google Drive, Slack. Every skill follows the same --auto / -i / --fix mode contract and the same Phase 0–3 workflow (prompt-expand → preflight → execute → validate-and-report). Ships 3 custom MCPs (GitHub via Docker, Datadog hosted, Statsig hosted); consumes claude.ai workspace connectors for Atlassian, Google Drive, Gmail, Google Calendar, Slack, Mixpanel, Snowflake. Per-user meta-info lives in ~/.config/adk/*.md.",
+    "version": "2.0.0"
   },
   "plugins": [
     {
-      "name": "adk",
-      "source": {
-        "source": "github",
-        "repo": "sujeet-pro/agents-devkit"
-      },
-      "description": "Agent Development Kit - 50+ composable skills, specialized subagents, hooks, MCP servers, and monitors for the developer loop. Built for Claude Code and Claude Desktop. Tracks the latest commit on the main branch and refreshes on `/plugin marketplace update`.",
-      "homepage": "https://github.com/sujeet-pro/agents-devkit",
-      "repository": "https://github.com/sujeet-pro/agents-devkit",
-      "license": "MIT",
+      "name": "adk-core",
+      "source": "./plugins/adk-core",
+      "description": "adk universal baseline: prompt routing (auto), setup of ~/.config/adk/*.md, meta-info reader, mode contract, .temp/ layout, the universal Bash safety hook, and the canonical interaction contract. Required by every other adk plugin.",
       "category": "developer-tools",
-      "keywords": [
-        "agents",
-        "skills",
-        "claude-code",
-        "claude-plugin",
-        "ai",
-        "mcp",
-        "developer-tools",
-        "code-review",
-        "ci-cd",
-        "browser-validation"
-      ]
+      "keywords": ["adk", "core", "auto", "router", "setup", "meta-info"],
+      "strict": true
     },
     {
-      "name": "adk-npm",
-      "source": {
-        "source": "npm",
-        "package": "agents-devkit"
-      },
-      "description": "Same ADK plugin, installed from the npm registry as 'agents-devkit'. Use this when you want to pin to a specific semver release (set version constraints via `/plugin install`) instead of always tracking the main branch.",
-      "homepage": "https://www.npmjs.com/package/agents-devkit",
-      "repository": "https://github.com/sujeet-pro/agents-devkit",
-      "license": "MIT",
+      "name": "adk-code",
+      "source": "./plugins/adk-code",
+      "description": "adk code-authoring plugin: write features, fix bugs (with reproducer + regression test first), refactor without behavior change, migrate frameworks, write/expand tests, diagnose perf, design APIs, harden security. Eight single-verb skills following the universal --auto / -i mode contract.",
       "category": "developer-tools",
       "keywords": [
-        "agents",
-        "skills",
-        "claude-code",
-        "claude-plugin",
-        "npm"
-      ]
+        "adk",
+        "code",
+        "feature",
+        "bugfix",
+        "refactor",
+        "migrate",
+        "test",
+        "perf",
+        "api",
+        "security"
+      ],
+      "strict": true
+    },
+    {
+      "name": "adk-review",
+      "source": "./plugins/adk-review",
+      "description": "adk code-review plugin: review someone else's PR, review your local changes vs a baseline, address existing PR feedback, capture session handoff, and run quick / whole-repo audits. Six skills supporting --auto / -i / --fix. Ships GitHub MCP (Docker, read-only by default) with `gh` CLI as the equally-supported fallback.",
+      "category": "developer-tools",
+      "keywords": [
+        "adk",
+        "review",
+        "pr-review",
+        "self-review",
+        "feedback",
+        "audit",
+        "github"
+      ],
+      "strict": true
+    },
+    {
+      "name": "adk-docs",
+      "source": "./plugins/adk-docs",
+      "description": "adk documentation plugin: write/review prose docs (README, runbook, ADR, migration guide), draft PR descriptions and commit messages, append changelog entries, author Mermaid diagrams, publish to Confluence (via the workspace Atlassian connector) or Google Drive (via the workspace Google Drive connector). Eight skills.",
+      "category": "developer-tools",
+      "keywords": [
+        "adk",
+        "docs",
+        "readme",
+        "runbook",
+        "adr",
+        "pr-description",
+        "commit-message",
+        "changelog",
+        "diagram",
+        "confluence",
+        "gdrive"
+      ],
+      "strict": true
+    },
+    {
+      "name": "adk-investigate",
+      "source": "./plugins/adk-investigate",
+      "description": "adk investigation plugin: query Datadog (logs/metrics/traces/monitors), Mixpanel (funnels/cohorts/usage), Statsig (experiments/gates/audit logs), Snowflake (read-only non-PII), recent GitHub deploy timeline, and Slack incident discussions. Composite skills: investigate-incident (multi-source triage), investigate-experiment (Statsig + Mixpanel cross-check), investigate-rca (full root-cause). Ships custom MCPs for Datadog (hosted) and Statsig (hosted); consumes workspace connectors for Mixpanel, Snowflake, Slack, Atlassian.",
+      "category": "developer-tools",
+      "keywords": [
+        "adk",
+        "investigate",
+        "datadog",
+        "mixpanel",
+        "statsig",
+        "snowflake",
+        "incident",
+        "experiment",
+        "rca",
+        "deploy"
+      ],
+      "strict": true
     }
   ]
 }

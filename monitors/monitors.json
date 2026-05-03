@@ -1,8 +1,0 @@
-[
-  {
-    "name": "ci-status",
-    "command": "while true; do (gh pr checks --watch --fail-fast --interval 30 2>&1 | head -1) 2>/dev/null || true; sleep 60; done",
-    "description": "Watches CI status on the current PR. cicd-monitor and cicd-fix subscribe to this stream.",
-    "when": "on-skill-invoke:cicd-monitor"
-  }
-]

@@ -1,0 +1,21 @@
+{
+  displayName: "Helper Binaries",
+  orderBy: "manual",
+  collapsed: false,
+  items: [
+    "adk-core-adk-info",
+    "adk-core-adk-mcp-health",
+    "adk-core-adk-task-slug"
+  ],
+  series: [
+    {
+      slug: "core-bin",
+      displayName: "core-bin",
+      articles: [
+        "adk-core-adk-info",
+        "adk-core-adk-mcp-health",
+        "adk-core-adk-task-slug"
+      ],
+    }
+  ],
+}

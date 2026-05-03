@@ -1,21 +1,16 @@
-# Agent working artifacts (plans, drafts, reports, reference-repos)
-# Contract: see ai-guidelines/working-artifacts.md
 .temp/
-
-# Legacy temp path (kept ignored for safety; folder itself has been removed)
-temp/
-
-# Python bytecode
-__pycache__/
-*.pyc
-*.pyo
-
-# Node.js dependencies
 node_modules/
-
-# Pagesmith / GitHub Pages build output
-gh-pages/
-
-# OS files
 .DS_Store
-Thumbs.db
+*.log
+.env
+.env.*
+!.env.example
+.idea/
+.vscode/
+dist/
+build/
+coverage/
+.cache/
+gh-pages/
+.pagesmith/
+__pycache__

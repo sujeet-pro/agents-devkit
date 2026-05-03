@@ -1,8 +1,8 @@
 {
-  // ADK Documentation Site
-  name: "ADK",
-  title: "Agent Development Kit",
-  description: "Principal-engineer-grade skills for software development agents",
+  // adk marketplace documentation site
+  name: "adk marketplace",
+  title: "adk Marketplace",
+  description: "Principal Engineer workflow plugins for Claude Code and Claude Desktop",
 
   // Paths
   contentDir: "./docs",
@@ -28,13 +28,11 @@
     { label: "Maintained by Sujeet", path: "https://sujeet.pro" },
   ],
 
-  // Edit link
   editLink: {
     repo: "https://github.com/sujeet-pro/agents-devkit",
     branch: "main",
     label: "Edit on GitHub",
   },
 
-  // Show git-based last updated date on each page
   lastUpdated: true,
 }
