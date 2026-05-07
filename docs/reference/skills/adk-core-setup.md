@@ -159,14 +159,14 @@ meta-info ~/.config/adk/:
 - docs.md         MISSING — run /adk-core:setup --target docs
 
 env vars (referenced by .mcp.json):
-- GITHUB_PAT             present
-- DD_API_KEY             present
-- DD_APP_KEY             MISSING — add to ~/.zshenv: export DD_APP_KEY="..."
+- GITHUB_PAT              present
+- DATADOG_API_KEY         present
+- DATADOG_APP_KEY         MISSING — add to ~/.zshenv: export DATADOG_APP_KEY="..."
 - STATSIG_CONSOLE_API_KEY present
 
 doctor: 2 warnings, 0 errors
   - mixpanel.md missing — run /adk-core:setup --target mixpanel
-  - DD_APP_KEY missing in shell env (datadog MCP disabled)
+  - DATADOG_APP_KEY missing in shell env (datadog MCP disabled; legacy DD_APP_KEY also accepted)
 ```
 
 ## References shipped with this skill

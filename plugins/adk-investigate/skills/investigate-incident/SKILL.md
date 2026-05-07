@@ -1,7 +1,7 @@
 ---
 name: investigate-incident
 description: |
-  Full incident-investigation workflow combining Datadog (logs + metrics + traces + monitor history), recent deploy timeline (via `gh` CLI), and (optionally) a Slack channel scrape via the workspace connector. Produces a single incident summary with a likely root-cause hypothesis (with confidence) and a prioritized list of next actions (rollback > flag-off > restart > investigate-which-PR > escalate). Use for "the dashboard is broken since X", "users report errors with Y", "investigate the alert from Z minutes ago". Spawns the `incident-investigator` subagent for parallel multi-source pulls. Correlates at least two independent signals before naming a root cause; states confidence honestly; never auto-rolls-back. Do NOT use for routine metric queries (use `/adk-investigate:investigate-datadog`), for the actual code fix (use `/adk-code:code-bugfix` after), or for product-analytics anomalies (use `/adk-investigate:investigate-mixpanel`).
+  Full incident-investigation workflow combining Datadog (logs + metrics + traces + monitor history), recent deploy timeline (via `gh` CLI), and (optionally) a Slack channel scrape via the workspace connector. Accepts a free-form symptom OR one or more URLs (Slack permalink to an alert / chatter, Datadog incident / monitor / dashboard / log query, PagerDuty / OpsGenie / Statuspage URL, GitHub issue) — when given a URL, the skill calls `/adk-core:context-gather` to extract the symptom, service, and timestamp from the linked content before triage starts. Produces a single incident summary with a likely root-cause hypothesis (with confidence) and a prioritized list of next actions (rollback > flag-off > restart > investigate-which-PR > escalate). Use for "the dashboard is broken since X", "users report errors with Y", "investigate the alert from Z minutes ago", or pasting a Slack alert link. Spawns the `incident-investigator` subagent for parallel multi-source pulls. Correlates at least two independent signals before naming a root cause; states confidence honestly; never auto-rolls-back. Do NOT use for routine metric queries (use `/adk-investigate:investigate-datadog`), for the actual code fix (use `/adk-code:code-bugfix` after), or for product-analytics anomalies (use `/adk-investigate:investigate-mixpanel`).
 metadata:
   category: observability
   kind: task
@@ -9,7 +9,7 @@ metadata:
   modes: [auto, interactive]
   needs_mcp: [datadog, slack-workspace]
   needs_meta_info: [info, repos, datadog, slack, github]
-argument-hint: "<symptom> [--service <name>] [--window <duration>] [--slack-channel <#name>] [--symptom-time <ISO>] [-i]"
+argument-hint: "<symptom-or-url> [--service <name>] [--window <duration>] [--slack-channel <#name>] [--symptom-time <ISO>] [-i]"
 ---
 
 # `investigate-incident` — multi-source correlator
@@ -22,7 +22,8 @@ Multi-source production-incident triage. Combines Datadog (logs/metrics/traces/m
 - "the dashboard is broken" / "stats are zero"
 - "alert from 10m ago" / "investigate the firing monitor"
 - "why is `<service>` slow / failing / down?"
-- Bare PagerDuty / OpsGenie / DD incident link or ID
+- A bare URL: Slack permalink (alert message in `#datadog-alerts-*` or chatter in `#incident`), Datadog incident / monitor / dashboard / log-explorer / APM / RUM URL, PagerDuty / OpsGenie / Statuspage URL, GitHub issue.
+- Multiple URLs ("look at this alert and this DD monitor and tell me what's going on") — the skill fans them out via `/adk-core:context-gather` and reconciles the entities.
 
 ## When NOT to use
 
@@ -41,16 +42,20 @@ Multi-source production-incident triage. Combines Datadog (logs/metrics/traces/m
 | "alert from `<X>` ago" / "monitor `<name>` is firing" | full triage |
 | "why is `<service>` slow / failing / down?" | full triage |
 | "what's happening with `<service>`?" | full triage (broader scope) |
-| Bare DD incident URL / ID | full triage anchored to that incident |
+| Bare DD incident / monitor / dashboard / log-query URL | context-gather → full triage anchored to it |
+| Slack permalink to an alert in `#datadog-alerts-*` | context-gather (fetches the alert payload) → triage anchored to its service + fired-at |
+| Slack permalink to an `#incident` thread | context-gather (fetches parent + replies) → triage anchored to the symptom in the parent message |
+| PagerDuty / OpsGenie alert URL | context-gather → triage anchored to the alert's service + fired-at |
+| GitHub issue URL ("users report …") | context-gather → triage anchored to the symptom in the issue body |
 
 ## Inputs
 
 | Input | Required | Default |
 | --- | --- | --- |
-| `<symptom>` | yes | (free-form) |
+| `<symptom-or-url>` | yes | Free-form symptom text, OR one or more URLs (Slack permalink, DD incident / monitor / dashboard / log-query, PagerDuty / OpsGenie, GitHub issue). When URLs are passed, Phase 0 calls `/adk-core:context-gather` to extract symptom + service + timestamp before triage runs. |
 | `--service` | no | resolved from symptom via `repos.md` / `datadog.md.service_aliases` |
 | `--window` | no | `last 2h` (or `±30min` if `--symptom-time` set) |
-| `--slack-channel` | no | `slack.md.incident_channel` |
+| `--slack-channel` | no | `slack.md.incident_channel` (chatter); `slack.md.alert_channels.<service>` is also scraped when a value exists for the resolved service |
 | `--symptom-time` | no | parsed from prompt or "now" |
 | `-i` / `--interactive` | no | mutually exclusive with `--auto` |
 
@@ -58,10 +63,14 @@ Multi-source production-incident triage. Combines Datadog (logs/metrics/traces/m
 
 ```
 Phase 0 — prompt expand
-  Resolve service from symptom. (e.g. "checkout broken" -> service:checkout-api)
-  Resolve window (default last 2h; ±30min if a moment is named).
-  Pick Slack channel (default slack.md.incident_channel).
-  Resolve repo(s) for the service from repos.md (a service may map to multiple repos).
+  0a. If input contains URL(s), run /adk-core:context-gather to fetch them
+      (Slack permalink, DD incident/monitor/dashboard/log-query, PD/OpsGenie, GH issue).
+      Extract symptom + service + symptom-time + window-hint from the linked content.
+      DD links use the Datadog MCP directly; Slack uses the workspace connector.
+  0b. Resolve service from extracted-or-given symptom (e.g. "checkout broken" -> service:checkout-api).
+  0c. Resolve window (link-extracted hint > --window > ±30min around --symptom-time > "last 2h").
+  0d. Pick Slack channels (default chatter = slack.md.incident_channel; alerts = slack.md.alert_channels.<service> if set).
+  0e. Resolve repo(s) for the service from repos.md (a service may map to multiple repos).
 
 Phase 1 — preflight
   Datadog MCP reachable.
@@ -84,8 +93,10 @@ Phase 4 — Deploy timeline (sequential or parallel):
   - For each repo mapped to the service.
 
 Phase 5 — Optional Slack scrape:
-  - If slack-workspace MCP reachable AND --slack-channel set, pull last N messages + threads mentioning service / symptom.
-  - Quote ≤15 words per message; link out.
+  - If slack-workspace connector reachable, scrape up to two channels:
+      (a) chatter — --slack-channel or slack.md.incident_channel
+      (b) alerts — slack.md.alert_channels.<service> if the service has an entry (e.g. storefront-bff -> #datadog-alerts-bff)
+  - Pull last N messages + threads mentioning service / symptom; quote ≤15 words per message; link out.
 
 Phase 6 — Correlate (the multi-source protocol):
   - Deploy in last 30min before symptom + log error class new in same window -> likely regression (medium-high confidence).

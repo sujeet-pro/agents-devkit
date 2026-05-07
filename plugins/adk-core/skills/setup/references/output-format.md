@@ -31,20 +31,21 @@ env vars (referenced by .mcp.json):
 - GITHUB_PAT                present
 - GITHUB_TOOLSETS           present (context,repos,issues,pull_requests,actions,users)
 - GITHUB_READ_ONLY          present (1)
-- DD_API_KEY                present
-- DD_APP_KEY                MISSING — add to ~/.zshenv: export DD_APP_KEY="..."
+- DATADOG_API_KEY           present
+- DATADOG_APP_KEY           MISSING — add to ~/.zshenv: export DATADOG_APP_KEY="..."
                              mint at https://app.datadoghq.com/organization-settings/application-keys
+                             (legacy DD_APP_KEY also accepted via shell alias)
 - DD_SITE                   present (datadoghq.com)
 - STATSIG_CONSOLE_API_KEY   present
 
 mcp servers (resolved from .mcp.json):
 - github            ready
-- datadog           missing-env (DD_APP_KEY)
+- datadog           missing-env (DATADOG_APP_KEY)
 - statsig           ready
 
 doctor: 2 warnings, 0 errors
   - mixpanel.md missing — run: /adk-core:setup --target mixpanel
-  - DD_APP_KEY missing in ~/.zshenv (datadog MCP disabled)
+  - DATADOG_APP_KEY missing in ~/.zshenv (datadog MCP disabled; legacy DD_APP_KEY accepted)
 
 next steps:
   1. Add the missing exports to ~/.zshenv.

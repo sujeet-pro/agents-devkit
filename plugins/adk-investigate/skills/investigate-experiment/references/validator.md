@@ -14,7 +14,7 @@ Run at every phase boundary. Log to `.temp/task-<slug>/validation/investigate-ex
 
 - [ ] `bin/adk-mcp-health` confirms `statsig: connected`, `mixpanel-workspace: connected`, `datadog: connected`. **All three required.**
 - [ ] `STATSIG_CONSOLE_API_KEY` env var present.
-- [ ] `DD_API_KEY` and `DD_APP_KEY` env vars present.
+- [ ] `DATADOG_API_KEY` and `DATADOG_APP_KEY` env vars present (legacy `DD_API_KEY` / `DD_APP_KEY` also accepted).
 - [ ] `bin/adk-info --check info repos statsig mixpanel datadog` returns 0.
 
 ## Phase 2 — three reads

@@ -22,7 +22,7 @@ Output: `entities.md` table in `.temp/task-<slug>/investigation/`.
 
 1. `bin/adk-mcp-health --shipped` — confirms `datadog` MCP is `connected`.
 2. `bin/adk-info --check datadog` — confirms `~/.config/adk/datadog.md` parses and has the keys this query needs (service if shorthand was used; dashboard id if `--use dashboard-summary` was named by name, etc.).
-3. Confirms `DD_API_KEY` and `DD_APP_KEY` env vars are present.
+3. Confirms `DATADOG_API_KEY` and `DATADOG_APP_KEY` env vars are present (legacy `DD_API_KEY` / `DD_APP_KEY` are also accepted via shell alias — `bin/adk-mcp-health` treats either as present).
 4. If anything fails, stop with the exact missing-thing list and the suggested `/adk-core:setup --target datadog` invocation. Never auto-install.
 
 ## Phase 2 — execute (per `--use`)

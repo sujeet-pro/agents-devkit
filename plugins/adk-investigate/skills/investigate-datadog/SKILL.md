@@ -67,7 +67,7 @@ Phase 0 — prompt expand
 
 Phase 1 — preflight
   Datadog MCP reachable (bin/adk-mcp-health).
-  DD_API_KEY + DD_APP_KEY present.
+  DATADOG_API_KEY + DATADOG_APP_KEY present (legacy DD_API_KEY / DD_APP_KEY also accepted).
   Validate datadog.md schema (bin/adk-info --check datadog).
 
 Phase 2 — execute (per --use)

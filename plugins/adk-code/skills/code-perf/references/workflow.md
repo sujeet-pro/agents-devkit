@@ -15,7 +15,7 @@
 1. `git status` clean. Dirty → ask.
 2. Branch — protected → prompt `perf/<slug>`.
 3. Resolve test / typecheck / lint commands. Tests must pass on HEAD (perf fixes shouldn't introduce correctness regressions).
-4. If the work needs Datadog: `bin/adk-mcp-health` for DD reachability. `DD_API_KEY` + `DD_APP_KEY` present.
+4. If the work needs Datadog: `bin/adk-mcp-health` for DD reachability. `DATADOG_API_KEY` + `DATADOG_APP_KEY` present (legacy `DD_API_KEY` / `DD_APP_KEY` also accepted).
 
 ## Phase 2 — MEASURE (capture baseline)
 

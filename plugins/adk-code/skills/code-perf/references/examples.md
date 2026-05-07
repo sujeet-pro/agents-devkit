@@ -6,7 +6,7 @@
 
 **Phase 0:** Slug `perf-checkout-p99-spike`. Repo `~/code/acme/checkout-api`. Service tag (per `datadog.md`): `checkout-api`. Metric: p99 latency.
 
-**Phase 1:** Clean tree. Branch `perf/checkout-p99-spike`. Tests green on HEAD. DD MCP reachable; `DD_API_KEY` + `DD_APP_KEY` present.
+**Phase 1:** Clean tree. Branch `perf/checkout-p99-spike`. Tests green on HEAD. DD MCP reachable; `DATADOG_API_KEY` + `DATADOG_APP_KEY` present.
 
 **Phase 2 baseline:** Pull DD APM trace for `checkout-api` over last 24h.
 

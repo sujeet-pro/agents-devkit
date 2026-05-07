@@ -1,7 +1,7 @@
 ---
 name: investigate-rca
 description: |
-  Full root-cause-analysis composite. Runs `/adk-investigate:investigate-incident` (DD logs/metrics/traces/monitors + recent deploys + Slack), then `/adk-investigate:investigate-statsig --use audit-log` for ±2h around symptom, then `git blame` on the suspected file to identify the implicated PR + author + reviewer. Optionally calls `/adk-investigate:investigate-mixpanel` to confirm user-impact magnitude. Aggregates into a single blameless RCA doc with sections: Summary, Timeline, Detection, Mitigation, Root cause, Contributing factors, Action items per 5W frame, References. Use when the user wants a full RCA (post-mortem prep, exec summary). Do NOT use for routine triage during an active incident — that's `/adk-investigate:investigate-incident` alone (faster). Do NOT use for non-incident debugging. Do NOT name individuals as root cause; the focus is the system.
+  Full root-cause-analysis composite. Runs `/adk-investigate:investigate-incident` (DD logs/metrics/traces/monitors + recent deploys + Slack — accepts a free-form symptom OR URL inputs like a Slack alert permalink, DD incident / monitor / dashboard, PD / OpsGenie alert, or GH issue), then `/adk-investigate:investigate-statsig --use audit-log` for ±2h around symptom, then `git blame` on the suspected file to identify the implicated PR + author + reviewer. Optionally calls `/adk-investigate:investigate-mixpanel` to confirm user-impact magnitude. Aggregates into a single blameless RCA doc with sections: Summary, Timeline, Detection, Mitigation, Root cause, Contributing factors, Action items per 5W frame, References. Use when the user wants a full RCA (post-mortem prep, exec summary). Do NOT use for routine triage during an active incident — that's `/adk-investigate:investigate-incident` alone (faster). Do NOT use for non-incident debugging. Do NOT name individuals as root cause; the focus is the system.
 metadata:
   category: observability
   kind: task
@@ -9,7 +9,7 @@ metadata:
   modes: [auto, interactive]
   needs_mcp: [datadog, statsig, slack-workspace]
   needs_meta_info: [info, repos, datadog, statsig, slack, github]
-argument-hint: "<symptom> [--window <duration>] [-i]"
+argument-hint: "<symptom-or-url> [--window <duration>] [-i]"
 ---
 
 # `investigate-rca` — blameless improvement-focused analyst

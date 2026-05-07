@@ -14,8 +14,8 @@ Run at every phase boundary. Log to `.temp/task-<slug>/validation/investigate-da
 ## Phase 1 — preflight
 
 - [ ] `bin/adk-mcp-health --shipped` shows `datadog: connected`.
-- [ ] `DD_API_KEY` env var present.
-- [ ] `DD_APP_KEY` env var present.
+- [ ] `DATADOG_API_KEY` env var present (legacy `DD_API_KEY` also accepted).
+- [ ] `DATADOG_APP_KEY` env var present (legacy `DD_APP_KEY` also accepted).
 - [ ] `bin/adk-info --check datadog` returns 0.
 - [ ] `~/.config/adk/datadog.md` has the keys this run needs (`site`, `default_env`, `default_window`, plus `service_aliases` if shorthand was used).
 

@@ -18,7 +18,7 @@ Output: `entities.md` table.
 ## Phase 1 — preflight
 
 1. `bin/adk-mcp-health` confirms all three: `statsig: connected`, `mixpanel-workspace: connected`, `datadog: connected`. If any is unreachable, stop with the missing-thing list.
-2. Env vars present: `STATSIG_CONSOLE_API_KEY`, `DD_API_KEY`, `DD_APP_KEY`. (Mixpanel via workspace MCP; no env var.)
+2. Env vars present: `STATSIG_CONSOLE_API_KEY`, `DATADOG_API_KEY`, `DATADOG_APP_KEY` (legacy `DD_API_KEY` / `DD_APP_KEY` are also accepted). (Mixpanel via workspace MCP; no env var.)
 3. `bin/adk-info --check info repos statsig mixpanel datadog` returns 0.
 4. (Cheap warmup) parallel: `Get_List_of_Gates --limit 1` (Statsig) + `list_dashboards` first 1 (DD) + `Get-Property-Names` (Mixpanel) to mask cold-start.
 

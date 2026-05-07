@@ -28,8 +28,9 @@ Written to `.temp/task-<slug>/investigation/incident.md`. Sections in this exact
 | Datadog monitors | pulled | investigation/incident/raw/dd-monitors.json |
 | Deploy timeline (acme/checkout-api) | pulled | investigation/deploy/deploy-acme__checkout-api.md |
 | Deploy timeline (acme/order-service) | pulled | investigation/deploy/deploy-acme__order-service.md |
-| Slack #incidents | pulled | investigation/incident/raw/slack-incidents.json |
-| Slack #incidents | skipped: workspace MCP unreachable | — |
+| Slack #incident (chatter) | pulled | investigation/incident/raw/slack-chatter.json |
+| Slack #datadog-alerts-bff (alerts) | pulled | investigation/incident/raw/slack-alerts.json |
+| Slack | skipped: workspace connector unreachable | — |
 
 ## Datadog evidence
 | Signal | Query | Finding | Baseline | DD UI |

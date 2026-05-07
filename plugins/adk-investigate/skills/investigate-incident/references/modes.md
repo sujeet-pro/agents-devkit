@@ -8,7 +8,7 @@
 - Picks documented defaults at every decision:
   - `--service` resolved from symptom via meta-info.
   - `--window` `last 2h` (or `±30min` if `--symptom-time` set).
-  - `--slack-channel` from `slack.md.incident_channel`.
+  - `--slack-channel` from `slack.md.incident_channel` (chatter); also scrapes `slack.md.alert_channels.<service>` when the resolved service has an entry.
 - Spawns the `incident-investigator` subagent for parallel reads (max 4 parallel per the dispatcher rule).
 - Still validates after every phase.
 - Still surfaces a final report with confidence-stated hypothesis and prioritized next actions.

@@ -4,17 +4,22 @@ Asked in order, one at a time, **only when the answer changes the plan**. Under 
 
 ## Phase 0 questions
 
+0. **Link extraction (input contains URLs).**
+   - _When asked:_ NEVER. Link resolution via `/adk-core:context-gather` is automatic in Phase 0a.
+   - _Default under `--auto`:_ fetch every URL one hop, surface the extracted (symptom, service, timestamp, window-hint) per link in `entities.md`, and ask Question 1 only if those still leave service ambiguous.
+   - _Conflict handling:_ if two links disagree on service or timestamp, the report's `Decisions` section names which source won and why (DD monitor > DD incident > Slack alert message > Slack chatter > GH issue).
+
 1. **Service: `<resolved>`. Right one?**
-   - _When asked:_ shorthand resolves to multiple candidates; OR no service in the symptom and no `--service` flag.
-   - _Default under `--auto`:_ pick the verified-aliased candidate; if ambiguous and no `--service` flag, stop and ask (this is a critical entity).
+   - _When asked:_ shorthand resolves to multiple candidates; OR no service in the symptom and no `--service` flag AND no link supplied one.
+   - _Default under `--auto`:_ pick the verified-aliased candidate; if ambiguous and no `--service` flag and no link, stop and ask (this is a critical entity).
 
 2. **Window: `<resolved>`. OK?**
    - _When asked:_ no `--window`, no `--symptom-time`, and the symptom doesn't name a time.
    - _Default under `--auto`:_ `last 2h`.
 
-3. **Slack channel: `<#name>`. Scrape?**
+3. **Slack channels: `<#chatter>` + `<#alerts>`. Scrape?**
    - _When asked:_ only under `-i`. Under `--auto`, default = scrape if reachable.
-   - _Default under `--auto`:_ scrape `slack.md.incident_channel` if `slack-workspace` MCP reachable. Skip silently if unreachable; flag the gap in the report.
+   - _Default under `--auto`:_ scrape `slack.md.incident_channel` (chatter) AND `slack.md.alert_channels.<service>` (the per-service Datadog alerts channel, e.g. `#datadog-alerts-bff` for `storefront-bff`) if the connector is reachable. Skip silently if unreachable; flag the gap in the report.
 
 ## Phase 5 questions (Slack)
 

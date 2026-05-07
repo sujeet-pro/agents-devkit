@@ -129,12 +129,13 @@ Composite chains beyond this plugin (managed by `/adk-core:auto`):
   "type": "http",
   "url": "https://mcp.datadoghq.com/api/unstable/mcp-server/mcp?toolsets=core,dashboards,error-tracking,product-analytics,security,workflows,apm,llmobs",
   "headers": {
-    "DD_API_KEY": "${DD_API_KEY}",
-    "DD_APPLICATION_KEY": "${DD_APP_KEY}"
+    "DD_API_KEY": "${DATADOG_API_KEY}",
+    "DD_APPLICATION_KEY": "${DATADOG_APP_KEY}"
   }
 }
 ```
 
+- **Auth env vars:** `DATADOG_API_KEY` + `DATADOG_APP_KEY` (canonical). Legacy `DD_API_KEY` / `DD_APP_KEY` are also accepted — alias them in your shell rc: `export DATADOG_API_KEY="$DD_API_KEY"; export DATADOG_APP_KEY="$DD_APP_KEY"`.
 - **Scope:** App key needs `mcp_read` (and `mcp_write` only if writing). adk skills only read.
 - **Site override:** `DD_MCP_URL` env var for non-US1 (`datadoghq.eu`, `us3.datadoghq.com`, `us5.datadoghq.com`, `ap1.datadoghq.com`, `ap2.datadoghq.com`).
 - **Tool surface used:** `get_logs`, `aggregate_logs`, `list_spans`, `get_trace`, `get_metrics`, `list_metrics`, `get_monitors`, `list_dashboards`, `error_tracking_*`, `list_incidents`, `get_incident`.
@@ -199,8 +200,8 @@ All defined in `~/.config/adk/`. See [`plan/01-meta-info.md`](../../plan/01-meta
 Required env vars (in `~/.zshenv` or shell rc — never in `~/.config/adk/*.md`):
 
 ```bash
-export DD_API_KEY=...                  # Datadog API key
-export DD_APP_KEY=...                  # Datadog Application key (mcp_read scope)
+export DATADOG_API_KEY=...             # Datadog API key (legacy DD_API_KEY also accepted via shell alias)
+export DATADOG_APP_KEY=...             # Datadog Application key (mcp_read scope; legacy DD_APP_KEY also accepted)
 export DD_SITE=datadoghq.com           # or datadoghq.eu, us3.datadoghq.com, etc.
 export STATSIG_CONSOLE_API_KEY=...     # Statsig Console API key (omni_read_only)
 ```

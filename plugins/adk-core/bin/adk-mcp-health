@@ -50,11 +50,16 @@ ENV_VARS=(
   "GITHUB_PAT"
   "GITHUB_TOOLSETS"
   "GITHUB_READ_ONLY"
-  "DD_API_KEY"
-  "DD_APP_KEY"
+  "DATADOG_API_KEY"
+  "DATADOG_APP_KEY"
   "DD_SITE"
   "STATSIG_CONSOLE_API_KEY"
 )
+
+# Aliases: each canonical var (left) is satisfied if any alias (right) is set in env.
+# Used to support legacy DD_* alongside canonical DATADOG_*.
+ENV_VAR_ALIASES_DATADOG_API_KEY="DD_API_KEY"
+ENV_VAR_ALIASES_DATADOG_APP_KEY="DD_APP_KEY"
 
 mcp_list_output=""
 if command -v claude >/dev/null 2>&1; then
@@ -71,7 +76,11 @@ mcp_status() {
 
 env_status() {
   local var="$1"
-  if [[ -n "${!var-}" ]]; then echo "present"; else echo "MISSING"; fi
+  if [[ -n "${!var-}" ]]; then echo "present"; return; fi
+  local alias_var="ENV_VAR_ALIASES_${var}"
+  local alias_name="${!alias_var-}"
+  if [[ -n "$alias_name" && -n "${!alias_name-}" ]]; then echo "present-via-alias"; return; fi
+  echo "MISSING"
 }
 
 if (( JSON )); then
@@ -100,7 +109,9 @@ if (( JSON )); then
     printf '  "env_vars": {\n'
     for i in "${!ENV_VARS[@]}"; do
       v="${ENV_VARS[$i]}"
-      printf '    "%s": "%s"' "$v" "$(env_status "$v")"
+      s="$(env_status "$v")"
+      [[ "$s" == "present-via-alias" ]] && s="needs-alias"
+      printf '    "%s": "%s"' "$v" "$s"
       [[ $i -lt $((${#ENV_VARS[@]} - 1)) ]] && printf ','
       printf '\n'
     done
@@ -153,17 +164,22 @@ if [[ "$MODE" == "full" || "$MODE" == "env" ]]; then
   echo "env vars referenced by adk plugins:"
   for v in "${ENV_VARS[@]}"; do
     s="$(env_status "$v")"
-    if [[ "$s" == "present" ]]; then
-      printf '  - %-26s present\n' "$v"
-    else
-      case "$v" in
-        GITHUB_PAT)             hint='(mint at https://github.com/settings/personal-access-tokens/new)' ;;
-        DD_API_KEY|DD_APP_KEY)  hint='(see https://app.datadoghq.com/organization-settings/)' ;;
-        DD_SITE)                hint='(default datadoghq.com)' ;;
-        STATSIG_CONSOLE_API_KEY) hint='(mint at https://console.statsig.com/api_keys)' ;;
-        *)                      hint='' ;;
-      esac
-      printf '  - %-26s MISSING %s\n' "$v" "$hint"
-    fi
+    case "$s" in
+      present)
+        printf '  - %-26s present\n' "$v" ;;
+      present-via-alias)
+        alias_var="ENV_VAR_ALIASES_${v}"
+        a="${!alias_var}"
+        printf '  - %-26s legacy %s set, but %s is unset — add to ~/.zshenv: export %s="$%s"\n' "$v" "$a" "$v" "$v" "$a" ;;
+      *)
+        case "$v" in
+          GITHUB_PAT)                   hint='(mint at https://github.com/settings/personal-access-tokens/new)' ;;
+          DATADOG_API_KEY|DATADOG_APP_KEY) hint='(see https://app.datadoghq.com/organization-settings/; legacy DD_API_KEY / DD_APP_KEY also accepted)' ;;
+          DD_SITE)                      hint='(default datadoghq.com)' ;;
+          STATSIG_CONSOLE_API_KEY)      hint='(mint at https://console.statsig.com/api_keys)' ;;
+          *)                            hint='' ;;
+        esac
+        printf '  - %-26s MISSING %s\n' "$v" "$hint" ;;
+    esac
   done
 fi

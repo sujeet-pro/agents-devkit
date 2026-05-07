@@ -1,6 +1,6 @@
 # adk-review
 
-> Code review for self and others. Six skills covering remote PR review, local working-tree self-review, addressing existing PR feedback, capturing session handoff, and quick / whole-repo audits. Ships the GitHub MCP (Docker, read-only by default) with `gh` CLI as the equally-supported fallback.
+> Code review for self and others. Six skills covering remote PR review, local working-tree self-review, addressing existing PR feedback, capturing session handoff, and quick / whole-repo audits. Ships the GitHub MCP (hosted at `api.githubcopilot.com/mcp/`, read-only by default) with `gh` CLI as the equally-supported fallback.
 
 ## What it ships
 
@@ -9,7 +9,7 @@
 | ------------------- | ------------------------------------------------------------------------------------------------- |
 | **Skills (6)**      | `review-pr`, `review-code-changes`, `review-feedback`, `review-handoff`, `audit-pr`, `audit-repo` |
 | **Agents (2)**      | `code-reviewer`, `security-reviewer`                                                              |
-| **MCP servers (1)** | `github` (Docker, pinned `v1.0.3`, read-only by default; `gh` CLI fallback)                       |
+| **MCP servers (2)** | `github` (hosted at `api.githubcopilot.com/mcp/`, read-only by default, PAT or OAuth; `gh` CLI fallback); `bitbucket` (`bitbucket-mcp` via npx) |
 | **Hard deps**       | `adk-core`                                                                                        |
 
 
@@ -91,17 +91,29 @@ Agents are kept thin — they hold persona + hard rules, not workflow logic. The
 
 ## GitHub MCP
 
-`adk-review` ships a single MCP — `github` — via Docker (`ghcr.io/github/github-mcp-server` pinned to `v1.0.3`).
+`adk-review` ships a single MCP — `github` — pointed at GitHub's hosted/remote server (`https://api.githubcopilot.com/mcp/`). No Docker, no local image. Read-only by default (URL path `/mcp/readonly`); write mode is the same URL with `/readonly` removed.
 
+**Authentication — PAT preferred, OAuth fallback:**
 
-| Setting            | Default                                            | Notes                                                                                                                                                                                |
-| ------------------ | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `GITHUB_PAT`       | unset                                              | Required; fine-grained PAT with `Contents: Read`, `Pull Requests: Read+Write`, `Issues: Read+Write`, `Actions: Read`, `Metadata: Read`, `read:org`, `read:project`, `notifications`. |
-| `GITHUB_TOOLSETS`  | `context,repos,issues,pull_requests,actions,users` | Deliberately omits `code_security`, `dependabot`, `gists`, `discussions`, `secret_protection`. Skills that need these set the env explicitly.                                        |
-| `GITHUB_READ_ONLY` | `1`                                                | Skills that post (`review-pr`, `review-feedback`, `audit-pr` postback) flip to `0` for the post stage only, then back to `1`.                                                        |
+| Mode  | Config                                                                                       | When                                                                       |
+| ----- | -------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| PAT   | Default. `GITHUB_PAT` env var → sent as `Authorization: Bearer $GITHUB_PAT`.                 | Set the env var; nothing else to do.                                       |
+| OAuth | Delete the `headers` block from `.mcp.json`. Claude Code runs the OAuth flow on first connect. | No PAT available, or you prefer per-user browser auth.                     |
 
+Claude Code's static `.mcp.json` does not branch on env-var presence, so there's no automatic "use PAT if set, else OAuth" — pick one by editing the headers block.
 
-**Fallback (equal priority):** every skill that uses the GitHub MCP also supports `gh` CLI for the same operations. Phase 1 preflight prefers `gh` if both Docker and `gh` are available (faster cold start, no Docker daemon required).
+| Setting            | Default                  | Notes                                                                                                                                                                                |
+| ------------------ | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `GITHUB_PAT`       | unset                    | Required for PAT mode. Fine-grained PAT with `Contents: Read`, `Pull Requests: Read+Write`, `Issues: Read+Write`, `Actions: Read`, `Metadata: Read`, `read:org`, `read:project`, `notifications`. |
+| URL path           | `/mcp/readonly`          | Skills that post (`review-pr`, `review-feedback`, `audit-pr` postback) prefer the `gh` CLI fallback. To use MCP for writes, change `/mcp/readonly` → `/mcp/` in the plugin's `.mcp.json`. |
+
+**Fallback (equal priority):** every skill that uses the GitHub MCP also supports the `gh` CLI for the same operations. Phase 1 preflight prefers `gh` for write paths (it's already authenticated via `gh auth login`, and avoids the read-only / write-mode URL split).
+
+## Bitbucket MCP
+
+Sibling MCP for teams whose code lives on Bitbucket Cloud. Runs the npm-published [`bitbucket-mcp`](https://www.npmjs.com/package/bitbucket-mcp) via `npx -y` (no Docker, no daemon). Auth: `BITBUCKET_USERNAME` + `BITBUCKET_TOKEN` (workspace access token preferred; app password also works).
+
+Surface includes PR read / comment / approve, pipelines, branching model, and repo metadata. The current `adk-review` skills are GitHub-first; the Bitbucket MCP is shipped alongside so the tool is loaded in the same session, with skill-level support coming opportunistically. See `SETUP.md §4.4` for env-var setup and verifier.
 
 See `plan/02-mcp-servers.md §2.1` for the canonical block, env-var setup, and verifier curl commands.
 
@@ -154,7 +166,7 @@ These apply across every `adk-review` skill, regardless of `--auto / -i / --fix`
 /plugin install adk-review@adk
 /reload-plugins
 
-export GITHUB_PAT="<fine-grained-PAT>"
+export GITHUB_PAT="<fine-grained-PAT>"   # or skip and use OAuth (see GitHub MCP section)
 gh auth login
 
 /adk-core:setup --target github

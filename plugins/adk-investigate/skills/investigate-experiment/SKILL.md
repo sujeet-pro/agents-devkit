@@ -62,7 +62,7 @@ Phase 0 — prompt expand
 
 Phase 1 — preflight
   All three MCPs reachable: statsig + mixpanel-workspace + datadog.
-  Env vars present (STATSIG_CONSOLE_API_KEY, DD_API_KEY, DD_APP_KEY).
+  Env vars present (STATSIG_CONSOLE_API_KEY, DATADOG_API_KEY, DATADOG_APP_KEY; legacy DD_* also accepted).
   bin/adk-info --check info repos statsig mixpanel datadog.
 
 Phase 2 — three parallel reads (max 4 parallel; we use 3):

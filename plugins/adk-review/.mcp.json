@@ -1,17 +1,20 @@
 {
   "mcpServers": {
     "github": {
+      "type": "http",
+      "url": "https://api.githubcopilot.com/mcp/readonly",
+      "headers": {
+        "Authorization": "Bearer ${GITHUB_PAT}"
+      },
+      "description": "GitHub remote/hosted MCP at https://api.githubcopilot.com/mcp/ (read-only path; remove /readonly for write mode). Auth: PAT via Authorization: Bearer $GITHUB_PAT (fine-grained — Contents:Read, Pull Requests:Read+Write, Issues:Read+Write, Actions:Read, Metadata:Read, read:org, read:project, notifications). To use OAuth instead of PAT: delete the headers block; Claude Code will run the OAuth flow on first connect. For write mode (skills that post — review-pr, review-feedback, audit-pr postback): change /mcp/readonly → /mcp/ in the URL, or use the gh CLI fallback. See SETUP.md §4.1."
+    },
+    "bitbucket": {
       "command": "sh",
       "args": [
         "-c",
-        "GITHUB_PERSONAL_ACCESS_TOKEN=$GITHUB_PAT GITHUB_TOOLSETS=$GITHUB_TOOLSETS GITHUB_READ_ONLY=$GITHUB_READ_ONLY docker run -i --rm -e GITHUB_PERSONAL_ACCESS_TOKEN -e GITHUB_TOOLSETS -e GITHUB_READ_ONLY ghcr.io/github/github-mcp-server:v1.0.3"
+        "BITBUCKET_USERNAME=$BITBUCKET_USERNAME BITBUCKET_PASSWORD=$BITBUCKET_TOKEN npx -y bitbucket-mcp@latest"
       ],
-      "env": {
-        "GITHUB_PAT": "${GITHUB_PAT}",
-        "GITHUB_TOOLSETS": "${GITHUB_TOOLSETS:-context,repos,issues,pull_requests,actions,users}",
-        "GITHUB_READ_ONLY": "${GITHUB_READ_ONLY:-1}"
-      },
-      "description": "GitHub MCP via Docker (ghcr.io/github/github-mcp-server pinned to v1.0.3). Requires GITHUB_PAT (fine-grained PAT, repo+pull-request+actions+read:org). Read-only by default; flip GITHUB_READ_ONLY=0 only for approved postback stages. See SETUP.md."
+      "description": "Bitbucket MCP via npx (npm package: bitbucket-mcp). Auth: $BITBUCKET_USERNAME + $BITBUCKET_TOKEN (workspace access token or app password). Surface: PR read/comment/approve, pipelines, branching model, repos. Sibling to the github MCP for teams that mirror or migrate between hosts. See SETUP.md §4.4."
     }
   }
 }

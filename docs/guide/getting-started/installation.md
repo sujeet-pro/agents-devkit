@@ -14,8 +14,9 @@ manifest lives at `.claude-plugin/marketplace.json` and exposes five plugins:
 
 - Claude Code with plugin support.
 - `gh`, `jq`, `fd`, `rg`, `node`, and Docker if you use the GitHub MCP.
-- Env vars for shipped MCPs when needed: `GITHUB_PAT`, `DD_API_KEY`,
-  `DD_APP_KEY`, and `STATSIG_CONSOLE_API_KEY`.
+- Env vars for shipped MCPs when needed: `GITHUB_PAT`, `DATADOG_API_KEY`,
+  `DATADOG_APP_KEY` (legacy `DD_API_KEY` / `DD_APP_KEY` also accepted via
+  shell alias), and `STATSIG_CONSOLE_API_KEY`.
 - Workspace connectors enabled for Atlassian, Google Drive, Gmail, Google
   Calendar, Slack, Mixpanel, and Snowflake if you plan to use dependent skills.
 

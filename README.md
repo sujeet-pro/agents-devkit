@@ -158,7 +158,7 @@ See [`SETUP.md`](./SETUP.md) for the env-var walkthrough per MCP.
 | [`adk-code`](./plugins/adk-code/README.md) | Write features, fix bugs (with reproducer + regression test), refactor without behavior change, migrate frameworks, write/expand tests, diagnose perf, design APIs, harden security. | No |
 | [`adk-review`](./plugins/adk-review/README.md) | Review someone else's PR, review your local changes, address PR feedback, capture handoff, run quick / whole-repo audits. Ships GitHub MCP (Docker) with `gh` CLI fallback. | Yes — `GITHUB_PAT` env var (for the GitHub MCP / `gh` CLI) |
 | [`adk-docs`](./plugins/adk-docs/README.md) | Write/review prose docs, draft PR descriptions and commit messages, append changelog entries, author Mermaid diagrams, publish to Confluence / Google Drive (via workspace connectors). | No (requires workspace Atlassian + Google Drive connectors) |
-| [`adk-investigate`](./plugins/adk-investigate/README.md) | Query Datadog, Mixpanel, Statsig, Snowflake, GitHub deploys, Slack incident discussions. Composite incident / experiment / RCA workflows. Ships custom MCPs for Datadog and Statsig. | Yes — `DD_API_KEY`, `DD_APP_KEY`, `STATSIG_CONSOLE_API_KEY` |
+| [`adk-investigate`](./plugins/adk-investigate/README.md) | Query Datadog, Mixpanel, Statsig, Snowflake, GitHub deploys, Slack incident discussions. Composite incident / experiment / RCA workflows. Ships custom MCPs for Datadog and Statsig. | Yes — `DATADOG_API_KEY`, `DATADOG_APP_KEY` (legacy `DD_*` accepted), `STATSIG_CONSOLE_API_KEY` |
 
 ---
 
@@ -170,7 +170,8 @@ Claude Code can load the plugin-local `.mcp.json` files shipped by `adk-review` 
 
 | Capability | Source | Plugins consuming |
 | --- | --- | --- |
-| GitHub | Custom MCP (`ghcr.io/github/github-mcp-server` via Docker, pinned to `v1.0.3`) + `gh` CLI fallback | `adk-review`, `adk-docs` |
+| GitHub | Custom MCP — GitHub hosted at `api.githubcopilot.com/mcp/` (PAT or OAuth) + `gh` CLI fallback | `adk-review`, `adk-docs` |
+| Bitbucket | Custom MCP — `bitbucket-mcp` via npx (workspace access token or app password) | `adk-review` |
 | Datadog | Custom MCP — Datadog hosted at `mcp.datadoghq.com` (Preview) | `adk-investigate` |
 | Statsig | Custom MCP — Statsig hosted at `api.statsig.com/v1/mcp` | `adk-investigate` |
 | Atlassian (Jira + Confluence) | Workspace connector (Rovo) | `adk-docs`, `adk-investigate` |

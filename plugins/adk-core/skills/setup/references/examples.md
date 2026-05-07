@@ -37,7 +37,7 @@ User runs `gh auth login`.
 
 User fills `info.md` (name, email), `repos.md` (3 repos), `datadog.md` (site + service aliases). Skips others for now.
 
-**Phase 5:** env-var report — `GITHUB_PAT` and `DD_API_KEY` present (from earlier shell config); `DD_APP_KEY` and `STATSIG_CONSOLE_API_KEY` missing.
+**Phase 5:** env-var report — `GITHUB_PAT` and `DATADOG_API_KEY` present (from earlier shell config); `DATADOG_APP_KEY` and `STATSIG_CONSOLE_API_KEY` missing.
 
 **Phase 6:** final report. 2 warnings (missing env vars).
 

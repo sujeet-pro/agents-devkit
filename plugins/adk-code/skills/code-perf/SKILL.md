@@ -70,7 +70,7 @@ Phase 1 — preflight
   - tests / typecheck / lint commands resolved.
   - Baseline check: tests green on HEAD.
   - If the work needs Datadog: bin/adk-mcp-health for DD reachability;
-    DD_API_KEY + DD_APP_KEY present.
+    DATADOG_API_KEY + DATADOG_APP_KEY present (legacy DD_API_KEY / DD_APP_KEY also accepted).
 
 Phase 2 — MEASURE (capture baseline)
   - Capture the current performance signal:

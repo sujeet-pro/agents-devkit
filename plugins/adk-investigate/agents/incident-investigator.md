@@ -37,7 +37,7 @@ The agent reads from these sources, in parallel where possible:
 | Datadog monitors | MCP `get_monitors` | which fired, severity, tags |
 | Datadog dashboards | MCP `list_dashboards` | optional digest of pinned dashboards |
 | Recent deploys | `gh run list` (CLI) via `/adk-investigate:investigate-deploy` | per repo: timestamp, status, SHA, author, workflow URL |
-| Slack | workspace MCP (Slack connector) | last N messages in `~/.config/adk/slack.md.incident_channel`, threads mentioning service / symptom |
+| Slack | workspace MCP (Slack connector) | last N messages in `~/.config/adk/slack.md.incident_channel` (team chatter); plus `slack.md.alert_channels.<service>` (where Datadog monitors for the service post); plus `slack.md.deploy_channels.prod` for cross-reference if deploy timing is in question. Threads mentioning service / symptom only. |
 | Statsig audit log | hosted MCP `Get_Audit_Logs` | gate / experiment / config edits in window (`investigate-rca` only by default) |
 | Repo context | `git`, repo `repos.md` mapping | resolves `checkout` → `acme/checkout-api` → local checkout |
 
@@ -63,10 +63,10 @@ The agent NEVER:
 
 ## Workflow inside the skill
 
-1. **Receive** the slug + window + service + (optional) Slack channel from the calling skill.
+1. **Receive** the slug + window + service + (optional) Slack channel + (optional) `entities.md` (which records source URLs and the symptom + service + timestamp each contributed) from the calling skill. The calling skill is responsible for running `/adk-core:context-gather` on any input URLs in its Phase 0a; the agent does not re-fetch them.
 2. **Spawn parallel reads:** Datadog logs / metrics / traces / monitors via the MCP tools; `investigate-deploy` for recent deploys (max 4 parallel per the dispatcher rule).
 3. **Wait for all reads.** If any read fails, surface it; continue with what's available; flag the gap in the report.
-4. **(Optional) Slack scrape.** If `slack-channel` arg present and `slack` workspace MCP reachable, pull last N messages + threads mentioning service / symptom.
+4. **(Optional) Slack scrape.** If the `slack` workspace connector is reachable, pull last N messages + threads mentioning the service / symptom from: (a) `slack-channel` arg or `slack.md.incident_channel` (team chatter); and (b) `slack.md.alert_channels.<service>` if a value exists for the resolved service tag (which monitors fired and when). Both feeds are quoted ≤15 words per message and de-duplicated by thread permalink before correlation.
 5. **(RCA only) Statsig audit log.** `Get_Audit_Logs --since (window.start - 2h) --until (window.end + 2h)`.
 6. **Correlate.** Walk the patterns in `references/multi-source-protocol.md`:
    - Deploy just before symptom + log/metric signal in same window → likely regression. Confidence depends on how clean the temporal alignment is.

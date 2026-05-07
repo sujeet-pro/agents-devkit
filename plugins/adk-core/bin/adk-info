@@ -28,9 +28,9 @@
  *   - The `info.md` `name` and `email` fields are plaintext (intentional).
  */
 
-const fs = require("node:fs");
-const path = require("node:path");
-const os = require("node:os");
+import fs from "node:fs";
+import path from "node:path";
+import os from "node:os";
 
 const CONFIG_DIR = process.env.ADK_CONFIG_DIR || path.join(os.homedir(), ".config", "adk");
 
@@ -138,9 +138,9 @@ function parseYaml(src) {
     if (!m) continue;
     const [, key, val] = m;
     if (val === "" || val === undefined) {
-      // Could be a nested map OR a list — peek next non-empty line
+      // Could be a nested map OR a list — peek next non-empty, non-comment line
       let j = i + 1;
-      while (j < lines.length && !lines[j].trim()) j++;
+      while (j < lines.length && (!lines[j].trim() || lines[j].trim().startsWith("#"))) j++;
       const peek = lines[j] || "";
       const peekIndent = peek.match(/^ */)[0].length;
       if (peek.slice(peekIndent).startsWith("- ") && peekIndent > indent) {
@@ -185,15 +185,18 @@ function parseScalar(s) {
   if (s === undefined || s === null) return "";
   s = String(s).trim();
   if (s === "") return "";
+  // strip wrapping quotes (a quoted value keeps any '#' literally)
+  if ((s.startsWith('"') && s.endsWith('"')) || (s.startsWith("'") && s.endsWith("'"))) {
+    return s.slice(1, -1);
+  }
+  // unquoted YAML: whitespace + '#' begins a trailing comment.
+  s = s.replace(/\s+#.*$/, "").trim();
+  if (s === "") return "";
   if (s === "true") return true;
   if (s === "false") return false;
   if (s === "null") return null;
   if (/^-?\d+$/.test(s)) return Number(s);
   if (/^-?\d+\.\d+$/.test(s)) return Number(s);
-  // strip wrapping quotes
-  if ((s.startsWith('"') && s.endsWith('"')) || (s.startsWith("'") && s.endsWith("'"))) {
-    return s.slice(1, -1);
-  }
   return s;
 }
 

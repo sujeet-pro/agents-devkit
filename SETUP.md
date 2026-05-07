@@ -30,7 +30,7 @@ gh auth login              # one-time GitHub auth
 | `ripgrep` (`rg`) | Fast in-file search (used everywhere) |
 | `fzf` | Optional interactive picker for `adk-core:setup` |
 | `node` ≥ 18 | Used by `bin/adk-info` (parses `~/.config/adk/*.md` to JSON) |
-| `docker` | Required by the GitHub MCP (which runs as a Docker container). Optional if you use the `gh` CLI fallback only |
+| `docker` | Optional. Used to be required by the GitHub MCP; the plugin now points at GitHub's hosted MCP (`api.githubcopilot.com/mcp/`), so Docker is no longer needed for adk itself |
 
 ---
 
@@ -64,34 +64,50 @@ Files are plain markdown with YAML front-matter. The `adk-info` bin script parse
 
 ## 4. Custom MCP servers (shipped by adk)
 
-Three custom MCPs ship with adk because no claude.ai workspace connector covers them.
+Four custom MCPs ship with adk because no claude.ai workspace connector covers them.
 
 Claude Code can load these from each plugin's `.mcp.json`. Claude Desktop does not load plugin-local `.mcp.json`; configure the equivalent custom connector in Desktop before running a skill that requires it. If you are using a dry-run mode that does not need remote writes, you can tell the skill to skip a write-capability check, but the skill still verifies whatever read path is required to gather evidence.
 
 ### 4.1 GitHub — `plugins/adk-review/.mcp.json`
 
-Single canonical implementation: GitHub's own `github/github-mcp-server`, distributed only as a Docker image on GHCR. Pinned to `v1.0.3`.
+Points at GitHub's hosted/remote MCP at `https://api.githubcopilot.com/mcp/` (see [github/github-mcp-server](https://github.com/github/github-mcp-server)). No Docker, no local image. Read-only by default — the plugin's URL ends in `/readonly`. Skills that post (`review-pr`, `review-feedback`, `audit-pr` postback) prefer the `gh` CLI fallback rather than flipping to write mode.
 
-**Env vars:**
+**Authentication — PAT preferred, OAuth fallback:**
+
+| Mode  | Setup                                                                                                                                                                                                                                       |
+| ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| PAT   | Default. Set `GITHUB_PAT` in `~/.zshenv`; the plugin sends it as `Authorization: Bearer $GITHUB_PAT`.                                                                                                                                       |
+| OAuth | Delete the `headers` block from `plugins/adk-review/.mcp.json`. Claude Code runs the OAuth flow on first connect (browser pop-up, then cached). No env var needed. Re-add the `headers` block to switch back. |
+
+Claude Code's static `.mcp.json` does not branch on env-var presence, so there is no automatic "PAT if set, OAuth otherwise". Pick one by editing the headers block.
+
+**Env vars (PAT mode):**
 
 ```bash
 # https://github.com/settings/personal-access-tokens/new
-# Required: Contents:Read, Pull Requests:Read+Write, Issues:Read+Write,
-#           Actions:Read, Metadata:Read, read:org, read:project, notifications
+# Required scopes: Contents:Read, Pull Requests:Read+Write, Issues:Read+Write,
+#                  Actions:Read, Metadata:Read, read:org, read:project, notifications
 export GITHUB_PAT="github_pat_..."
-export GITHUB_TOOLSETS="context,repos,issues,pull_requests,actions,users"   # optional
-export GITHUB_READ_ONLY="1"   # default; flip to 0 only inside skills that post
 ```
 
-**Verifier:**
+**Verifiers:**
 
 ```bash
+# REST API surface check (PAT validity)
 curl -sS -H "Authorization: Bearer $GITHUB_PAT" \
   -H "X-GitHub-Api-Version: 2022-11-28" \
   https://api.github.com/user | jq .login
+
+# MCP endpoint reachability (expect 401 without auth, 200 with valid PAT)
+curl -sS -o /dev/null -w "%{http_code}\n" -X POST \
+  -H "Accept: application/json, text/event-stream" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $GITHUB_PAT" \
+  --data '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{}}}' \
+  https://api.githubcopilot.com/mcp/readonly
 ```
 
-**Fallback:** every adk skill that uses this MCP also supports the `gh` CLI for the same operations. Phase-1 preflight prefers `gh` if both Docker and `gh` are available (faster cold start; doesn't need Docker running).
+**Fallback:** every adk skill that uses this MCP also supports the `gh` CLI for the same operations. The `gh` path is preferred for write operations (already authenticated via `gh auth login`, and avoids the read-only / write-mode URL split).
 
 ### 4.2 Datadog — `plugins/adk-investigate/.mcp.json`
 
@@ -101,10 +117,10 @@ Datadog Bits AI MCP, hosted at `mcp.datadoghq.com` (Preview).
 
 ```bash
 # https://app.datadoghq.com/organization-settings/api-keys
-export DD_API_KEY="..."
+export DATADOG_API_KEY="..."
 # https://app.datadoghq.com/organization-settings/application-keys
 # Required scope: mcp_read (and mcp_write only if you actually need to mute monitors)
-export DD_APP_KEY="..."
+export DATADOG_APP_KEY="..."
 # US1 = datadoghq.com (default); also: datadoghq.eu, us3.datadoghq.com,
 # us5.datadoghq.com, ap1.datadoghq.com, ap2.datadoghq.com
 export DD_SITE="datadoghq.com"
@@ -112,17 +128,28 @@ export DD_SITE="datadoghq.com"
 # export DD_MCP_URL="..."
 ```
 
+`DATADOG_API_KEY` / `DATADOG_APP_KEY` are the canonical names. Legacy
+`DD_API_KEY` / `DD_APP_KEY` are also accepted: alias them in your shell rc so
+the canonical `.mcp.json` wiring picks them up:
+
+```bash
+# legacy compat — only if you already have DD_* set
+export DATADOG_API_KEY="$DD_API_KEY"
+export DATADOG_APP_KEY="$DD_APP_KEY"
+```
+
 The plugin-local MCP config sends these values to Datadog using the current
-MCP HTTP header names `DD_API_KEY` and `DD_APPLICATION_KEY`. The REST API
-verifier below still uses Datadog's standard REST headers with hyphens.
+MCP HTTP header names `DD_API_KEY` and `DD_APPLICATION_KEY` (the header names
+on the wire, not the env var names you set). The REST API verifier below
+still uses Datadog's standard REST headers with hyphens.
 
 **Verifiers:**
 
 ```bash
 # REST API surface check
 curl -sS -G "https://api.${DD_SITE}/api/v2/logs/events" \
-  -H "DD-API-KEY: $DD_API_KEY" \
-  -H "DD-APPLICATION-KEY: $DD_APP_KEY" \
+  -H "DD-API-KEY: $DATADOG_API_KEY" \
+  -H "DD-APPLICATION-KEY: $DATADOG_APP_KEY" \
   --data-urlencode "filter[query]=*" \
   --data-urlencode "page[limit]=1" | jq '.meta'
 
@@ -170,6 +197,29 @@ curl -sS -o /dev/null -w "%{http_code}\n" -X POST \
 
 **Tool surface (PE working set):** `Get_Audit_Logs` (last 60m of changes — gold for "what broke prod"), `Get_List_of_Gates`, `Get_Gate_Details_by_ID`, `Get_Gate_Results`, `Get_List_of_Experiments`, `Get_Experiment_Details_by_ID`, `Get_Experiment_Results`, `List_Metrics`.
 
+### 4.4 Bitbucket — `plugins/adk-review/.mcp.json`
+
+Sibling to the GitHub MCP for teams whose code lives on Bitbucket Cloud (or who mirror across both hosts). Runs the npm-published [`bitbucket-mcp`](https://www.npmjs.com/package/bitbucket-mcp) package via `npx -y` (no Docker). Surface includes PR read / comment / approve, pipelines, branching model, and repo metadata.
+
+> Note: the existing `adk-review` skills (`review-pr`, `review-feedback`, `audit-pr`) are written against GitHub. The Bitbucket MCP is shipped so you have it available in the same Claude Code session; downstream skill support is opportunistic for now.
+
+**Env vars:**
+
+```bash
+# Bitbucket Cloud workspace access token (preferred) or app password
+# https://bitbucket.org/account/settings/app-passwords/
+export BITBUCKET_USERNAME="your-bitbucket-username"
+export BITBUCKET_TOKEN="ATBB..."           # workspace access token or app password
+```
+
+**Verifier:**
+
+```bash
+# REST API surface check
+curl -sS -u "$BITBUCKET_USERNAME:$BITBUCKET_TOKEN" \
+  https://api.bitbucket.org/2.0/user | jq '.username'
+```
+
 ---
 
 ## 5. claude.ai workspace connectors (consumed, not shipped)
@@ -196,12 +246,13 @@ Add the exports to `~/.zshenv` (or `~/.bashrc` on bash):
 
 ```bash
 # adk env vars
-export GITHUB_PAT="github_pat_..."
-export GITHUB_READ_ONLY="1"
-export GITHUB_TOOLSETS="context,repos,issues,pull_requests,actions,users"
+export GITHUB_PAT="github_pat_..."   # omit to use OAuth instead (see §4.1)
 
-export DD_API_KEY="..."
-export DD_APP_KEY="..."
+export BITBUCKET_USERNAME="..."
+export BITBUCKET_TOKEN="ATBB..."     # workspace access token or app password (§4.4)
+
+export DATADOG_API_KEY="..."
+export DATADOG_APP_KEY="..."
 export DD_SITE="datadoghq.com"
 
 export STATSIG_CONSOLE_API_KEY="console-..."
@@ -234,15 +285,18 @@ This runs `bin/adk-mcp-health` and reports per-MCP / per-env-var status. Sample 
   - Mixpanel               ✓ Connected
   - Snowflake (workspace)  ✓ Connected
 - shipped MCPs:
-  - github                 ✓ Connected (Docker v1.0.3)        [gh CLI: also available]
+  - github                 ✓ Connected (hosted, PAT auth)     [gh CLI: also available]
+  - bitbucket              ✓ Connected (npx bitbucket-mcp)
   - datadog                ✓ Connected (https://mcp.datadoghq.com)
   - statsig                ✓ Connected (https://api.statsig.com/v1/mcp)
 
 env vars referenced by adk plugins:
-  - GITHUB_PAT             present
-  - DD_API_KEY             present
-  - DD_APP_KEY             present
-  - DD_SITE                present (datadoghq.com)
+  - GITHUB_PAT              present
+  - BITBUCKET_USERNAME      present
+  - BITBUCKET_TOKEN         present
+  - DATADOG_API_KEY         present
+  - DATADOG_APP_KEY         present
+  - DD_SITE                 present (datadoghq.com)
   - STATSIG_CONSOLE_API_KEY present
 ```
 
@@ -263,8 +317,8 @@ If any line is `MISSING` or `Not connected`, the report shows the exact `export`
 
 | Symptom | Likely cause | Fix |
 | --- | --- | --- |
-| `/adk-investigate:investigate-datadog` says "DD MCP not reachable" | `DD_API_KEY` or `DD_APP_KEY` missing in Claude Code's env | Add to `~/.zshenv`, restart Claude Code |
-| GitHub MCP times out on first call | Docker not running | `open -a Docker`, wait for the whale, retry |
+| `/adk-investigate:investigate-datadog` says "DD MCP not reachable" | `DATADOG_API_KEY` or `DATADOG_APP_KEY` missing in Claude Code's env (or you set legacy `DD_*` but never aliased them) | Add to `~/.zshenv`, restart Claude Code |
+| GitHub MCP returns 401 / "needs authentication" | `GITHUB_PAT` not exported, expired, or missing scopes | Re-mint PAT (see §4.1), `export GITHUB_PAT=...` in `~/.zshenv`, restart Claude Code. Or remove the `headers` block from `plugins/adk-review/.mcp.json` to switch to OAuth. |
 | Statsig MCP returns 401 | API key wrong scope | Mint a new key with `omni_read_only` scope |
 | Workspace connector says "Not connected" | Workspace admin hasn't enabled it | Ask your Claude admin to enable Atlassian / Slack / etc. |
 | `adk-info` outputs `unset` for a `${ENV_VAR}` field | env var not exported | Add the `export` line to `~/.zshenv`, restart shell + Claude Code |

@@ -7,8 +7,13 @@ site: datadoghq.com              # datadoghq.com | datadoghq.eu | us3.datadoghq.
 default_env: prod
 default_window: last 1h
 auth:
-  api_key_env: DD_API_KEY
-  app_key_env: DD_APP_KEY
+  # Canonical: DATADOG_API_KEY / DATADOG_APP_KEY. Legacy DD_API_KEY / DD_APP_KEY
+  # are also accepted — adk-mcp-health treats either as "present". To use the
+  # legacy names with the canonical .mcp.json wiring, alias them in your shell rc:
+  #   export DATADOG_API_KEY="$DD_API_KEY"
+  #   export DATADOG_APP_KEY="$DD_APP_KEY"
+  api_key_env: DATADOG_API_KEY
+  app_key_env: DATADOG_APP_KEY
 service_aliases:
   # short-name -> canonical service tag in DD
   checkout: checkout-api

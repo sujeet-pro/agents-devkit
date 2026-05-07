@@ -7,7 +7,7 @@
 
 | Component           | What                                                                                       |
 | ------------------- | ------------------------------------------------------------------------------------------ |
-| **Skills (7)**      | `auto`, `prompt-expand`, `setup`, `info`, `temp-folder`, `mode-contract`, `context-gather` |
+| **Skills (8)**      | `auto`, `prompt-expand`, `setup`, `config-update`, `info`, `temp-folder`, `mode-contract`, `context-gather` |
 | **Agents (3)**      | `dispatcher`, `prompt-expander`, `context-gatherer`                                        |
 | **Hooks**           | `PreToolUse:Bash` safety, `SessionStart` banner, `PostToolUse:Edit|Write` task/frontmatter checks |
 | **Bin scripts (3)** | `adk-info`, `adk-task-slug`, `adk-mcp-health`                                              |
@@ -44,6 +44,17 @@ Creates `~/.config/adk/*.md` from templates; checks CLI deps; lists missing env 
 /adk-core:setup                   # walk every topic
 /adk-core:setup --target datadog  # one topic
 /adk-core:setup --auto            # repeat-run health check
+```
+
+### `config-update` — refresh meta-info against live sources
+
+Different from `setup` (which bootstraps files from templates): keeps drift-prone fields current by querying each source — Datadog dashboards, Statsig active experiments, Mixpanel top events, GitHub repos / CODEOWNERS, Snowflake schema — cross-referencing names against code, and proposing diffs. Read-only against sources; writes only to `~/.config/adk/*.md`, and only under `--fix`.
+
+```text
+/adk-core:config-update                     # diagnostic sweep across all topics
+/adk-core:config-update --target statsig    # one topic
+/adk-core:config-update --fix               # apply proposed changes after confirmation
+/adk-core:config-update --auto --fix        # unattended apply (still asks per removal)
 ```
 
 ### `info` — read & merge meta-info
@@ -175,6 +186,7 @@ adk-core/
     ├── auto/{SKILL.md, references/*.md}
     ├── prompt-expand/{SKILL.md, references/*.md}
     ├── setup/{SKILL.md, references/*.md, templates/*.md}
+    ├── config-update/{SKILL.md, references/*.md}
     ├── info/{SKILL.md, references/*.md}
     ├── temp-folder/{SKILL.md, references/*.md}
     ├── mode-contract/{SKILL.md, references/*.md, scripts/parse-mode.sh}

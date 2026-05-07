@@ -14,7 +14,7 @@
   | env | (omitted) | `prod` | `datadog.md.default_env` (verified) |
   | use | (omitted) | `investigate` (logs) | prompt match |
 
-**Phase 1:** preflight green. `datadog` MCP `connected`; `DD_API_KEY` and `DD_APP_KEY` present.
+**Phase 1:** preflight green. `datadog` MCP `connected`; `DATADOG_API_KEY` and `DATADOG_APP_KEY` present.
 
 **Phase 2:**
 1. Build query: `service:checkout-api env:prod status:error` over `[now-1h, now]`.
