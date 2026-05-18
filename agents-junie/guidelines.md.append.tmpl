@@ -1,0 +1,21 @@
+<!-- adk-marker:start -->
+# adk v3 routing (installed by ./install.sh --target junie)
+
+For every prompt, follow the routing in {{ADK_REPO}}/AGENTS.md.
+
+The 8 adk skills, each a markdown spec at:
+- {{ADK_REPO}}/skills/adk-implement/SKILL.md — write code from Jira / issue / freeform
+- {{ADK_REPO}}/skills/adk-review/SKILL.md — review any target
+- {{ADK_REPO}}/skills/adk-investigate/SKILL.md — query 3P data sources
+- {{ADK_REPO}}/skills/adk-document/SKILL.md — generate markdown artifacts
+- {{ADK_REPO}}/skills/adk-sync/SKILL.md — read/write 3P
+- {{ADK_REPO}}/skills/adk-setup/SKILL.md — bootstrap
+- {{ADK_REPO}}/skills/adk-improve/SKILL.md — self-improvement loop
+- {{ADK_REPO}}/skills/adk-explain/SKILL.md — advisor
+
+Hard rules across all skills: {{ADK_REPO}}/shared/constitution.md
+Question-first contract: {{ADK_REPO}}/shared/question-first.md
+Decision logging schema: {{ADK_REPO}}/shared/decision-log-schema.md
+
+When the user asks to implement / review / investigate / document / sync / setup / improve / explain, load the matching skill spec and follow its workflow.
+<!-- adk-marker:end -->

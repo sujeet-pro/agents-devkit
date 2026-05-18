@@ -1,14 +1,14 @@
 {
-  // adk marketplace documentation site
-  name: "adk marketplace",
-  title: "adk Marketplace",
-  description: "Principal Engineer workflow plugins for Claude Code and Claude Desktop",
+  // adk v3 documentation site
+  name: "adk",
+  title: "adk — agents-devkit",
+  description: "Single-repo, multi-agent skill kit. 8 polymorphic skills, 9 MCPs, 9 subagents, installed via install.sh into Claude Code / Cursor / Codex CLI / Junie at user level.",
 
   // Paths
   contentDir: "./docs",
   outDir: "gh-pages",
 
-  // Site — basePath must match the URL path (e.g. /repo-name for https://user.github.io/repo-name/)
+  // Site
   origin: "https://projects.sujeet.pro/agents-devkit",
   basePath: "/agents-devkit",
 

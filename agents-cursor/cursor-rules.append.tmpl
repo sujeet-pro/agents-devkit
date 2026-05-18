@@ -1,0 +1,23 @@
+---
+description: adk v3 — routes every prompt through {{ADK_REPO}}/AGENTS.md
+alwaysApply: true
+---
+
+<!-- adk-marker:start -->
+# adk routing (installed by install.sh)
+
+For every prompt, follow {{ADK_REPO}}/AGENTS.md. Specifically:
+
+1. Read intent → skill table in AGENTS.md.
+2. Use the 8 `/adk-*` slash skills (installed under `~/.cursor/rules/adk-*.mdc`).
+3. Apply {{ADK_REPO}}/shared/constitution.md as hard rules.
+4. Apply {{ADK_REPO}}/shared/question-first.md before any skill executes.
+5. Log every non-trivial decision to ~/.config/adk/learning/decisions.jsonl via {{ADK_REPO}}/scripts/decision_logger.py.
+
+Reference:
+- @AGENTS.md
+- @shared/constitution.md
+- @shared/advisor.md
+- @shared/question-first.md
+- @shared/decision-log-schema.md
+<!-- adk-marker:end -->

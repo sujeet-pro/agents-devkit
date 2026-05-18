@@ -1,68 +1,61 @@
 ---
 title: Philosophy
-description: The operating principles behind the adk marketplace.
-order: 1
+description: The operating principles behind adk — accuracy over coverage, advisor strategy, smallest correct change, plan/act tool enforcement, self-improving defaults, and the constitution.
+order: 2
 ---
 
 # Philosophy
 
-`adk` is shaped for a Principal Engineer using Claude as a working partner, not
-as an unchecked automation runner. The marketplace optimizes for accuracy,
-small correct changes, reviewability, and explicit approval before shared-state
-actions.
+`adk` is shaped for a Principal Engineer using AI agents (Claude Code, Cursor, Codex, Junie) as working partners — never as unchecked automation runners. Every skill optimizes for accuracy, smallest correct change, reviewability, and explicit approval before shared-state actions.
 
-## Core Principles
+## Core principles
 
-### Verify Before Claiming
+### 1. Verify before claiming
 
-Skills should read the file, inspect the diff, run the command, or query the
-metric before stating a fact. When evidence is missing, the skill should say so.
+Skills read the file, inspect the diff, run the command, or query the metric before stating a fact. When evidence is missing, the skill says so — it doesn't invent. Every non-trivial claim cites `path:line` or a quoted source.
 
-### Smallest Correct Change
+### 2. Smallest correct change
 
-Implementation skills prefer the smallest change that satisfies the request and
-fits the repo. No drive-by refactors, speculative abstractions, or cleanup mixed
-into unrelated work.
+Implementation skills prefer the smallest change that satisfies the request and fits the repo. No drive-by refactors. No speculative abstractions. No cleanup mixed into unrelated work. The constitution forbids this at §V.
 
-### Prompt Expansion First
+### 3. Question-first execution
 
-Natural language prompts are often fuzzy. `adk-core:auto` and each direct skill
-start by restating the request, resolving entities from `~/.config/adk/*.md`,
-and choosing the smallest skill chain that matches the job.
+Every skill starts with `shared/question-first.md`: up to 3 questions about scope, constraints, and (when relevant) scale verification. Even under `--auto`, the agent records the questions it *would* have asked and the defaults it picked. **Every user answer is training data** for the self-improvement loop.
 
-### Preflight Before Work
+### 4. Advisor strategy
 
-Skills check required CLI tools, MCP servers, workspace connectors, env vars,
-meta-info files, and git state before the main work begins. Missing required
-dependencies stop the run with a concrete fix.
+Every skill is wrapped in `shared/advisor.md`: plan → clarify → present 2–4 trade-off options → defer to user → execute → validate → report. When the user says "I don't know" / "you decide", control hands off to `/adk-explain` — which teaches the user how to choose without picking for them.
 
-### Auto Mode Skips Pauses, Not Safety
+### 5. Plan/act tool enforcement
 
-`--auto` removes per-phase approval pauses. It does not skip validation, does
-not hide failures, and does not allow automatic merges, protected force-pushes,
-branch deletion, rollbacks, or connector writes without explicit approval.
+`--plan` mode literally restricts the implementer to Read/Grep/Glob/WebFetch — no Edit, no Write, no Bash-mutate. This is enforced at the tool level, not by advisor prose. Inspired by Cline's plan/act modes.
 
-### One Skill, One Action
+### 6. Self-improving by design
 
-Each skill has a narrow job. Composite workflows are explicit chains, such as
-incident investigation followed by bugfix followed by local review.
+Every non-trivial fork — every default offered, every user override, every question asked — gets one line in `~/.config/adk/learning/decisions.jsonl`. `/adk-improve` reads these logs and proposes updates to your `~/.config/adk/overrides.yaml.defaults.*`. Your skills get more accurate as you use them.
 
-### Local Meta-Info, No Secrets In Docs
+### 7. Auto mode skips pauses, not safety
 
-Company and repo specifics live in `~/.config/adk/*.md`. Those files can
-reference env vars by name, but raw tokens stay in the shell environment or a
-future `userConfig` secret store.
+`--auto` removes per-phase approval pauses. It does NOT skip validation, does NOT hide failures, and does NOT allow auto-merges, protected force-pushes, branch deletion, rollbacks, or connector writes without explicit approval. Shared-state writes remain per-invocation gated.
 
-## What This Means In Practice
+### 8. One source of user truth
 
-- Code changes are planned, scoped, edited, validated, and reported.
-- Reviews lead with severity and evidence, not volume.
+`~/.config/adk/overrides.yaml` is the single config file you maintain — workspaces, repos, data dictionaries, defaults, RAG config. The skills read it (and any `<repo>/.adk/overrides.yaml` override) at every run. No raw tokens in this file (regex-enforced); secrets live in env vars referenced by `${VAR}` placeholders.
+
+### 9. The constitution is final
+
+`shared/constitution.md` lists universal hard rules: no force-push, no merge from a skill, no monitor / dashboard / gate mutations, no PII queries, no `--no-verify`. Skills cannot override the constitution; `/adk-improve` cannot propose changes to it; only direct human edits to `shared/constitution.md` change it.
+
+## What this means in practice
+
+- Code changes are planned, scoped, edited (via SEARCH/REPLACE blocks), validated, and reported under `<repo>/.temp/<task-slug>/`.
+- Reviews lead with severity and quoted evidence (`path:line` + ≤15 words), not opinion volume.
 - Documentation claims are checked against source files before being written.
-- Investigations pin windows, environments, sources, and confidence.
-- Generated working artifacts live under `.temp/task-<slug>/`, not in the repo.
+- Investigations pin time windows, name confidence levels per claim, and refuse single-source diagnoses.
+- Hooks deterministically block forbidden operations — the safety isn't honor-system.
 
 ## Next
 
 - [Installation](./getting-started/installation.md)
-- [Getting Started](./getting-started/)
+- [Multi-agent setup](./usage/multi-agent.md)
 - [Reference](../reference/)

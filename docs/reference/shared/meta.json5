@@ -1,0 +1,17 @@
+{
+  displayName: "Shared",
+  orderBy: "manual",
+  collapsed: false,
+  items: [
+    "constitution",
+    "advisor",
+    "question-first",
+    "decision-log-schema",
+    "edit-format",
+    "plan-act-mode",
+    "personas",
+    "workflows",
+    "input-classifiers",
+    "guidelines",
+  ],
+}

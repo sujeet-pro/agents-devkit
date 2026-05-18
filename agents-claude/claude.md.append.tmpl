@@ -1,0 +1,19 @@
+<!-- adk-marker:start -->
+<!-- adk v3 — installed by ./install.sh — see https://github.com/sujeet-pro/agents-devkit -->
+
+When processing any prompt, follow the routing in {{ADK_REPO}}/AGENTS.md. It loads at the top of every conversation. Specifically:
+
+1. Read {{ADK_REPO}}/AGENTS.md for intent → skill routing.
+2. Use the 8 `/adk-*` skills installed under `~/.claude/skills/`.
+3. Apply `shared/constitution.md` as the universal hard-rule layer.
+4. Apply `shared/question-first.md` before any skill executes.
+5. Log every non-trivial decision to `~/.config/adk/learning/decisions.jsonl`.
+
+Reference paths (all symlinked into this repo at install time):
+- AGENTS: @{{ADK_REPO}}/AGENTS.md
+- Constitution: @{{ADK_REPO}}/shared/constitution.md
+- Advisor: @{{ADK_REPO}}/shared/advisor.md
+- Question-first: @{{ADK_REPO}}/shared/question-first.md
+- Decision-log schema: @{{ADK_REPO}}/shared/decision-log-schema.md
+
+<!-- adk-marker:end -->

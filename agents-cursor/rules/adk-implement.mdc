@@ -1,0 +1,15 @@
+---
+description: Implement code from any input (Jira / GH issue / Slack / TDD / Confluence / freeform). Polymorphic.
+globs:
+alwaysApply: false
+---
+
+# /adk-implement (Cursor rule)
+
+When the user invokes `/adk-implement` or asks to implement / build / add / ship code, load the skill spec at {{ADK_REPO}}/skills/adk-implement/SKILL.md and follow it.
+
+@{{ADK_REPO}}/AGENTS.md
+@{{ADK_REPO}}/skills/adk-implement/SKILL.md
+@{{ADK_REPO}}/shared/constitution.md
+@{{ADK_REPO}}/shared/advisor.md
+@{{ADK_REPO}}/shared/question-first.md

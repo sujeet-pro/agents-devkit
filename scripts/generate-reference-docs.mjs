@@ -1,4 +1,26 @@
 #!/usr/bin/env node
+// generate-reference-docs.mjs — v3 reference-pages generator.
+//
+// Reads:
+//   skills/adk-<name>/SKILL.md
+//   agents-claude/agents/adk-agent-<name>.md
+//   mcp/adk-mcp-<name>.json
+//   scripts/<name>.py (+ scripts/<name>.mjs)
+//   hooks/hooks.json + hooks/banner.sh
+//   shared/{constitution,advisor,question-first,decision-log-schema,edit-format,plan-act-mode}.md
+//   shared/{personas,workflows,input-classifiers,guidelines}/<name>.md
+//   agents-cursor/, agents-codex/, agents-junie/ (env wrappers)
+//
+// Writes:
+//   docs/reference/skills/<name>.md
+//   docs/reference/agents/<name>.md
+//   docs/reference/mcp/<name>.md
+//   docs/reference/scripts/<name>.md
+//   docs/reference/hooks.md
+//   docs/reference/shared/<group>/<file>.md
+//   docs/reference/agent-envs/<env>.md
+//
+// Idempotent: clears all generated dirs first, then re-writes.
 
 import {
   existsSync,
@@ -6,22 +28,38 @@ import {
   readdirSync,
   readFileSync,
   rmSync,
-  statSync,
   writeFileSync,
 } from "node:fs";
-import { dirname, join, relative, resolve } from "node:path";
+import { basename, dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(__dirname, "..");
-const pluginsDir = join(repoRoot, "plugins");
 const docsRefDir = join(repoRoot, "docs", "reference");
-const marketplacePath = join(repoRoot, ".claude-plugin", "marketplace.json");
-let pluginOrder = new Map();
 
-const generatedDirs = ["plugins", "skills", "agents", "mcp", "bin"].map((name) =>
-  join(docsRefDir, name),
-);
+const GENERATED_DIRS = [
+  "skills",
+  "agents",
+  "mcp",
+  "scripts",
+  "agent-envs",
+  "shared/personas",
+  "shared/workflows",
+  "shared/input-classifiers",
+  "shared/guidelines",
+];
+
+const ORDER_OFFSET = {
+  skills: 1000,
+  agents: 2000,
+  mcp: 3000,
+  scripts: 4000,
+  "agent-envs": 5000,
+  "shared/personas": 6000,
+  "shared/workflows": 6100,
+  "shared/input-classifiers": 6200,
+  "shared/guidelines": 6300,
+};
 
 function readText(path) {
   return readFileSync(path, "utf8");
@@ -33,9 +71,10 @@ function writeFile(path, contents) {
 }
 
 function resetGeneratedDirs() {
-  for (const dir of generatedDirs) {
-    if (existsSync(dir)) rmSync(dir, { recursive: true, force: true });
-    mkdirSync(dir, { recursive: true });
+  for (const dir of GENERATED_DIRS) {
+    const fullDir = join(docsRefDir, dir);
+    if (existsSync(fullDir)) rmSync(fullDir, { recursive: true, force: true });
+    mkdirSync(fullDir, { recursive: true });
   }
 }
 
@@ -46,637 +85,431 @@ function escapeYaml(value) {
 function frontmatter(fields) {
   const lines = ["---"];
   for (const [key, value] of Object.entries(fields)) {
+    if (value === undefined || value === null) continue;
     lines.push(`${key}: ${typeof value === "number" ? value : escapeYaml(value)}`);
   }
   lines.push("---", "");
   return lines.join("\n");
 }
 
-function stripQuotes(value) {
-  return value.replace(/^['"]|['"]$/gu, "");
-}
-
-function parseMarkdownFrontmatter(text) {
+function parseFrontmatter(text) {
   const match = /^---\s*\n([\s\S]*?)\n---\s*\n?/u.exec(text);
-  if (!match) {
-    return { data: {}, body: text };
-  }
-
+  if (!match) return { data: {}, body: text };
   const data = {};
   let activeKey = null;
-  let inBlockScalar = false;
-
-  for (const rawLine of match[1].split("\n")) {
-    const keyValue = /^([A-Za-z0-9_-]+):\s*(.*)$/u.exec(rawLine);
-    if (keyValue) {
-      activeKey = keyValue[1];
-      const value = keyValue[2].trim();
-      if (value === "|" || value === ">") {
+  let inBlock = false;
+  for (const line of match[1].split("\n")) {
+    const kv = /^([A-Za-z0-9_-]+):\s*(.*)$/.exec(line);
+    if (kv) {
+      activeKey = kv[1];
+      const v = kv[2].trim();
+      if (v === "|" || v === ">") {
         data[activeKey] = "";
-        inBlockScalar = true;
+        inBlock = true;
       } else {
-        data[activeKey] = stripQuotes(value);
-        inBlockScalar = false;
+        data[activeKey] = v.replace(/^['"]|['"]$/g, "");
+        inBlock = false;
       }
-      continue;
-    }
-
-    if (inBlockScalar && activeKey && /^\s+/.test(rawLine)) {
-      data[activeKey] = `${data[activeKey]}${data[activeKey] ? "\n" : ""}${rawLine.trimEnd()}`;
+    } else if (inBlock && activeKey && /^\s+/.test(line)) {
+      data[activeKey] = (data[activeKey] ? data[activeKey] + " " : "") + line.trim();
     }
   }
-
-  return {
-    data,
-    body: text.slice(match[0].length),
-  };
+  return { data, body: text.slice(match[0].length) };
 }
 
-function slugFromPath(path) {
-  return path.replace(/[^a-zA-Z0-9._-]+/gu, "-").replace(/^-|-$/gu, "").toLowerCase();
-}
-
-function linkFor(kind, file) {
-  return `./${kind}/${file}`;
-}
-
-function listPluginDirs() {
-  const dirs = new Set(
-    readdirSync(pluginsDir, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory())
-      .map((entry) => entry.name),
-  );
-
-  if (existsSync(marketplacePath)) {
-    const marketplace = JSON.parse(readText(marketplacePath));
-    const ordered = (marketplace.plugins ?? [])
-      .map((plugin) => plugin.name)
-      .filter((name) => dirs.has(name));
-    const leftovers = [...dirs].filter((name) => !ordered.includes(name)).sort();
-    return [...ordered, ...leftovers];
-  }
-
-  return [...dirs].sort();
-}
-
-function orderFor(pluginName, category, index = 0) {
-  const pluginIndex = pluginOrder.get(pluginName) ?? 99;
-  const categoryOrder = {
-    skills: 1,
-    agents: 2,
-    mcp: 3,
-    bin: 4,
-    plugins: 5,
-  }[category] ?? 9;
-  return pluginIndex * 1000 + categoryOrder * 100 + index;
-}
-
-function groupFor(pluginName, categoryTitle) {
-  if (categoryTitle === "Plugin") return "Plugins";
-  return `${shortPluginName(pluginName)}-${typeSlug(categoryTitle)}`;
-}
-
-function sortByPluginThenName(a, b) {
-  const pluginDelta = (pluginOrder.get(a.plugin) ?? 99) - (pluginOrder.get(b.plugin) ?? 99);
-  if (pluginDelta !== 0) return pluginDelta;
-  return a.name.localeCompare(b.name);
-}
-
-function shortPluginName(pluginName) {
-  return pluginName.replace(/^adk-/u, "");
-}
-
-function typeSlug(categoryTitle) {
-  const aliases = {
-    "MCP Servers": "mcp",
-    "Helper Binaries": "bin",
-    Plugin: "plugins",
-  };
-  return slugFromPath(aliases[categoryTitle] ?? categoryTitle.toLowerCase());
-}
-
-function pageSlug(docFile) {
-  return docFile.replace(/\.md$/u, "");
-}
-
-function referenceSlug(kind, docFile) {
-  return `${kind}/${pageSlug(docFile)}`;
-}
-
-function findSkillFiles(pluginName) {
-  const skillsDir = join(pluginsDir, pluginName, "skills");
-  if (!existsSync(skillsDir)) return [];
-
-  return readdirSync(skillsDir, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory())
-    .map((entry) => {
-      const file = join(skillsDir, entry.name, "SKILL.md");
-      return existsSync(file) ? { name: entry.name, file } : null;
-    })
-    .filter(Boolean)
-    .sort((a, b) => a.name.localeCompare(b.name));
-}
-
-function findAgentFiles(pluginName) {
-  const agentsDir = join(pluginsDir, pluginName, "agents");
-  if (!existsSync(agentsDir)) return [];
-
-  return readdirSync(agentsDir, { withFileTypes: true })
-    .filter((entry) => entry.isFile() && entry.name.endsWith(".md"))
-    .map((entry) => ({ name: entry.name.replace(/\.md$/u, ""), file: join(agentsDir, entry.name) }))
-    .sort((a, b) => a.name.localeCompare(b.name));
-}
-
-function findBinFiles(pluginName) {
-  const binDir = join(pluginsDir, pluginName, "bin");
-  if (!existsSync(binDir)) return [];
-
-  return readdirSync(binDir, { withFileTypes: true })
-    .filter((entry) => entry.isFile())
-    .map((entry) => ({ name: entry.name, file: join(binDir, entry.name) }))
-    .sort((a, b) => a.name.localeCompare(b.name));
-}
-
-function extractEnvRefs(value) {
-  const refs = new Set();
-  const text = JSON.stringify(value);
-  for (const match of text.matchAll(/\$\{([A-Z0-9_]+)(?::-[^}]*)?\}/gu)) {
-    refs.add(match[1]);
-  }
-  return [...refs].sort();
-}
-
-function codeBlockLanguage(file) {
-  if (file.endsWith(".js") || file.endsWith(".mjs")) return "js";
-  if (file.endsWith(".sh")) return "bash";
-  if (file.endsWith(".py")) return "python";
-  return "text";
-}
-
-function compactDescription(value, maxLength = 220) {
+function compactDesc(value, maxLength = 220) {
   const compact = String(value ?? "").replace(/\s+/gu, " ").trim();
   if (compact.length <= maxLength) return compact;
   return `${compact.slice(0, maxLength - 3).replace(/\s+\S*$/u, "")}...`;
 }
 
-function generatePluginDocs(pluginName, allSkills, allAgents, allBins) {
-  const manifestPath = join(pluginsDir, pluginName, ".claude-plugin", "plugin.json");
-  if (!existsSync(manifestPath)) return null;
-
-  const manifest = JSON.parse(readText(manifestPath));
-  const skills = allSkills.filter((skill) => skill.plugin === pluginName);
-  const agents = allAgents.filter((agent) => agent.plugin === pluginName);
-  const bins = allBins.filter((bin) => bin.plugin === pluginName);
-  const filename = `${pluginName}.md`;
-
-  const deps = (manifest.dependencies ?? [])
-    .map((dep) => `- \`${dep.name}\` ${dep.version ?? ""}`.trim())
-    .join("\n");
-
-  const body = `${frontmatter({
-    title: manifest.name ?? pluginName,
-    description: manifest.description ?? "",
-    plugin: pluginName,
-    source: relative(repoRoot, manifestPath),
-    group: groupFor(pluginName, "Plugin"),
-    order: orderFor(pluginName, "plugins"),
-  })}# ${manifest.name ?? pluginName}
-
-${manifest.description ?? ""}
-
-## Source
-
-\`${relative(repoRoot, manifestPath)}\`
-
-## Dependencies
-
-${deps || "None declared."}
-
-## Skills
-
-${skills.map((skill) => `- [\`${skill.name}\`](../skills/${skill.docFile})`).join("\n") || "No skills."}
-
-## Agents
-
-${agents.map((agent) => `- [\`${agent.name}\`](../agents/${agent.docFile})`).join("\n") || "No agents."}
-
-## Helper Binaries
-
-${bins.map((bin) => `- [\`${bin.name}\`](../bin/${bin.docFile})`).join("\n") || "No helper binaries."}
-`;
-
-  writeFile(join(docsRefDir, "plugins", filename), body);
-  return { name: manifest.name ?? pluginName, plugin: pluginName, docFile: filename, description: manifest.description ?? "" };
+function langForFile(name) {
+  if (name.endsWith(".py")) return "python";
+  if (name.endsWith(".mjs") || name.endsWith(".js")) return "js";
+  if (name.endsWith(".sh")) return "bash";
+  if (name.endsWith(".json")) return "json";
+  if (name.endsWith(".json5")) return "json5";
+  if (name.endsWith(".yaml") || name.endsWith(".yml")) return "yaml";
+  if (name.endsWith(".toml")) return "toml";
+  return "text";
 }
 
-function generateSkillDocs(pluginName) {
-  const skills = [];
-  for (const [skillIndex, skill] of findSkillFiles(pluginName).entries()) {
-    const text = readText(skill.file);
-    const parsed = parseMarkdownFrontmatter(text);
-    const name = parsed.data.name || skill.name;
-    const docFile = `${pluginName}-${slugFromPath(name)}.md`;
-    const source = relative(repoRoot, skill.file);
-    const title = `${pluginName}:${name}`;
-    const description = parsed.data.description || `Skill ${name} from ${pluginName}.`;
-    const body = `${frontmatter({
-      title,
-      description,
-      plugin: pluginName,
+// ----- Skills --------------------------------------------------------------
+
+function generateSkillPages() {
+  const skillsDir = join(repoRoot, "skills");
+  if (!existsSync(skillsDir)) return [];
+  const entries = readdirSync(skillsDir, { withFileTypes: true })
+    .filter((e) => e.isDirectory() && e.name.startsWith("adk-"))
+    .sort((a, b) => a.name.localeCompare(b.name));
+  const generated = [];
+  for (const [i, entry] of entries.entries()) {
+    const skillDir = join(skillsDir, entry.name);
+    const skillMd = join(skillDir, "SKILL.md");
+    if (!existsSync(skillMd)) continue;
+    const text = readText(skillMd);
+    const { data, body } = parseFrontmatter(text);
+    const name = data.name || entry.name;
+    const description = data.description || "";
+    const referencesDir = join(skillDir, "references");
+    const refs = existsSync(referencesDir)
+      ? readdirSync(referencesDir).filter((f) => f.endsWith(".md")).sort()
+      : [];
+    const refsList = refs.length
+      ? refs.map((r) => `- \`references/${r}\` — see [\`/${entry.name}/references/${r}\`](https://github.com/sujeet-pro/agents-devkit/blob/main/skills/${entry.name}/references/${r})`).join("\n")
+      : "_(References authored on first real use of each sub-flow.)_";
+    const md = `${frontmatter({
+      title: name,
+      description: compactDesc(description),
       skill: name,
-      source,
-      group: groupFor(pluginName, "Skills"),
-      order: orderFor(pluginName, "skills", skillIndex + 1),
-    })}# ${title}
+      source: relative(repoRoot, skillMd),
+      group: "skills",
+      order: ORDER_OFFSET.skills + i,
+    })}# ${name}
+
+${description}
 
 ## Source
 
-\`${source}\`
+\`${relative(repoRoot, skillMd)}\`
 
-## Skill Body
+## Frontmatter
 
-${parsed.body.trim()}
+\`\`\`yaml
+${(text.match(/^---\s*\n([\s\S]*?)\n---/) || ["", ""])[1]}
+\`\`\`
+
+## Workflow body
+
+${body.trim()}
+
+## References shipped
+
+${refsList}
 `;
-
-    writeFile(join(docsRefDir, "skills", docFile), body);
-    skills.push({ name, plugin: pluginName, docFile, source, description });
+    writeFile(join(docsRefDir, "skills", `${entry.name}.md`), md);
+    generated.push({ name: entry.name, description, file: `${entry.name}.md` });
   }
-  return skills;
+  return generated;
 }
 
-function generateAgentDocs(pluginName) {
-  const agents = [];
-  for (const [agentIndex, agent] of findAgentFiles(pluginName).entries()) {
-    const text = readText(agent.file);
-    const parsed = parseMarkdownFrontmatter(text);
-    const name = parsed.data.name || agent.name;
-    const docFile = `${pluginName}-${slugFromPath(name)}.md`;
-    const source = relative(repoRoot, agent.file);
-    const title = `${pluginName}:${name}`;
-    const description = parsed.data.description || `Agent ${name} from ${pluginName}.`;
-    const body = `${frontmatter({
-      title,
-      description,
-      plugin: pluginName,
+// ----- Agents --------------------------------------------------------------
+
+function generateAgentPages() {
+  const dir = join(repoRoot, "agents-claude", "agents");
+  if (!existsSync(dir)) return [];
+  const files = readdirSync(dir)
+    .filter((f) => f.startsWith("adk-agent-") && f.endsWith(".md"))
+    .sort();
+  const generated = [];
+  for (const [i, file] of files.entries()) {
+    const full = join(dir, file);
+    const text = readText(full);
+    const { data, body } = parseFrontmatter(text);
+    const name = data.name || basename(file, ".md");
+    const description = data.description || "";
+    const md = `${frontmatter({
+      title: name,
+      description: compactDesc(description),
       agent: name,
-      source,
-      group: groupFor(pluginName, "Agents"),
-      order: orderFor(pluginName, "agents", agentIndex + 1),
-    })}# ${title}
+      source: relative(repoRoot, full),
+      group: "agents",
+      order: ORDER_OFFSET.agents + i,
+    })}# ${name}
+
+${description}
 
 ## Source
 
-\`${source}\`
+\`${relative(repoRoot, full)}\`
 
-## Agent Body
+## Frontmatter
 
-${parsed.body.trim()}
+\`\`\`yaml
+${(text.match(/^---\s*\n([\s\S]*?)\n---/) || ["", ""])[1]}
+\`\`\`
+
+## Body
+
+${body.trim()}
 `;
-
-    writeFile(join(docsRefDir, "agents", docFile), body);
-    agents.push({ name, plugin: pluginName, docFile, source, description });
+    writeFile(join(docsRefDir, "agents", file), md);
+    generated.push({ name, description, file });
   }
-  return agents;
+  return generated;
 }
 
-function generateMcpDocs(pluginName) {
-  const mcpPath = join(pluginsDir, pluginName, ".mcp.json");
-  if (!existsSync(mcpPath)) return [];
+// ----- MCPs ----------------------------------------------------------------
 
-  const json = JSON.parse(readText(mcpPath));
-  const servers = Object.entries(json.mcpServers ?? {});
-  const docs = [];
+function extractEnvRefs(value) {
+  const text = JSON.stringify(value);
+  const refs = new Set();
+  for (const m of text.matchAll(/\$\{([A-Z0-9_]+)(?::-[^}]*)?\}/g)) refs.add(m[1]);
+  return [...refs].sort();
+}
 
-  for (const [serverIndex, [name, server]] of servers.entries()) {
-    const docFile = `${pluginName}-${slugFromPath(name)}.md`;
-    const source = relative(repoRoot, mcpPath);
-    const envRefs = extractEnvRefs(server);
-    const body = `${frontmatter({
-      title: `${pluginName}:${name}`,
-      description: server.description ?? `MCP server ${name} from ${pluginName}.`,
-      plugin: pluginName,
+function generateMcpPages() {
+  const dir = join(repoRoot, "mcp");
+  if (!existsSync(dir)) return [];
+  const files = readdirSync(dir)
+    .filter((f) => f.startsWith("adk-mcp-") && f.endsWith(".json"))
+    .sort();
+  const generated = [];
+  for (const [i, file] of files.entries()) {
+    const full = join(dir, file);
+    const cfg = JSON.parse(readText(full));
+    const name = cfg.name || basename(file, ".json");
+    const description = cfg.description || "";
+    const envs = extractEnvRefs(cfg);
+    const md = `${frontmatter({
+      title: name,
+      description: compactDesc(description),
       mcp: name,
-      source,
-      group: groupFor(pluginName, "MCP Servers"),
-      order: orderFor(pluginName, "mcp", serverIndex + 1),
-    })}# ${pluginName}:${name}
+      source: relative(repoRoot, full),
+      group: "mcp",
+      order: ORDER_OFFSET.mcp + i,
+    })}# ${name}
 
-${server.description ?? ""}
+${description}
 
 ## Source
 
-\`${source}\`
+\`${relative(repoRoot, full)}\`
 
-## Environment Variables
+## Environment variables referenced
 
-${envRefs.map((envName) => `- \`${envName}\``).join("\n") || "None declared."}
+${envs.length ? envs.map((e) => `- \`${e}\``).join("\n") : "_(none)_"}
 
 ## Configuration
 
 \`\`\`json
-${JSON.stringify({ [name]: server }, null, 2)}
+${JSON.stringify(cfg, null, 2)}
 \`\`\`
 `;
-
-    writeFile(join(docsRefDir, "mcp", docFile), body);
-    docs.push({ name, plugin: pluginName, docFile, source, description: server.description ?? "" });
+    writeFile(join(docsRefDir, "mcp", file.replace(/\.json$/, ".md")), md);
+    generated.push({ name, description, file: file.replace(/\.json$/, ".md") });
   }
-
-  return docs;
+  return generated;
 }
 
-function generateBinDocs(pluginName) {
-  const docs = [];
-  for (const [binIndex, bin] of findBinFiles(pluginName).entries()) {
-    const text = readText(bin.file);
-    const docFile = `${pluginName}-${slugFromPath(bin.name)}.md`;
-    const source = relative(repoRoot, bin.file);
-    const language = codeBlockLanguage(bin.file);
-    const body = `${frontmatter({
-      title: `${pluginName}:${bin.name}`,
-      description: `Helper binary ${bin.name} from ${pluginName}.`,
-      plugin: pluginName,
-      binary: bin.name,
-      source,
-      group: groupFor(pluginName, "Helper Binaries"),
-      order: orderFor(pluginName, "bin", binIndex + 1),
-    })}# ${pluginName}:${bin.name}
+// ----- Scripts -------------------------------------------------------------
+
+function generateScriptPages() {
+  const dir = join(repoRoot, "scripts");
+  if (!existsSync(dir)) return [];
+  const files = readdirSync(dir)
+    .filter((f) => /\.(py|mjs)$/.test(f))
+    .sort();
+  const generated = [];
+  for (const [i, file] of files.entries()) {
+    const full = join(dir, file);
+    const text = readText(full);
+    // Pull the docstring (Python) or top comment (JS)
+    let summary = "";
+    const pyDoc = /^#!.*\n+"""([\s\S]*?)"""/m.exec(text);
+    const jsDoc = /^#!.*\n+\/\*\*([\s\S]*?)\*\//m.exec(text);
+    if (pyDoc) summary = pyDoc[1].split("\n")[0].trim();
+    else if (jsDoc) summary = jsDoc[1].split("\n").map((l) => l.replace(/^\s*\*\s?/, "")).filter(Boolean)[0] || "";
+    if (!summary) summary = `Helper script ${file}.`;
+    const md = `${frontmatter({
+      title: file,
+      description: compactDesc(summary),
+      script: file,
+      source: relative(repoRoot, full),
+      group: "scripts",
+      order: ORDER_OFFSET.scripts + i,
+    })}# ${file}
+
+${summary}
 
 ## Source
 
-\`${source}\`
+\`${relative(repoRoot, full)}\`
 
 ## Contents
 
-\`\`\`${language}
-${text.trim()}
+\`\`\`${langForFile(file)}
+${text}
 \`\`\`
 `;
-
-    writeFile(join(docsRefDir, "bin", docFile), body);
-    docs.push({ name: bin.name, plugin: pluginName, docFile, source, description: "" });
+    writeFile(join(docsRefDir, "scripts", file.replace(/\.(py|mjs)$/, ".md")), md);
+    generated.push({ name: file, description: summary, file: file.replace(/\.(py|mjs)$/, ".md") });
   }
-  return docs;
+  return generated;
 }
 
-function writeIndex(kind, title, description, items) {
-  const grouped = new Map();
-  for (const item of items) {
-    const key = item.plugin ?? "marketplace";
-    if (!grouped.has(key)) grouped.set(key, []);
-    grouped.get(key).push(item);
-  }
+// ----- Hooks ---------------------------------------------------------------
 
-  const sections = [...grouped.entries()]
-    .sort(([a], [b]) => (pluginOrder.get(a) ?? 99) - (pluginOrder.get(b) ?? 99) || a.localeCompare(b))
-    .map(([plugin, pluginItems]) => {
-      const rows = pluginItems
-        .sort(sortByPluginThenName)
-        .map((item) => {
-          const summary = compactDescription(item.description);
-          return `- [\`${item.name}\`](${item.docFile})${summary ? ` - ${summary}` : ""}`;
-        })
-        .join("\n");
-      return `## ${plugin}\n\n${rows}`;
-    })
-    .join("\n\n");
+function generateHooksPage() {
+  const hooksJson = join(repoRoot, "hooks", "hooks.json");
+  const bannerSh = join(repoRoot, "hooks", "banner.sh");
+  if (!existsSync(hooksJson)) return null;
+  const json = JSON.parse(readText(hooksJson));
+  const banner = existsSync(bannerSh) ? readText(bannerSh) : "";
+  const md = `${frontmatter({
+    title: "Hooks",
+    description: "Deterministic enforcement of the constitution. PreToolUse:Bash safety, PostToolUse:Edit validator, SessionStart banner. Wired into ~/.claude/settings.json by install.sh.",
+    source: "hooks/",
+    group: "hooks",
+    order: 5500,
+  })}# Hooks
 
-  writeFile(
-    join(docsRefDir, kind, "README.md"),
-    `${frontmatter({ title, description })}# ${title}
+Deterministic enforcement of \`shared/constitution.md\`. Three events:
 
-${description}
+- **PreToolUse:Bash** — blocks force-push, hard-reset on protected branches, \`rm -rf $HOME\`, unrequested PR merges, writes to \`~/.config/adk/learning/archive/\`, \`--no-verify\` bypasses.
+- **PostToolUse:Edit\\|Write** — validates SKILL.md frontmatter on writes; touches \`.temp/<task-slug>/.last-modified\`; refuses raw-token writes to \`~/.config/adk/overrides.yaml\`.
+- **SessionStart** — prints the adk status banner.
 
-${sections || "No generated items."}
-`,
-  );
-}
+\`install.sh\` merges these into \`~/.claude/settings.json\` with an \`_adk_managed: true\` tag so they're idempotent and removable on uninstall.
 
-function writeSectionMeta(filePath, displayName, items, series) {
-  const formattedItems = items.map((item) => `    "${item}"`).join(",\n");
-  const formattedSeries = series
-    .map((group) => {
-      const articles = group.articles.map((article) => `        "${article}"`).join(",\n");
-      return `    {
-      slug: "${group.slug}",
-      displayName: "${group.displayName}",
-      articles: [
-${articles}
-      ],
-    }`;
-    })
-    .join(",\n");
+## hooks/hooks.json
 
-  writeFile(
-    filePath,
-    `{
-  displayName: "${displayName}",
-  orderBy: "manual",
-  collapsed: false,
-  items: [
-${formattedItems}
-  ],
-  series: [
-${formattedSeries}
-  ],
-}`,
-  );
-}
+\`\`\`json
+${JSON.stringify(json, null, 2)}
+\`\`\`
 
-function buildMetaSeries(kind, title, items) {
-  if (kind === "plugins") {
-    const orderedItems = [...items]
-      .sort(sortByPluginThenName)
-      .map((item) => pageSlug(item.docFile));
-    return {
-      orderedItems,
-      series: [
-        {
-          slug: "plugins",
-          displayName: "Plugins",
-          articles: orderedItems,
-        },
-      ],
-    };
-  }
-
-  const series = [];
-  const orderedItems = [];
-  for (const pluginName of pluginOrder.keys()) {
-    const pluginItems = items
-      .filter((item) => item.plugin === pluginName)
-      .sort(sortByPluginThenName);
-    if (!pluginItems.length) continue;
-
-    const type = typeSlug(title);
-    series.push({
-      slug: `${shortPluginName(pluginName)}-${type}`,
-      displayName: `${shortPluginName(pluginName)}-${type}`,
-      articles: pluginItems.map((item) => pageSlug(item.docFile)),
-    });
-    orderedItems.push(...pluginItems.map((item) => pageSlug(item.docFile)));
-  }
-  return { orderedItems, series };
-}
-
-function writeCategoryMeta(kind, title, items) {
-  const { orderedItems, series } = buildMetaSeries(kind, title, items);
-  writeSectionMeta(join(docsRefDir, kind, "meta.json5"), title, orderedItems, series);
-}
-
-function writeReferenceMeta({ plugins, skills, agents, mcp, bins }) {
-  const categories = [
-    { kind: "plugins", title: "Plugins", items: plugins },
-    { kind: "skills", title: "Skills", items: skills },
-    { kind: "agents", title: "Agents", items: agents },
-    { kind: "mcp", title: "MCP Servers", items: mcp },
-    { kind: "bin", title: "Helper Binaries", items: bins },
-  ];
-  const items = ["marketplace"];
-  const series = [];
-
-  for (const category of categories) {
-    const { orderedItems, series: categorySeries } = buildMetaSeries(
-      category.kind,
-      category.title,
-      category.items,
-    );
-    items.push(category.kind, ...orderedItems.map((item) => `${category.kind}/${item}`));
-    series.push(
-      ...categorySeries.map((group) => ({
-        ...group,
-        articles: group.articles.map((article) => referenceSlug(category.kind, `${article}.md`)),
-      })),
-    );
-  }
-
-  writeSectionMeta(join(docsRefDir, "meta.json5"), "Reference", items, series);
-}
-
-function renderItemList(kind, items) {
-  if (!items.length) return "None.";
-  return items
-    .sort(sortByPluginThenName)
-    .map((item) => {
-      const summary = compactDescription(item.description, 160);
-      return `- [\`${item.name}\`](./${kind}/${item.docFile})${summary ? ` - ${summary}` : ""}`;
-    })
-    .join("\n");
-}
-
-function writeReferenceOverview({ plugins, skills, agents, mcp, bins }) {
-  const sections = [...pluginOrder.keys()]
-    .map((pluginName) => {
-      const pluginDocs = plugins.filter((item) => item.plugin === pluginName);
-      const skillDocs = skills.filter((item) => item.plugin === pluginName);
-      const agentDocs = agents.filter((item) => item.plugin === pluginName);
-      const mcpDocs = mcp.filter((item) => item.plugin === pluginName);
-      const binDocs = bins.filter((item) => item.plugin === pluginName);
-
-      return `## ${pluginName}
-
-### Skills
-
-${renderItemList("skills", skillDocs)}
-
-### Agents
-
-${renderItemList("agents", agentDocs)}
-
-### MCP Servers
-
-${renderItemList("mcp", mcpDocs)}
-
-### Helper Binaries
-
-${renderItemList("bin", binDocs)}
-
-### Plugin Manifest
-
-${renderItemList("plugins", pluginDocs)}`;
-    })
-    .join("\n\n");
-
-  writeFile(
-    join(docsRefDir, "README.md"),
-    `${frontmatter({
-      title: "Reference",
-      description: "Generated reference grouped by plugin, then by component type: skills, agents, MCP servers, helper binaries, and plugin manifests.",
-    })}# Reference
-
-This section is generated from source files in \`plugins/\` and \`.claude-plugin/marketplace.json\`.
-
-The reference is organized plugin-first. Plugin overview pages live under the \`Plugins\` series. Component pages use plugin/type series groups (for example, \`core-skills\`), ordered by marketplace plugin order and then by component type: skills, agents, MCP servers, helper binaries, plugin manifests.
-
-Run this command after changing source artifacts:
+## hooks/banner.sh
 
 \`\`\`bash
-npm run docs:reference
+${banner}
 \`\`\`
-
-${sections}
-`,
-  );
-}
-
-function writeMarketplacePage() {
-  if (!existsSync(marketplacePath)) return;
-
-  const marketplace = JSON.parse(readText(marketplacePath));
-  const body = `${frontmatter({
-    title: "Marketplace Manifest",
-    description: marketplace.metadata?.description ?? "",
-    source: relative(repoRoot, marketplacePath),
-  })}# Marketplace Manifest
-
-${marketplace.metadata?.description ?? ""}
-
-## Source
-
-\`${relative(repoRoot, marketplacePath)}\`
-
-## Plugins
-
-${(marketplace.plugins ?? []).map((plugin) => `- [\`${plugin.name}\`](./plugins/${plugin.name}.md) - ${plugin.description}`).join("\n")}
 `;
-
-  writeFile(join(docsRefDir, "marketplace.md"), body);
+  writeFile(join(docsRefDir, "hooks.md"), md);
+  return { file: "hooks.md" };
 }
+
+// ----- Shared --------------------------------------------------------------
+
+function generateSharedPages() {
+  const out = {};
+  const sharedDir = join(repoRoot, "shared");
+  if (!existsSync(sharedDir)) return out;
+  const topLevel = [
+    "constitution.md",
+    "advisor.md",
+    "question-first.md",
+    "decision-log-schema.md",
+    "edit-format.md",
+    "plan-act-mode.md",
+  ];
+  for (const [i, f] of topLevel.entries()) {
+    const full = join(sharedDir, f);
+    if (!existsSync(full)) continue;
+    const text = readText(full);
+    const title = `shared/${f.replace(/\.md$/, "")}`;
+    const firstLine = text.split("\n").find((l) => l.trim() && !l.startsWith("#") && !l.startsWith(">")) || "";
+    const md = `${frontmatter({
+      title,
+      description: compactDesc(firstLine),
+      source: `shared/${f}`,
+      group: "shared",
+      order: 5600 + i,
+    })}# ${title}
+
+> Source: \`shared/${f}\`
+
+${text}
+`;
+    writeFile(join(docsRefDir, "shared", f), md);
+    out[f] = `shared/${f}`;
+  }
+  // Subgroups
+  const subgroups = ["personas", "workflows", "input-classifiers", "guidelines"];
+  for (const group of subgroups) {
+    const groupDir = join(sharedDir, group);
+    if (!existsSync(groupDir)) continue;
+    const files = readdirSync(groupDir).filter((f) => f.endsWith(".md")).sort();
+    out[group] = [];
+    for (const [i, f] of files.entries()) {
+      const full = join(groupDir, f);
+      const text = readText(full);
+      const firstLine = text.split("\n").find((l) => l.trim() && !l.startsWith("#") && !l.startsWith(">")) || "";
+      const md = `${frontmatter({
+        title: `${group}/${f.replace(/\.md$/, "")}`,
+        description: compactDesc(firstLine),
+        source: `shared/${group}/${f}`,
+        group: `shared-${group}`,
+        order: ORDER_OFFSET[`shared/${group}`] + i,
+      })}# shared/${group}/${f.replace(/\.md$/, "")}
+
+> Source: \`shared/${group}/${f}\`
+
+${text}
+`;
+      writeFile(join(docsRefDir, "shared", group, f), md);
+      out[group].push(f);
+    }
+  }
+  return out;
+}
+
+// ----- Per-agent-env wrappers ---------------------------------------------
+
+function generateAgentEnvPages() {
+  const envs = ["claude", "cursor", "codex", "junie"];
+  for (const [i, env] of envs.entries()) {
+    const dir = join(repoRoot, `agents-${env}`);
+    if (!existsSync(dir)) continue;
+    const readme = join(dir, "README.md");
+    let bodyExtra = "";
+    if (existsSync(readme)) {
+      bodyExtra = `\n\n## README\n\n${readText(readme)}`;
+    }
+    // List the wrapper files installed for this env
+    function listDir(sub) {
+      const p = join(dir, sub);
+      if (!existsSync(p)) return [];
+      return readdirSync(p).filter((f) => !f.startsWith(".")).sort();
+    }
+    const sections = [];
+    const agentFiles = listDir("agents");
+    if (agentFiles.length) sections.push(`### Subagents (${agentFiles.length})\n\n${agentFiles.map((f) => `- \`agents-${env}/agents/${f}\``).join("\n")}`);
+    const cmdFiles = listDir("commands");
+    if (cmdFiles.length) sections.push(`### Commands (${cmdFiles.length})\n\n${cmdFiles.map((f) => `- \`agents-${env}/commands/${f}\``).join("\n")}`);
+    const ruleFiles = listDir("rules");
+    if (ruleFiles.length) sections.push(`### Rules (${ruleFiles.length})\n\n${ruleFiles.map((f) => `- \`agents-${env}/rules/${f}\``).join("\n")}`);
+    const promptFiles = listDir("prompts");
+    if (promptFiles.length) sections.push(`### Prompts (${promptFiles.length})\n\n${promptFiles.map((f) => `- \`agents-${env}/prompts/${f}\``).join("\n")}`);
+    const templates = readdirSync(dir).filter((f) => f.endsWith(".tmpl") || f.endsWith(".append"));
+    if (templates.length) sections.push(`### Append templates\n\n${templates.map((f) => `- \`agents-${env}/${f}\``).join("\n")}`);
+
+    const md = `${frontmatter({
+      title: `agents-${env}`,
+      description: `adk wrappers for ${env}. See agents-${env}/README.md (if present) for capability status.`,
+      env,
+      source: `agents-${env}/`,
+      group: "agent-envs",
+      order: ORDER_OFFSET["agent-envs"] + i,
+    })}# agents-${env}
+
+Wrappers that install adk into \`${env}\` at user level. Installed via \`./install.sh --target ${env}\`.
+
+${sections.join("\n\n")}${bodyExtra}
+`;
+    writeFile(join(docsRefDir, "agent-envs", `${env}.md`), md);
+  }
+}
+
+// ----- Main ---------------------------------------------------------------
 
 function main() {
-  if (!existsSync(pluginsDir)) {
-    throw new Error(`plugins directory not found: ${pluginsDir}`);
-  }
-
   resetGeneratedDirs();
+  const skills = generateSkillPages();
+  const agents = generateAgentPages();
+  const mcps = generateMcpPages();
+  const scripts = generateScriptPages();
+  generateHooksPage();
+  generateSharedPages();
+  generateAgentEnvPages();
 
-  const pluginNames = listPluginDirs();
-  pluginOrder = new Map(pluginNames.map((name, index) => [name, index]));
-  const allSkills = pluginNames.flatMap(generateSkillDocs);
-  const allAgents = pluginNames.flatMap(generateAgentDocs);
-  const allMcp = pluginNames.flatMap(generateMcpDocs);
-  const allBins = pluginNames.flatMap(generateBinDocs);
-  const allPlugins = pluginNames
-    .map((pluginName) => generatePluginDocs(pluginName, allSkills, allAgents, allBins))
-    .filter(Boolean);
-
-  writeIndex("plugins", "Plugins", "Generated reference pages for marketplace plugin manifests.", allPlugins);
-  writeIndex("skills", "Skills", "Generated reference pages for every SKILL.md shipped by the marketplace.", allSkills);
-  writeIndex("agents", "Agents", "Generated reference pages for every subagent persona shipped by the marketplace.", allAgents);
-  writeIndex("mcp", "MCP Servers", "Generated reference pages for shipped plugin-local MCP servers.", allMcp);
-  writeIndex("bin", "Helper Binaries", "Generated reference pages for executable helper files shipped by plugins.", allBins);
-  writeCategoryMeta("plugins", "Plugins", allPlugins);
-  writeCategoryMeta("skills", "Skills", allSkills);
-  writeCategoryMeta("agents", "Agents", allAgents);
-  writeCategoryMeta("mcp", "MCP Servers", allMcp);
-  writeCategoryMeta("bin", "Helper Binaries", allBins);
-  writeReferenceMeta({ plugins: allPlugins, skills: allSkills, agents: allAgents, mcp: allMcp, bins: allBins });
-  writeReferenceOverview({ plugins: allPlugins, skills: allSkills, agents: allAgents, mcp: allMcp, bins: allBins });
-  writeMarketplacePage();
-
-  console.log(
-    `docs:reference generated ${allPlugins.length} plugins, ${allSkills.length} skills, ${allAgents.length} agents, ${allMcp.length} MCP servers, ${allBins.length} helper binaries`,
-  );
+  console.log(`generated:`);
+  console.log(`  skills:  ${skills.length}`);
+  console.log(`  agents:  ${agents.length}`);
+  console.log(`  mcp:     ${mcps.length}`);
+  console.log(`  scripts: ${scripts.length}`);
+  console.log(`  hooks:   1`);
+  console.log(`  shared:  shared/, shared/personas/, shared/workflows/, shared/input-classifiers/, shared/guidelines/`);
+  console.log(`  agent-envs: claude / cursor / codex / junie`);
 }
 
 main();

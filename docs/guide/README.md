@@ -1,26 +1,30 @@
 ---
 title: Guide
-description: Human-facing guidance for installing and using the adk marketplace.
+description: How adk works — philosophy, install, multi-agent setup, project-scoped overrides, and the concepts that make every skill behave consistently.
 order: 1
 ---
 
 # Guide
 
-Use this section for the human workflow: what `adk` is for, how to install the
-Claude marketplace, how the skills behave, and what to expect in Claude Code or
-Claude Desktop.
+`adk` is opinionated, single-operator-shaped, multi-agent. This guide explains why it works the way it does, how to install it, how to configure it once, and the few concepts every skill leans on.
 
-## Read in this order
+## Start here
 
-| Page | Start here when |
-| --- | --- |
-| [Philosophy](./philosophy.md) | You want the operating principles behind every plugin and skill. |
-| [Getting Started](./getting-started/) | You want the shortest path from zero to `/adk-core:setup`. |
-| [Installation](./getting-started/installation.md) | You need the full Claude marketplace install and update flow. |
-| [Claude Code and Desktop](./usage/desktop-and-cli.md) | You need to understand MCP and connector behavior by host. |
+| Read | Why |
+|---|---|
+| [Philosophy](./philosophy.md) | The operating principles. One page. |
+| [Installation](./getting-started/installation.md) | Clone + `install.sh --target <agent>`. |
+| [Multi-agent setup](./usage/multi-agent.md) | Capability matrix for Claude / Cursor / Codex / Junie. |
+| [overrides.yaml](./usage/overrides-yaml.md) | The one config file you maintain. |
+| [Project-scoped overrides](./usage/project-scoped.md) | `<repo>/.adk/`, `<repo>/ai-guidelines/`, `<repo>/.temp/<task-slug>/`. |
 
-## What belongs here
+## Concepts (in priority order)
 
-Guide pages explain decisions and workflows. Generated API-like details belong
-in [Reference](../reference/), which is rebuilt from source with
-`npm run docs:reference`.
+| Concept | What it gives you |
+|---|---|
+| [Question-first](./concepts/question-first.md) | Every skill asks up to 3 questions before any execution. Each Q&A is training data. |
+| [Advisor strategy](./concepts/advisor-strategy.md) | Plan → clarify → present options → defer → execute → validate → report. Hand-off to `/adk-explain` when the user is unsure. |
+| [Decision logs](./concepts/decision-logs.md) | Append-only JSONL of every fork. Consumed by `/adk-improve` to refine your defaults. |
+| [Plan/Act mode](./concepts/plan-act-mode.md) | `--plan` literally restricts the implementer to read-only tools. Tool-level enforcement, not advisor-prose. |
+| [Edit format](./concepts/edit-format.md) | SEARCH/REPLACE block discipline for `/adk-implement`. Prevents whole-file rewrites. |
+| [Hooks](./concepts/hooks.md) | PreToolUse:Bash safety + PostToolUse:Edit validator + SessionStart banner. Deterministic enforcement of the constitution. |

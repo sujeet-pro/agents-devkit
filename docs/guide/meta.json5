@@ -3,10 +3,18 @@
   orderBy: "manual",
   collapsed: false,
   items: [
+    "philosophy",
     "getting-started",
     "getting-started/installation",
-    "usage/desktop-and-cli",
-    "philosophy",
+    "usage/multi-agent",
+    "usage/overrides-yaml",
+    "usage/project-scoped",
+    "concepts/question-first",
+    "concepts/advisor-strategy",
+    "concepts/decision-logs",
+    "concepts/plan-act-mode",
+    "concepts/edit-format",
+    "concepts/hooks",
   ],
   series: [
     {
@@ -15,7 +23,9 @@
       articles: [
         "getting-started",
         "getting-started/installation",
-        "usage/desktop-and-cli",
+        "usage/multi-agent",
+        "usage/overrides-yaml",
+        "usage/project-scoped",
       ],
     },
     {
@@ -23,6 +33,12 @@
       displayName: "Concepts",
       articles: [
         "philosophy",
+        "concepts/question-first",
+        "concepts/advisor-strategy",
+        "concepts/decision-logs",
+        "concepts/plan-act-mode",
+        "concepts/edit-format",
+        "concepts/hooks",
       ],
     },
   ],

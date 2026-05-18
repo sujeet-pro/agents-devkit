@@ -1,20 +1,18 @@
 ---
-title: adk Marketplace
-description: Principal Engineer workflow plugins for Claude Code and Claude Desktop.
+title: adk — agents-devkit
+description: Single-repo, multi-agent skill kit. Eight polymorphic skills, nine MCPs, nine subagents, installed via install.sh into Claude Code / Cursor / Codex CLI / Junie at user level.
 layout: home
-tagline: Focused Claude plugins for coding, reviewing, docs, and production investigations.
+tagline: Implement, review, investigate, document — composed with an advisor strategy and a self-improving decision-log loop.
 install:
-  lang: text
-  title: Claude Code
+  lang: bash
+  title: Clone + install (Claude Code shown)
   frame: terminal
   code: |
-    /plugin marketplace add sujeet-pro/agents-devkit
-    /plugin install adk-core@adk
-    /plugin install adk-code@adk
-    /plugin install adk-review@adk
-    /plugin install adk-docs@adk
-    /plugin install adk-investigate@adk
-    /adk-core:setup
+    git clone https://github.com/sujeet-pro/agents-devkit.git ~/code/agents-devkit
+    cd ~/code/agents-devkit
+    ./install.sh --target claude
+    # then in Claude Code:
+    # /adk-setup --init
 actions:
   - text: Install
     link: /guide/getting-started/installation/
@@ -23,44 +21,43 @@ actions:
     link: /guide/philosophy/
     theme: alt
 features:
-  - title: Five focused plugins
-    details: adk-core provides shared contracts and setup. adk-code, adk-review, adk-docs, and adk-investigate add focused skill packs around the main Principal Engineer workflows.
-  - title: Dependency-aware skills
-    details: Every non-trivial skill starts with a preflight that separates required-now dependencies from optional capabilities, then reports skipped checks and residual risk.
-  - title: Pagesmith-native docs
-    details: The docs site uses @pagesmith/docs conventions for home-page feature cards, guide/reference sections, series metadata, Pagefind search, and schema-backed frontmatter.
-  - title: Plugin/type reference groups
-    details: Generated reference pages are grouped as core-skills, code-agents, review-mcp, docs-plugins, and other plugin/component pairs so readers can scan by capability.
-  - title: Claude Code and Desktop ready
-    details: Claude Code can load plugin .mcp.json files. Claude Desktop cannot, so skills tell the user which connector or custom MCP to configure before continuing.
-  - title: Generated reference
-    details: Reference pages are generated from the marketplace source so every skill, agent, plugin, MCP server, and helper binary has a matching markdown page.
+  - title: Eight polymorphic skills
+    details: /adk-implement, /adk-review, /adk-investigate, /adk-document, /adk-sync, /adk-setup, /adk-improve, /adk-explain. Each routes internally based on input shape — a Jira URL dispatches the from-jira sub-flow, a PR URL dispatches review-pr, etc.
+  - title: Multi-agent, one repo
+    details: install.sh symlinks the right wrappers into Claude Code, Cursor, Codex CLI, and Junie at user level. No marketplace. Same content, native format per agent.
+  - title: Question-first, every run
+    details: Every skill goes through a mandatory ≤3-question phase before any execution. The Q&A is logged to ~/.config/adk/learning/decisions.jsonl as training data for the self-improvement loop.
+  - title: Self-improving by design
+    details: /adk-improve reads accumulated decision logs and proposes updates to ~/.config/adk/overrides.yaml. After each run the log rotates so improvements compound over time.
+  - title: Plan/act tool enforcement
+    details: --plan mode literally restricts the implementer to read-only tools; --act unlocks edits. Cline-style separation, not advisor-prose-only.
+  - title: Deterministic hooks
+    details: PreToolUse:Bash safety blocks force-push, hard-reset on protected branches, unrequested PR merges; PostToolUse:Edit validates SKILL.md frontmatter and refuses raw-token writes; SessionStart prints the status banner. Idempotently merged into ~/.claude/settings.json.
 ---
 
 ## Install
 
-`adk` is a Claude Code marketplace. Register the marketplace, install the
-plugins you need, reload, then run setup:
+`adk` is distributed as a single repo. Clone it once, then run `./install.sh` for each agent you use:
 
-```text
-/plugin marketplace add sujeet-pro/agents-devkit
-/plugin install adk-core@adk
-/plugin install adk-code@adk
-/plugin install adk-review@adk
-/plugin install adk-docs@adk
-/plugin install adk-investigate@adk
-/reload-plugins
-/adk-core:setup
+```bash
+git clone https://github.com/sujeet-pro/agents-devkit.git ~/code/agents-devkit
+cd ~/code/agents-devkit
+./install.sh                       # autodetect installed agents
+./install.sh --target claude       # one agent
+./install.sh --target claude,cursor
+./install.sh --target all          # try every supported agent
+./install.sh --uninstall           # remove everything by marker; leaves your overrides
 ```
 
-See the full [Installation](./guide/getting-started/installation.md) guide for
-local clone, SSH, HTTPS, update, verification, and uninstall paths.
+`install.sh` symlinks skills + agents + slash commands into the agent's config dir, merges MCP configs, and appends a pointer to `AGENTS.md` in the agent's global guidelines. `git pull` propagates updates instantly.
 
-## What This Site Covers
+See the full [Installation](./guide/getting-started/installation.md) guide for per-agent details and the [SETUP.md](https://github.com/sujeet-pro/agents-devkit/blob/main/SETUP.md) for env-var requirements.
 
-`adk` is a Claude plugin marketplace for a Principal Engineer workflow: code writing, code review, documentation, and production investigations.
+## What this site covers
 
-The reference section is generated from the repository source. To update it after editing a skill, agent, plugin manifest, MCP config, or helper binary, run:
+`adk` is an opinionated skill kit for a single operator (Principal Engineer): code writing, code review, documentation, and production investigations. It composes scripts (deterministic), MCPs (data access), and an advisor wrapper around every skill so each run is plan → clarify → execute → validate → report.
+
+The reference section is generated from the repository source. To refresh it after editing a skill, agent, MCP, or script, run:
 
 ```bash
 npm run docs:reference
@@ -75,8 +72,9 @@ npm run docs:dev
 
 ## New here? Read in this order
 
-1. **[Philosophy](./guide/philosophy.md)** — the operating principles behind every plugin and skill.
-2. **[Installation](./guide/getting-started/installation.md)** — add the Claude marketplace and install plugins.
-3. **[Getting Started](./guide/getting-started/)** — shortest setup and validation path.
-4. **[Claude Code and Desktop](./guide/usage/desktop-and-cli.md)** — host differences and MCP preflight behavior.
-5. **[Reference](./reference/)** — generated pages grouped by plugin and component type.
+1. **[Philosophy](./guide/philosophy.md)** — operating principles behind every skill.
+2. **[Installation](./guide/getting-started/installation.md)** — clone + install.sh + per-agent wiring.
+3. **[Multi-agent setup](./guide/usage/multi-agent.md)** — Claude / Cursor / Codex / Junie capability matrix.
+4. **[overrides.yaml](./guide/usage/overrides-yaml.md)** — the single source of user/company truth (workspaces, repos, data dictionary, defaults).
+5. **[Concepts](./guide/concepts/)** — advisor strategy, question-first, decision logs, plan/act, edit-format, hooks.
+6. **[Reference](./reference/)** — generated pages for every skill, agent, MCP, script, and shared file.

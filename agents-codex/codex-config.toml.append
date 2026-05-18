@@ -1,0 +1,48 @@
+# adk-marker:start
+# adk v3 MCP servers — installed by ./install.sh --target codex
+# Each block mirrors the corresponding JSON in {{ADK_REPO}}/mcp/.
+# Edit {{ADK_REPO}}/mcp/adk-mcp-*.json and re-run install.sh to regenerate.
+
+[[mcp_servers]]
+name = "adk-mcp-github"
+url = "https://api.githubcopilot.com/mcp/"
+authorization_token_env = "GITHUB_PAT"
+
+[[mcp_servers]]
+name = "adk-mcp-datadog"
+url = "https://mcp.datadoghq.com/api/unstable/mcp-server/mcp"
+
+[[mcp_servers.headers]]
+DD_API_KEY = "${DATADOG_API_KEY}"
+DD_APPLICATION_KEY = "${DATADOG_APP_KEY}"
+
+[[mcp_servers]]
+name = "adk-mcp-statsig"
+url = "https://api.statsig.com/v1/mcp"
+
+[[mcp_servers.headers]]
+"statsig-api-key" = "${STATSIG_CONSOLE_API_KEY}"
+
+[[mcp_servers]]
+name = "adk-mcp-atlassian"
+command = "uvx"
+args = ["mcp-atlassian@latest"]
+
+[mcp_servers.env]
+CONFLUENCE_URL = "https://${ATLASSIAN_SITE}/wiki"
+CONFLUENCE_USERNAME = "${ATLASSIAN_USERNAME}"
+CONFLUENCE_API_TOKEN = "${ATLASSIAN_API_TOKEN}"
+JIRA_URL = "https://${ATLASSIAN_SITE}"
+JIRA_USERNAME = "${ATLASSIAN_USERNAME}"
+JIRA_API_TOKEN = "${ATLASSIAN_API_TOKEN}"
+
+[[mcp_servers]]
+name = "adk-mcp-mixpanel"
+url = "https://mcp.mixpanel.com/mcp"
+
+[[mcp_servers]]
+name = "adk-mcp-slack"
+command = "sh"
+args = ["-c", "if [ -n \"$SLACK_CREDENTIALS_FILE\" ] && [ -r \"$SLACK_CREDENTIALS_FILE\" ]; then . \"$SLACK_CREDENTIALS_FILE\"; fi; exec npx -y slack-mcp-server@latest"]
+
+# adk-marker:end

@@ -1,0 +1,15 @@
+---
+description: Review any target (PR / local / doc / comments / repo audit). Polymorphic on input.
+globs:
+alwaysApply: false
+---
+
+# /adk-review (Cursor rule)
+
+When the user invokes `/adk-review` or asks to review / audit / look at / sanity-check, load the skill spec.
+
+@{{ADK_REPO}}/AGENTS.md
+@{{ADK_REPO}}/skills/adk-review/SKILL.md
+@{{ADK_REPO}}/shared/constitution.md
+@{{ADK_REPO}}/shared/advisor.md
+@{{ADK_REPO}}/shared/question-first.md

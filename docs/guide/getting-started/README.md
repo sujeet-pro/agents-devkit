@@ -1,55 +1,82 @@
 ---
 title: Getting Started
-description: Install the adk marketplace and run the first setup pass.
-order: 2
+description: Clone the repo, run install.sh, scaffold overrides.yaml, verify. Five minutes to first skill invocation.
+order: 1
 ---
 
 # Getting Started
 
-Start with the general [Philosophy](../philosophy.md) when you want the why
-behind the workflow. Use [Installation](./installation.md) for the full Claude
-marketplace install, update, and uninstall paths.
+Five minutes from clone to first skill invocation.
 
-## Fast Path In Claude Code
-
-Register the marketplace and install the plugins you need:
-
-```text
-/plugin marketplace add sujeet-pro/agents-devkit
-/plugin install adk-core@adk
-/plugin install adk-code@adk
-/plugin install adk-review@adk
-/plugin install adk-docs@adk
-/plugin install adk-investigate@adk
-/reload-plugins
-```
-
-Then run setup:
-
-```text
-/adk-core:setup
-```
-
-`adk-core:setup` checks CLI dependencies, meta-info files under `~/.config/adk/`, and environment variables referenced by shipped MCP configs.
-
-## Claude Desktop
-
-Claude Desktop does not load a plugin's `.mcp.json` file. Install the same plugins, then configure any required custom connector or workspace connector in Desktop before running a skill that needs it.
-
-The skills will stop in Phase 1 if a required connector is missing and will tell you what to configure. You can skip a check when you know that capability is not needed for the selected mode, such as a dry-run review that drafts findings but does not post comments.
-
-## Validate Locally
-
-For repository contributors:
+## Fast path
 
 ```bash
-npm install
-npm run validate
-npm run docs:build
+# 1. Clone the repo
+git clone https://github.com/sujeet-pro/agents-devkit.git ~/code/agents-devkit
+cd ~/code/agents-devkit
+
+# 2. Install for your agent(s)
+./install.sh                   # autodetect everything installed
+# OR explicit:
+./install.sh --target claude
+
+# 3. Set env vars in ~/.zshenv (see SETUP.md §2)
+export GITHUB_PAT="github_pat_..."
+export DATADOG_API_KEY="..."
+export DATADOG_APP_KEY="..."
+export STATSIG_CONSOLE_API_KEY="console-..."
+export ATLASSIAN_SITE="acme.atlassian.net"
+export ATLASSIAN_USERNAME="you@acme.com"
+export ATLASSIAN_API_TOKEN="ATATT..."
+
+# 4. Restart your agent (Claude Code etc.) so env vars + MCPs load
 ```
+
+Then in your agent:
+
+```text
+/adk-setup --init                 # scaffold ~/.config/adk/overrides.yaml
+/adk-setup --check                # verify env, MCPs, agents
+/adk-setup --enrich               # auto-populate metadata cache from MCPs
+```
+
+## What just happened
+
+`install.sh` did the following for each detected agent:
+
+| Agent | What landed |
+|---|---|
+| Claude Code | symlinks for 8 skills + 9 subagents + 8 slash commands; MCP merge into `~/.claude/settings.json`; 3 hooks (PreToolUse/PostToolUse/SessionStart); CLAUDE.md pointer to `AGENTS.md` |
+| Cursor | 8 rule files in `~/.cursor/rules/`; MCP merge into `~/.cursor/mcp.json`; global "always" rule pointing at `AGENTS.md` |
+| Codex CLI | 8 prompts in `~/.codex/prompts/`; MCP config in `~/.codex/config.toml`; instructions pointer to `AGENTS.md` |
+| Junie | `~/.junie/guidelines.md` append with `AGENTS.md` pointer; honest gap doc — Junie's skill auto-routing isn't full yet |
+
+All installs are idempotent — re-running `install.sh` updates symlinks and merge blocks without duplicating. Uninstall via `./install.sh --uninstall --target <agent>`.
+
+## Try a skill
+
+```text
+# Polymorphic on input — works with a Jira URL, GH issue URL, Slack thread, freeform description
+/adk-implement <Jira URL or KEY-NUM>
+
+# Polymorphic on target — PR URL, local working tree, doc path, comment thread
+/adk-review <PR URL>
+
+# Read-only multi-source investigator
+/adk-investigate "checkout 500s since 13:00"
+
+# Generate any markdown artifact (runbook / ADR / RCA / PR body / commit msg / diagram / ...)
+/adk-document <intent> --type runbook
+
+# Push markdown to Confluence / Jira / GDoc / Slack
+/adk-sync --write .temp/foo.md --to confluence --target "My Page"
+```
+
+Every skill starts with up to 3 questions about scope, constraints, and (when relevant) scale verification. Your answers are training data for `/adk-improve`.
 
 ## Next
 
-- [Installation](./installation.md)
-- [Claude Code and Desktop](../usage/desktop-and-cli.md)
-- [Reference](../../reference/)
+- [Installation](./installation.md) — detailed clone + install paths
+- [Multi-agent setup](../usage/multi-agent.md) — per-agent capability matrix
+- [overrides.yaml](../usage/overrides-yaml.md) — the single config file you maintain
+- [Philosophy](../philosophy.md) — why adk works this way

@@ -1,0 +1,73 @@
+# adk — agents-devkit
+
+> A single-repo, multi-agent skill kit for code/docs/investigations.
+> 8 polymorphic skills + 9 MCPs + 9 subagents, installed via `./install.sh` to
+> Claude Code / Cursor / Codex CLI / Junie at user level. No marketplace.
+
+## Read first
+
+- [AGENTS.md](./AGENTS.md): how to interpret any user prompt — verb classification, intent → skill routing, composite-intent chains.
+- [shared/constitution.md](./shared/constitution.md): universal hard rules (no force-push, no auto-merge, read-only against prod systems).
+- [shared/advisor.md](./shared/advisor.md): the plan→clarify→present→defer→execute→validate→report wrapper every skill composes.
+- [shared/question-first.md](./shared/question-first.md): mandatory 0–3 question phase before any execution. Each Q&A is training data.
+
+## Skills
+
+- [skills/adk-implement/SKILL.md](./skills/adk-implement/SKILL.md): write code from any input (Jira / GH issue / Slack / TDD / Confluence / freeform). Specialized sub-flows for Jira (most common) and GH issues.
+- [skills/adk-review/SKILL.md](./skills/adk-review/SKILL.md): review any target (PR URL specialized; local working tree; markdown doc; comment thread; whole-repo audit).
+- [skills/adk-investigate/SKILL.md](./skills/adk-investigate/SKILL.md): query 3P data (Datadog / Mixpanel / Statsig / Snowflake / Looker / Atlassian / Slack). Sub-flows: incident, rca, experiment, datadog, mixpanel, statsig, snowflake, looker.
+- [skills/adk-document/SKILL.md](./skills/adk-document/SKILL.md): generate any markdown artifact (runbook / ADR / RCA / PR body / commit msg / changelog / diagram / readme / migration guide / api reference / experiment report / incident summary / handoff / onboarding / design doc).
+- [skills/adk-sync/SKILL.md](./skills/adk-sync/SKILL.md): bidirectional 3P bridge — read remote as markdown OR push markdown to Confluence / Jira-desc / Jira-comment / GDoc / GH PR body / GH issue comment / Slack.
+- [skills/adk-setup/SKILL.md](./skills/adk-setup/SKILL.md): bootstrap `~/.config/adk/overrides.yaml`; --enrich populates auto-discovered metadata from MCPs; --check verifies env + agents + MCPs.
+- [skills/adk-improve/SKILL.md](./skills/adk-improve/SKILL.md): self-improvement loop. Reads `~/.config/adk/learning/decisions.jsonl` → proposes default updates to overrides.yaml → user confirms → rotates the log.
+- [skills/adk-explain/SKILL.md](./skills/adk-explain/SKILL.md): advisor agent. Teaches the user how to choose without picking. Hand-off target from any skill when the user expresses uncertainty.
+
+## Agents (subagents — not user-invocable directly)
+
+- [agents-claude/agents/adk-agent-code-reviewer.md](./agents-claude/agents/adk-agent-code-reviewer.md)
+- [agents-claude/agents/adk-agent-security-reviewer.md](./agents-claude/agents/adk-agent-security-reviewer.md)
+- [agents-claude/agents/adk-agent-investigator.md](./agents-claude/agents/adk-agent-investigator.md)
+- [agents-claude/agents/adk-agent-doc-writer.md](./agents-claude/agents/adk-agent-doc-writer.md)
+- [agents-claude/agents/adk-agent-doc-reviewer.md](./agents-claude/agents/adk-agent-doc-reviewer.md)
+- [agents-claude/agents/adk-agent-implementer.md](./agents-claude/agents/adk-agent-implementer.md)
+- [agents-claude/agents/adk-agent-test-engineer.md](./agents-claude/agents/adk-agent-test-engineer.md)
+- [agents-claude/agents/adk-agent-context-gatherer.md](./agents-claude/agents/adk-agent-context-gatherer.md)
+- [agents-claude/agents/adk-agent-explainer.md](./agents-claude/agents/adk-agent-explainer.md)
+
+## MCPs (env-var-driven; zero tokens in JSON)
+
+- [mcp/adk-mcp-github.json](./mcp/adk-mcp-github.json) — `GITHUB_PAT` or fallback `GITHUB_PAT_CLASSIC`.
+- [mcp/adk-mcp-datadog.json](./mcp/adk-mcp-datadog.json) — `DATADOG_API_KEY`, `DATADOG_APP_KEY`.
+- [mcp/adk-mcp-statsig.json](./mcp/adk-mcp-statsig.json) — `STATSIG_CONSOLE_API_KEY`.
+- [mcp/adk-mcp-atlassian.json](./mcp/adk-mcp-atlassian.json) — `ATLASSIAN_SITE`, `ATLASSIAN_USERNAME`, `ATLASSIAN_API_TOKEN`. Confluence image upload supported.
+- [mcp/adk-mcp-mixpanel.json](./mcp/adk-mcp-mixpanel.json) — OAuth on first connect.
+- [mcp/adk-mcp-slack.json](./mcp/adk-mcp-slack.json) — sources `$SLACK_CREDENTIALS_FILE`.
+- [mcp/adk-mcp-snowflake.json](./mcp/adk-mcp-snowflake.json) — `SNOWFLAKE_*`.
+- [mcp/adk-mcp-looker.json](./mcp/adk-mcp-looker.json) — `LOOKER_*`.
+- [mcp/adk-mcp-rag.json](./mcp/adk-mcp-rag.json) — optional. Loads only if `RAG_MCP_URL` set.
+
+## Shared guidelines (auto-loaded by skill category)
+
+- [shared/guidelines/frontend-design.md](./shared/guidelines/frontend-design.md)
+- [shared/guidelines/api-design.md](./shared/guidelines/api-design.md)
+- [shared/guidelines/data-modeling.md](./shared/guidelines/data-modeling.md)
+- [shared/guidelines/observability.md](./shared/guidelines/observability.md)
+- [shared/guidelines/security.md](./shared/guidelines/security.md)
+- [shared/guidelines/performance.md](./shared/guidelines/performance.md)
+- [shared/guidelines/testing.md](./shared/guidelines/testing.md)
+- [shared/guidelines/accessibility.md](./shared/guidelines/accessibility.md)
+- [shared/guidelines/prompt-handling.md](./shared/guidelines/prompt-handling.md)
+- [shared/guidelines/escalation.md](./shared/guidelines/escalation.md)
+- [shared/edit-format.md](./shared/edit-format.md) — SEARCH/REPLACE block discipline for `adk-implement`.
+
+## User data
+
+- `~/.config/adk/overrides.yaml` — workspaces, repos, data dictionaries, defaults, RAG config. User-edited; see [skills/adk-setup/SKILL.md](./skills/adk-setup/SKILL.md).
+- `~/.config/adk/learning/decisions.jsonl` — every non-trivial fork. Append-only. Consumed by `/adk-improve`.
+- `~/.config/adk/metadata/<source>.json` — auto-populated by `/adk-setup --enrich`; refreshable.
+
+## Optional: per-repo overrides
+
+- `<repo>/.adk/overrides.yaml` — narrows the user-level config for this repo.
+- `<repo>/ai-guidelines/*.md` (or `<repo>/docs/*.md`) — repo-specific conventions adk reads at every skill run.
+- `<repo>/.temp/<task-slug>/` — gitignored task working dir (plan, proposal, findings, report).

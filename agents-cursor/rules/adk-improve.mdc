@@ -1,0 +1,11 @@
+---
+description: Self-improvement loop. Reads decision logs → proposes default updates. Refreshes metadata.
+globs:
+alwaysApply: false
+---
+
+# /adk-improve (Cursor rule)
+
+@{{ADK_REPO}}/skills/adk-improve/SKILL.md
+@{{ADK_REPO}}/shared/advisor.md
+@{{ADK_REPO}}/shared/decision-log-schema.md

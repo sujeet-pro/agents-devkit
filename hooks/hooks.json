@@ -1,0 +1,37 @@
+{
+  "comment": "adk v3 hooks — wired into ~/.claude/settings.json by install.sh. The Bash safety hook enforces constitution §I deterministically; the Edit validator catches SKILL.md frontmatter bugs at write-time; the SessionStart banner runs at session open.",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "prompt",
+            "prompt": "Inspect the Bash command being run. BLOCK these with a precise reason:\n\n1. `git push --force` / `git push -f` / `git push --force-with-lease` targeting any of: main, master, develop, release/*, prod/*, or any branch listed in ~/.config/adk/overrides.yaml.protected_branches.\n2. `git reset --hard` on main, master, develop, release/*, prod/*.\n3. `git clean -fd` at a repo root (cwd ends in the repo's top-level dir).\n4. `git branch -D` on main, master, develop, release/*, prod/*.\n5. `rm -rf` targeting `$HOME`, `/`, any path under `~/.config/adk/`, or any repo root.\n6. `gh pr merge` UNLESS the user's most recent message in this session explicitly asked to merge a PR (look for words: merge, ship, land, squash-merge, rebase-merge).\n7. `gh pr close` UNLESS the user explicitly asked to close a PR.\n8. Any command writing into `~/.config/adk/learning/archive/` (that path is managed by /adk-improve only).\n9. `--no-verify` flags on git commit or git push (bypasses hooks — banned per constitution §V).\n\nALLOW: normal git, gh, npm, jq, fd, rg, curl, python3, ./install.sh, claude operations, and writes to .temp/<task-slug>/ paths.\n\nReturn JSON:\n  - block: {\"decision\":\"block\",\"reason\":\"<one-line reason naming the rule>\"}\n  - allow: {\"decision\":\"allow\"}"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "prompt",
+            "prompt": "Lightweight post-write check.\n\nIf the edited file path matches `*/skills/<skill>/SKILL.md`:\n  - Verify the YAML frontmatter has `name:` and `description:` fields.\n  - Verify `name:` value equals the folder basename (segment after `skills/` and before `/SKILL.md`).\n  - On mismatch, return {\"ok\":false,\"reason\":\"...\"}; otherwise {\"ok\":true}.\n\nIf the edited file path is under `.temp/<task-slug>/`:\n  - Append the current ISO-8601 UTC timestamp to a file `.temp/<task-slug>/.last-modified` (create if missing) so monitor tools can detect activity.\n  - Return {\"ok\":true}.\n\nIf the edited file path is `~/.config/adk/overrides.yaml`:\n  - Run a regex check that no line contains a raw token-looking value (`/^[A-Z_]+\\s*:\\s*['\"]?[a-zA-Z0-9_-]{20,}['\"]?$/` outside the `${VAR}` interpolation pattern).\n  - On match, return {\"ok\":false,\"reason\":\"raw token detected — use ${ENV_VAR} instead\"}.\n\nOtherwise: {\"ok\":true}."
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${ADK_REPO}/hooks/banner.sh\""
+          }
+        ]
+      }
+    ]
+  }
+}
