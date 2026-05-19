@@ -54,7 +54,13 @@ For each agent (claude / cursor / codex / junie):
 
 For each env var: present / missing / aliased.
 
-For each MCP: reachable / not-reachable + reason.
+For each MCP: reachable / not-reachable + reason, AND — if the user's
+`creds` CLI is installed (mac-setup's `~/.config/creds/` layout) — the
+creds-system probe status for the same service (OK / FAIL / MISCONFIGURED).
+This surfaces the common "env-vars are set but the token is invalid"
+case that env-presence checks alone cannot detect. The cross-reference
+is purely additive: `--no-creds` disables it, and it auto-skips on
+machines without the `creds` CLI.
 
 For overrides.yaml: workspaces count, repos count, data_sources presence, defaults presence.
 

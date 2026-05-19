@@ -93,6 +93,73 @@ ALIASES: dict[str, str] = {
 VAR_REF_RE = re.compile(r"\$\{([A-Z_][A-Z0-9_]*)(?::-[^}]*)?\}")
 
 
+def _creds_cmd() -> str | None:
+    """Return path to the `creds` CLI if installed, else None."""
+    p = shutil.which("creds")
+    if p:
+        return p
+    home_local = Path.home() / ".local" / "bin" / "creds"
+    return str(home_local) if home_local.is_file() else None
+
+
+def fetch_creds_status() -> dict[str, Any]:
+    """Shell out to `creds validate --json --no-log` and parse the result.
+
+    Returns {} if the creds CLI is unavailable or any error occurs — the
+    cross-reference is purely additive. Never echoes any credential value.
+    """
+    cmd = _creds_cmd()
+    if not cmd:
+        return {}
+    try:
+        result = subprocess.run(
+            [cmd, "validate", "--json", "--no-log"],
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=False,
+        )
+        if not result.stdout.strip():
+            return {}
+        return json.loads(result.stdout)
+    except (subprocess.TimeoutExpired, json.JSONDecodeError, OSError):
+        return {}
+
+
+def fetch_creds_registry() -> list[dict[str, Any]]:
+    """Service registry from `creds validate --list-json`; [] if unavailable."""
+    cmd = _creds_cmd()
+    if not cmd:
+        return []
+    try:
+        result = subprocess.run(
+            [cmd, "validate", "--list-json"],
+            capture_output=True,
+            text=True,
+            timeout=15,
+            check=False,
+        )
+        if not result.stdout.strip():
+            return []
+        return json.loads(result.stdout)
+    except (subprocess.TimeoutExpired, json.JSONDecodeError, OSError):
+        return []
+
+
+def mcp_to_service(name: str) -> str | None:
+    """Map MCP name (adk-mcp-foo) → creds service name (foo).
+
+    Returns None for MCPs that don't have a corresponding creds-system
+    service (e.g. adk-mcp-rag).
+    """
+    if not name.startswith("adk-mcp-"):
+        return None
+    svc = name[len("adk-mcp-"):]
+    if svc == "rag":
+        return None
+    return svc
+
+
 def env_status(var: str) -> str:
     if os.environ.get(var):
         return "present"
@@ -160,6 +227,11 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--json", action="store_true", help="JSON output")
     ap.add_argument("--probe", action="store_true", help="curl-probe http MCPs (read-only init call)")
+    ap.add_argument(
+        "--no-creds",
+        action="store_true",
+        help="Skip the ~/.config/creds cross-reference (auto-skips anyway if creds CLI not installed).",
+    )
     args = ap.parse_args()
 
     mcps = read_mcp_configs()
@@ -195,6 +267,24 @@ def main() -> int:
     for var in DECLARED_VARS:
         report["env_vars"][var] = env_status(var)
 
+    # --- Cross-reference with the ~/.config/creds system (Stage 4) ---
+    creds_data: dict[str, Any] = {} if args.no_creds else fetch_creds_status()
+    if creds_data:
+        report["creds"] = creds_data
+        services = creds_data.get("services", {}) or {}
+        for m in report["mcps"]:
+            svc = mcp_to_service(m["name"])
+            if svc is None:
+                m["creds_service"] = None
+            elif svc in services:
+                m["creds_service"] = svc
+                m["creds_validate"] = services[svc]["status"]
+                if services[svc].get("message"):
+                    m["creds_message"] = services[svc]["message"]
+            else:
+                m["creds_service"] = svc
+                m["creds_validate"] = "no-validator"
+
     if args.json:
         print(json.dumps(report, indent=2))
         return 0
@@ -211,6 +301,8 @@ def main() -> int:
         if "probe" in m:
             p = m["probe"]
             line += f"  [probe: {p.get('http_code') or p.get('error')}]"
+        if "creds_validate" in m:
+            line += f"  [creds: {m['creds_validate']}]"
         print(line)
     print()
     print("env vars referenced by adk:")
@@ -223,6 +315,21 @@ def main() -> int:
             marker = "✗"
         hint = "" if status.startswith("present") else f"  ({DECLARED_VARS[var]})"
         print(f"  {marker} {var:32} {status}{hint}")
+
+    # Optional creds-system section (only when the cross-reference succeeded).
+    if "creds" in report:
+        services = report["creds"].get("services", {}) or {}
+        if services:
+            print()
+            print("creds-system validators (from `creds validate --json`):")
+            for svc, info in services.items():
+                state = info.get("status", "?")
+                m = {"OK": "✓", "FAIL": "✗", "MISCONFIGURED": "!", "SKIPPED": "·"}.get(state, "?")
+                msg = info.get("message") or ""
+                line = f"  {m} {svc:16} {state}"
+                if msg:
+                    line += f"  — {msg}"
+                print(line)
     return 0
 
 
