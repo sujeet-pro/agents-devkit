@@ -8,6 +8,7 @@
 #   ./install.sh --target all         # try every supported agent
 #   ./install.sh --uninstall          # remove by marker; leave overrides intact
 #   ./install.sh --dry-run            # show what would change
+#   ./install.sh --interactive        # textual TUI (if installed) / plain prompt fallback
 
 set -euo pipefail
 
@@ -17,5 +18,12 @@ if ! command -v python3 >/dev/null 2>&1; then
   echo "error: python3 is required (brew install python@3.12)" >&2
   exit 1
 fi
+
+# --interactive routes through install_tui.py; everything else through install.py.
+for arg in "$@"; do
+  if [ "$arg" = "--interactive" ]; then
+    exec python3 "$HERE/install_tui.py" --repo-root "$HERE"
+  fi
+done
 
 exec python3 "$HERE/install.py" --repo-root "$HERE" "$@"
