@@ -33,6 +33,23 @@ MARKER_MD_START = "<!-- adk-marker:start -->"
 MARKER_MD_END = "<!-- adk-marker:end -->"
 MARKER_HASH_START = "# adk-marker:start"
 MARKER_HASH_END = "# adk-marker:end"
+MARKER_PERMS_HASH_START = "# adk-permissions-marker:start"
+MARKER_PERMS_HASH_END = "# adk-permissions-marker:end"
+
+# JSON key used to record what permission entries adk added, so we can
+# cleanly remove them on re-install or uninstall without touching user
+# entries.
+ADK_PERMS_BOOKKEEPING_KEY = "_adkManagedPermissions"
+
+# JSON key used to stash the user's pre-existing (non-adk) mcpServers entries
+# at first install so they can be restored on uninstall. Per the user's
+# explicit request, on install we WIPE non-adk mcpServers from each agent's
+# config; this key lets us undo that safely.
+ADK_REMOVED_MCP_KEY = "_adkRemovedMcpServers"
+
+# Prefix every adk-installed MCP server name uses; anything else in the
+# `mcpServers` map is considered user-authored.
+ADK_MCP_NAME_PREFIX = "adk-mcp-"
 
 ADK_USER_DIR = Path.home() / ".config" / "adk"
 
@@ -129,8 +146,13 @@ def append_with_marker(target: Path, content: str, marker_start: str, marker_end
         return "created"
     existing = target.read_text(encoding="utf-8")
     if marker_start in existing and marker_end in existing:
+        # Greedy on .* so we consume EVERYTHING from the first marker_start to
+        # the LAST marker_end — including duplicate start/end markers left
+        # behind by earlier buggy installs (where the templates themselves
+        # contained the markers). count=1 keeps us from crossing into a
+        # different marker family (e.g. # adk-permissions-marker).
         pattern = re.compile(
-            rf"{re.escape(marker_start)}.*?{re.escape(marker_end)}\n?", re.DOTALL
+            rf"{re.escape(marker_start)}.*{re.escape(marker_end)}\n?", re.DOTALL
         )
         new_text = pattern.sub(block, existing, count=1)
         target.write_text(new_text, encoding="utf-8")
@@ -148,7 +170,9 @@ def strip_marker(target: Path, marker_start: str, marker_end: str, dry_run: bool
         return "absent"
     if dry_run:
         return "would-remove"
-    pattern = re.compile(rf"{re.escape(marker_start)}.*?{re.escape(marker_end)}\n?", re.DOTALL)
+    # Greedy on .* so we consume all duplicate markers between the first start
+    # and the last end (cleanup for legacy buggy-install corruption).
+    pattern = re.compile(rf"{re.escape(marker_start)}.*{re.escape(marker_end)}\n?", re.DOTALL)
     new_text = pattern.sub("", existing, count=1)
     target.write_text(new_text, encoding="utf-8")
     return "removed"
@@ -185,37 +209,263 @@ def load_mcp_configs(repo_root: Path) -> dict[str, dict[str, Any]]:
     return out
 
 
-def merge_mcp_into_claude(repo_root: Path, dry_run: bool) -> dict[str, str]:
-    """Merge mcp/* into ~/.claude/settings.json under mcpServers.<name>."""
-    settings = Path.home() / ".claude" / "settings.json"
-    current = read_json(settings)
-    current.setdefault("mcpServers", {})
+def _merge_permission_lists(target_section: dict[str, Any], bookkeeping: dict[str, Any],
+                             desired: dict[str, Any], list_keys: Iterable[str]) -> None:
+    """Idempotently merge list-valued permission keys.
+
+    For each list key (e.g. "allow", "ask", "deny"):
+      1. Drop entries previously added by adk (tracked in bookkeeping[key]).
+      2. Union-in the desired entries (preserving user-added entries already there).
+      3. Record what we managed so the next run / uninstall can clean up.
+    """
+    for key in list_keys:
+        prev_managed = list(bookkeeping.get(key, []))
+        existing = list(target_section.get(key, []))
+        # Step 1: remove previously-managed entries that the user did not re-add.
+        existing = [x for x in existing if x not in prev_managed]
+        # Step 2: union-in desired.
+        desired_list = list(desired.get(key, []))
+        for item in desired_list:
+            if item not in existing:
+                existing.append(item)
+        target_section[key] = existing
+        # Step 3: record exactly what we manage now.
+        bookkeeping[key] = desired_list
+
+
+def _set_scalar_with_bookkeeping(target_section: dict[str, Any], bookkeeping: dict[str, Any],
+                                  desired: dict[str, Any], key: str,
+                                  bookkeeping_key: str | None = None) -> None:
+    """Set a scalar key while preserving the user's previous value for uninstall."""
+    if key not in desired:
+        return
+    prev_key = bookkeeping_key or f"{key}__previous"
+    if prev_key not in bookkeeping:
+        bookkeeping[prev_key] = target_section.get(key)
+    target_section[key] = desired[key]
+
+
+def merge_permissions_into_claude(repo_root: Path, dry_run: bool) -> dict[str, str]:
+    """Merge shared/permissions/claude.json into ~/.claude/settings.json.
+
+    Allows all read / generally-safe tools by default, prompts only on entries
+    listed under permissions.ask (dangerous bash commands). Idempotent.
+    """
+    src = repo_root / "shared" / "permissions" / "claude.json"
+    if not src.exists():
+        return {"status": "no-template"}
+    desired_root = read_json(src)
+    desired_perms = desired_root.get("permissions", {})
+
+    settings_path = Path.home() / ".claude" / "settings.json"
+    current = read_json(settings_path)
+    perms = current.setdefault("permissions", {})
+    book = current.setdefault(ADK_PERMS_BOOKKEEPING_KEY, {})
+
+    _merge_permission_lists(perms, book, desired_perms, ("allow", "ask", "deny"))
+    _set_scalar_with_bookkeeping(perms, book, desired_perms, "defaultMode",
+                                  bookkeeping_key="defaultMode__previous")
+
+    write_json(settings_path, current, dry_run)
+    return {"status": "merged",
+            "allow_count": str(len(perms.get("allow", []))),
+            "ask_count": str(len(perms.get("ask", []))),
+            "defaultMode": str(perms.get("defaultMode"))}
+
+
+def merge_permissions_into_cursor(repo_root: Path, dry_run: bool) -> dict[str, str]:
+    """Merge shared/permissions/cursor.json into ~/.cursor/cli-config.json.
+
+    Sets approvalMode + sandbox to permissive-but-safe defaults, and
+    unions our allow/deny shell entries with the user's existing ones.
+    """
+    src = repo_root / "shared" / "permissions" / "cursor.json"
+    if not src.exists():
+        return {"status": "no-template"}
+    desired_root = read_json(src)
+
+    settings_path = Path.home() / ".cursor" / "cli-config.json"
+    current = read_json(settings_path)
+    book = current.setdefault(ADK_PERMS_BOOKKEEPING_KEY, {})
+
+    # permissions.allow / permissions.deny
+    desired_perms = desired_root.get("permissions", {})
+    perms = current.setdefault("permissions", {"allow": [], "deny": []})
+    _merge_permission_lists(perms, book, desired_perms, ("allow", "deny"))
+
+    # approvalMode (top-level scalar)
+    _set_scalar_with_bookkeeping(current, book, desired_root, "approvalMode",
+                                  bookkeeping_key="approvalMode__previous")
+
+    # sandbox.{mode,networkAccess}
+    desired_sandbox = desired_root.get("sandbox", {})
+    if desired_sandbox:
+        sandbox = current.setdefault("sandbox", {})
+        sandbox_book = book.setdefault("sandbox", {})
+        for skey in ("mode", "networkAccess"):
+            if skey in desired_sandbox:
+                if f"{skey}__previous" not in sandbox_book:
+                    sandbox_book[f"{skey}__previous"] = sandbox.get(skey)
+                sandbox[skey] = desired_sandbox[skey]
+
+    write_json(settings_path, current, dry_run)
+    return {"status": "merged",
+            "approvalMode": str(current.get("approvalMode")),
+            "allow_count": str(len(perms.get("allow", []))),
+            "deny_count": str(len(perms.get("deny", [])))}
+
+
+def merge_permissions_into_codex(repo_root: Path, dry_run: bool) -> str:
+    """Append (or replace) the adk permissions marker block in ~/.codex/config.toml.
+
+    NOTE: if the user already defined `approval_policy` or `sandbox_mode` at the
+    top level outside our marker, TOML will reject the duplicate. We detect this
+    and refuse to write — the user must remove their own entry first.
+    """
+    src = repo_root / "shared" / "permissions" / "codex.toml"
+    if not src.exists():
+        return "no-template"
+    content = src.read_text(encoding="utf-8")
+    target = Path.home() / ".codex" / "config.toml"
+
+    if target.exists():
+        existing = target.read_text(encoding="utf-8")
+        # Strip our marker block (if any) before scanning for duplicate keys.
+        without_block = re.sub(
+            rf"{re.escape(MARKER_PERMS_HASH_START)}.*?{re.escape(MARKER_PERMS_HASH_END)}\n?",
+            "", existing, flags=re.DOTALL,
+        )
+        for key in ("approval_policy", "sandbox_mode"):
+            if re.search(rf"(?m)^\s*{key}\s*=", without_block):
+                warn(f"~/.codex/config.toml already defines `{key}` outside the adk marker — "
+                     f"leaving it alone. Remove it manually and re-run to enable adk permissions.")
+                return "skipped (user-defined keys present)"
+
+    return append_with_marker(target, content, MARKER_PERMS_HASH_START, MARKER_PERMS_HASH_END,
+                              dry_run, repo_root)
+
+
+def merge_permissions_into_junie(repo_root: Path, dry_run: bool) -> str:
+    """Write ~/.junie/allowlist.json from shared/permissions/junie-allowlist.json.
+
+    If the user already has an allowlist.json that is NOT adk-managed (no
+    `_adk_managed: true` marker), leave it alone with a warning. Otherwise
+    overwrite (which refreshes our managed contents on every install).
+    """
+    src = repo_root / "shared" / "permissions" / "junie-allowlist.json"
+    if not src.exists():
+        return "no-template"
+    target = Path.home() / ".junie" / "allowlist.json"
+
+    if target.exists():
+        try:
+            existing = json.loads(target.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            warn(f"existing {target} is invalid JSON; leaving alone")
+            return "skipped (invalid existing json)"
+        if not existing.get("_adk_managed"):
+            warn(f"{target} exists and is not adk-managed — leaving alone. "
+                 f"Delete it (or add `\"_adk_managed\": true`) and re-run to enable adk allowlist.")
+            return "skipped (user-owned)"
+
+    pre_existed = target.exists()
+    desired = read_json(src)
+    write_json(target, desired, dry_run)
+    if dry_run:
+        return "would-update" if pre_existed else "would-create"
+    return "updated" if pre_existed else "created"
+
+
+def _translate_mcp_entry_claude(cfg: dict[str, Any]) -> dict[str, Any]:
+    """Translate adk schema → Claude Code's `mcpServers.<name>` schema."""
+    entry: dict[str, Any] = {}
+    if "url" in cfg:
+        entry["type"] = "http"
+        entry["url"] = cfg["url"]
+        if "headers" in cfg:
+            entry["headers"] = cfg["headers"]
+    elif "command" in cfg:
+        entry["command"] = cfg["command"]
+        if "args" in cfg:
+            entry["args"] = cfg["args"]
+        if "env" in cfg:
+            entry["env"] = cfg["env"]
+    if "description" in cfg:
+        entry["description"] = cfg["description"]
+    return entry
+
+
+def _translate_mcp_entry_generic(cfg: dict[str, Any]) -> dict[str, Any]:
+    """Translate adk schema → Cursor/Junie-style `mcpServers.<name>` schema."""
+    entry: dict[str, Any] = {}
+    if "url" in cfg:
+        entry["url"] = cfg["url"]
+        if "headers" in cfg:
+            entry["headers"] = cfg["headers"]
+    elif "command" in cfg:
+        entry["command"] = cfg["command"]
+        if "args" in cfg:
+            entry["args"] = cfg["args"]
+        if "env" in cfg:
+            entry["env"] = cfg["env"]
+    return entry
+
+
+def _replace_mcp_servers_and_save_user(current: dict[str, Any],
+                                        adk_entries: dict[str, dict[str, Any]]) -> dict[str, str]:
+    """Replace the entire `mcpServers` map with adk-only entries.
+
+    The user explicitly asked us to wipe pre-configured (non-adk) MCPs from
+    every agent. We stash whatever non-adk entries were present at first
+    install under `_adkRemovedMcpServers` so `--uninstall` can put them
+    back. Subsequent installs do not overwrite that stash (so re-running
+    install can't lose user data).
+    """
+    existing = current.get("mcpServers", {}) or {}
+    if not isinstance(existing, dict):
+        existing = {}
+    # First install only: snapshot user entries.
+    if ADK_REMOVED_MCP_KEY not in current:
+        user_entries = {k: v for k, v in existing.items()
+                        if not str(k).startswith(ADK_MCP_NAME_PREFIX)}
+        if user_entries:
+            current[ADK_REMOVED_MCP_KEY] = user_entries
+    # Wipe everything; write only adk entries.
+    current["mcpServers"] = dict(adk_entries)
     results: dict[str, str] = {}
+    removed = [k for k in existing if not str(k).startswith(ADK_MCP_NAME_PREFIX)]
+    for name in adk_entries:
+        results[name] = "installed"
+    if removed:
+        results["_removed_user_mcps"] = ", ".join(sorted(removed))
+    return results
+
+
+def _build_adk_mcp_entries(repo_root: Path,
+                            translator) -> tuple[dict[str, dict[str, Any]], dict[str, str]]:
+    """Build the adk-mcp-* entries map, skipping any that can't be enabled."""
+    out: dict[str, dict[str, Any]] = {}
+    skipped: dict[str, str] = {}
     for name, cfg in load_mcp_configs(repo_root).items():
-        # Translate adk schema to Claude's MCP schema
-        entry: dict[str, Any] = {}
-        if "url" in cfg:
-            entry["type"] = "http"
-            entry["url"] = cfg["url"]
-            if "headers" in cfg:
-                entry["headers"] = cfg["headers"]
-        elif "command" in cfg:
-            entry["command"] = cfg["command"]
-            if "args" in cfg:
-                entry["args"] = cfg["args"]
-            if "env" in cfg:
-                entry["env"] = cfg["env"]
-        if "description" in cfg:
-            entry["description"] = cfg["description"]
-        # Skip rag if URL env var unset
         if name == "adk-mcp-rag" and not os.environ.get("RAG_MCP_URL"):
-            results[name] = "skipped (RAG_MCP_URL unset)"
+            skipped[name] = "skipped (RAG_MCP_URL unset)"
             continue
-        if current["mcpServers"].get(name) == entry:
-            results[name] = "kept"
-        else:
-            current["mcpServers"][name] = entry
-            results[name] = "updated"
+        out[name] = translator(cfg)
+    return out, skipped
+
+
+def merge_mcp_into_claude(repo_root: Path, dry_run: bool) -> dict[str, str]:
+    """Merge mcp/* into ~/.claude.json (the real Claude Code config) under mcpServers.
+
+    NOTE: Claude Code reads MCP servers from `~/.claude.json`, NOT from
+    `~/.claude/settings.json`. Writing to settings.json silently does
+    nothing — that was the cause of "no MCPs visible after install".
+    """
+    settings = Path.home() / ".claude.json"
+    current = read_json(settings)
+    adk_entries, skipped = _build_adk_mcp_entries(repo_root, _translate_mcp_entry_claude)
+    results = _replace_mcp_servers_and_save_user(current, adk_entries)
+    results.update(skipped)
     write_json(settings, current, dry_run)
     return results
 
@@ -223,28 +473,25 @@ def merge_mcp_into_claude(repo_root: Path, dry_run: bool) -> dict[str, str]:
 def merge_mcp_into_cursor(repo_root: Path, dry_run: bool) -> dict[str, str]:
     settings = Path.home() / ".cursor" / "mcp.json"
     current = read_json(settings)
-    current.setdefault("mcpServers", {})
-    results: dict[str, str] = {}
-    for name, cfg in load_mcp_configs(repo_root).items():
-        entry: dict[str, Any] = {}
-        if "url" in cfg:
-            entry["url"] = cfg["url"]
-            if "headers" in cfg:
-                entry["headers"] = cfg["headers"]
-        elif "command" in cfg:
-            entry["command"] = cfg["command"]
-            if "args" in cfg:
-                entry["args"] = cfg["args"]
-            if "env" in cfg:
-                entry["env"] = cfg["env"]
-        if name == "adk-mcp-rag" and not os.environ.get("RAG_MCP_URL"):
-            results[name] = "skipped (RAG_MCP_URL unset)"
-            continue
-        if current["mcpServers"].get(name) == entry:
-            results[name] = "kept"
-        else:
-            current["mcpServers"][name] = entry
-            results[name] = "updated"
+    adk_entries, skipped = _build_adk_mcp_entries(repo_root, _translate_mcp_entry_generic)
+    results = _replace_mcp_servers_and_save_user(current, adk_entries)
+    results.update(skipped)
+    write_json(settings, current, dry_run)
+    return results
+
+
+def merge_mcp_into_junie(repo_root: Path, dry_run: bool) -> dict[str, str]:
+    """Merge mcp/* into ~/.junie/mcp/mcp.json under mcpServers.<name>.
+
+    Junie reads its MCP server list from `~/.junie/mcp/mcp.json`. The shape
+    matches Cursor's, so we re-use the same translator + replacement logic.
+    """
+    settings = Path.home() / ".junie" / "mcp" / "mcp.json"
+    ensure_dir(settings.parent, dry_run)
+    current = read_json(settings)
+    adk_entries, skipped = _build_adk_mcp_entries(repo_root, _translate_mcp_entry_generic)
+    results = _replace_mcp_servers_and_save_user(current, adk_entries)
+    results.update(skipped)
     write_json(settings, current, dry_run)
     return results
 
@@ -288,11 +535,20 @@ def merge_hooks_into_claude(repo_root: Path, dry_run: bool) -> dict[str, Any]:
     current = read_json(settings)
     current.setdefault("hooks", {})
     actions: dict[str, str] = {}
-    for event, src_entries in src_hooks.items():
-        existing = current["hooks"].get(event, [])
-        # Drop existing adk-managed entries; preserve the rest.
+    # Phase 1: prune adk-managed entries from ALL existing events, so that
+    # events removed from hooks.json since the last run get dropped here too.
+    for event in list(current["hooks"]):
+        existing = current["hooks"][event]
         kept = [e for e in existing if not (isinstance(e, dict) and e.get("_adk_managed"))]
-        current["hooks"][event] = kept + src_entries
+        if kept:
+            current["hooks"][event] = kept
+        else:
+            del current["hooks"][event]
+            actions[event] = "pruned (no longer in hooks.json)"
+    # Phase 2: append fresh adk-managed entries from src.
+    for event, src_entries in src_hooks.items():
+        current["hooks"].setdefault(event, [])
+        current["hooks"][event] = current["hooks"][event] + src_entries
         actions[event] = f"merged ({len(src_entries)} entries)"
     write_json(settings, current, dry_run)
     return {"status": "ok", "events": actions}
@@ -330,9 +586,12 @@ def install_claude(repo_root: Path, dry_run: bool, results: dict[str, Any]) -> N
     mcp_results = merge_mcp_into_claude(repo_root, dry_run)
     # Hooks merge
     hooks_result = merge_hooks_into_claude(repo_root, dry_run)
+    # Permissions merge (allow-most / ask-on-dangerous)
+    perms_result = merge_permissions_into_claude(repo_root, dry_run)
     results["claude"] = {
         "skills": skill_results, "agents": agent_results, "commands": cmd_results,
         "claude_md_append": append_result, "mcp_merge": mcp_results, "hooks": hooks_result,
+        "permissions": perms_result,
     }
 
 
@@ -345,15 +604,25 @@ def install_cursor(repo_root: Path, dry_run: bool, results: dict[str, Any]) -> N
     for rule_file in sorted((repo_root / "agents-cursor" / "rules").glob("adk-*.mdc")):
         dst = rules_dir / rule_file.name
         rule_results[rule_file.name] = make_symlink(rule_file, dst, dry_run)
-    # global always-rule (the AGENTS.md pointer)
+    # global always-rule (the AGENTS.md pointer).
+    # _adk.mdc is FULLY adk-managed — Cursor needs frontmatter at the file top
+    # (not inside HTML comments), so we overwrite rather than merge-by-marker.
     tmpl = (repo_root / "agents-cursor" / "cursor-rules.append.tmpl").read_text(encoding="utf-8")
-    append_result = append_with_marker(
-        rules_dir / "_adk.mdc", tmpl, MARKER_MD_START, MARKER_MD_END, dry_run, repo_root,
-    )
+    rendered = tmpl.replace("{{ADK_REPO}}", str(repo_root))
+    _adk_mdc = rules_dir / "_adk.mdc"
+    if dry_run:
+        append_result = "would-overwrite" if _adk_mdc.exists() else "would-create"
+    else:
+        _adk_mdc.parent.mkdir(parents=True, exist_ok=True)
+        _adk_mdc.write_text(rendered, encoding="utf-8")
+        append_result = "overwritten"
     # MCP merge
     mcp_results = merge_mcp_into_cursor(repo_root, dry_run)
+    # Permissions merge (allow-most / ask-on-dangerous)
+    perms_result = merge_permissions_into_cursor(repo_root, dry_run)
     results["cursor"] = {
         "rules": rule_results, "always_rule_append": append_result, "mcp_merge": mcp_results,
+        "permissions": perms_result,
     }
 
 
@@ -366,6 +635,8 @@ def install_codex(repo_root: Path, dry_run: bool, results: dict[str, Any]) -> No
         dst = codex_dir / "prompts" / prompt_file.name
         prompt_results[prompt_file.name] = make_symlink(prompt_file, dst, dry_run)
     toml_append = append_codex_toml(repo_root, dry_run)
+    # Permissions merge (approval_policy / sandbox_mode)
+    perms_result = merge_permissions_into_codex(repo_root, dry_run)
     # Global instructions pointer
     instructions = codex_dir / "instructions.md"
     pointer = f"For every prompt, follow the routing in @{repo_root}/AGENTS.md."
@@ -375,6 +646,7 @@ def install_codex(repo_root: Path, dry_run: bool, results: dict[str, Any]) -> No
     results["codex"] = {
         "prompts": prompt_results,
         "config_toml_append": toml_append,
+        "permissions": perms_result,
         "instructions_append": instructions_append,
         "gaps": "see agents-codex/README.md for the capability table",
     }
@@ -384,11 +656,39 @@ def install_junie(repo_root: Path, dry_run: bool, results: dict[str, Any]) -> No
     info("=== Junie ===")
     junie_dir = Path.home() / ".junie"
     ensure_dir(junie_dir, dry_run)
+    ensure_dir(junie_dir / "skills", dry_run)
+    ensure_dir(junie_dir / "commands", dry_run)
     tmpl = (repo_root / "agents-junie" / "guidelines.md.append.tmpl").read_text(encoding="utf-8")
     guidelines_append = append_with_marker(
         junie_dir / "guidelines.md", tmpl, MARKER_MD_START, MARKER_MD_END, dry_run, repo_root,
     )
-    # Write MCP snippet for manual paste
+    # Symlink skills/adk-* into ~/.junie/skills/ — Junie auto-discovers skills
+    # with a SKILL.md in each subdir, same as Claude Code.
+    skill_results: dict[str, str] = {}
+    for skill_dir in sorted((repo_root / "skills").glob("adk-*")):
+        if skill_dir.is_dir():
+            dst = junie_dir / "skills" / skill_dir.name
+            skill_results[skill_dir.name] = make_symlink(skill_dir, dst, dry_run)
+    # Slash commands: Junie skills are auto-invoked by description match, not
+    # by typing `/adk-…`. To make `/adk-*` appear in the slash menu, write
+    # rendered command Markdowns (re-used from agents-claude/commands) into
+    # ~/.junie/commands/. Junie command format (YAML frontmatter w/
+    # `description:` + body) is compatible with Claude's.
+    cmd_results: dict[str, str] = {}
+    for cmd_file in sorted((repo_root / "agents-claude" / "commands").glob("adk-*.md")):
+        dst = junie_dir / "commands" / cmd_file.name
+        rendered = cmd_file.read_text(encoding="utf-8").replace("{{ADK_REPO}}", str(repo_root))
+        if dry_run:
+            cmd_results[cmd_file.name] = "would-write"
+            continue
+        prev = dst.read_text(encoding="utf-8") if dst.exists() else None
+        dst.write_text(rendered, encoding="utf-8")
+        cmd_results[cmd_file.name] = "kept" if prev == rendered else ("updated" if prev else "created")
+    # MCP merge → ~/.junie/mcp/mcp.json (real config; previously only wrote a
+    # paste-this snippet, which is why Junie users saw zero adk MCPs).
+    mcp_results = merge_mcp_into_junie(repo_root, dry_run)
+    # Keep emitting the paste-this snippet for older Junie versions whose MCP
+    # config dir isn't `~/.junie/mcp/`.
     mcp_snippet_path = repo_root / "agents-junie" / "junie-mcp.json.snippet"
     mcp_snippet = {"mcpServers": {}}
     for name, cfg in load_mcp_configs(repo_root).items():
@@ -397,16 +697,117 @@ def install_junie(repo_root: Path, dry_run: bool, results: dict[str, Any]) -> No
         mcp_snippet["mcpServers"][name] = cfg
     if not dry_run:
         mcp_snippet_path.write_text(json.dumps(mcp_snippet, indent=2) + "\n", encoding="utf-8")
+    # Permissions allowlist write
+    perms_result = merge_permissions_into_junie(repo_root, dry_run)
     results["junie"] = {
         "guidelines_append": guidelines_append,
+        "skills": skill_results,
+        "commands": cmd_results,
+        "mcp_merge": mcp_results,
         "mcp_snippet_written": str(mcp_snippet_path) if not dry_run else "(dry-run)",
-        "gaps": "see agents-junie/README.md — MCP wiring is manual",
+        "permissions": perms_result,
     }
 
 
 # ----------------------------------------------------------------------------
 # Uninstall
 # ----------------------------------------------------------------------------
+
+def _restore_scalar(section: dict[str, Any], key: str, book: dict[str, Any], prev_key: str) -> None:
+    if prev_key not in book:
+        return
+    prev_val = book[prev_key]
+    if prev_val is None:
+        section.pop(key, None)
+    else:
+        section[key] = prev_val
+
+
+def strip_permissions_from_claude(dry_run: bool) -> str:
+    settings_path = Path.home() / ".claude" / "settings.json"
+    if not settings_path.exists():
+        return "absent"
+    current = read_json(settings_path)
+    book = current.get(ADK_PERMS_BOOKKEEPING_KEY, {})
+    if not book:
+        return "no-bookkeeping"
+    perms = current.get("permissions", {})
+    for key in ("allow", "ask", "deny"):
+        managed = book.get(key, [])
+        if managed and key in perms:
+            perms[key] = [x for x in perms[key] if x not in managed]
+    _restore_scalar(perms, "defaultMode", book, "defaultMode__previous")
+    current.pop(ADK_PERMS_BOOKKEEPING_KEY, None)
+    write_json(settings_path, current, dry_run)
+    return "stripped"
+
+
+def strip_permissions_from_cursor(dry_run: bool) -> str:
+    settings_path = Path.home() / ".cursor" / "cli-config.json"
+    if not settings_path.exists():
+        return "absent"
+    current = read_json(settings_path)
+    book = current.get(ADK_PERMS_BOOKKEEPING_KEY, {})
+    if not book:
+        return "no-bookkeeping"
+    perms = current.get("permissions", {})
+    for key in ("allow", "deny"):
+        managed = book.get(key, [])
+        if managed and key in perms:
+            perms[key] = [x for x in perms[key] if x not in managed]
+    _restore_scalar(current, "approvalMode", book, "approvalMode__previous")
+    sandbox_book = book.get("sandbox", {})
+    sandbox = current.get("sandbox", {})
+    if sandbox_book:
+        for skey in ("mode", "networkAccess"):
+            _restore_scalar(sandbox, skey, sandbox_book, f"{skey}__previous")
+    current.pop(ADK_PERMS_BOOKKEEPING_KEY, None)
+    write_json(settings_path, current, dry_run)
+    return "stripped"
+
+
+def restore_mcp_servers(settings_path: Path, dry_run: bool) -> str:
+    """Drop adk-mcp-* entries and restore previously-stashed user MCPs.
+
+    Mirror of `_replace_mcp_servers_and_save_user`. If the file doesn't
+    exist or has no bookkeeping, we still strip adk-mcp-* names from the
+    map.
+    """
+    if not settings_path.exists():
+        return "absent"
+    current = read_json(settings_path)
+    mcps = current.get("mcpServers", {}) or {}
+    if not isinstance(mcps, dict):
+        return "skipped (non-dict mcpServers)"
+    kept = {k: v for k, v in mcps.items()
+            if not str(k).startswith(ADK_MCP_NAME_PREFIX)}
+    saved = current.pop(ADK_REMOVED_MCP_KEY, {}) or {}
+    if isinstance(saved, dict):
+        for k, v in saved.items():
+            kept.setdefault(k, v)
+    if kept:
+        current["mcpServers"] = kept
+    else:
+        current.pop("mcpServers", None)
+    write_json(settings_path, current, dry_run)
+    return f"restored ({len(saved)} user mcps put back)" if saved else "stripped"
+
+
+def strip_permissions_from_junie(dry_run: bool) -> str:
+    target = Path.home() / ".junie" / "allowlist.json"
+    if not target.exists():
+        return "absent"
+    try:
+        data = json.loads(target.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return "skipped (invalid json)"
+    if not data.get("_adk_managed"):
+        return "skipped (user-owned)"
+    if dry_run:
+        return "would-remove"
+    target.unlink()
+    return "removed"
+
 
 def uninstall_target(target: str, dry_run: bool, results: dict[str, Any]) -> None:
     info(f"=== uninstall: {target} ===")
@@ -436,8 +837,11 @@ def uninstall_target(target: str, dry_run: bool, results: dict[str, Any]) -> Non
             if not dry_run:
                 write_json(settings, current, dry_run=False)
             results["claude_hooks_removed"] = removed
-        # MCPs: leave them (user may have customized)
-        results["claude"] = "uninstalled (symlinks removed; CLAUDE.md marker stripped; adk hooks removed; MCPs left)"
+        # Permissions: drop adk-managed entries, restore previous defaultMode
+        results["claude_permissions"] = strip_permissions_from_claude(dry_run)
+        # MCPs: strip adk entries from ~/.claude.json and restore stashed user entries
+        results["claude_mcps"] = restore_mcp_servers(Path.home() / ".claude.json", dry_run)
+        results["claude"] = "uninstalled (symlinks removed; CLAUDE.md marker stripped; adk hooks + permissions stripped; adk MCPs removed; user MCPs restored)"
     elif target == "cursor":
         rules = Path.home() / ".cursor" / "rules"
         for p in rules.glob("adk-*.mdc"):
@@ -447,7 +851,9 @@ def uninstall_target(target: str, dry_run: bool, results: dict[str, Any]) -> Non
                 else:
                     p.unlink()
         strip_marker(rules / "_adk.mdc", MARKER_MD_START, MARKER_MD_END, dry_run)
-        results["cursor"] = "uninstalled (rules removed; _adk.mdc marker stripped)"
+        results["cursor_permissions"] = strip_permissions_from_cursor(dry_run)
+        results["cursor_mcps"] = restore_mcp_servers(Path.home() / ".cursor" / "mcp.json", dry_run)
+        results["cursor"] = "uninstalled (rules removed; _adk.mdc marker stripped; adk permissions + MCPs stripped; user MCPs restored)"
     elif target == "codex":
         prompts = Path.home() / ".codex" / "prompts"
         for p in prompts.glob("adk-*.md"):
@@ -457,11 +863,37 @@ def uninstall_target(target: str, dry_run: bool, results: dict[str, Any]) -> Non
                 else:
                     p.unlink()
         strip_marker(Path.home() / ".codex" / "config.toml", MARKER_HASH_START, MARKER_HASH_END, dry_run)
+        strip_marker(Path.home() / ".codex" / "config.toml", MARKER_PERMS_HASH_START, MARKER_PERMS_HASH_END, dry_run)
         strip_marker(Path.home() / ".codex" / "instructions.md", MARKER_MD_START, MARKER_MD_END, dry_run)
-        results["codex"] = "uninstalled"
+        results["codex"] = "uninstalled (mcp + permissions blocks stripped)"
     elif target == "junie":
+        # Remove adk skill symlinks
+        junie_skills = Path.home() / ".junie" / "skills"
+        skill_removed = 0
+        for p in junie_skills.glob("adk-*"):
+            if p.is_symlink():
+                if dry_run:
+                    info(f"would remove {p}")
+                else:
+                    p.unlink()
+                skill_removed += 1
+        results["junie_skills_removed"] = skill_removed
+        # Remove adk slash-command files (regular files, not symlinks)
+        junie_commands = Path.home() / ".junie" / "commands"
+        cmd_removed = 0
+        if junie_commands.exists():
+            for p in junie_commands.glob("adk-*.md"):
+                if p.is_file() and not p.is_symlink():
+                    if dry_run:
+                        info(f"would remove {p}")
+                    else:
+                        p.unlink()
+                    cmd_removed += 1
+        results["junie_commands_removed"] = cmd_removed
         strip_marker(Path.home() / ".junie" / "guidelines.md", MARKER_MD_START, MARKER_MD_END, dry_run)
-        results["junie"] = "uninstalled"
+        results["junie_permissions"] = strip_permissions_from_junie(dry_run)
+        results["junie_mcps"] = restore_mcp_servers(Path.home() / ".junie" / "mcp" / "mcp.json", dry_run)
+        results["junie"] = "uninstalled (skill symlinks + guidelines marker + adk allowlist + adk MCPs removed; user MCPs restored)"
 
 
 # ----------------------------------------------------------------------------

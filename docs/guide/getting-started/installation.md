@@ -41,22 +41,21 @@ Pick any directory. Symlinks point at this clone, so `git pull` propagates updat
 Add to `~/.zshenv` (or `~/.bashrc` on bash). **Restart your agent** after editing — env is read at process start.
 
 ```bash
-# GitHub — fine-grained preferred; classic auto-fallback
-export GITHUB_PAT="github_pat_..."
-export GITHUB_PAT_CLASSIC="ghp_..."             # used automatically if GITHUB_PAT is unset
+# GitHub — fine-grained PAT (preferred) or classic
+export GITHUB_TOKEN_CRED="github_pat_..."
 
 # Datadog
-export DATADOG_API_KEY="..."
-export DATADOG_APP_KEY="..."
+export DATADOG_API_KEY_CRED="..."
+export DATADOG_APP_KEY_CRED="..."
 export DD_SITE="datadoghq.com"                  # or datadoghq.eu / us3.* / us5.* / ap1.* / ap2.*
 
 # Statsig
-export STATSIG_CONSOLE_API_KEY="console-..."
+export STATSIG_CONSOLE_API_KEY_CRED="console-..."
 
 # Atlassian (Jira + Confluence, via uvx mcp-atlassian)
 export ATLASSIAN_SITE="acme.atlassian.net"      # bare host, no scheme, no /wiki
 export ATLASSIAN_USERNAME="you@acme.com"
-export ATLASSIAN_API_TOKEN="ATATT..."
+export ATLASSIAN_API_TOKEN_CRED="ATATT..."
 
 # Mixpanel — OAuth on first MCP connect; no env var needed.
 
@@ -70,14 +69,14 @@ export SNOWFLAKE_ROLE="..."
 # Looker (optional)
 export LOOKER_BASE_URL="https://acme.cloud.looker.com"
 export LOOKER_CLIENT_ID="..."
-export LOOKER_CLIENT_SECRET="..."
+export LOOKER_CLIENT_SECRET_CRED="..."
 
 # Slack — shell-sourceable file (chmod 600) that exports SLACK_BOT_TOKEN and/or SLACK_USER_TOKEN
 export SLACK_CREDENTIALS_FILE="$HOME/.config/adk/slack-credentials.sh"
 
 # RAG — optional company knowledge base MCP
 export RAG_MCP_URL="https://your-rag.example.com/mcp"
-export RAG_MCP_TOKEN="..."
+export RAG_MCP_TOKEN_CRED="..."
 ```
 
 The Slack credentials file template:

@@ -1,0 +1,62 @@
+{
+  "_comment": "adk-managed Junie allowlist. Written to ~/.junie/allowlist.json by install.py. Edit and re-run ./install.sh to refresh.",
+  "_adk_managed": true,
+  "defaultBehavior": "ask",
+  "allowReadonlyCommands": true,
+  "rules": {
+    "executables": {
+      "rules": [
+        { "prefix": "rm", "action": "ask" },
+        { "prefix": "sudo", "action": "ask" },
+        { "prefix": "git push", "action": "ask" },
+        { "prefix": "git reset --hard", "action": "ask" },
+        { "prefix": "git rebase", "action": "ask" },
+        { "prefix": "git clean", "action": "ask" },
+        { "prefix": "git revert", "action": "ask" },
+        { "prefix": "git branch -D", "action": "ask" },
+        { "prefix": "git tag -d", "action": "ask" },
+        { "prefix": "npm publish", "action": "ask" },
+        { "prefix": "yarn publish", "action": "ask" },
+        { "prefix": "pnpm publish", "action": "ask" },
+        { "prefix": "pip uninstall", "action": "ask" },
+        { "prefix": "brew uninstall", "action": "ask" },
+        { "prefix": "brew cleanup", "action": "ask" },
+        { "prefix": "docker system prune", "action": "ask" },
+        { "prefix": "docker volume rm", "action": "ask" },
+        { "prefix": "docker rmi", "action": "ask" },
+        { "prefix": "kubectl delete", "action": "ask" },
+        { "prefix": "kubectl apply", "action": "ask" },
+        { "prefix": "helm uninstall", "action": "ask" },
+        { "prefix": "helm upgrade", "action": "ask" },
+        { "prefix": "terraform apply", "action": "ask" },
+        { "prefix": "terraform destroy", "action": "ask" },
+        { "prefix": "aws s3 rm", "action": "ask" },
+        { "prefix": "shutdown", "action": "ask" },
+        { "prefix": "reboot", "action": "ask" },
+        { "prefix": "mkfs", "action": "ask" },
+        { "prefix": "dd ", "action": "ask" },
+        { "prefix": "chmod -R", "action": "ask" },
+        { "prefix": "chown -R", "action": "ask" },
+        { "pattern": "**", "action": "allow" }
+      ]
+    },
+    "mcpTools": {
+      "rules": [
+        { "pattern": "**", "action": "allow" }
+      ]
+    },
+    "readOutsideProject": {
+      "rules": [
+        { "prefix": "/etc/", "action": "ask" },
+        { "prefix": "/var/log/", "action": "ask" },
+        { "prefix": "/private/etc/", "action": "ask" },
+        { "pattern": "**", "action": "allow" }
+      ]
+    },
+    "fileEditing": {
+      "rules": [
+        { "pattern": "**", "action": "allow" }
+      ]
+    }
+  }
+}

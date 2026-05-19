@@ -83,10 +83,10 @@ def enrich_github() -> dict[str, Any]:
 
 def enrich_datadog() -> dict[str, Any]:
     site = os.environ.get("DD_SITE", "datadoghq.com")
-    api_key = os.environ.get("DATADOG_API_KEY") or os.environ.get("DD_API_KEY")
-    app_key = os.environ.get("DATADOG_APP_KEY") or os.environ.get("DD_APP_KEY")
+    api_key = os.environ.get("DATADOG_API_KEY_CRED") or os.environ.get("DD_API_KEY")
+    app_key = os.environ.get("DATADOG_APP_KEY_CRED") or os.environ.get("DD_APP_KEY")
     if not (api_key and app_key):
-        return {"_status": "skipped", "_reason": "DATADOG_API_KEY / DATADOG_APP_KEY not set"}
+        return {"_status": "skipped", "_reason": "DATADOG_API_KEY_CRED / DATADOG_APP_KEY_CRED not set"}
     base = f"https://api.{site}/api/v1"
     headers_curl = [
         "-H", f"DD-API-KEY: {api_key}",
@@ -121,9 +121,9 @@ def enrich_datadog() -> dict[str, Any]:
 
 
 def enrich_statsig() -> dict[str, Any]:
-    key = os.environ.get("STATSIG_CONSOLE_API_KEY")
+    key = os.environ.get("STATSIG_CONSOLE_API_KEY_CRED")
     if not key:
-        return {"_status": "skipped", "_reason": "STATSIG_CONSOLE_API_KEY not set"}
+        return {"_status": "skipped", "_reason": "STATSIG_CONSOLE_API_KEY_CRED not set"}
     out: dict[str, Any] = {"_status": "ok"}
     for resource in ("gates", "experiments", "metrics"):
         rc, body, _ = run([
@@ -146,7 +146,7 @@ def enrich_statsig() -> dict[str, Any]:
 def enrich_atlassian() -> dict[str, Any]:
     site = os.environ.get("ATLASSIAN_SITE")
     user = os.environ.get("ATLASSIAN_USERNAME")
-    token = os.environ.get("ATLASSIAN_API_TOKEN")
+    token = os.environ.get("ATLASSIAN_API_TOKEN_CRED")
     if not (site and user and token):
         return {"_status": "skipped", "_reason": "ATLASSIAN_SITE/USERNAME/API_TOKEN not all set"}
     auth = ["-u", f"{user}:{token}"]

@@ -13,15 +13,15 @@ Each `adk-mcp-*.json` is a single, env-var-driven config. **No tokens stored**; 
 
 | MCP | Status | Env vars consumed | Skills that use it |
 |---|---|---|---|
-| `adk-mcp-github` | required for code skills | `GITHUB_PAT` → `GITHUB_PAT_CLASSIC` (fallback) | `/adk-implement`, `/adk-review`, `/adk-sync` |
-| `adk-mcp-datadog` | required for investigate | `DATADOG_API_KEY`, `DATADOG_APP_KEY`, `DD_SITE` | `/adk-investigate` |
-| `adk-mcp-statsig` | required for investigate | `STATSIG_CONSOLE_API_KEY` | `/adk-investigate` |
-| `adk-mcp-atlassian` | required for docs / Jira | `ATLASSIAN_SITE`, `ATLASSIAN_USERNAME`, `ATLASSIAN_API_TOKEN` | `/adk-implement` (Jira context), `/adk-document`, `/adk-sync` |
+| `adk-mcp-github` | required for code skills | `GITHUB_TOKEN_CRED` | `/adk-implement`, `/adk-review`, `/adk-sync` |
+| `adk-mcp-datadog` | required for investigate | `DATADOG_API_KEY_CRED`, `DATADOG_APP_KEY_CRED`, `DD_SITE` | `/adk-investigate` |
+| `adk-mcp-statsig` | required for investigate | `STATSIG_CONSOLE_API_KEY_CRED` | `/adk-investigate` |
+| `adk-mcp-atlassian` | required for docs / Jira | `ATLASSIAN_SITE`, `ATLASSIAN_USERNAME`, `ATLASSIAN_API_TOKEN_CRED` | `/adk-implement` (Jira context), `/adk-document`, `/adk-sync` |
 | `adk-mcp-mixpanel` | optional | none (OAuth) | `/adk-investigate` (product-analytics sub-flow) |
 | `adk-mcp-slack` | optional | `SLACK_CREDENTIALS_FILE` → sources `SLACK_BOT_TOKEN`/`SLACK_USER_TOKEN` | `/adk-investigate` (incident / RCA), `/adk-sync` (post) |
 | `adk-mcp-snowflake` | optional | `SNOWFLAKE_*` (see config) | `/adk-investigate` (data sub-flow) |
 | `adk-mcp-looker` | optional | `LOOKER_*` (see config) | `/adk-investigate` (data sub-flow) |
-| `adk-mcp-rag` | optional | `RAG_MCP_URL`, `RAG_MCP_TOKEN` | All skills (auto-merge into context-gather when enabled) |
+| `adk-mcp-rag` | optional | `RAG_MCP_URL`, `RAG_MCP_TOKEN_CRED` | All skills (auto-merge into context-gather when enabled) |
 
 ## Required vs optional
 

@@ -46,7 +46,20 @@
 2. Windows is not supported. Mention it; don't pretend.
 3. Skills with unmet MCP requirements stop in Phase 1 with a named gap. They don't half-execute.
 
-## VII. On the constitution itself
+## VII. On secrets
+
+1. **Never bring credential values into LLM context.** No value flows back through tool output, file reads, stdout/stderr, error messages, or your own text. The following are categorically off-limits to Read, `cat`/`head`/`tail`/`grep`, `echo $VAR`, `printenv VAR`, or any tool that would surface the value:
+   - `~/.zshenv` and other shell-init files known to inline secrets.
+   - `~/.config/creds/*/creds.sh`
+   - `~/.config/creds/*/*.token.json` and any `.token.*` / `.cred*` file under a creds folder.
+   - The value of any env var whose name ends in `_CRED`, `_CREDS`, `_SECRET`, `_TOKEN`, `_KEY`, `_PAT`, `_PASSWORD`, or `_API_KEY`.
+   - Anything the user has flagged as secret this session.
+2. **Presence-only diagnostics.** Existence of a var: `[ -n "${VAR-}" ] && echo set || echo unset`. Existence of a file: `test -f path && echo present`. Never `echo $VAR`, never `cat`/`head`/`tail`/`grep` a creds file, never `Read` on a creds file. `head -c N "$VAR"` is forbidden — N chars of a secret is still part of the secret.
+3. **Verification = exercise the credential, don't reveal it.** When you need to confirm a credential WORKS, write a small script that uses the value to hit the resource (`curl -fsS -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $VAR" $URL`, `gh api user --jq .login`, `aws sts get-caller-identity --query 'Account' --output text`, etc.) and reports only the boolean / status outcome. The script must not echo the value, must not print request headers, and must redirect verbose output to `/dev/null`. Run via Bash; only the boolean / status code enters the conversation.
+4. **Per-invocation authorization is narrow.** If the user explicitly authorizes a one-time read of a secret value for a specific named task, the authorization covers that single action only and ends with it. It does not relax the rule for the rest of the session. Surface the exception in the final report.
+5. **Surfaced values are compromised.** If a value enters the conversation — yours, the user's, or via tool output — treat it as leaked, recommend rotation, never assume the chat is private.
+
+## VIII. On the constitution itself
 
 1. This file is the highest-authority skill-loaded instruction. Skills cannot override it; they extend it.
 2. `/adk-improve` cannot propose changes to this file. Only direct human edits, by the user, on this repo.

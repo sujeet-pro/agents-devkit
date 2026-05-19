@@ -18,7 +18,7 @@ Looker MCP via uvx. Read-only. Auth: API3 client credentials (mint in Looker Adm
 
 - `LOOKER_BASE_URL`
 - `LOOKER_CLIENT_ID`
-- `LOOKER_CLIENT_SECRET`
+- `LOOKER_CLIENT_SECRET_CRED`
 - `LOOKER_VERIFY_SSL`
 
 ## Configuration
@@ -33,7 +33,7 @@ Looker MCP via uvx. Read-only. Auth: API3 client credentials (mint in Looker Adm
   "env": {
     "LOOKER_BASE_URL": "${LOOKER_BASE_URL}",
     "LOOKER_CLIENT_ID": "${LOOKER_CLIENT_ID}",
-    "LOOKER_CLIENT_SECRET": "${LOOKER_CLIENT_SECRET}",
+    "LOOKER_CLIENT_SECRET_CRED": "${LOOKER_CLIENT_SECRET_CRED}",
     "LOOKER_VERIFY_SSL": "${LOOKER_VERIFY_SSL:-true}"
   },
   "description": "Looker MCP via uvx. Read-only. Auth: API3 client credentials (mint in Looker Admin > Users > Edit > API3 keys). Covers dashboards, looks, explores, fields, and safe SQL queries. Use overrides.yaml.data_sources.looker.{dashboards,explores} for the metadata cache. See SETUP.md."

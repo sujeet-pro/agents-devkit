@@ -25,7 +25,7 @@ https?://<site>.atlassian.net/jira/.../browse/<KEY>-<NUM>
 Fallback (if MCP unreachable): direct REST.
 
 ```bash
-curl -sS -u "$ATLASSIAN_USERNAME:$ATLASSIAN_API_TOKEN" \
+curl -sS -u "$ATLASSIAN_USERNAME:$ATLASSIAN_API_TOKEN_CRED" \
   "https://$ATLASSIAN_SITE/rest/api/3/issue/$KEY" \
   | jq '{key, summary: .fields.summary, status: .fields.status.name, type: .fields.issuetype.name,
          assignee: .fields.assignee.displayName, description: .fields.description,

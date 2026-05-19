@@ -29,35 +29,65 @@ REPO = Path(__file__).resolve().parent.parent
 MCP_DIR = REPO / "mcp"
 
 # Env vars referenced across MCPs — declared here so we report cleanly even if
-# a config file's env block omits them.
-DECLARED_VARS = {
-    "GITHUB_PAT": "https://github.com/settings/personal-access-tokens/new",
-    "GITHUB_PAT_CLASSIC": "https://github.com/settings/tokens",
-    "DATADOG_API_KEY": "https://app.datadoghq.com/organization-settings/api-keys",
-    "DATADOG_APP_KEY": "https://app.datadoghq.com/organization-settings/application-keys",
+# a config file's env block omits them. Aligned with the post-2026-05-19
+# ~/.zshenv + ~/.config/creds/<svc>/creds.sh layout.
+DECLARED_VARS: dict[str, str] = {
+    # GitHub
+    "GITHUB_TOKEN_CRED": "https://github.com/settings/personal-access-tokens/new",
+    # Datadog
+    "DATADOG_API_KEY_CRED": "https://app.datadoghq.com/organization-settings/api-keys",
+    "DATADOG_APP_KEY_CRED": "https://app.datadoghq.com/organization-settings/application-keys",
     "DD_SITE": "default: datadoghq.com",
-    "STATSIG_CONSOLE_API_KEY": "https://console.statsig.com/api_keys",
+    "DD_MCP_URL": "default: https://mcp.datadoghq.com/api/unstable/mcp-server/mcp",
+    # Statsig
+    "STATSIG_CONSOLE_API_KEY_CRED": "https://console.statsig.com/api_keys",
+    # Atlassian
     "ATLASSIAN_SITE": "your Atlassian site host (e.g. acme.atlassian.net)",
     "ATLASSIAN_USERNAME": "your Atlassian email",
-    "ATLASSIAN_API_TOKEN": "https://id.atlassian.com/manage-profile/security/api-tokens",
-    "SNOWFLAKE_ACCOUNT": "your Snowflake account",
-    "SNOWFLAKE_USER": "your Snowflake user",
-    "SNOWFLAKE_PASSWORD": "Snowflake password (or use SNOWFLAKE_AUTHENTICATOR=externalbrowser)",
-    "SNOWFLAKE_WAREHOUSE": "default warehouse",
-    "SNOWFLAKE_ROLE": "default role",
-    "LOOKER_BASE_URL": "your Looker base URL",
+    "ATLASSIAN_API_TOKEN_CRED": "https://id.atlassian.com/manage-profile/security/api-tokens",
+    # Snowflake (new schema: connections.toml + PAT)
+    "SNOWFLAKE_ACCESS_TOKEN_CRED": "Programmatic Access Token — Snowflake → Admin → Users → PATs",
+    "SNOWFLAKE_HOME": "default: ~/.snowflake (we use ~/.config/creds/snowflake)",
+    "SNOWFLAKE_CONNECTION_NAME": "default: adk (selects block in connections.toml)",
+    "SNOWFLAKE_SERVICE_CONFIG_FILE": "snowflake-labs-mcp service-config.yaml path",
+    # Looker
+    "LOOKER_SITE": "your Looker base URL",
     "LOOKER_CLIENT_ID": "Looker API3 client id",
-    "LOOKER_CLIENT_SECRET": "Looker API3 client secret",
+    "LOOKER_CLIENT_SECRET_CRED": "Looker API3 client secret",
+    "LOOKER_VERIFY_SSL": "default: true",
+    # Slack
     "SLACK_CREDENTIALS_FILE": "shell-sourceable file exporting SLACK_BOT_TOKEN / SLACK_USER_TOKEN",
+    "SLACK_CLIENT_ID": "Slack app client id (non-secret)",
+    "SLACK_CLIENT_SECRET_CRED": "Slack app client secret",
+    # Google (Workspace MCP)
+    "GOOGLE_CLIENT_ID": "OAuth client id (non-secret)",
+    "GOOGLE_CLIENT_SECRET_CRED": "OAuth client secret",
+    "USER_GOOGLE_EMAIL": "Google email the workspace-mcp acts as (e.g. you@company.com)",
+    "WORKSPACE_MCP_CREDENTIALS_DIR": "workspace-mcp OAuth token cache (default: ~/.google_workspace_mcp/credentials)",
+    # RAG (optional)
     "RAG_MCP_URL": "your company RAG MCP endpoint (optional)",
-    "RAG_MCP_TOKEN": "your company RAG MCP bearer token (optional)",
+    "RAG_MCP_TOKEN_CRED": "your company RAG MCP bearer token (optional)",
+}
+
+# Vars that have a sensible default in the MCP config (`${VAR:-default}`) or
+# in upstream tooling — DO NOT flag them red if unset. They appear as "present
+# (default)" in the report.
+VARS_WITH_DEFAULTS: set[str] = {
+    "DD_SITE",
+    "DD_MCP_URL",
+    "SNOWFLAKE_HOME",
+    "SNOWFLAKE_CONNECTION_NAME",
+    "WORKSPACE_MCP_CREDENTIALS_DIR",
+    "LOOKER_VERIFY_SSL",
 }
 
 # Aliases — if right-hand var is set, the left-hand var is "satisfied".
-ALIASES = {
-    "GITHUB_PAT": "GITHUB_PAT_CLASSIC",
-    "DATADOG_API_KEY": "DD_API_KEY",
-    "DATADOG_APP_KEY": "DD_APP_KEY",
+# Since 2026-05-19 secret env vars are canonical-named `<NAME>_CRED`; the
+# only remaining aliases are between DD_SITE / DATADOG_SITE (both legitimate
+# Datadog SDK conventions; either may be set).
+ALIASES: dict[str, str] = {
+    "DD_SITE": "DATADOG_SITE",
+    "DATADOG_SITE": "DD_SITE",
 }
 
 VAR_REF_RE = re.compile(r"\$\{([A-Z_][A-Z0-9_]*)(?::-[^}]*)?\}")
@@ -69,6 +99,8 @@ def env_status(var: str) -> str:
     alias = ALIASES.get(var)
     if alias and os.environ.get(alias):
         return f"present-via-fallback({alias})"
+    if var in VARS_WITH_DEFAULTS:
+        return "unset (using default)"
     return "MISSING"
 
 
@@ -144,7 +176,12 @@ def main() -> int:
             report["mcps"].append(item)
             continue
         refs = referenced_env_vars(cfg)
-        missing = [v for v in refs if env_status(v) == "MISSING"]
+        # A missing var that has a default OR an alias is NOT a real miss.
+        missing = []
+        for v in refs:
+            s = env_status(v)
+            if s == "MISSING":
+                missing.append(v)
         if missing:
             item["status"] = "env-missing"
             item["missing_env_vars"] = missing
@@ -167,7 +204,7 @@ def main() -> int:
     print()
     print("MCPs:")
     for m in report["mcps"]:
-        marker = {"env-ok": "✓", "env-missing": "✗", "invalid-json: ": "!"}.get(m["status"], "?")
+        marker = {"env-ok": "✓", "env-missing": "✗"}.get(m["status"], "!")
         line = f"  {marker} {m['name']:24} {m['status']}"
         if "missing_env_vars" in m:
             line += f"  (missing: {', '.join(m['missing_env_vars'])})"
@@ -178,9 +215,14 @@ def main() -> int:
     print()
     print("env vars referenced by adk:")
     for var, status in report["env_vars"].items():
-        marker = "✓" if status.startswith("present") else "✗"
+        if status.startswith("present"):
+            marker = "✓"
+        elif status.startswith("unset (using default)"):
+            marker = "·"
+        else:
+            marker = "✗"
         hint = "" if status.startswith("present") else f"  ({DECLARED_VARS[var]})"
-        print(f"  {marker} {var:30} {status}{hint}")
+        print(f"  {marker} {var:32} {status}{hint}")
     return 0
 
 

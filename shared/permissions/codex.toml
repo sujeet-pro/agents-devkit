@@ -1,0 +1,15 @@
+# adk-managed permissions for Codex. Appended to ~/.codex/config.toml by install.py
+# inside the surrounding marker comments. Edit and re-run ./install.sh to refresh.
+#
+# approval_policy:
+#   - "never"      => never prompt (dangerous)
+#   - "on-request" => prompt only when the model asks for elevation or sandbox escape (recommended)
+#   - "on-failure" => prompt only after a sandboxed command fails
+#   - "untrusted"  => prompt for anything not in trusted list (most cautious)
+#
+# sandbox_mode:
+#   - "read-only"            => read anywhere, no writes, no network
+#   - "workspace-write"      => read + write inside the workspace; prompt for anything outside
+#   - "danger-full-access"   => no sandbox (dangerous)
+approval_policy = "on-request"
+sandbox_mode = "workspace-write"

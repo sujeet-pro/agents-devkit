@@ -1,0 +1,43 @@
+{
+  "_comment": "adk-managed permissions for Cursor CLI. Merged into ~/.cursor/cli-config.json by install.py. Edit this file and re-run ./install.sh to refresh.",
+  "approvalMode": "auto",
+  "sandbox": {
+    "mode": "workspace-write",
+    "networkAccess": "user_config_with_defaults"
+  },
+  "permissions": {
+    "allow": [
+      "Shell(ls)",
+      "Shell(cat)",
+      "Shell(pwd)",
+      "Shell(echo)",
+      "Shell(which)",
+      "Shell(head)",
+      "Shell(tail)",
+      "Shell(wc)",
+      "Shell(file)",
+      "Shell(find)",
+      "Shell(grep)",
+      "Shell(rg)",
+      "Shell(git status)",
+      "Shell(git diff)",
+      "Shell(git log)",
+      "Shell(git show)",
+      "Shell(git branch)",
+      "Shell(git remote)",
+      "Shell(npm test)",
+      "Shell(npm run)",
+      "Shell(pytest)",
+      "Shell(python)",
+      "Shell(node)"
+    ],
+    "deny": [
+      "Shell(rm -rf /)",
+      "Shell(sudo rm)",
+      "Shell(mkfs)",
+      "Shell(dd if=/dev/zero)",
+      "Shell(shutdown)",
+      "Shell(reboot)"
+    ]
+  }
+}

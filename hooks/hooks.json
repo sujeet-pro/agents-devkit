@@ -1,17 +1,6 @@
 {
-  "comment": "adk v3 hooks — wired into ~/.claude/settings.json by install.sh. The Bash safety hook enforces constitution §I deterministically; the Edit validator catches SKILL.md frontmatter bugs at write-time; the SessionStart banner runs at session open.",
+  "comment": "adk v3 hooks — wired into ~/.claude/settings.json by install.sh. The Edit validator catches SKILL.md frontmatter bugs at write-time; the SessionStart banner runs at session open. The prompt-style PreToolUse Bash safety hook was removed 2026-05-19 (over-broad LLM interpretation produced too many false positives); the constitution §I rules still bind the assistant directly.",
   "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "prompt",
-            "prompt": "Inspect the Bash command being run. BLOCK these with a precise reason:\n\n1. `git push --force` / `git push -f` / `git push --force-with-lease` targeting any of: main, master, develop, release/*, prod/*, or any branch listed in ~/.config/adk/overrides.yaml.protected_branches.\n2. `git reset --hard` on main, master, develop, release/*, prod/*.\n3. `git clean -fd` at a repo root (cwd ends in the repo's top-level dir).\n4. `git branch -D` on main, master, develop, release/*, prod/*.\n5. `rm -rf` targeting `$HOME`, `/`, any path under `~/.config/adk/`, or any repo root.\n6. `gh pr merge` UNLESS the user's most recent message in this session explicitly asked to merge a PR (look for words: merge, ship, land, squash-merge, rebase-merge).\n7. `gh pr close` UNLESS the user explicitly asked to close a PR.\n8. Any command writing into `~/.config/adk/learning/archive/` (that path is managed by /adk-improve only).\n9. `--no-verify` flags on git commit or git push (bypasses hooks — banned per constitution §V).\n\nALLOW: normal git, gh, npm, jq, fd, rg, curl, python3, ./install.sh, claude operations, and writes to .temp/<task-slug>/ paths.\n\nReturn JSON:\n  - block: {\"decision\":\"block\",\"reason\":\"<one-line reason naming the rule>\"}\n  - allow: {\"decision\":\"allow\"}"
-          }
-        ]
-      }
-    ],
     "PostToolUse": [
       {
         "matcher": "Edit|Write",

@@ -1,0 +1,14 @@
+{
+  "name": "adk-mcp-google",
+  "command": "uvx",
+  "args": [
+    "workspace-mcp@latest"
+  ],
+  "env": {
+    "GOOGLE_OAUTH_CLIENT_ID": "${GOOGLE_CLIENT_ID}",
+    "GOOGLE_OAUTH_CLIENT_SECRET": "${GOOGLE_CLIENT_SECRET_CRED}",
+    "USER_GOOGLE_EMAIL": "${USER_GOOGLE_EMAIL:-}",
+    "WORKSPACE_MCP_CREDENTIALS_DIR": "${WORKSPACE_MCP_CREDENTIALS_DIR:-${HOME}/.google_workspace_mcp/credentials}"
+  },
+  "description": "Optional Google Workspace MCP — taylorwilsdon/google_workspace_mcp via uvx (PyPI: workspace-mcp). Surface: Drive, Docs, Sheets, Slides, Calendar, Gmail, Forms, Chat, Tasks. Reads GOOGLE_CLIENT_ID + GOOGLE_CLIENT_SECRET_CRED from your shell env (same vars `creds_login_google` uses). NOTE: the server runs its OWN OAuth dance — on first tool invocation a browser opens and you authorize. Tokens are stored at $WORKSPACE_MCP_CREDENTIALS_DIR (default ~/.google_workspace_mcp/credentials/). This is SEPARATE from ~/.config/creds/google/google.token.json — the standalone creds_login_google flow stays useful for `creds_validate` and other mac-setup scripts, but the MCP server does not consume it. The scope list the server requests is fixed by the server version (configurable via `--tool-tier`); make sure your GCP OAuth consent screen includes the scopes listed in ~/.config/creds/google/app.json. See SETUP.md."
+}

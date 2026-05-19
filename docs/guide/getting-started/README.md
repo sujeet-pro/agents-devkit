@@ -21,13 +21,13 @@ cd ~/code/agents-devkit
 ./install.sh --target claude
 
 # 3. Set env vars in ~/.zshenv (see SETUP.md §2)
-export GITHUB_PAT="github_pat_..."
-export DATADOG_API_KEY="..."
-export DATADOG_APP_KEY="..."
-export STATSIG_CONSOLE_API_KEY="console-..."
+export GITHUB_TOKEN_CRED="github_pat_..."
+export DATADOG_API_KEY_CRED="..."
+export DATADOG_APP_KEY_CRED="..."
+export STATSIG_CONSOLE_API_KEY_CRED="console-..."
 export ATLASSIAN_SITE="acme.atlassian.net"
 export ATLASSIAN_USERNAME="you@acme.com"
-export ATLASSIAN_API_TOKEN="ATATT..."
+export ATLASSIAN_API_TOKEN_CRED="ATATT..."
 
 # 4. Restart your agent (Claude Code etc.) so env vars + MCPs load
 ```

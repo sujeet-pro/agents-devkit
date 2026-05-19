@@ -50,15 +50,15 @@ MCP_DIR = REPO / "mcp"
 # Env vars referenced across MCPs — declared here so we report cleanly even if
 # a config file's env block omits them.
 DECLARED_VARS = {
-    "GITHUB_PAT": "https://github.com/settings/personal-access-tokens/new",
-    "GITHUB_PAT_CLASSIC": "https://github.com/settings/tokens",
-    "DATADOG_API_KEY": "https://app.datadoghq.com/organization-settings/api-keys",
-    "DATADOG_APP_KEY": "https://app.datadoghq.com/organization-settings/application-keys",
+    "GITHUB_TOKEN_CRED": "https://github.com/settings/personal-access-tokens/new",
+    "GITHUB_TOKEN_CRED": "https://github.com/settings/tokens",
+    "DATADOG_API_KEY_CRED": "https://app.datadoghq.com/organization-settings/api-keys",
+    "DATADOG_APP_KEY_CRED": "https://app.datadoghq.com/organization-settings/application-keys",
     "DD_SITE": "default: datadoghq.com",
-    "STATSIG_CONSOLE_API_KEY": "https://console.statsig.com/api_keys",
+    "STATSIG_CONSOLE_API_KEY_CRED": "https://console.statsig.com/api_keys",
     "ATLASSIAN_SITE": "your Atlassian site host (e.g. acme.atlassian.net)",
     "ATLASSIAN_USERNAME": "your Atlassian email",
-    "ATLASSIAN_API_TOKEN": "https://id.atlassian.com/manage-profile/security/api-tokens",
+    "ATLASSIAN_API_TOKEN_CRED": "https://id.atlassian.com/manage-profile/security/api-tokens",
     "SNOWFLAKE_ACCOUNT": "your Snowflake account",
     "SNOWFLAKE_USER": "your Snowflake user",
     "SNOWFLAKE_PASSWORD": "Snowflake password (or use SNOWFLAKE_AUTHENTICATOR=externalbrowser)",
@@ -66,17 +66,17 @@ DECLARED_VARS = {
     "SNOWFLAKE_ROLE": "default role",
     "LOOKER_BASE_URL": "your Looker base URL",
     "LOOKER_CLIENT_ID": "Looker API3 client id",
-    "LOOKER_CLIENT_SECRET": "Looker API3 client secret",
+    "LOOKER_CLIENT_SECRET_CRED": "Looker API3 client secret",
     "SLACK_CREDENTIALS_FILE": "shell-sourceable file exporting SLACK_BOT_TOKEN / SLACK_USER_TOKEN",
     "RAG_MCP_URL": "your company RAG MCP endpoint (optional)",
-    "RAG_MCP_TOKEN": "your company RAG MCP bearer token (optional)",
+    "RAG_MCP_TOKEN_CRED": "your company RAG MCP bearer token (optional)",
 }
 
 # Aliases — if right-hand var is set, the left-hand var is "satisfied".
 ALIASES = {
-    "GITHUB_PAT": "GITHUB_PAT_CLASSIC",
-    "DATADOG_API_KEY": "DD_API_KEY",
-    "DATADOG_APP_KEY": "DD_APP_KEY",
+    "GITHUB_TOKEN_CRED": "GITHUB_TOKEN_CRED",
+    "DATADOG_API_KEY_CRED": "DD_API_KEY",
+    "DATADOG_APP_KEY_CRED": "DD_APP_KEY",
 }
 
 VAR_REF_RE = re.compile(r"\$\{([A-Z_][A-Z0-9_]*)(?::-[^}]*)?\}")

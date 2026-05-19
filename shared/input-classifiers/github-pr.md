@@ -10,7 +10,7 @@ https?://github.com/<owner>/<repo>/pull/<number>
 
 1. `adk-mcp-github` (preferred) — full PR object + diff.
 2. `gh pr view <url> --json …` (fallback).
-3. Direct REST with `GITHUB_PAT_CLASSIC` (last resort).
+3. Direct REST with `GITHUB_TOKEN_CRED` (last resort).
 
 ## gh fallback command
 

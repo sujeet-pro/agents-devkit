@@ -1,0 +1,111 @@
+{
+  "mcpServers": {
+    "adk-mcp-atlassian": {
+      "name": "adk-mcp-atlassian",
+      "command": "uvx",
+      "args": [
+        "mcp-atlassian@latest"
+      ],
+      "env": {
+        "CONFLUENCE_URL": "https://${ATLASSIAN_SITE}/wiki",
+        "CONFLUENCE_USERNAME": "${ATLASSIAN_USERNAME}",
+        "CONFLUENCE_API_TOKEN": "${ATLASSIAN_API_TOKEN_CRED}",
+        "JIRA_URL": "https://${ATLASSIAN_SITE}",
+        "JIRA_USERNAME": "${ATLASSIAN_USERNAME}",
+        "JIRA_API_TOKEN": "${ATLASSIAN_API_TOKEN_CRED}"
+      },
+      "description": "Atlassian MCP via uvx — Python package sooperset/mcp-atlassian. Covers Jira + Confluence including image / attachment upload (which the Anthropic Rovo connector does not). Auth: API token (ATLASSIAN_SITE + ATLASSIAN_USERNAME + ATLASSIAN_API_TOKEN_CRED at https://id.atlassian.com/manage-profile/security/api-tokens). For OAuth: set ATLASSIAN_OAUTH_* per upstream README and remove the env block above. Requires `uv` on PATH. See SETUP.md."
+    },
+    "adk-mcp-datadog": {
+      "name": "adk-mcp-datadog",
+      "type": "http",
+      "url": "${DD_MCP_URL:-https://mcp.datadoghq.com/api/unstable/mcp-server/mcp}?toolsets=core,dashboards,error-tracking,product-analytics,security,workflows,apm,llmobs",
+      "headers": {
+        "DD_API_KEY": "${DATADOG_API_KEY_CRED}",
+        "DD_APPLICATION_KEY": "${DATADOG_APP_KEY_CRED}"
+      },
+      "description": "Datadog Bits AI hosted MCP (Preview). Auth: DATADOG_API_KEY_CRED + DATADOG_APP_KEY_CRED (App key needs scope mcp_read; mcp_write only if you mute monitors). Non-US1 sites: override DD_MCP_URL to the regional MCP host. Not GovCloud-eligible. See SETUP.md."
+    },
+    "adk-mcp-github": {
+      "name": "adk-mcp-github",
+      "type": "http",
+      "url": "https://api.githubcopilot.com/mcp/",
+      "headers": {
+        "Authorization": "Bearer ${GITHUB_TOKEN_CRED}"
+      },
+      "description": "GitHub hosted MCP. Acts on behalf of the authenticated identity (token scopes = MCP capability). Auth: PAT in $GITHUB_TOKEN_CRED (fine-grained preferred). To switch to OAuth: remove the `headers` block; agent will run OAuth on first connect. Skills fall back through MCP → `gh` CLI → direct REST (last resort). See SETUP.md."
+    },
+    "adk-mcp-google": {
+      "name": "adk-mcp-google",
+      "command": "uvx",
+      "args": [
+        "workspace-mcp@latest"
+      ],
+      "env": {
+        "GOOGLE_OAUTH_CLIENT_ID": "${GOOGLE_CLIENT_ID}",
+        "GOOGLE_OAUTH_CLIENT_SECRET": "${GOOGLE_CLIENT_SECRET_CRED}",
+        "USER_GOOGLE_EMAIL": "${USER_GOOGLE_EMAIL:-}",
+        "WORKSPACE_MCP_CREDENTIALS_DIR": "${WORKSPACE_MCP_CREDENTIALS_DIR:-${HOME}/.google_workspace_mcp/credentials}"
+      },
+      "description": "Optional Google Workspace MCP — taylorwilsdon/google_workspace_mcp via uvx (PyPI: workspace-mcp). Surface: Drive, Docs, Sheets, Slides, Calendar, Gmail, Forms, Chat, Tasks. Reads GOOGLE_CLIENT_ID + GOOGLE_CLIENT_SECRET_CRED from your shell env (same vars `creds_login_google` uses). NOTE: the server runs its OWN OAuth dance — on first tool invocation a browser opens and you authorize. Tokens are stored at $WORKSPACE_MCP_CREDENTIALS_DIR (default ~/.google_workspace_mcp/credentials/). This is SEPARATE from ~/.config/creds/google/google.token.json — the standalone creds_login_google flow stays useful for `creds_validate` and other mac-setup scripts, but the MCP server does not consume it. The scope list the server requests is fixed by the server version (configurable via `--tool-tier`); make sure your GCP OAuth consent screen includes the scopes listed in ~/.config/creds/google/app.json. See SETUP.md."
+    },
+    "adk-mcp-looker": {
+      "name": "adk-mcp-looker",
+      "command": "uvx",
+      "args": [
+        "looker-mcp-server@latest",
+        "--groups",
+        "explore,query,schema,content"
+      ],
+      "env": {
+        "LOOKER_BASE_URL": "${LOOKER_SITE}",
+        "LOOKER_CLIENT_ID": "${LOOKER_CLIENT_ID}",
+        "LOOKER_CLIENT_SECRET": "${LOOKER_CLIENT_SECRET_CRED}",
+        "LOOKER_VERIFY_SSL": "${LOOKER_VERIFY_SSL:-true}"
+      },
+      "description": "Looker MCP via uvx. Read-only. Auth: API3 client credentials (mint in Looker Admin > Users > Edit > API3 keys). Covers dashboards, looks, explores, fields, and safe SQL queries. Use overrides.yaml.data_sources.looker.{dashboards,explores} for the metadata cache. See SETUP.md."
+    },
+    "adk-mcp-mixpanel": {
+      "name": "adk-mcp-mixpanel",
+      "type": "http",
+      "url": "https://mcp.mixpanel.com/mcp",
+      "description": "Mixpanel hosted MCP. OAuth on first connect (browser pop, cached) — no env vars required. Covers events, funnels, cohorts, dashboards, experiments, feature flags. Project resolved from the authenticated identity; pin the canonical project_id in ~/.config/adk/overrides.yaml.repos[*].mixpanel.project_id so skills don't ask. See SETUP.md."
+    },
+    "adk-mcp-slack": {
+      "name": "adk-mcp-slack",
+      "command": "python3",
+      "args": [
+        "-c",
+        "import json, os, sys\np = os.environ.get('SLACK_CREDENTIALS_FILE') or os.path.expanduser('~/.config/creds/slack/slack.token.json')\nenv = os.environ.copy()\ntry:\n    with open(p) as f:\n        d = json.load(f)\n    # Accept curated shape {bot_token, user_token, ...} OR raw Slack oauth.v2.access\n    # response {access_token (bot), authed_user: {access_token (user), ...}, ...}.\n    bot = d.get('bot_token') or d.get('access_token')\n    user = d.get('user_token') or ((d.get('authed_user') or {}).get('access_token'))\n    if bot: env['SLACK_MCP_XOXB_TOKEN'] = bot\n    if user: env['SLACK_MCP_XOXP_TOKEN'] = user\n    if not bot and not user:\n        sys.stderr.write(f'adk-mcp-slack: no bot_token or user_token in {p}\\n')\nexcept FileNotFoundError:\n    sys.stderr.write(f'adk-mcp-slack: token file not found at {p} \\u2014 run creds_login_slack first\\n')\nexcept Exception as e:\n    sys.stderr.write(f'adk-mcp-slack: failed to read {p}: {e}\\n')\nos.execvpe('npx', ['npx', '-y', 'slack-mcp-server@latest'], env)"
+      ],
+      "env": {
+        "SLACK_MCP_ADD_MESSAGE_TOOL": "true"
+      },
+      "description": "Optional Slack MCP — npm slack-mcp-server (korotovsky/slack-mcp-server). A python3 wrapper reads ~/.config/creds/slack/slack.token.json (override path via $SLACK_CREDENTIALS_FILE) and passes bot_token → SLACK_MCP_XOXB_TOKEN and user_token → SLACK_MCP_XOXP_TOKEN before exec-ing the server. Accepts both the curated {bot_token, user_token} shape written by creds_login_slack AND the raw Slack oauth.v2.access response shape ({access_token, authed_user.access_token}). Mint the token with `creds_login_slack` (mac-setup); scopes requested during OAuth come from ~/.config/creds/slack/app.json. If the token file is missing or has no usable token, the MCP shows as not-connected and Slack-touching skills degrade per shared/constitution.md §VI. Posting requires bot_token. See SETUP.md."
+    },
+    "adk-mcp-snowflake": {
+      "name": "adk-mcp-snowflake",
+      "command": "sh",
+      "args": [
+        "-c",
+        "exec uvx snowflake-labs-mcp@latest --connection-name \"${SNOWFLAKE_CONNECTION_NAME:-adk}\" --password \"$SNOWFLAKE_ACCESS_TOKEN_CRED\" --service-config-file \"$SNOWFLAKE_SERVICE_CONFIG_FILE\""
+      ],
+      "env": {
+        "SNOWFLAKE_HOME": "${SNOWFLAKE_HOME}",
+        "SNOWFLAKE_CONNECTION_NAME": "${SNOWFLAKE_CONNECTION_NAME:-adk}",
+        "SNOWFLAKE_SERVICE_CONFIG_FILE": "${SNOWFLAKE_SERVICE_CONFIG_FILE}",
+        "SNOWFLAKE_ACCESS_TOKEN_CRED": "${SNOWFLAKE_ACCESS_TOKEN_CRED}"
+      },
+      "description": "Snowflake MCP via uvx (Snowflake-Labs/mcp). Read-only by default (per shared/constitution.md §I.6). Config: account/user/warehouse/role live in Snowflake's native connections.toml under $SNOWFLAKE_HOME (default ~/.snowflake), selected by --connection-name. $SNOWFLAKE_SERVICE_CONFIG_FILE points at the snowflake-labs-mcp service YAML (tool allow-list, Cortex services). Auth: Programmatic Access Token in $SNOWFLAKE_ACCESS_TOKEN_CRED (shell env only, never on disk) — passed via --password, overrides any password in connections.toml. See SETUP.md."
+    },
+    "adk-mcp-statsig": {
+      "name": "adk-mcp-statsig",
+      "type": "http",
+      "url": "https://api.statsig.com/v1/mcp",
+      "headers": {
+        "statsig-api-key": "${STATSIG_CONSOLE_API_KEY_CRED}"
+      },
+      "description": "Statsig hosted MCP. Auth: STATSIG_CONSOLE_API_KEY_CRED (mint at https://console.statsig.com/api_keys with type=Console, scope=omni_read_only). For OAuth: remove headers; agent runs browser flow. Use omni_write only for skills that toggle gates / start experiments (none of adk's read-only skills need this). See SETUP.md."
+    }
+  }
+}

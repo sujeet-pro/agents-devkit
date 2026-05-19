@@ -6,13 +6,16 @@
 
 - **Project guidelines**: Junie reads `<project>/.junie/guidelines.md` (and sometimes `<project>/.junie/rules.md`). `install.sh --target junie` appends our guidelines pointer.
 - **Global instructions**: where supported (`~/.junie/guidelines.md`), `install.sh` appends a one-line reference to `{{ADK_REPO}}/AGENTS.md`.
+- **Skills**: `install.sh` symlinks every `skills/adk-*` into `~/.junie/skills/<skill>/SKILL.md`. Junie auto-discovers them on next launch (same model as Claude Code). Skills are auto-invoked by description match — they do **not** show up in the `/` slash menu.
+- **Slash commands**: `install.sh` also writes `~/.junie/commands/adk-*.md` (rendered from `agents-claude/commands/`) so typing `/adk-` in Junie surfaces `/adk-document`, `/adk-explain`, `/adk-implement`, `/adk-improve`, `/adk-investigate`, `/adk-review`, `/adk-setup`, `/adk-sync`. Each command file just delegates to the matching skill.
+- **MCP servers**: `install.sh` writes the full adk MCP set to `~/.junie/mcp/mcp.json`, replacing any pre-configured (non-adk) entries. Previous user entries are stashed under `_adkRemovedMcpServers` and restored by `--uninstall`.
+- **Allowlist**: `install.sh` writes `~/.junie/allowlist.json` from `shared/permissions/junie-allowlist.json` (guarded by `"_adk_managed": true`).
 
 ## What's partial / unsupported
 
 | Feature | Status | Workaround |
 |---|---|---|
-| MCP servers | Partial (IDE-version-dependent) | Configure manually via Junie settings; install.sh prints the JSON block to paste |
-| Skill auto-routing | Not supported | Reference AGENTS.md manually when invoking Junie |
+| Skill auto-routing | Not supported | Reference `AGENTS.md` manually when invoking Junie |
 | Subagents | Not supported | Personas concatenated into the parent guidelines |
 | Slash commands | Not supported | Invoke via Junie's chat with explicit prompts |
 

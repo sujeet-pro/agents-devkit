@@ -21,22 +21,21 @@ gh auth login
 Add to `~/.zshenv` (or `~/.bashrc`). Reload your shell and **restart your agent** after editing (env is read at process start).
 
 ```bash
-# GitHub — fine-grained preferred; classic auto-fallback
-export GITHUB_PAT="github_pat_..."
-export GITHUB_PAT_CLASSIC="ghp_..."
+# GitHub — fine-grained PAT (preferred) or classic
+export GITHUB_TOKEN_CRED="github_pat_..."
 
 # Datadog
-export DATADOG_API_KEY="..."
-export DATADOG_APP_KEY="..."
+export DATADOG_API_KEY_CRED="..."
+export DATADOG_APP_KEY_CRED="..."
 export DD_SITE="datadoghq.com"          # or datadoghq.eu, us3., us5., ap1., ap2.
 
 # Statsig
-export STATSIG_CONSOLE_API_KEY="console-..."
+export STATSIG_CONSOLE_API_KEY_CRED="console-..."
 
 # Atlassian (Jira + Confluence; uvx mcp-atlassian)
 export ATLASSIAN_SITE="acme.atlassian.net"    # bare host, no scheme, no /wiki
 export ATLASSIAN_USERNAME="you@acme.com"
-export ATLASSIAN_API_TOKEN="ATATT..."         # https://id.atlassian.com/manage-profile/security/api-tokens
+export ATLASSIAN_API_TOKEN_CRED="ATATT..."         # https://id.atlassian.com/manage-profile/security/api-tokens
 
 # Mixpanel — OAuth on first MCP connect; no env var needed
 
@@ -48,29 +47,42 @@ export SNOWFLAKE_WAREHOUSE="..."
 export SNOWFLAKE_ROLE="..."
 
 # Looker (optional)
-export LOOKER_BASE_URL="https://acme.cloud.looker.com"
+export LOOKER_SITE="https://acme.cloud.looker.com"
 export LOOKER_CLIENT_ID="..."
-export LOOKER_CLIENT_SECRET="..."
+export LOOKER_CLIENT_SECRET_CRED="..."
 
-# Slack — single file the MCP sources; file MUST export SLACK_BOT_TOKEN and/or SLACK_USER_TOKEN
-export SLACK_CREDENTIALS_FILE="$HOME/.config/adk/slack-credentials.sh"
+# Google — required for `creds_login_google` to mint a token AND for the
+# Google Workspace MCP. Same client_id/secret feeds both. Scopes requested
+# at OAuth time live in ~/.config/creds/google/app.json.
+export GOOGLE_CLIENT_ID="..."
+export GOOGLE_CLIENT_SECRET_CRED="..."
+# Optional: default email for the Workspace MCP single-user auth flow.
+# export USER_GOOGLE_EMAIL="you@example.com"
+
+# Slack — optional override; defaults to ~/.config/creds/slack/slack.token.json
+# export SLACK_CREDENTIALS_FILE="$HOME/.config/creds/slack/slack.token.json"
+
+# Slack — required for `creds_login_slack` to mint a token (from mac-setup)
+export SLACK_CLIENT_ID="..."
+export SLACK_CLIENT_SECRET_CRED="..."
 
 # RAG — optional company knowledge base MCP
 export RAG_MCP_URL="https://your-rag.example.com/mcp"
-export RAG_MCP_TOKEN="..."
+export RAG_MCP_TOKEN_CRED="..."
 ```
 
-Slack credentials file template (`~/.config/adk/slack-credentials.sh`):
+**Google Workspace MCP** (taylorwilsdon/google_workspace_mcp via `uvx workspace-mcp`) is wired with the same `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET_CRED` env vars. **First tool invocation opens a browser for the MCP's own OAuth dance** — tokens land in `~/.google_workspace_mcp/credentials/`. This is independent of `creds_login_google`'s `~/.config/creds/google/google.token.json` (used by `creds_validate` and other mac-setup scripts). Both can coexist. Make sure every scope in `~/.config/creds/google/app.json` is added to your GCP OAuth consent screen, or the dance fails with `invalid_scope`.
 
-```bash
-# This file is sourced by the slack MCP wrapper. Chmod 600.
-export SLACK_BOT_TOKEN="xoxb-..."     # required for posting + reading channels the bot is in
-export SLACK_USER_TOKEN="xoxp-..."    # optional; full workspace read on your behalf
+Slack credentials are JSON, minted by [`creds_login_slack`](https://github.com/sujeet-pro/mac-setup/tree/main/user_scripts/creds) (mac-setup):
+
+```
+~/.config/creds/slack/
+├── app.json          # YOU edit this — scope superset requested at OAuth time
+└── slack.token.json  # auto: written by creds_login_slack (chmod 600)
+                      #       holds { bot_token: "xoxb-...", user_token: "xoxp-..." }
 ```
 
-```bash
-chmod 600 ~/.config/adk/slack-credentials.sh
-```
+The Slack MCP wrapper reads `slack.token.json` directly — no shell sourcing, no env-var plumbing. Both tokens land in the server: `SLACK_MCP_XOXB_TOKEN` (bot) and `SLACK_MCP_XOXP_TOKEN` (user). Posting requires the bot token.
 
 ## 3. Install
 
@@ -88,11 +100,33 @@ cd ~/code/agents-devkit
 The installer:
 
 1. Creates `~/.config/adk/` if missing; scaffolds `overrides.yaml` (with comments — empty workspaces table for you to fill).
-2. Symlinks skills + agents + commands into each detected agent's config dir.
-3. Merges `mcp/*.json` into each agent's MCP config (idempotent JSON/TOML merge).
-4. Appends a one-line reference to `AGENTS.md` in each agent's global guidelines file.
-5. Seeds `~/.config/adk/learning/decisions.jsonl` with foundational design decisions (your earlier Q&A) so the first `/adk-improve` run has evidence.
-6. Prints a verification table.
+2. Symlinks skills + agents + commands into each detected agent's config dir. Junie now gets the full `skills/adk-*` set under `~/.junie/skills/` (same auto-discovery model as Claude Code).
+3. **Replaces** each agent's MCP server list with the `mcp/*.json` adk set: Claude → `~/.claude.json`, Cursor → `~/.cursor/mcp.json`, Codex → `~/.codex/config.toml` (marker block), Junie → `~/.junie/mcp/mcp.json`. Any pre-configured user MCPs are stashed under `_adkRemovedMcpServers` and put back on `--uninstall`.
+4. Merges `shared/permissions/*` into each agent's settings file so all safe / read tool calls are auto-approved and only dangerous actions prompt. See `shared/permissions/README.md`.
+5. Appends a one-line reference to `AGENTS.md` in each agent's global guidelines file.
+6. Seeds `~/.config/adk/learning/decisions.jsonl` with foundational design decisions (your earlier Q&A) so the first `/adk-improve` run has evidence.
+7. Prints a verification table.
+
+### Tool-call permissions
+
+`./install.sh` writes a permission policy into each agent's settings so the
+agent does **not** prompt on safe / read-only tool calls but **does** prompt
+on dangerous actions (`rm`, `git push`, `git reset --hard`, `terraform
+apply/destroy`, `kubectl delete`, `docker system prune`, `npm publish`, …).
+
+The policy is sourced from `shared/permissions/`:
+
+| File | Goes to |
+|---|---|
+| `shared/permissions/claude.json` | `~/.claude/settings.json` (`permissions.{allow,ask,deny,defaultMode}`) |
+| `shared/permissions/cursor.json` | `~/.cursor/cli-config.json` (`permissions`, `approvalMode`, `sandbox`) |
+| `shared/permissions/codex.toml`  | `~/.codex/config.toml` (marker block: `approval_policy`, `sandbox_mode`) |
+| `shared/permissions/junie-allowlist.json` | `~/.junie/allowlist.json` (whole file, guarded by `"_adk_managed": true`) |
+
+The merge is idempotent: re-running `./install.sh` refreshes the policy
+without duplicating entries, and `./install.sh --uninstall` removes only the
+entries adk added (user entries are preserved). To customise, edit the files
+under `shared/permissions/` and re-run `./install.sh`.
 
 ## 4. Bootstrap overrides
 
@@ -142,7 +176,7 @@ mcps:
   - adk-mcp-mixpanel    ⚠ not yet OAuthed — first /adk-investigate run will pop the browser
   - adk-mcp-slack       ✓ reachable   (bot token present)
   - adk-mcp-snowflake   ✗ env missing: SNOWFLAKE_ACCOUNT
-  - adk-mcp-looker      ✗ env missing: LOOKER_BASE_URL
+  - adk-mcp-looker      ✗ env missing: LOOKER_SITE
   - adk-mcp-rag         ✗ disabled    (rag.enabled: false in overrides)
 
 overrides:
@@ -159,7 +193,7 @@ overrides:
 | Agent doesn't see `/adk-*` slash commands | re-run `./install.sh --target <agent>`; restart the agent |
 | MCP returns 401 | check env var with `env \| grep <NAME>`; restart agent so it picks up the var |
 | Atlassian MCP fails to start | `uv` not installed; run `brew install uv` |
-| Slack MCP says "no token" | `SLACK_CREDENTIALS_FILE` not set, or the file doesn't export `SLACK_BOT_TOKEN`/`SLACK_USER_TOKEN`. `cat $SLACK_CREDENTIALS_FILE` to inspect (without leaking — the wrapper sources, doesn't print). |
+| Slack MCP says "no token" | `~/.config/creds/slack/slack.token.json` missing or has no `bot_token` / `user_token`. Run `creds_login_slack` (mac-setup) to mint one. Override path with `SLACK_CREDENTIALS_FILE` if you store the file elsewhere. |
 | `/adk-improve` says "no decisions to analyze" | run a few skills first; decision logs accumulate |
 | Cursor doesn't load adk MCPs | `./install.sh --target cursor` was project-scoped; either re-run with global flag or run in your project root |
 | Junie shows partial behavior | see `agents-junie/README.md` for the capability table |
@@ -170,7 +204,6 @@ overrides:
 ~/.config/adk/
 ├── overrides.yaml          # YOU edit this
 ├── env.example             # cheat-sheet
-├── slack-credentials.sh    # YOU edit this (chmod 600)
 ├── metadata/               # auto: discovered dashboards, tables, etc.
 ├── learning/               # auto: decision logs, summaries, proposals
 └── memory/                 # auto: resolved caches

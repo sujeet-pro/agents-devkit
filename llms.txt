@@ -36,10 +36,10 @@
 
 ## MCPs (env-var-driven; zero tokens in JSON)
 
-- [mcp/adk-mcp-github.json](./mcp/adk-mcp-github.json) — `GITHUB_PAT` or fallback `GITHUB_PAT_CLASSIC`.
-- [mcp/adk-mcp-datadog.json](./mcp/adk-mcp-datadog.json) — `DATADOG_API_KEY`, `DATADOG_APP_KEY`.
-- [mcp/adk-mcp-statsig.json](./mcp/adk-mcp-statsig.json) — `STATSIG_CONSOLE_API_KEY`.
-- [mcp/adk-mcp-atlassian.json](./mcp/adk-mcp-atlassian.json) — `ATLASSIAN_SITE`, `ATLASSIAN_USERNAME`, `ATLASSIAN_API_TOKEN`. Confluence image upload supported.
+- [mcp/adk-mcp-github.json](./mcp/adk-mcp-github.json) — `GITHUB_TOKEN_CRED` or fallback `GITHUB_TOKEN_CRED`.
+- [mcp/adk-mcp-datadog.json](./mcp/adk-mcp-datadog.json) — `DATADOG_API_KEY_CRED`, `DATADOG_APP_KEY_CRED`.
+- [mcp/adk-mcp-statsig.json](./mcp/adk-mcp-statsig.json) — `STATSIG_CONSOLE_API_KEY_CRED`.
+- [mcp/adk-mcp-atlassian.json](./mcp/adk-mcp-atlassian.json) — `ATLASSIAN_SITE`, `ATLASSIAN_USERNAME`, `ATLASSIAN_API_TOKEN_CRED`. Confluence image upload supported.
 - [mcp/adk-mcp-mixpanel.json](./mcp/adk-mcp-mixpanel.json) — OAuth on first connect.
 - [mcp/adk-mcp-slack.json](./mcp/adk-mcp-slack.json) — sources `$SLACK_CREDENTIALS_FILE`.
 - [mcp/adk-mcp-snowflake.json](./mcp/adk-mcp-snowflake.json) — `SNOWFLAKE_*`.
