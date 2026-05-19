@@ -37,57 +37,66 @@ DECLARED_VARS: dict[str, str] = {
     # Datadog
     "DATADOG_API_KEY_CRED": "https://app.datadoghq.com/organization-settings/api-keys",
     "DATADOG_APP_KEY_CRED": "https://app.datadoghq.com/organization-settings/application-keys",
-    "DD_SITE": "default: datadoghq.com",
-    "DD_MCP_URL": "default: https://mcp.datadoghq.com/api/unstable/mcp-server/mcp",
+    "DATADOG_SITE": "default: datadoghq.com (legacy alias: DD_SITE)",
+    "DATADOG_MCP_URL": "default: https://mcp.datadoghq.com/api/unstable/mcp-server/mcp (legacy alias: DD_MCP_URL)",
     # Statsig
     "STATSIG_CONSOLE_API_KEY_CRED": "https://console.statsig.com/api_keys",
     # Atlassian
     "ATLASSIAN_SITE": "your Atlassian site host (e.g. acme.atlassian.net)",
     "ATLASSIAN_USERNAME": "your Atlassian email",
     "ATLASSIAN_API_TOKEN_CRED": "https://id.atlassian.com/manage-profile/security/api-tokens",
-    # Snowflake (new schema: connections.toml + PAT)
+    # Snowflake (PAT layout)
     "SNOWFLAKE_ACCESS_TOKEN_CRED": "Programmatic Access Token — Snowflake → Admin → Users → PATs",
-    "SNOWFLAKE_HOME": "default: ~/.snowflake (we use ~/.config/creds/snowflake)",
+    "SNOWFLAKE_HOME": "default: ~/.config/creds/snowflake",
     "SNOWFLAKE_CONNECTION_NAME": "default: adk (selects block in connections.toml)",
     "SNOWFLAKE_SERVICE_CONFIG_FILE": "snowflake-labs-mcp service-config.yaml path",
-    # Looker
-    "LOOKER_SITE": "your Looker base URL",
-    "LOOKER_CLIENT_ID": "Looker API3 client id",
+    # Looker (post-2026-05-19 rename: LOOKER_SITE → LOOKER_BASE_URL, LOOKER_CLIENT_ID → _CRED)
+    "LOOKER_BASE_URL": "your Looker base URL (legacy alias: LOOKER_SITE)",
+    "LOOKER_CLIENT_ID_CRED": "Looker API3 client id (now treated as secret)",
     "LOOKER_CLIENT_SECRET_CRED": "Looker API3 client secret",
     "LOOKER_VERIFY_SSL": "default: true",
     # Slack
     "SLACK_CREDENTIALS_FILE": "shell-sourceable file exporting SLACK_BOT_TOKEN / SLACK_USER_TOKEN",
     "SLACK_CLIENT_ID": "Slack app client id (non-secret)",
     "SLACK_CLIENT_SECRET_CRED": "Slack app client secret",
-    # Google (Workspace MCP)
-    "GOOGLE_CLIENT_ID": "OAuth client id (non-secret)",
+    # Google (post-2026-05-19 rename: GOOGLE_CLIENT_ID → _CRED, WORKSPACE_MCP_CREDENTIALS_DIR → GOOGLE_WORKSPACE_MCP_CREDENTIALS_DIR)
+    "GOOGLE_CLIENT_ID_CRED": "OAuth client id (now treated as secret)",
     "GOOGLE_CLIENT_SECRET_CRED": "OAuth client secret",
     "USER_GOOGLE_EMAIL": "Google email the workspace-mcp acts as (e.g. you@company.com)",
-    "WORKSPACE_MCP_CREDENTIALS_DIR": "workspace-mcp OAuth token cache (default: ~/.google_workspace_mcp/credentials)",
+    "GOOGLE_WORKSPACE_MCP_CREDENTIALS_DIR": "workspace-mcp OAuth token cache (legacy alias: WORKSPACE_MCP_CREDENTIALS_DIR)",
     # RAG (optional)
     "RAG_MCP_URL": "your company RAG MCP endpoint (optional)",
     "RAG_MCP_TOKEN_CRED": "your company RAG MCP bearer token (optional)",
 }
 
 # Vars that have a sensible default in the MCP config (`${VAR:-default}`) or
-# in upstream tooling — DO NOT flag them red if unset. They appear as "present
-# (default)" in the report.
+# in upstream tooling — DO NOT flag them red if unset.
 VARS_WITH_DEFAULTS: set[str] = {
-    "DD_SITE",
-    "DD_MCP_URL",
+    "DATADOG_SITE",
+    "DATADOG_MCP_URL",
     "SNOWFLAKE_HOME",
     "SNOWFLAKE_CONNECTION_NAME",
-    "WORKSPACE_MCP_CREDENTIALS_DIR",
+    "GOOGLE_WORKSPACE_MCP_CREDENTIALS_DIR",
     "LOOKER_VERIFY_SSL",
 }
 
 # Aliases — if right-hand var is set, the left-hand var is "satisfied".
-# Since 2026-05-19 secret env vars are canonical-named `<NAME>_CRED`; the
-# only remaining aliases are between DD_SITE / DATADOG_SITE (both legitimate
-# Datadog SDK conventions; either may be set).
+# Bridges the post-2026-05-19 rename so MCP configs that still reference
+# the legacy names (DD_*, WORKSPACE_MCP_CREDENTIALS_DIR, LOOKER_SITE,
+# LOOKER_CLIENT_ID, GOOGLE_CLIENT_ID) resolve cleanly.
 ALIASES: dict[str, str] = {
     "DD_SITE": "DATADOG_SITE",
     "DATADOG_SITE": "DD_SITE",
+    "DD_MCP_URL": "DATADOG_MCP_URL",
+    "DATADOG_MCP_URL": "DD_MCP_URL",
+    "WORKSPACE_MCP_CREDENTIALS_DIR": "GOOGLE_WORKSPACE_MCP_CREDENTIALS_DIR",
+    "GOOGLE_WORKSPACE_MCP_CREDENTIALS_DIR": "WORKSPACE_MCP_CREDENTIALS_DIR",
+    "LOOKER_SITE": "LOOKER_BASE_URL",
+    "LOOKER_BASE_URL": "LOOKER_SITE",
+    "LOOKER_CLIENT_ID": "LOOKER_CLIENT_ID_CRED",
+    "LOOKER_CLIENT_ID_CRED": "LOOKER_CLIENT_ID",
+    "GOOGLE_CLIENT_ID": "GOOGLE_CLIENT_ID_CRED",
+    "GOOGLE_CLIENT_ID_CRED": "GOOGLE_CLIENT_ID",
 }
 
 VAR_REF_RE = re.compile(r"\$\{([A-Z_][A-Z0-9_]*)(?::-[^}]*)?\}")
@@ -107,6 +116,10 @@ def fetch_creds_status() -> dict[str, Any]:
 
     Returns {} if the creds CLI is unavailable or any error occurs — the
     cross-reference is purely additive. Never echoes any credential value.
+
+    Timeout is generous (180s) because the full sweep across 8 connectors
+    hits each provider's API sequentially — Looker self-hosted instances
+    behind a corporate TLS proxy can take 20-40s on their own.
     """
     cmd = _creds_cmd()
     if not cmd:
@@ -116,7 +129,7 @@ def fetch_creds_status() -> dict[str, Any]:
             [cmd, "validate", "--json", "--no-log"],
             capture_output=True,
             text=True,
-            timeout=30,
+            timeout=180,
             check=False,
         )
         if not result.stdout.strip():
