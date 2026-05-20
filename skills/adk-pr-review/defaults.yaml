@@ -1,0 +1,62 @@
+# adk-pr-review — skill defaults.
+#
+# Override these by creating ~/.agents-devkit/config/adk-pr-review.yaml
+# with the same shape; values are deep-merged (user overrides win key-by-key).
+# Per-invocation CLI flags win over both.
+
+embed:
+  # Model used for /adk-pr-review (no --detailed). Fast, decent quality.
+  # Benchmarked: ~77 chunks/sec on M5 Pro at OLLAMA_NUM_PARALLEL=8.
+  default_model: nomic-embed-text
+  # Model used for /adk-pr-review --detailed. Higher quality, ~4-5x slower.
+  detailed_model: bge-m3
+  # Parallel /api/embed requests against ollama. Should match or be <=
+  # OLLAMA_NUM_PARALLEL on the daemon (the daemon queues beyond that).
+  workers: 8
+  # Hard cap per chunk; the chunker splits at the next AST boundary if
+  # a leaf node would exceed this. Stays well under nomic-embed-text's
+  # ~2048 token window even with conservative tokens-per-char estimates.
+  max_tokens_per_chunk: 1500
+
+retrieval:
+  # Hybrid = weighted merge of dense vector + BM25 (LanceDB FTS).
+  # BM25 catches exact-identifier matches that embeddings miss; embeddings
+  # catch semantic matches BM25 misses. Both costs are negligible at query
+  # time once the index is built.
+  hybrid: true
+  vector_weight: 0.6
+  fts_weight: 0.4
+  # Per-query candidate budget; merged + deduped before rerank.
+  top_k_dense: 50
+  top_k_fts: 50
+  # After merge + dedupe, before reranker.
+  top_k_merged: 80
+  # After reranker, what goes into the precis for the findings step.
+  top_k_final: 10
+
+reranker:
+  enabled: true
+  # 'harness-llm' = the parent agent scores via the JSONL queue interface
+  # (rerank-queue.jsonl in / rerank-scores.jsonl out). The skill itself is
+  # agnostic to which model the harness picks; the parent agent's SKILL.md
+  # instructions say how to score.
+  # 'none' = skip rerank stage entirely (merged top_k_merged becomes final).
+  mode: harness-llm
+
+chunker:
+  # 'tree-sitter' = AST-aware boundaries via tree-sitter-language-pack.
+  # 'heuristic' = the previous regex-based chunker. Kept as fallback for
+  # any file whose language has no tree-sitter grammar.
+  method: tree-sitter
+  fallback: heuristic
+  max_tokens: 1500
+  # Min chunk size (tokens) — anything smaller folds into its parent.
+  min_tokens: 50
+
+triage:
+  # Mode is set per-invocation by --auto (default) or -i.
+  # Auto = mark every finding 'accept' and proceed to post.
+  # Interactive = walk per-finding accept / reject / edit via the harness.
+  # The 'edit' state loops: show comment → user prompt → rewrite via harness
+  # → confirm/iterate. Every finding must end in 'accept' or 'reject'.
+  # (No config switch here; mode is governed by the CLI flag.)
