@@ -74,8 +74,31 @@ from queue_io import (  # noqa: E402
     TAKEN_LOCK_MAX_AGE_SECONDS, STATUS_IN_REVIEW,
 )
 
+# Decision-log helper — improvement #4 (decisions.jsonl was getting zero new
+# entries per session). Import the importable Python helper from scripts/.
+ADK_SCRIPTS = Path(__file__).resolve().parent.parent.parent.parent / "scripts"
+sys.path.insert(0, str(ADK_SCRIPTS))
+try:
+    from decision_logger import append_decision  # noqa: E402
+except Exception:
+    def append_decision(*_a, **_kw):  # type: ignore[misc]
+        pass  # fail-open: never block a review run on the log
+
 THIS_DIR = Path(__file__).parent
+# Phase 2: indexer scripts moved to scripts/lib/code_index/. Shims remain at
+# the old location but new callers should point at the lib directly to skip
+# the runpy hop.
+CODE_INDEX_LIB = THIS_DIR.parent.parent.parent / "scripts" / "lib" / "code_index"
 PY = sys.executable
+
+# Phase 3: optional seeding from the repo-level base index. The lib path
+# lookup must succeed before we import.
+sys.path.insert(0, str(CODE_INDEX_LIB))
+try:
+    from base_index import get_base_index, is_fresh, seed_copy  # noqa: E402
+    _BASE_INDEX_AVAILABLE = True
+except Exception:
+    _BASE_INDEX_AVAILABLE = False
 
 
 def step(cmd: list[str], log, env=None):
@@ -136,6 +159,10 @@ def main() -> int:
     ap.add_argument("--top-k-context", type=int, default=6, help="top-k chunks per changed file for precis")
     ap.add_argument("--wait", action="store_true",
                     help="if another /adk-pr-review is already running against the same PR, wait instead of failing fast")
+    ap.add_argument("--no-base-seed", action="store_true",
+                    help="skip seeding from the repo-level base index; index the PR worktree from scratch.")
+    ap.add_argument("--max-base-staleness", type=int, default=None,
+                    help="reject the base index if older than N days (default: from config base_index.max_staleness_days, fallback 7).")
     args = ap.parse_args()
 
     # Resolve the embed model: explicit --embed-model wins, else --detailed picks
@@ -256,7 +283,7 @@ def _main_inner(args, parsed, task_dir, log) -> int:
 
     # ---------- Phase 0: prereqs ----------
     log.info("--- Phase 0: prereq ---")
-    cp = run([PY, str(THIS_DIR / "ensure_ollama.py"), "--model", args.embed_model, "--json"], check=False)
+    cp = run([PY, str(CODE_INDEX_LIB / "ensure_ollama.py"), "--model", args.embed_model, "--json"], check=False)
     if cp.returncode != 0:
         sys.stderr.write(cp.stdout + cp.stderr)
         die("ollama not ready — see hint above")
@@ -265,6 +292,12 @@ def _main_inner(args, parsed, task_dir, log) -> int:
     mark_phase(task_dir, "0_prereq", "done",
                url=args.url, host=host, owner=owner, repo=repo, pr_number=n,
                embed_model=args.embed_model)
+    append_decision(
+        skill="adk-pr-review", fork_id="embed_model", fork_type="inferred",
+        default_offered=args.embed_model,
+        evidence="--detailed=%s, --embed-model=%s" % (args.detailed, args.embed_model),
+        repo=repo, task_slug=f"{repo}_pr-{n}",
+    )
 
     # ---------- Phase 2a: fetch PR (always — gets fresh head_oid) ----------
     log.info("--- Phase 2a: fetch PR (always; gets fresh head_oid) ---")
@@ -299,77 +332,154 @@ def _main_inner(args, parsed, task_dir, log) -> int:
     chunks_path = code_index_dir / "chunks.jsonl"
     has_prior_index = (code_index_dir / "meta.json").exists() and prior_index_head is not None
     changed_files: list[str] = []
+    seed_info: dict | None = None
     if has_prior_index and prior_index_head != head_oid:
         repo_clone = repo_clone_for(repo)
         changed_files = diff_changed_files(repo_clone, prior_index_head, head_oid, log)
         log.info("incremental re-index: %d files changed between %s..%s",
                  len(changed_files), prior_index_head[:12], head_oid[:12])
 
-    if not has_prior_index:
-        log.info("--- Phase 3: FULL index (no prior state) ---")
+    # NEW: when there's no prior PR-task-local index, consider seeding from the
+    # repo-level base index (built by `adk repo add|update`). This converts the
+    # cold 9-minute full reindex into a warm overlay: copy the base table dir,
+    # then run the embedder in incremental mode for just the files the PR
+    # touches relative to the base's indexed SHA.
+    if not has_prior_index and not args.rebuild and not args.no_base_seed and _BASE_INDEX_AVAILABLE:
+        base = get_base_index(repo)
+        if base is None:
+            log.info("base index: not built for %s (run `adk repo add <url>` or `adk repo update %s` to enable warm seeding)",
+                     repo, repo)
+        elif base.embed_model != args.embed_model:
+            log.info("base index: skipping seed — model mismatch (base=%s, run=%s)",
+                     base.embed_model, args.embed_model)
+        elif not is_fresh(base, max_staleness_days=args.max_base_staleness):
+            log.info("base index: %.1f days old (cap=%s) — seeding anyway and overlaying diff vs base SHA %s",
+                     base.age_days, args.max_base_staleness or "config", base.indexed_sha[:12])
+            seed_info = seed_copy(base, task_dir, log=log)
+        else:
+            log.info("base index: fresh (%.1f days old) — seeding from %s",
+                     base.age_days, base.indexed_sha[:12])
+            seed_info = seed_copy(base, task_dir, log=log)
+
+    if seed_info is not None:
+        # We seeded the base; overlay only the files that differ between
+        # base.indexed_sha and the PR's head_oid.
+        repo_clone = repo_clone_for(repo)
+        overlay_files = diff_changed_files(repo_clone, seed_info["seeded_from_sha"], head_oid, log)
+        log.info("--- Phase 3: SEEDED from base @ %s; overlaying %d files vs head %s ---",
+                 seed_info["seeded_from_sha"][:12], len(overlay_files), head_oid[:12])
+        if overlay_files:
+            files_list = code_index_dir / "overlay-files.txt"
+            files_list.write_text("\n".join(overlay_files), encoding="utf-8")
+            delta_chunks = code_index_dir / "chunks-overlay.jsonl"
+            step([PY, str(CODE_INDEX_LIB / "chunker.py"),
+                  "--worktree", str(task_dir / "code"),
+                  "--files-list", str(files_list),
+                  "--out", str(delta_chunks)], log)
+            step([PY, str(CODE_INDEX_LIB / "embedder.py"),
+                  "--task-dir", str(task_dir),
+                  "--chunks", str(delta_chunks),
+                  "--model", args.embed_model,
+                  "--mode", "incremental",
+                  "--replaced-files", str(files_list),
+                  "--json"], log)
+            langs = _languages_for(overlay_files)
+            if langs:
+                step([PY, str(CODE_INDEX_LIB / "scip_runner.py"),
+                      "--task-dir", str(task_dir),
+                      "--worktree", str(task_dir / "code"),
+                      "--langs", ",".join(sorted(langs)), "--json"], log)
+            else:
+                log.info("overlay: no SCIP-supported languages in delta; skipping SCIP")
+        else:
+            log.info("overlay: 0 files changed since base — no chunker/embedder work needed")
+        # State write goes here (BEFORE health check) so a transient health
+        # failure doesn't orphan a usable index. Improvement #9 / #11.
+        _base_now = get_base_index(repo)
+        mark_phase(task_dir, "3_index", "done",
+                   head_oid_at_index=head_oid,
+                   incremental=True,
+                   seeded_from_base=True,
+                   base_oid=seed_info["seeded_from_sha"],
+                   base_age_days=round(_base_now.age_days, 2) if _base_now else None,
+                   files_changed=len(overlay_files),
+                   embed_model=seed_info["embed_model"])
+        append_decision(
+            skill="adk-pr-review", fork_id="index_path", fork_type="inferred",
+            default_offered="seed-from-base-and-overlay",
+            evidence=f"base @ {seed_info['seeded_from_sha'][:12]} overlay={len(overlay_files)} files",
+            repo=repo, task_slug=f"{repo}_pr-{n}",
+        )
+    elif not has_prior_index:
+        log.info("--- Phase 3: FULL index (no prior state, no base seed) ---")
         chunks_path.parent.mkdir(parents=True, exist_ok=True)
-        step([PY, str(THIS_DIR / "chunker.py"),
+        step([PY, str(CODE_INDEX_LIB / "chunker.py"),
               "--worktree", str(task_dir / "code"),
               "--out", str(chunks_path)], log)
-        step([PY, str(THIS_DIR / "embedder.py"),
+        step([PY, str(CODE_INDEX_LIB / "embedder.py"),
               "--task-dir", str(task_dir),
               "--chunks", str(chunks_path),
               "--model", args.embed_model,
               "--mode", "replace", "--json"], log)
-        step([PY, str(THIS_DIR / "scip_runner.py"),
+        step([PY, str(CODE_INDEX_LIB / "scip_runner.py"),
               "--task-dir", str(task_dir),
               "--worktree", str(task_dir / "code"), "--json"], log)
+        mark_phase(task_dir, "3_index", "done",
+                   head_oid_at_index=head_oid, incremental=False, seeded_from_base=False)
     elif prior_index_head == head_oid:
         log.info("--- Phase 3: prior index matches head_oid; skipping reindex ---")
+        mark_phase(task_dir, "3_index", "done",
+                   head_oid_at_index=head_oid, incremental=False, skipped=True)
     elif changed_files:
         log.info("--- Phase 3: INCREMENTAL re-index (%d files) ---", len(changed_files))
-        # Write the changed-files list to a tmp file.
         files_list = code_index_dir / "changed-files.txt"
         files_list.write_text("\n".join(changed_files), encoding="utf-8")
-        # Chunk only those files, output to a delta jsonl.
         delta_chunks = code_index_dir / "chunks-delta.jsonl"
-        step([PY, str(THIS_DIR / "chunker.py"),
+        step([PY, str(CODE_INDEX_LIB / "chunker.py"),
               "--worktree", str(task_dir / "code"),
               "--files-list", str(files_list),
               "--out", str(delta_chunks)], log)
-        # Embed in incremental mode (delete chunks for these files, then add new).
-        step([PY, str(THIS_DIR / "embedder.py"),
+        step([PY, str(CODE_INDEX_LIB / "embedder.py"),
               "--task-dir", str(task_dir),
               "--chunks", str(delta_chunks),
               "--model", args.embed_model,
               "--mode", "incremental",
               "--replaced-files", str(files_list),
               "--json"], log)
-        # SCIP: re-run only for languages whose files changed.
         langs = _languages_for(changed_files)
         if langs:
-            step([PY, str(THIS_DIR / "scip_runner.py"),
+            step([PY, str(CODE_INDEX_LIB / "scip_runner.py"),
                   "--task-dir", str(task_dir),
                   "--worktree", str(task_dir / "code"),
                   "--langs", ",".join(sorted(langs)), "--json"], log)
         else:
             log.info("no SCIP-supported languages in the changed-files set; skipping SCIP")
+        mark_phase(task_dir, "3_index", "done",
+                   head_oid_at_index=head_oid, incremental=True,
+                   files_changed=len(changed_files), seeded_from_base=False)
     else:
         log.info("--- Phase 3: head_oid changed but no resolvable file delta — full re-index ---")
         chunks_path.parent.mkdir(parents=True, exist_ok=True)
-        step([PY, str(THIS_DIR / "chunker.py"),
+        step([PY, str(CODE_INDEX_LIB / "chunker.py"),
               "--worktree", str(task_dir / "code"),
               "--out", str(chunks_path)], log)
-        step([PY, str(THIS_DIR / "embedder.py"),
+        step([PY, str(CODE_INDEX_LIB / "embedder.py"),
               "--task-dir", str(task_dir),
               "--chunks", str(chunks_path),
               "--model", args.embed_model,
               "--mode", "replace", "--json"], log)
-        step([PY, str(THIS_DIR / "scip_runner.py"),
+        step([PY, str(CODE_INDEX_LIB / "scip_runner.py"),
               "--task-dir", str(task_dir),
               "--worktree", str(task_dir / "code"), "--json"], log)
+        mark_phase(task_dir, "3_index", "done",
+                   head_oid_at_index=head_oid, incremental=False,
+                   seeded_from_base=False, reason="head_oid moved but no resolvable diff")
 
-    step([PY, str(THIS_DIR / "query_index.py"),
+    # Health check AFTER state write — a transient health-check failure no
+    # longer orphans the index. The earlier mark_phase call captured what
+    # actually landed on disk.
+    step([PY, str(CODE_INDEX_LIB / "query_index.py"),
           "--task-dir", str(task_dir), "--health", "--json"], log)
-    mark_phase(task_dir, "3_index", "done",
-               head_oid_at_index=head_oid,
-               incremental=bool(has_prior_index and changed_files),
-               files_changed=len(changed_files))
 
     # ---------- Phase 4a: precis ----------
     log.info("--- Phase 4a: build precis.md ---")
@@ -487,7 +597,7 @@ def build_precis(task_dir: Path, top_k: int, scope: str) -> str:
     # Per-file chunk context.
     file_contexts = []
     for f in changed_files[:30]:
-        cp = run([sys.executable, str(THIS_DIR / "query_index.py"),
+        cp = run([sys.executable, str(CODE_INDEX_LIB / "query_index.py"),
                   "--task-dir", str(task_dir),
                   "--changed-file", f, "--json"], check=False)
         try:
@@ -497,7 +607,7 @@ def build_precis(task_dir: Path, top_k: int, scope: str) -> str:
         file_contexts.append({"file": f, "chunks": data.get("chunks", [])[:6]})
 
     # Feature flags in diff.
-    cp = run([sys.executable, str(THIS_DIR / "query_index.py"),
+    cp = run([sys.executable, str(CODE_INDEX_LIB / "query_index.py"),
               "--task-dir", str(task_dir), "--feature-flags-in-diff", "--json"], check=False)
     try:
         flags = json.loads(cp.stdout).get("flags", []) if cp.stdout else []
@@ -578,7 +688,7 @@ def build_precis(task_dir: Path, top_k: int, scope: str) -> str:
               "## How to use this file",
               "1. Walk `docs/index.json` and fetch all `pending_mcp` entries first (Atlassian / Drive MCP).",
               "2. Read SKILL.md (system prompt). Use Read/Grep/Glob against the worktree at `code/`.",
-              "3. Run `python3 scripts/query_index.py --task-dir <dir> --query <text> --json` for retrieval.",
+              "3. Run `python3 scripts/lib/code_index/query_index.py --task-dir <dir> --query <text> --json` for retrieval.",
               "4. Run **every applicable dimension** — correctness, security, tests, performance, observability, feature-flow, api, docs, concurrency. Don't shortcut to one.",
               "5. Emit one JSON matching `finding.template.json` to `findings.json`. Nothing else."]
 
