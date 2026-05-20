@@ -71,18 +71,33 @@ def cmd_init(task_dir: Path, default_state: str, log) -> dict:
     findings_blob = read_json(_findings_path(task_dir))
     findings = findings_blob.get("findings", [])
     mode = "auto" if default_state == "accept" else "interactive"
+    # Appreciations always start in `accept` — they never enter the
+    # interactive walk. They post as PR-level general comments later, with
+    # no resolve state to manage. The user wants ALL appreciations to land.
+    n_auto_appreciations = 0
+    findings_state: dict[str, dict] = {}
+    for f in findings:
+        sev = f.get("severity")
+        if sev == "appreciation":
+            findings_state[f["id"]] = {"state": "accept", "edits": 0,
+                                        "auto_accepted": True, "kind": "appreciation"}
+            n_auto_appreciations += 1
+        else:
+            findings_state[f["id"]] = {"state": default_state, "edits": 0}
     state = {
         "task_dir": str(task_dir),
         "mode": mode,
         "ts": _now(),
-        "findings": {f["id"]: {"state": default_state, "edits": 0} for f in findings},
+        "findings": findings_state,
         "edited": {},
     }
     write_json(_state_path(task_dir), state)
-    log.info("init: mode=%s findings=%d default=%s", mode, len(findings), default_state)
+    log.info("init: mode=%s findings=%d default=%s (auto-accepted %d appreciation(s))",
+             mode, len(findings), default_state, n_auto_appreciations)
     return {
         "mode": mode,
         "n_findings": len(findings),
+        "n_auto_accepted_appreciations": n_auto_appreciations,
         "default_state": default_state,
         "state_path": str(_state_path(task_dir)),
     }

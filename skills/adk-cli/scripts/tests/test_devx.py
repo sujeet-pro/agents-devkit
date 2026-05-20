@@ -198,6 +198,7 @@ def test_slack_summary_mentions_appreciations(pc_mod):
         approve_ready=False, actions=[],
     )
     assert "1 appreciation" in out
+    assert "PR comment" in out  # general comments, not inline
 
 
 # ---- posting plan slack step -------------------------------------------

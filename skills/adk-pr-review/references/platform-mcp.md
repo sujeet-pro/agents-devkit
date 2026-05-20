@@ -21,7 +21,7 @@ human action.
 | Operation | MCP tool | Direct-API fallback |
 |---|---|---|
 | List PR review comments | `mcp__adk-mcp-github__pull_request_read` (subcommand `comments`) | `gh api repos/<o>/<r>/pulls/<n>/comments` |
-| Add a top-level PR comment | `mcp__adk-mcp-github__add_issue_comment` | `gh api repos/<o>/<r>/issues/<n>/comments` |
+| Add a top-level PR comment (= **general comment**, no anchor, no resolve state) | `mcp__adk-mcp-github__add_issue_comment` | `gh api repos/<o>/<r>/issues/<n>/comments` |
 | Reply to an existing review comment | `mcp__adk-mcp-github__add_reply_to_pull_request_comment` | `POST /pulls/<n>/comments/<id>/replies` |
 | Submit a review (with N inline comments + APPROVE / REQUEST_CHANGES / COMMENT) | `mcp__adk-mcp-github__pull_request_review_write` | `POST /pulls/<n>/reviews` with `event` field |
 | Resolve / reopen a thread (canonical) | (GitHub exposes only via GraphQL; the MCP tool above does the equivalent via a status reply) | `mutation { resolveReviewThread / unresolveReviewThread }` |
@@ -45,7 +45,7 @@ GitHub-specific notes:
 |---|---|---|
 | List PR comments | `mcp__adk-mcp-bitbucket__getPullRequestComments` | `GET /pullrequests/<n>/comments` |
 | Get one comment | `mcp__adk-mcp-bitbucket__getPullRequestComment` | `GET /pullrequests/<n>/comments/<id>` |
-| Add a top-level comment | `mcp__adk-mcp-bitbucket__addPullRequestComment` (no `inline` arg) | `POST /pullrequests/<n>/comments` |
+| Add a top-level comment (= **general comment**, no anchor, no resolve state) | `mcp__adk-mcp-bitbucket__addPullRequestComment` (no `inline` arg) | `POST /pullrequests/<n>/comments` |
 | Add an inline comment | `mcp__adk-mcp-bitbucket__addPullRequestComment` (with `inline: {path, to}`) | `POST /pullrequests/<n>/comments` (same body shape) |
 | Add a pending comment (drafts before publish) | `mcp__adk-mcp-bitbucket__addPendingPullRequestComment` | — |
 | Publish all pending comments at once | `mcp__adk-mcp-bitbucket__publishPendingComments` | — |
@@ -64,6 +64,28 @@ Bitbucket-specific notes:
 - **Approve is its own endpoint.** No bundling like GitHub. The plan
   emits a discrete `approve_pr` step with the `approvePullRequest` MCP
   tool.
+
+## Appreciation comments (general, no resolve state)
+
+When a finding has `severity: "appreciation"`, the posting plan emits a
+`general_comment` step (NOT an inline `review_summary.comments[]` entry):
+
+- **GitHub**: `mcp__adk-mcp-github__add_issue_comment` with `body` — the
+  appreciation lives on the PR's *conversation* tab, not the *files
+  changed* tab. GitHub doesn't expose a resolve state on issue comments,
+  so the positive note stays put. (Inline review-comments would carry a
+  resolve state we'd need to manage.)
+- **Bitbucket**: `mcp__adk-mcp-bitbucket__addPullRequestComment` with
+  `content.raw` but **no `inline` field** — a "general" PR comment on BB.
+  These also lack a resolve state.
+
+The rendered body includes `*Location:* file:line` since it's no longer
+anchored. Triage auto-accepts every appreciation at `--init` time — they
+never enter the interactive walk; the user does NOT walk through them.
+
+This is the only step kind that posts even when the review summary is
+suppressed (`n_findings=0 && recommendation != approve`). Positive
+feedback on otherwise-trivial PRs still ships.
 
 ## Plan shape (`posting-plan.json`)
 

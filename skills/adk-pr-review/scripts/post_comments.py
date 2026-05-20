@@ -149,24 +149,46 @@ def format_appreciation_body(f: dict) -> str:
     """Render an `appreciation` finding as a celebratory PR comment.
 
     No 'How to fix', no 'Impact if unfixed' — just naming what's nice and
-    why it's worth celebrating. Posted as an inline comment anchored to
-    the code so the author sees it where the work happened.
+    why it's worth celebrating. Posted as a PR-level GENERAL comment on
+    both platforms (GitHub: add_issue_comment; Bitbucket: addPullRequestComment
+    without `inline`). General comments don't carry a resolve/reopen state,
+    so the positive note stays as-is forever — exactly what we want.
+
+    Since the comment is no longer line-anchored, the rendered body
+    includes the file:line so the author knows what code is being praised.
     """
     title = (f.get("title") or "").strip() or "Nice work"
     dimension = f.get("dimension", "") or "general"
     body = (f.get("body") or "").rstrip() or "(no detail provided)"
     fid = f.get("id", "")
-    return "\n".join([
+    file_path = f.get("file") or ""
+    line_start = f.get("line_start")
+    line_end = f.get("line_end")
+    loc_parts = []
+    if file_path:
+        loc_parts.append(file_path)
+        if line_start:
+            if line_end and line_end != line_start:
+                loc_parts.append(f":{line_start}-{line_end}")
+            else:
+                loc_parts.append(f":{line_start}")
+    location = "".join(loc_parts)
+    lines = [
         f"**{title}** 🎉",
         "",
         f"*Appreciation* · `{dimension}`",
+    ]
+    if location:
+        lines.append(f"*Location:* `{location}`")
+    lines += [
         "",
         SEVERITY_OPENING["appreciation"],
         "",
         body,
         "",
         f"_— adk-pr-review · `appreciation` · `{fid}`_",
-    ])
+    ]
+    return "\n".join(lines)
 
 
 def format_review_summary(findings_blob: dict) -> str:
@@ -289,6 +311,31 @@ def _bb_session():
         s.headers["Authorization"] = f"Bearer {tok}"
     s.headers["Accept"] = "application/json"
     return s
+
+
+def gh_post_general_comment(owner: str, repo: str, n: int, body: str, log) -> dict:
+    """Post a PR-level (issue) comment on GitHub — not a review comment, not
+    anchored. Used for appreciations so they don't carry a resolve state.
+    """
+    if not requests:
+        die("`requests` not installed.")
+    url = f"{GH_API}/repos/{owner}/{repo}/issues/{n}/comments"
+    log.info("gh POST %s (general comment)", url)
+    r = requests.post(url, json={"body": body}, headers=_gh_headers(), timeout=30)
+    if r.status_code >= 300:
+        return {"status": "failed", "code": r.status_code, "body": r.text[:300]}
+    return {"status": "ok", "id": r.json().get("id"), "kind": "general"}
+
+
+def bb_post_general_comment(workspace: str, repo: str, n: int, body: str, log) -> dict:
+    """Post a PR-level comment on Bitbucket without an `inline` anchor."""
+    s = _bb_session()
+    url = f"{BB_API}/repositories/{workspace}/{repo}/pullrequests/{n}/comments"
+    log.info("bb POST %s (general comment, no inline)", url)
+    r = s.post(url, json={"content": {"raw": body}}, timeout=30)
+    if r.status_code >= 300:
+        return {"status": "failed", "code": r.status_code, "body": r.text[:300]}
+    return {"status": "ok", "id": r.json().get("id"), "kind": "general"}
 
 
 def bb_post_inline(workspace: str, repo: str, n: int, findings: list[dict],
@@ -499,12 +546,20 @@ def main() -> int:
 
     host = pr.get("host")
     out = {"task_dir": str(task_dir), "host": host,
-           "mode": "direct-api", "posted": [], "resolved": [], "approved": None}
+           "mode": "direct-api", "posted": [], "appreciations_posted": [],
+           "resolved": [], "approved": None}
 
-    post_review = should_post_review(findings)
-    if not post_review:
+    # Separate appreciations from issues — issues go inline; appreciations
+    # go as PR-level general comments (no resolve/reopen state).
+    all_findings = findings.get("findings", []) or []
+    appreciations = [f for f in all_findings if f.get("severity") == "appreciation"]
+    issues_only = [f for f in all_findings if f.get("severity") != "appreciation"]
+    issues_blob = dict(findings)
+    issues_blob["findings"] = issues_only
+    post_review = should_post_review(issues_blob)
+    if not post_review and not appreciations:
         out["skipped_review"] = {
-            "reason": "n_findings=0 and recommendation is not 'approve'",
+            "reason": "n_findings=0 (no issues, no appreciations) and recommendation is not 'approve'",
             "recommendation": findings.get("recommendation"),
             "n_findings": 0,
         }
@@ -513,13 +568,19 @@ def main() -> int:
     if host == "github":
         if post_review:
             res = gh_post_review(pr["owner"], pr["repo"], pr["pr_number"], pr["head_oid"],
-                                 findings.get("findings", []), findings.get("summary", ""),
+                                 issues_only, findings.get("summary", ""),
                                  recommendation, findings, log)
             out["posted"].append(res)
             # GitHub's review POST already encodes the APPROVE event when
             # recommendation == "approve" — no separate approve call.
             if recommendation == "approve" and approve_ready:
                 out["approved"] = {"status": "ok", "via": "review_event=APPROVE"}
+        # Appreciations always post as general PR comments.
+        for f in appreciations:
+            out["appreciations_posted"].append(gh_post_general_comment(
+                pr["owner"], pr["repo"], pr["pr_number"],
+                format_appreciation_body(f), log,
+            ))
         if not args.no_resolve_existing:
             for a in actions:
                 if a.get("verified") and a.get("decision") in ("resolve", "reopen"):
@@ -529,8 +590,13 @@ def main() -> int:
     elif host == "bitbucket":
         if post_review:
             res = bb_post_inline(pr["owner"], pr["repo"], pr["pr_number"],
-                                 findings.get("findings", []), findings, log)
+                                 issues_only, findings, log)
             out["posted"].append(res)
+        for f in appreciations:
+            out["appreciations_posted"].append(bb_post_general_comment(
+                pr["owner"], pr["repo"], pr["pr_number"],
+                format_appreciation_body(f), log,
+            ))
         if not args.no_resolve_existing:
             for a in actions:
                 if a.get("verified") and a.get("decision") in ("resolve", "reopen"):
@@ -596,7 +662,7 @@ def format_slack_summary(*, pr: dict, findings_blob: dict, approve_ready: bool,
         if len(blockers) > 5:
             lines.append(f"  • …+{len(blockers) - 5} more")
     if appreciations:
-        lines.append(f":sparkles: {len(appreciations)} appreciation{'s' if len(appreciations) != 1 else ''} called out inline.")
+        lines.append(f":sparkles: {len(appreciations)} appreciation{'s' if len(appreciations) != 1 else ''} posted as PR comments.")
     if n_resolve or n_reopen:
         bits = []
         if n_resolve:
@@ -635,10 +701,17 @@ def build_posting_plan(*, pr: dict, findings_blob: dict, actions: list[dict],
     head = pr.get("head_oid") or pr.get("headRefOid")
     findings = findings_blob.get("findings", []) or []
     recommendation = findings_blob.get("recommendation", "comment_only")
-    post_review = should_post_review(findings_blob)
+    # Appreciations get their own treatment: PR-level GENERAL comments on
+    # both platforms (no inline anchor → no resolve/reopen state to manage).
+    # The review (inline comments + verdict) carries ONLY the issues.
+    appreciations = [f for f in findings if f.get("severity") == "appreciation"]
+    issues_only = [f for f in findings if f.get("severity") != "appreciation"]
+    issues_blob = dict(findings_blob)
+    issues_blob["findings"] = issues_only
+    post_review = should_post_review(issues_blob)
     steps: list[dict] = []
 
-    # ---- Review summary + inline comments ----
+    # ---- Review summary + inline comments (issues only) ----
     if post_review:
         if host == "github":
             steps.append({
@@ -655,7 +728,7 @@ def build_posting_plan(*, pr: dict, findings_blob: dict, actions: list[dict],
                          "line": int(f.get("line_end", f.get("line_start", 1))),
                          "side": "RIGHT",
                          "body": format_comment_body(f)}
-                        for f in findings
+                        for f in issues_only
                     ],
                 },
                 "fallback": "gh_post_review (direct REST POST /pulls/<n>/reviews)",
@@ -670,7 +743,7 @@ def build_posting_plan(*, pr: dict, findings_blob: dict, actions: list[dict],
                 },
                 "fallback": "POST /pullrequests/<n>/comments",
             })
-            for f in findings:
+            for f in issues_only:
                 steps.append({
                     "kind": "inline_comment",
                     "mcp_tool": "mcp__adk-mcp-bitbucket__addPullRequestComment",
@@ -683,11 +756,45 @@ def build_posting_plan(*, pr: dict, findings_blob: dict, actions: list[dict],
                     "fallback": "POST /pullrequests/<n>/comments (with inline.path/to)",
                     "finding_id": f.get("id"),
                 })
-    else:
+    elif not appreciations:
+        # No issues AND no appreciations → nothing to post but resolves/approve.
         steps.append({
             "kind": "review_summary_skipped",
-            "reason": "n_findings=0 and recommendation is not 'approve'",
+            "reason": "n_findings=0 (no issues, no appreciations) and recommendation is not 'approve'",
         })
+
+    # ---- Appreciations as general PR comments (both platforms, always post) ----
+    # General comments have no resolve/reopen state — exactly what we want for
+    # positive feedback. GitHub: add_issue_comment. Bitbucket: addPullRequestComment
+    # without `inline`. Triage cannot reject these (they auto-accept at --init).
+    for f in appreciations:
+        body = format_appreciation_body(f)
+        if host == "github":
+            steps.append({
+                "kind": "general_comment",
+                "subkind": "appreciation",
+                "mcp_tool": "mcp__adk-mcp-github__add_issue_comment",
+                "mcp_args": {
+                    "owner": owner, "repo": repo, "issue_number": n,
+                    "body": body,
+                },
+                "fallback": "POST /repos/<o>/<r>/issues/<n>/comments",
+                "finding_id": f.get("id"),
+            })
+        elif host == "bitbucket":
+            steps.append({
+                "kind": "general_comment",
+                "subkind": "appreciation",
+                "mcp_tool": "mcp__adk-mcp-bitbucket__addPullRequestComment",
+                "mcp_args": {
+                    "workspace": owner, "repoSlug": repo, "pullRequestId": n,
+                    "content": {"raw": body},
+                    # NB: no `inline` field — that's what makes this a
+                    # general (non-anchored) comment on Bitbucket.
+                },
+                "fallback": "POST /pullrequests/<n>/comments (no inline.*)",
+                "finding_id": f.get("id"),
+            })
 
     # ---- Resolve / reopen existing threads ----
     if not no_resolve_existing:
@@ -788,6 +895,8 @@ def build_posting_plan(*, pr: dict, findings_blob: dict, actions: list[dict],
         "approve_ready": approve_ready,
         "post_review": post_review,
         "n_findings": len(findings),
+        "n_issues": len(issues_only),
+        "n_appreciations": len(appreciations),
         "n_actions": sum(1 for a in actions if a.get("verified") and a.get("decision") in ("resolve", "reopen")),
         "steps": steps,
         "never_merge": True,  # explicit: this plan NEVER includes a merge step

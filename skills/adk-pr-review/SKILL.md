@@ -148,7 +148,7 @@ Definitions:
 - **may-have** — a polish suggestion; acceptable to defer.
 - **nitpick** — style or naming. Use sparingly.
 - **question** — you genuinely don't have context to judge; ask, don't accuse.
-- **appreciation** — something nice the author did that's worth calling out. A clean refactor, a thoughtful test boundary, a well-named abstraction, a comment that explains a subtle invariant. Posts as an inline PR comment so the author sees it where the work happened. **Aim for 1-3 per PR when the work warrants it** — don't manufacture appreciations on a trivial PR.
+- **appreciation** — something nice the author did that's worth calling out. A clean refactor, a thoughtful test boundary, a well-named abstraction, a comment that explains a subtle invariant. Posts as a **PR-level general comment** (GitHub: `add_issue_comment` · Bitbucket: `addPullRequestComment` without `inline`) so it doesn't carry a resolve/reopen state and stays as a positive note forever. **Auto-accepted by triage** — never enters the interactive walk; ALL appreciations the AI emits are posted. The rendered body includes the `*Location:* file:line` since it's no longer line-anchored. **Aim for 1-3 per PR when the work warrants it** — don't manufacture appreciations on a trivial PR.
 
 ## Tone — write like a human reviewer
 
@@ -188,7 +188,7 @@ _— adk-pr-review · `<severity>` · `<id>`_
 
 For `question` severity: replaces the "What's happening / Why / Fix" trio with a "What I'm not sure about" + clarification ask.
 
-For `appreciation` severity: replaces the body section with "What's nice about this" and skips "Why this matters" + "Suggested fix" entirely. Title gets a 🎉.
+For `appreciation` severity: replaces the body section with "What's nice about this" and skips "Why this matters" + "Suggested fix" entirely. Title gets a 🎉. The body also includes a `*Location:* file:line` line because the comment is posted as a **PR-level general comment** (GitHub: `add_issue_comment` → Conversation tab; Bitbucket: `addPullRequestComment` without `inline`) instead of an inline review comment — general comments don't carry a resolve/reopen state, so the positive note stays as-is forever. The triage step auto-accepts every appreciation at `--init`; ALL appreciations the AI emits are posted unconditionally.
 
 To get this structure on the PR, your finding JSON must populate:
 
@@ -298,12 +298,16 @@ Skip rerank entirely if your queries are narrow enough that hybrid alone surface
 After you write `findings.json`, the orchestrator runs `comment_resolver.py` for existing-comment classification, then triage:
 
 - **Auto mode** (default, no `-i` flag): `triage.py --init --default-state accept` marks every finding `accept`, then `--finalize` writes `findings-final.json`. Post step runs unchanged.
-- **Interactive mode** (`-i`): `triage.py --init --default-state pending`. YOU then walk each pending finding with the user (via `AskUserQuestion` in Claude Code):
+- **Interactive mode** (`-i`): `triage.py --init --default-state pending`. Appreciations are auto-accepted (they never enter the pending list — see "Appreciations always post" below). YOU then walk each remaining pending finding with the user (via `AskUserQuestion` in Claude Code):
   - **Show the rich view first.** Before asking accept/reject/edit, call `triage.py --render <id> --json` to get a markdown rendering that includes the code snippet (with context lines around the anchored range), what's happening, why it matters, the suggested fix, AND a preview of *exactly* what the PR comment will say. Drop the `rendered_md` into the AskUserQuestion description so the user has all the context. Don't ask "accept f-001?" — that's not enough information.
   - **Accept** → `triage.py --mark <id> --state accept`.
   - **Reject** → `triage.py --mark <id> --state reject` (won't be posted).
   - **Edit** → ask the user for an edit prompt; you rewrite the finding's `title` / `body` / `suggestion` / `impact_if_unfixed` per their direction; push back via `triage.py --rewrite <id> --fields-json '{...}'`; **re-call `triage.py --render <id>` to show the new version** including the updated post preview; loop until the user says accept or reject. The finding stays in `edit` state until `--mark accept` lands.
   - When every finding is `accept` or `reject`, run `triage.py --finalize`. `findings-final.json` lands and posting proceeds.
+
+**Appreciations always post (general comments):**
+
+`severity: "appreciation"` findings bypass the triage walk entirely. `triage.py --init` auto-accepts them; the post step routes each one to a PR-level **general comment** (no inline anchor, no resolve state) via `mcp__adk-mcp-github__add_issue_comment` or `mcp__adk-mcp-bitbucket__addPullRequestComment` (without `inline`). They're posted even when the review summary is suppressed (e.g. zero issues found) — positive feedback ships unconditionally. The rendered body includes `*Location:* file:line` since it's no longer line-anchored.
 
 **Slack summary (Phase 6, last step):**
 
