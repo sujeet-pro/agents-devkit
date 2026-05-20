@@ -777,6 +777,10 @@ def install_deps(repo_root: Path, dry_run: bool, results: dict[str, Any],
         ("requests", "requests"),
         ("lancedb", "lancedb"),
         ("tree_sitter_language_pack", "tree_sitter_language_pack"),
+        # textual: optional at the doctor level (it gracefully falls back to
+        # plain text) but cheap to have for `adk doctor --tui`. Auto-installing
+        # eliminates the WARN that otherwise shows on every doctor run.
+        ("textual", "textual"),
     ]
     for mod, pkg in py_pkgs:
         try:

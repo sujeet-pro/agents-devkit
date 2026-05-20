@@ -19,19 +19,27 @@ def _capture(prs: list[dict]) -> str:
     return buf.getvalue()
 
 
-def test_separates_approved_with_and_without_comments():
+def test_three_buckets_with_approved_host_signal():
+    """The new bucket logic uses approved_host to separate 'approved with
+    open comments' from 'reviewed with open comments but no approval'.
+    """
     prs = [
-        {"pr_link": "https://github.com/acme/foo/pull/1", "status": STATUS_APPROVED},
-        {"pr_link": "https://github.com/acme/foo/pull/2", "status": STATUS_COMMENTS},
-        {"pr_link": "https://github.com/acme/foo/pull/3", "status": STATUS_APPROVED},
+        {"pr_link": "u1", "status": STATUS_APPROVED},  # clean approval
+        {"pr_link": "u2", "status": STATUS_COMMENTS, "approved_host": True},
+        {"pr_link": "u3", "status": STATUS_COMMENTS, "approved_host": False},
+        {"pr_link": "u4", "status": STATUS_COMMENTS},  # missing field == not approved
     ]
     out = _capture(prs)
     assert "Approved (no open comments)" in out
     assert "Approved (open comments)" in out
-    # Both approved PRs must show; the approved-with-comments one must show too.
-    assert "https://github.com/acme/foo/pull/1" in out
-    assert "https://github.com/acme/foo/pull/3" in out
-    assert "https://github.com/acme/foo/pull/2" in out
+    assert "Reviewed (open comments)" in out
+    # u1: clean approval
+    assert "u1" in out
+    # u2: approved + has comments (legit "approved with comments")
+    assert "u2" in out
+    # u3, u4: reviewed-with-comments — neither approved
+    assert "u3" in out
+    assert "u4" in out
 
 
 def test_omits_non_approved_statuses():
@@ -41,21 +49,25 @@ def test_omits_non_approved_statuses():
         {"pr_link": "https://github.com/acme/foo/pull/3", "status": "pending"},
     ]
     out = _capture(prs)
-    # No approved rows → "Ready to merge: none."
+    # No approved/comments rows → "Ready to merge: none."
     assert "none" in out.lower()
     for link in ("/pull/1", "/pull/2", "/pull/3"):
         assert link not in out
 
 
-def test_counts_are_accurate():
+def test_counts_match_bucket_membership():
+    """Counts in the three headers exactly match the bucket sizes."""
     prs = [
         {"pr_link": "u1", "status": STATUS_APPROVED},
         {"pr_link": "u2", "status": STATUS_APPROVED},
-        {"pr_link": "u3", "status": STATUS_COMMENTS},
+        {"pr_link": "u3", "status": STATUS_COMMENTS, "approved_host": True},
+        {"pr_link": "u4", "status": STATUS_COMMENTS, "approved_host": False},
     ]
     out = _capture(prs)
-    assert "· 2" in out  # two approved-no-comments
-    assert "· 1" in out  # one approved-with-comments
+    # 2 approved-clean, 1 approved-with-comments, 1 reviewed-with-comments.
+    assert "Approved (no open comments)   · 2" in out
+    assert "Approved (open comments)      · 1" in out
+    assert "Reviewed (open comments)      · 1" in out
 
 
 if __name__ == "__main__":

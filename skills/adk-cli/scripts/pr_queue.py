@@ -159,24 +159,38 @@ def cmd_ready_to_merge(args) -> int:
 
 
 def print_summary(prs: list[dict]) -> None:
-    """Print the ready-to-merge summary. Also exported so /adk-pr-review's tail
-    can call it.
-    """
-    no_comments = [e for e in prs if (e.get("status") or "") == STATUS_APPROVED]
-    with_comments = [e for e in prs if (e.get("status") or "") == STATUS_COMMENTS]
+    """Print the ready-to-merge summary. Three buckets — distinguishing
+    host-approved-with-comments from reviewed-but-not-approved.
 
-    if not no_comments and not with_comments:
+      - Approved (no open comments)     status=APPROVED                  → merge-ready
+      - Approved (open comments)        status=COMMENTS + approved_host  → merge-pending-resolution
+      - Reviewed (open comments)        status=COMMENTS + !approved_host → not merge-ready yet
+
+    The third bucket was previously rolled into "Approved (open comments)",
+    which mislabeled review-only rows as approved. The fix needs the row to
+    carry `approved_host` (persisted by `release_after_review`).
+    """
+    approved_clean = [e for e in prs if (e.get("status") or "") == STATUS_APPROVED]
+    comments = [e for e in prs if (e.get("status") or "") == STATUS_COMMENTS]
+    approved_with_comments = [e for e in comments if e.get("approved_host")]
+    reviewed_with_comments = [e for e in comments if not e.get("approved_host")]
+
+    if not approved_clean and not approved_with_comments and not reviewed_with_comments:
         print("Ready to merge: none.")
         return
 
     print("Ready to merge")
     print("==============")
-    print(f"Approved (no open comments)   · {len(no_comments)}")
-    for e in no_comments:
+    print(f"Approved (no open comments)   · {len(approved_clean)}")
+    for e in approved_clean:
         print(f"  - {e.get('pr_link')}")
     print()
-    print(f"Approved (open comments)      · {len(with_comments)}")
-    for e in with_comments:
+    print(f"Approved (open comments)      · {len(approved_with_comments)}")
+    for e in approved_with_comments:
+        print(f"  - {e.get('pr_link')}")
+    print()
+    print(f"Reviewed (open comments)      · {len(reviewed_with_comments)}")
+    for e in reviewed_with_comments:
         print(f"  - {e.get('pr_link')}")
 
 

@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 import time
 from pathlib import Path
@@ -108,11 +109,11 @@ def main() -> int:
     table_name = "chunks"
 
     if args.mode == "replace":
-        if table_name in db.table_names():
+        if table_name in db.list_tables():
             db.drop_table(table_name)
         deleted = 0
     else:
-        if table_name not in db.table_names():
+        if table_name not in db.list_tables():
             die("incremental mode but no prior table — run with --mode replace first")
         if not args.replaced_files:
             die("incremental mode requires --replaced-files")
@@ -137,12 +138,29 @@ def main() -> int:
     n_total = 0
     n_batches = 0
     dim: int | None = None
-    table = db.open_table(table_name) if (args.mode == "incremental" and table_name in db.table_names()) else None
+    table = db.open_table(table_name) if (args.mode == "incremental" and table_name in db.list_tables()) else None
     started = time.time()
 
     rows_buf: list[dict] = []
     n_skipped_oversized = 0
-    for batch_idx, batch in enumerate(chunks_to_batches(iter_chunks(chunks_path), args.batch)):
+
+    # Pre-flight skip: ollama embed models cap input length somewhere around
+    # 8k-16k tokens. A chunk above MAX_INPUT_CHARS will always fail; sending it
+    # costs us a batch failure + N per-chunk retry probes (~4-6s each). Skip
+    # upfront. The threshold is intentionally generous — only minified files,
+    # large locale JSONs, and lockfile-shaped blobs should hit it.
+    MAX_INPUT_CHARS = int(os.environ.get("ADK_PR_REVIEW_EMBED_MAX_CHARS", "30000"))
+    def _under_cap(chunk: dict) -> bool:
+        if len(chunk.get("content") or "") <= MAX_INPUT_CHARS:
+            return True
+        nonlocal n_skipped_oversized
+        n_skipped_oversized += 1
+        log.warning("skipping oversized chunk pre-flight: %s:%s-%s (%d chars > cap=%d)",
+                    chunk.get("file"), chunk.get("line_start"), chunk.get("line_end"),
+                    len(chunk.get("content", "")), MAX_INPUT_CHARS)
+        return False
+    chunks_iter = (c for c in iter_chunks(chunks_path) if _under_cap(c))
+    for batch_idx, batch in enumerate(chunks_to_batches(chunks_iter, args.batch)):
         texts = [r["content"] for r in batch]
         try:
             embs = embed_batch(args.model, texts, keep_alive="5m", log=log)

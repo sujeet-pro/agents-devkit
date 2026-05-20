@@ -56,7 +56,7 @@ def _open_table(task_dir: Path):
     if not code_index.exists():
         die(f"code-index not found at {code_index}")
     db = lancedb.connect(str(code_index))
-    if "chunks" not in db.table_names():
+    if "chunks" not in db.list_tables():
         die("table `chunks` not present in code-index — run embedder.py first")
     return db.open_table("chunks")
 

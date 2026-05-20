@@ -136,10 +136,16 @@ def release_after_review(
                 log.warning("slack reaction update failed: %s", e)
             merged_slack = si
 
+    # Persist approved_host + recommendation alongside status so the
+    # ready-to-merge summary can distinguish "approved with open comments"
+    # from "reviewed (commented but not approved)". Without these the bucket
+    # collapses and we mislabel `status=comments` rows as "approved".
     updates = {
         "status": new_status,
         "last_checked_at": _now_iso(),
         "taken_at": None,
+        "approved_host": bool(approved_host),
+        "recommendation": recommendation,
     }
     if head_oid:
         updates["head_oid"] = head_oid

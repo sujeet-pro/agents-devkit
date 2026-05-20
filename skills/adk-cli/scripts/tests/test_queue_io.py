@@ -129,6 +129,35 @@ def test_release_row_clears_taken_at_and_updates_status(tmp_path):
     assert persisted["head_oid"] == "deadbeef"
 
 
+def test_release_after_review_persists_approved_host_and_recommendation(tmp_path):
+    """The ready-to-merge bucket logic depends on approved_host being persisted
+    on the row. release_after_review must write it.
+    """
+    import sys
+    sys.path.insert(0, "skills/adk-cli/scripts")
+    from queue_release import release_after_review
+
+    qp = tmp_path / "pr-queue.json5"
+    _write_queue(qp, [
+        {"pr_link": "https://github.com/acme/foo/pull/7",
+         "status": "in_review",
+         "last_checked_at": None,
+         "taken_at": _iso(datetime.now(tz=timezone.utc))},
+    ])
+    status = release_after_review(
+        queue_path=qp,
+        pr_link="https://github.com/acme/foo/pull/7",
+        head_oid="cafebabe",
+        n_findings=2, approved_host=True, recommendation="approve",
+        slack_cfg=None, slack_info=None,
+    )
+    assert status == "comments"  # n_findings>0 → comments regardless of approval
+    row = json.loads(qp.read_text())["prs"][0]
+    assert row["approved_host"] is True
+    assert row["recommendation"] == "approve"
+    assert row["taken_at"] is None
+
+
 def test_release_row_cannot_downgrade_merged(tmp_path):
     qp = tmp_path / "pr-queue.json5"
     _write_queue(qp, [
