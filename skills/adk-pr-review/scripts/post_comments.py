@@ -268,17 +268,27 @@ def plan_only(task_dir: Path, findings: dict, actions: list[dict]) -> dict:
         "n_resolve": sum(1 for a in actions if a.get("decision") == "resolve" and a.get("verified")),
         "n_reopen": sum(1 for a in actions if a.get("decision") == "reopen" and a.get("verified")),
         "n_leave": sum(1 for a in actions if a.get("decision") == "leave-as-is"),
-        "note": "Pass --confirmed yes to actually post (constitution §I.4 gate).",
+        "note": "Plan-only — pass --post (or --confirmed yes) to transmit.",
     }
 
 
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--task-dir", required=True)
-    ap.add_argument("--confirmed", choices=("yes", "no"), default="no")
+    # Default behavior is to POST. /adk-pr-review's task explicitly calls for
+    # posting (constitution §I.4 names PR review posting as a task-required
+    # action). Use --plan-only / --confirmed no to inhibit transmission. The
+    # old --confirmed yes/no flag is kept for back-compat; the new --plan-only
+    # is the idiomatic switch for "rehearse without posting".
+    ap.add_argument("--confirmed", choices=("yes", "no"), default="yes",
+                    help="back-compat. yes=post (default), no=plan-only.")
+    ap.add_argument("--plan-only", action="store_true",
+                    help="rehearse posting without transmitting (overrides --confirmed yes).")
     ap.add_argument("--no-resolve-existing", action="store_true")
     ap.add_argument("--json", action="store_true")
     args = ap.parse_args()
+    if args.plan_only:
+        args.confirmed = "no"
 
     task_dir = Path(args.task_dir)
     log = get_logger("post_comments", task_dir)

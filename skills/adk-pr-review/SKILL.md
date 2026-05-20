@@ -80,7 +80,13 @@ If the pre-loaded context is insufficient, fall back to `Read`, `Grep`, `Glob` a
 - Need callers? `python3 scripts/query_index.py --callers <symbol>` (SCIP-backed when available, regex fallback otherwise).
 - Need a config flag's resolution? `python3 scripts/query_index.py --feature-flag <name>` cross-checks the local config + the Statsig MCP.
 
-You do **not** have write access to the worktree. Do not attempt to edit files in `code/`. The orchestrator posts comments via `adk-mcp-github` / `adk-mcp-bitbucket` after your findings JSON is produced and approved.
+You do **not** have write access to the worktree. Do not attempt to edit files in `code/`. The orchestrator posts comments via `adk-mcp-github` / `adk-mcp-bitbucket` after your findings JSON is produced.
+
+**Posting policy (constitution §I.4 names PR reviewing as a task-required action — auto-post is the default):**
+
+- **Auto mode** (no `-i`): every finding that survives triage (auto-accept) is **posted automatically** by `post_comments.py`. No additional confirmation prompt — the task explicitly calls for posting.
+- **Interactive mode** (`-i`): findings post **only after the user accepts them** in the triage walk. Rejected findings are dropped; edited findings post in their edited form once accepted.
+- **Rehearsal** (`--no-post`): the pipeline runs end-to-end but `post_comments.py` enters plan-only mode (no HTTP transmission). Use for previewing what would be posted.
 
 ## Process (do this in order)
 
@@ -271,7 +277,7 @@ After you write `findings.json`, the orchestrator runs `comment_resolver.py` for
   - **Edit** → ask the user for an edit prompt; you rewrite the finding's `title` / `body` / `suggestion` / `impact_if_unfixed` per their direction; push back via `triage.py --rewrite <id> --fields-json '{...}'`; show the new version; loop until the user says accept or reject. The finding stays in `edit` state until `--mark accept` lands.
   - When every finding is `accept` or `reject`, run `triage.py --finalize`. `findings-final.json` lands and posting proceeds.
 
-You never post directly. Posting is the orchestrator's job and is gated by the constitution §I.4 confirmation regardless of auto/interactive.
+You never post directly. Posting is `post_comments.py`'s job. In both auto and interactive modes the **default is to transmit** — constitution §I.4 explicitly names "adk-pr-review posting inline comments" as a task-required action, so no separate prompt fires. Pass `--no-post` (orchestrator) or `--plan-only` (post_comments.py) to inhibit.
 
 ## References (loaded as needed)
 

@@ -411,13 +411,14 @@ def _main_inner(args, parsed, task_dir, log) -> int:
             f"python3 scripts/triage.py --task-dir {task_dir} --init --default-state accept "
             f"&& python3 scripts/triage.py --task-dir {task_dir} --finalize"
         )
-    # --no-post should produce a plan-only handoff. Without this, a caller
-    # following the literal next_steps would post anyway (the "--no for plan-only"
-    # trailing comment is human-eyes-only, not parsed). Force --confirmed no.
-    confirmed_arg = "no" if args.no_post else "yes"
-    post_comment_hint = "   # plan-only (--no-post was set)" if args.no_post else "   # gated; --confirmed no for plan-only"
+    # Default behavior is to POST in auto mode and to post-after-triage in
+    # interactive mode. Pass --no-post on the orchestrator to inhibit (rehearsal
+    # only). The post_comments.py default is now `--confirmed yes` so we don't
+    # need to pass any flag in the happy path; --plan-only flips it off.
+    post_flag = " --plan-only" if args.no_post else ""
+    post_comment_hint = "   # plan-only (--no-post was set)" if args.no_post else "   # auto-post (constitution §I.4: task requires this)"
     next_steps += [
-        f"python3 scripts/post_comments.py --task-dir {task_dir} --confirmed {confirmed_arg} --json{post_comment_hint}",
+        f"python3 scripts/post_comments.py --task-dir {task_dir} --json{post_flag}{post_comment_hint}",
         f"python3 scripts/report.py --task-dir {task_dir}",
     ]
     summary = {
