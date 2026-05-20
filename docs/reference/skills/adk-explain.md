@@ -43,6 +43,8 @@ metadata:
 
 Advisor. Teach, don't pick.
 
+**Global skill** — mostly transient; if any artifact is produced (a written decision-tree, a referenced comparison table) it goes to `~/.agents-devkit/explain/<ts>/`. Never writes to the cwd repo.
+
 ## When invoked
 
 - Directly: `/adk-explain "what's the difference between hexagonal and onion architecture?"`
@@ -54,7 +56,7 @@ Advisor. Teach, don't pick.
 ```
 Phase 0 — context-gather
   - If --from <skill> is set, the calling skill passed the question + options + context
-  - If standalone, parse the topic from the user's prompt; pull related entries from ~/.config/adk/learning/
+  - If standalone, parse the topic from the user's prompt; pull related entries from ~/.agents-devkit/improve/learning/
 
 Phase 1 — restate
   - Restate the question in plain English; define any jargon inline once

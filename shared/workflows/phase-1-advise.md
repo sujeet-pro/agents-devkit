@@ -48,8 +48,8 @@ out-of-scope:
 
 ## Recommendation logic
 
-- Read `~/.config/adk/learning/decisions.jsonl` + `summary.md` for prior matching `fork_id`s.
-- Read `~/.config/adk/overrides.yaml.defaults.<skill>.*`.
+- Read `~/.agents-devkit/improve/learning/decisions.jsonl` + `summary.md` for prior matching `fork_id`s.
+- Read `~/.agents-devkit/config/overrides.yaml.defaults.<skill>.*`.
 - Read `<repo>/.adk/overrides.yaml.defaults.<skill>.*` (override layer).
 - Recommendation = highest-priority match.
 - If no prior data: recommendation = the most common cross-user-base default, marked `[no personal history]`.

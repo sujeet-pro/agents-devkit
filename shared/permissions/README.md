@@ -51,7 +51,7 @@ Behaviour:
 Edit the files in this folder and re-run `./install.sh` to push changes to
 every supported agent. To exclude a specific entry on a specific machine,
 remove it from the relevant config file here or rebuild the entry list in
-your `~/.config/adk/overrides.yaml` (planned).
+your `~/.agents-devkit/config/overrides.yaml` (planned).
 
 ## Safety notes
 

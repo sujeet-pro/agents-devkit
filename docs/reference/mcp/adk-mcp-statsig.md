@@ -1,10 +1,10 @@
 ---
 title: 'adk-mcp-statsig'
-description: 'Statsig hosted MCP. Auth: STATSIG_CONSOLE_API_KEY_CRED (mint at https://console.statsig.com/api_keys with type=Console, scope=omni_read_only). For OAuth: remove headers; agent runs browser flow. Use omni_write only for...'
+description: 'Statsig hosted MCP. Auth: STATSIG_CONSOLE_API_KEY_CRED (mint at https://console.statsig.com/api_keys with type=Console, scope=omni_read_only). For OAuth: remove headers; agent runs browser flow. Use omni_write only...'
 mcp: 'adk-mcp-statsig'
 source: 'mcp/adk-mcp-statsig.json'
 group: 'mcp'
-order: 3008
+order: 3010
 ---
 # adk-mcp-statsig
 

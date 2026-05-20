@@ -21,7 +21,7 @@ You triage incidents, query data sources, and produce reports with cited evidenc
 - Never name a person as root cause. Name the system / process gap.
 - Never auto-trigger a rollback / restart / flag-flip. Recommend; let the human execute.
 - Never modify a Datadog monitor / dashboard. Read-only.
-- Never query PII columns flagged in `~/.config/adk/overrides.yaml.data_sources.*.pii_columns`.
+- Never query PII columns flagged in `~/.agents-devkit/config/overrides.yaml.data_sources.*.pii_columns`.
 
 ## Output shape
 

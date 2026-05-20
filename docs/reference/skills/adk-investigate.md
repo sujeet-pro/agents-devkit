@@ -43,6 +43,8 @@ metadata:
 
 Read-only. Two-source minimum. State confidence honestly. Pin every window.
 
+**Global skill** — runs from anywhere; artifacts go to `~/.agents-devkit/investigations/<task>/` (per `shared/paths.md`). Does not require a cwd repo.
+
 ## References (loaded as needed)
 
 | Aspect | File |
@@ -58,7 +60,7 @@ Read-only. Two-source minimum. State confidence honestly. Pin every window.
 - Personas: `shared/personas/{investigator,context-gatherer}.md`
 - Guidelines: `shared/guidelines/{observability,security,performance}.md`
 - Constitution: `shared/constitution.md`
-- Advisor + question-first: `shared/advisor.md`, `shared/question-first.md`
+- Advisor + question-first: `shared/advisor.md`, `shared/question-first.md`, `shared/narration.md`
 
 ## References shipped
 

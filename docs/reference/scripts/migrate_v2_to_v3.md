@@ -1,14 +1,14 @@
 ---
 title: 'migrate_v2_to_v3.py'
-description: 'migrate_v2_to_v3.py — read v2 per-topic ~/.config/adk/*.md files and synthesize'
+description: 'migrate_v2_to_v3.py — read v2 per-topic ~/.agents-devkit/config/*.md files and synthesize'
 script: 'migrate_v2_to_v3.py'
 source: 'scripts/migrate_v2_to_v3.py'
 group: 'scripts'
-order: 4007
+order: 4009
 ---
 # migrate_v2_to_v3.py
 
-migrate_v2_to_v3.py — read v2 per-topic ~/.config/adk/*.md files and synthesize
+migrate_v2_to_v3.py — read v2 per-topic ~/.agents-devkit/config/*.md files and synthesize
 
 ## Source
 
@@ -18,11 +18,11 @@ migrate_v2_to_v3.py — read v2 per-topic ~/.config/adk/*.md files and synthesiz
 
 ```python
 #!/usr/bin/env python3
-"""migrate_v2_to_v3.py — read v2 per-topic ~/.config/adk/*.md files and synthesize
-a v3 ~/.config/adk/overrides.yaml.
+"""migrate_v2_to_v3.py — read v2 per-topic ~/.agents-devkit/config/*.md files and synthesize
+a v3 ~/.agents-devkit/config/overrides.yaml.
 
 v2 files (if present):
-  ~/.config/adk/info.md, repos.md, github.md, datadog.md, mixpanel.md, statsig.md,
+  ~/.agents-devkit/config/info.md, repos.md, github.md, datadog.md, mixpanel.md, statsig.md,
   snowflake.md, slack.md, review.md, docs.md
 
 Each v2 file is YAML-frontmatter + markdown notes. We read the frontmatter,
@@ -41,7 +41,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-ADK_DIR = Path(os.path.expanduser("~/.config/adk"))
+ADK_DIR = Path(os.path.expanduser("~/.agents-devkit/config"))
 V2_TOPICS = ["info", "repos", "github", "datadog", "mixpanel", "statsig",
              "snowflake", "slack", "review", "docs"]
 OUT_DEFAULT = ADK_DIR / "overrides.yaml"
@@ -97,7 +97,7 @@ def build_v3(topics: dict[str, dict[str, Any]]) -> str:
     github_org = github.get("default_org") or "your-org"
 
     lines: list[str] = []
-    lines.append("# ~/.config/adk/overrides.yaml — v3 (migrated from v2)")
+    lines.append("# ~/.agents-devkit/config/overrides.yaml — v3 (migrated from v2)")
     lines.append("# Review and edit. The migration is best-effort — nested fields may be flattened.")
     lines.append("")
     lines.append("workspaces:")

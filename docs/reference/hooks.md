@@ -9,8 +9,8 @@ order: 5500
 
 Deterministic enforcement of `shared/constitution.md`. Three events:
 
-- **PreToolUse:Bash** — blocks force-push, hard-reset on protected branches, `rm -rf $HOME`, unrequested PR merges, writes to `~/.config/adk/learning/archive/`, `--no-verify` bypasses.
-- **PostToolUse:Edit\|Write** — validates SKILL.md frontmatter on writes; touches `.temp/<task-slug>/.last-modified`; refuses raw-token writes to `~/.config/adk/overrides.yaml`.
+- **PreToolUse:Bash** — blocks force-push, hard-reset on protected branches, `rm -rf $HOME`, unrequested PR merges, writes to `~/.agents-devkit/improve/learning/archive/`, `--no-verify` bypasses.
+- **PostToolUse:Edit\|Write** — validates SKILL.md frontmatter on writes; touches `.temp/<task-slug>/.last-modified`; refuses raw-token writes to `~/.agents-devkit/config/overrides.yaml`.
 - **SessionStart** — prints the adk status banner.
 
 `install.sh` merges these into `~/.claude/settings.json` with an `_adk_managed: true` tag so they're idempotent and removable on uninstall.
@@ -19,26 +19,15 @@ Deterministic enforcement of `shared/constitution.md`. Three events:
 
 ```json
 {
-  "comment": "adk v3 hooks — wired into ~/.claude/settings.json by install.sh. The Bash safety hook enforces constitution §I deterministically; the Edit validator catches SKILL.md frontmatter bugs at write-time; the SessionStart banner runs at session open.",
+  "comment": "adk v3 hooks — wired into ~/.claude/settings.json by install.sh. The Edit validator catches SKILL.md frontmatter bugs at write-time; the SessionStart banner runs at session open. The prompt-style PreToolUse Bash safety hook was removed 2026-05-19 (over-broad LLM interpretation produced too many false positives); the constitution §I rules still bind the assistant directly.",
   "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "prompt",
-            "prompt": "Inspect the Bash command being run. BLOCK these with a precise reason:\n\n1. `git push --force` / `git push -f` / `git push --force-with-lease` targeting any of: main, master, develop, release/*, prod/*, or any branch listed in ~/.config/adk/overrides.yaml.protected_branches.\n2. `git reset --hard` on main, master, develop, release/*, prod/*.\n3. `git clean -fd` at a repo root (cwd ends in the repo's top-level dir).\n4. `git branch -D` on main, master, develop, release/*, prod/*.\n5. `rm -rf` targeting `$HOME`, `/`, any path under `~/.config/adk/`, or any repo root.\n6. `gh pr merge` UNLESS the user's most recent message in this session explicitly asked to merge a PR (look for words: merge, ship, land, squash-merge, rebase-merge).\n7. `gh pr close` UNLESS the user explicitly asked to close a PR.\n8. Any command writing into `~/.config/adk/learning/archive/` (that path is managed by /adk-improve only).\n9. `--no-verify` flags on git commit or git push (bypasses hooks — banned per constitution §V).\n\nALLOW: normal git, gh, npm, jq, fd, rg, curl, python3, ./install.sh, claude operations, and writes to .temp/<task-slug>/ paths.\n\nReturn JSON:\n  - block: {\"decision\":\"block\",\"reason\":\"<one-line reason naming the rule>\"}\n  - allow: {\"decision\":\"allow\"}"
-          }
-        ]
-      }
-    ],
     "PostToolUse": [
       {
         "matcher": "Edit|Write",
         "hooks": [
           {
             "type": "prompt",
-            "prompt": "Lightweight post-write check.\n\nIf the edited file path matches `*/skills/<skill>/SKILL.md`:\n  - Verify the YAML frontmatter has `name:` and `description:` fields.\n  - Verify `name:` value equals the folder basename (segment after `skills/` and before `/SKILL.md`).\n  - On mismatch, return {\"ok\":false,\"reason\":\"...\"}; otherwise {\"ok\":true}.\n\nIf the edited file path is under `.temp/<task-slug>/`:\n  - Append the current ISO-8601 UTC timestamp to a file `.temp/<task-slug>/.last-modified` (create if missing) so monitor tools can detect activity.\n  - Return {\"ok\":true}.\n\nIf the edited file path is `~/.config/adk/overrides.yaml`:\n  - Run a regex check that no line contains a raw token-looking value (`/^[A-Z_]+\\s*:\\s*['\"]?[a-zA-Z0-9_-]{20,}['\"]?$/` outside the `${VAR}` interpolation pattern).\n  - On match, return {\"ok\":false,\"reason\":\"raw token detected — use ${ENV_VAR} instead\"}.\n\nOtherwise: {\"ok\":true}."
+            "prompt": "Lightweight post-write check.\n\nIf the edited file path matches `*/skills/<skill>/SKILL.md`:\n  - Verify the YAML frontmatter has `name:` and `description:` fields.\n  - Verify `name:` value equals the folder basename (segment after `skills/` and before `/SKILL.md`).\n  - On mismatch, return {\"ok\":false,\"reason\":\"...\"}; otherwise {\"ok\":true}.\n\nIf the edited file path is under `.temp/<task-slug>/`:\n  - Append the current ISO-8601 UTC timestamp to a file `.temp/<task-slug>/.last-modified` (create if missing) so monitor tools can detect activity.\n  - Return {\"ok\":true}.\n\nIf the edited file path is `~/.agents-devkit/config/overrides.yaml`:\n  - Run a regex check that no line contains a raw token-looking value (`/^[A-Z_]+\\s*:\\s*['\"]?[a-zA-Z0-9_-]{20,}['\"]?$/` outside the `${VAR}` interpolation pattern).\n  - On match, return {\"ok\":false,\"reason\":\"raw token detected — use ${ENV_VAR} instead\"}.\n\nOtherwise: {\"ok\":true}."
           }
         ]
       }
@@ -62,18 +51,18 @@ Deterministic enforcement of `shared/constitution.md`. Three events:
 ```bash
 #!/usr/bin/env bash
 # adk v3 SessionStart banner — short status line shown at the top of every Claude Code session.
-# Reads ~/.config/adk/overrides.yaml + scripts/adk_mcp_health.py for the summary.
+# Reads ~/.agents-devkit/config/overrides.yaml + scripts/adk_mcp_health.py for the summary.
 # Stays under 30 lines so it doesn't dominate the session opener.
 
 set -uo pipefail
 
 ADK_REPO="${ADK_REPO:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
-OVERRIDES="$HOME/.config/adk/overrides.yaml"
+OVERRIDES="$HOME/.agents-devkit/config/overrides.yaml"
 
 echo "[adk v3] — 8 skills: /adk-implement /adk-review /adk-investigate /adk-document /adk-sync /adk-setup /adk-improve /adk-explain"
 
 if [ ! -f "$OVERRIDES" ]; then
-  echo "[adk v3] ⚠ no ~/.config/adk/overrides.yaml — run /adk-setup --init"
+  echo "[adk v3] ⚠ no ~/.agents-devkit/config/overrides.yaml — run /adk-setup --init"
   exit 0
 fi
 
@@ -96,7 +85,7 @@ print(f'MCPs: {ok} env-ok, {miss} env-missing  ·  env: {env_present} present, {
 fi
 
 # Surface pending improve proposals if any
-proposals_dir="$HOME/.config/adk/learning/proposals"
+proposals_dir="$HOME/.agents-devkit/improve/learning/proposals"
 if [ -d "$proposals_dir" ]; then
   count=$(find "$proposals_dir" -maxdepth 1 -type f -name '*.diff' 2>/dev/null | wc -l | tr -d ' ')
   if [ "$count" -gt 0 ]; then

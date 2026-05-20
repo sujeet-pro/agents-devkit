@@ -4,7 +4,7 @@ description: 'Review, audit, look-at, sanity-check, check any review-able target
 skill: 'adk-review'
 source: 'skills/adk-review/SKILL.md'
 group: 'skills'
-order: 1005
+order: 1007
 ---
 # adk-review
 
@@ -21,7 +21,7 @@ name: adk-review
 description: |
   Review, audit, look-at, sanity-check, check any review-able target. Triggers on: GitHub PR URL (specialized review-pr — most common), `.` or local path (review-code-changes against the working tree), markdown file or Confluence URL (review-doc), comment-thread URL (review-comments), repo path with --audit (audit-repo), PR URL with --audit (audit-pr). Read-only by default. Produces severity-tiered findings (blocker / critical / should / may / nit) with `path:line` + ≤15-word evidence quotes from the actual file. Six dimensions in order: correctness → tests → security → performance → readability → consistency. Loads adk-agent-code-reviewer always, adk-agent-security-reviewer when diff touches auth/input/crypto/deps. Under --fix: applies accepted findings locally + pushes after confirm (never force, never merges, never protected branches). Under -i: walks each finding. Under --plan: read-only review-and-recommend; no edits. Refuses single-pass for diffs >5000 LOC.
 allowed-tools: [Read, Edit, Write, Grep, Glob, Bash, WebFetch, Agent]
-argument-hint: "<target> [--auto|-i] [--fix] [--audit] [--plan|--act] [--severity blocker|critical|should]"
+argument-hint: "<target> [-i|--interactive] [--fix] [--audit] [--plan|--act] [--severity blocker|critical|should]"
 metadata:
   category: code
   kind: task
@@ -39,9 +39,13 @@ metadata:
 
 ## Workflow body
 
-# adk-review — review any target
+# adk-review — review any target (lightweight)
 
 Polymorphic on target. Read-only by default; `--fix` extends to apply + push (never force, never merge, never to protected branches).
+
+**Lightweight by design** — no worktree, no embeddings, no SCIP. For a deep PR review with code-context retrieval (worktree + LanceDB embeddings + SCIP + feature-flag tracing), use `/adk-pr-review`.
+
+**Hybrid path** — repo-bound (`<repo>/.temp/adk/review/<task>/`) when reviewing local code (`.`, `--audit`, a doc in the cwd repo); global (`~/.agents-devkit/reviews/<task>/`) when reviewing a remote PR URL from outside the relevant repo. Path resolved per `shared/paths.md`.
 
 ## References (loaded as needed)
 
@@ -58,7 +62,7 @@ Polymorphic on target. Read-only by default; `--fix` extends to apply + push (ne
 - Personas: `shared/personas/{code-reviewer,security-reviewer,test-engineer}.md`
 - Plan/Act mode: `shared/plan-act-mode.md`
 - Constitution: `shared/constitution.md`
-- Advisor + question-first: `shared/advisor.md`, `shared/question-first.md`
+- Advisor + question-first: `shared/advisor.md`, `shared/question-first.md`, `shared/narration.md`
 
 ## References shipped
 

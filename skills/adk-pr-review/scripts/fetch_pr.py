@@ -1,0 +1,196 @@
+#!/usr/bin/env python3
+"""fetch_pr.py — fetch PR metadata + existing review comments + diff.patch.
+
+GitHub path: `gh` CLI (must be on PATH). One call for the PR fields, one for review comments,
+one for the diff.
+
+Bitbucket path: BITBUCKET_TOKEN_CRED + BITBUCKET_USERNAME required. Uses the REST 2.0 API directly.
+
+Usage:
+  python3 fetch_pr.py --host github --owner acme --repo foo --pr-number 42 --task-dir <path> [--json]
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).parent))
+from _common import which, write_json, emit_json, die, get_logger, run  # noqa: E402
+
+try:
+    import requests
+except ImportError:
+    print("adk-pr-review: `requests` not installed. pip install -r requirements.txt", file=sys.stderr)
+    raise SystemExit(1)
+
+
+# ----- GitHub via gh CLI ---------------------------------------------------
+
+GH_FIELDS = (
+    "number,title,body,state,isDraft,createdAt,updatedAt,mergeable,mergedAt,"
+    "headRefName,headRefOid,baseRefName,baseRefOid,headRepository,"
+    "author,reviewDecision,labels,additions,deletions,changedFiles,url"
+)
+
+
+def fetch_github(owner: str, repo: str, n: int, task_dir: Path, log) -> dict:
+    if not which("gh"):
+        die("gh CLI not on PATH. brew install gh.")
+    log.info("gh pr view --json (%s/%s#%d)", owner, repo, n)
+    cp = run(["gh", "pr", "view", str(n), "--repo", f"{owner}/{repo}",
+              "--json", GH_FIELDS])
+    pr = json.loads(cp.stdout)
+    pr["host"] = "github"
+    pr["owner"] = owner
+    pr["repo"] = repo
+    pr["pr_number"] = n
+    pr["head_oid"] = pr.get("headRefOid")
+    pr["base_oid"] = pr.get("baseRefOid")
+    write_json(task_dir / "pr.json", pr)
+
+    log.info("gh api repos/%s/%s/pulls/%d/comments", owner, repo, n)
+    cp = run(["gh", "api", f"repos/{owner}/{repo}/pulls/{n}/comments", "--paginate"])
+    comments = json.loads(cp.stdout)
+    # Also issue comments on the PR (not file-anchored), useful for "agreed offline" markers.
+    cp2 = run(["gh", "api", f"repos/{owner}/{repo}/issues/{n}/comments", "--paginate"])
+    issue_comments = json.loads(cp2.stdout)
+    write_json(task_dir / "pr-comments.json", {
+        "review_comments": comments,
+        "issue_comments": issue_comments,
+    })
+
+    log.info("gh pr diff (writing diff.patch)")
+    cp = run(["gh", "pr", "diff", str(n), "--repo", f"{owner}/{repo}", "--patch"])
+    (task_dir / "diff.patch").write_text(cp.stdout, encoding="utf-8")
+
+    return pr
+
+
+# ----- Bitbucket via REST --------------------------------------------------
+
+BB_BASE = "https://api.bitbucket.org/2.0"
+
+
+def _bb_session() -> requests.Session:
+    s = requests.Session()
+    tok = os.environ.get("BITBUCKET_TOKEN_CRED")
+    user = os.environ.get("BITBUCKET_USERNAME")
+    if not tok:
+        die(
+            "BITBUCKET_TOKEN_CRED env var unset — needed for Bitbucket PRs. "
+            "Per constitution §VII the script never echoes the value; export it before running."
+        )
+    if user and ":" not in tok and not tok.startswith("Bearer "):
+        # Atlassian unified API token format: username + token via HTTP Basic.
+        s.auth = (user, tok)
+        s.headers["Accept"] = "application/json"
+        return s
+    # The token can be either an app password (basic auth as user:pass) or a workspace
+    # access token (Bearer). We try Bearer first; the API returns 401 for Basic-style
+    # tokens, and the user can prefix with "user:" to force Basic.
+    if ":" in tok and not tok.startswith("Bearer "):
+        s.auth = tuple(tok.split(":", 1))  # type: ignore[assignment]
+    else:
+        s.headers["Authorization"] = f"Bearer {tok}"
+    s.headers["Accept"] = "application/json"
+    return s
+
+
+def _bb_paginate(session: requests.Session, url: str) -> list[dict]:
+    out: list[dict] = []
+    while url:
+        r = session.get(url, timeout=30)
+        r.raise_for_status()
+        data = r.json()
+        out.extend(data.get("values", []))
+        url = data.get("next")
+    return out
+
+
+def fetch_bitbucket(workspace: str, repo: str, n: int, task_dir: Path, log) -> dict:
+    s = _bb_session()
+    log.info("bb GET /pullrequests/%d", n)
+    r = s.get(f"{BB_BASE}/repositories/{workspace}/{repo}/pullrequests/{n}", timeout=30)
+    r.raise_for_status()
+    pr = r.json()
+
+    head = pr.get("source", {}).get("commit", {}).get("hash")
+    base = pr.get("destination", {}).get("commit", {}).get("hash")
+    out = {
+        "host": "bitbucket",
+        "owner": workspace,
+        "repo": repo,
+        "pr_number": n,
+        "title": pr.get("title"),
+        "body": (pr.get("rendered", {}).get("description", {}).get("raw")
+                 or pr.get("description")),
+        "state": pr.get("state"),
+        "author": pr.get("author"),
+        "headRefName": pr.get("source", {}).get("branch", {}).get("name"),
+        "baseRefName": pr.get("destination", {}).get("branch", {}).get("name"),
+        "head_oid": head,
+        "base_oid": base,
+        "url": pr.get("links", {}).get("html", {}).get("href"),
+        "raw": pr,
+    }
+    write_json(task_dir / "pr.json", out)
+
+    log.info("bb GET comments (paginated)")
+    comments = _bb_paginate(s, f"{BB_BASE}/repositories/{workspace}/{repo}/pullrequests/{n}/comments?pagelen=100")
+    write_json(task_dir / "pr-comments.json", {"comments": comments})
+
+    log.info("bb GET diff")
+    r = s.get(
+        f"{BB_BASE}/repositories/{workspace}/{repo}/pullrequests/{n}/diff",
+        timeout=120,
+    )
+    r.raise_for_status()
+    (task_dir / "diff.patch").write_text(r.text, encoding="utf-8")
+
+    return out
+
+
+# ----- entrypoint ----------------------------------------------------------
+
+def main() -> int:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--host", required=True, choices=("github", "bitbucket"))
+    ap.add_argument("--owner", required=True)
+    ap.add_argument("--repo", required=True)
+    ap.add_argument("--pr-number", required=True, type=int)
+    ap.add_argument("--task-dir", required=True)
+    ap.add_argument("--json", action="store_true")
+    args = ap.parse_args()
+
+    task_dir = Path(args.task_dir)
+    task_dir.mkdir(parents=True, exist_ok=True)
+    log = get_logger("fetch_pr", task_dir)
+
+    if args.host == "github":
+        pr = fetch_github(args.owner, args.repo, args.pr_number, task_dir, log)
+    else:
+        pr = fetch_bitbucket(args.owner, args.repo, args.pr_number, task_dir, log)
+
+    diff_bytes = (task_dir / "diff.patch").stat().st_size
+    result = {
+        "task_dir": str(task_dir),
+        "pr_json": str(task_dir / "pr.json"),
+        "pr_comments_json": str(task_dir / "pr-comments.json"),
+        "diff_patch": str(task_dir / "diff.patch"),
+        "diff_bytes": diff_bytes,
+        "head_oid": pr.get("head_oid"),
+        "base_oid": pr.get("base_oid"),
+        "title": pr.get("title"),
+        "url": pr.get("url"),
+    }
+    if args.json:
+        return emit_json(result)
+    print(result, file=sys.stderr)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

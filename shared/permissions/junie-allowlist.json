@@ -40,6 +40,7 @@
         { "pattern": "**", "action": "allow" }
       ]
     },
+    "_mcpTools_gap": "We can't gate adk-mcp-* writes here yet because Junie's mcpTools rule format (what `prefix`/`pattern` matches against — tool name? server:tool? mcp://server/tool?) isn't published in the JetBrains docs we can reach. The blanket allow below preserves current behavior. To close the gap: capture one real Junie tool-call identifier (from a Junie log or the `_adkManagedPermissions` audit), tell us the format, and we'll mirror the per-tool ask-list from claude.json.",
     "mcpTools": {
       "rules": [
         { "pattern": "**", "action": "allow" }

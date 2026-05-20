@@ -16,7 +16,7 @@ Five phases. Markdown-first. Does NOT publish (that's `/adk-sync`).
 ## Phase 2 — execute (per `--type` sub-flow)
 
 - Pull `shared/personas/doc-writer.md` + the per-type template.
-- Generate markdown to `.temp/<task-slug>/draft.md`.
+- Generate markdown to `.temp/adk/document/<task>/draft.md`.
 - Cite every claim (`path:line` or URL).
 - Honor `--write-to` (writes to `<repo>/<path>`, gated on user OK).
 

@@ -1,7 +1,7 @@
 ---
 name: adk-improve
 description: |
-  Improve, learn, refresh-metadata, update-defaults, self-improve, train-skill, learn-from-session. The self-improvement loop. Always interactive (asks first: improve skill defaults from decision logs, metadata via MCP introspection, or both). For defaults: runs scripts/proposal_generator.py against `~/.config/adk/learning/decisions.jsonl`, drafts proposed updates to `~/.config/adk/overrides.yaml.defaults.*`, presents each with ≥3 evidence lines, applies on confirm; rotates decisions.jsonl to learning/archive/ after each run; appends summary to learning/summary.md. For metadata: runs scripts/metadata_introspector.py to refresh `~/.config/adk/metadata/<source>.json` from every reachable MCP. Bounded: cannot change shared/constitution.md; cannot change Must-do/Must-not-do sections of any SKILL.md (those are constitution-grade). Each proposal requires per-item confirmation — `--auto` only skips the initial choice question. Never auto-applies. Min-evidence default 3 (configurable). Manual-only by design (disable-model-invocation: true) so the agent doesn't auto-trigger improvements mid-session.
+  Improve, learn, refresh-metadata, update-defaults, self-improve, train-skill, learn-from-session. The self-improvement loop. Always interactive (asks first: improve skill defaults from decision logs, metadata via MCP introspection, or both). For defaults: runs scripts/proposal_generator.py against `~/.agents-devkit/improve/learning/decisions.jsonl`, drafts proposed updates to `~/.agents-devkit/config/overrides.yaml.defaults.*`, presents each with ≥3 evidence lines, applies on confirm; rotates decisions.jsonl to learning/archive/ after each run; appends summary to learning/summary.md. For metadata: runs scripts/metadata_introspector.py to refresh `~/.agents-devkit/improve/metadata/<source>.json` from every reachable MCP. Bounded: cannot change shared/constitution.md; cannot change Must-do/Must-not-do sections of any SKILL.md (those are constitution-grade). Each proposal requires per-item confirmation regardless of mode. Never auto-applies. Min-evidence default 3 (configurable). Manual-only by design (disable-model-invocation: true) so the agent doesn't auto-trigger improvements mid-session.
 allowed-tools: [Read, Edit, Write, Bash]
 argument-hint: "[--target defaults|metadata|both] [--since <date>] [--min-evidence N] [--dry-run]"
 metadata:
@@ -23,6 +23,8 @@ metadata:
 
 Read accumulated decision logs + introspect MCPs; propose updates to `overrides.yaml`.
 
+**Global skill** — intermediate artifacts go to `~/.agents-devkit/improve/<ts>/`. Mutates `~/.agents-devkit/config/overrides.yaml` and `~/.agents-devkit/improve/metadata/<source>.json` on confirm; never touches the cwd repo.
+
 ## Modes (mandatory interactive choice at start)
 
 The skill ALWAYS asks first, even under `--auto`:
@@ -41,9 +43,9 @@ What do you want to improve?
 
 ```
 Phase 0 — read learning state
-  - ~/.config/adk/learning/decisions.jsonl (current cycle)
-  - ~/.config/adk/learning/summary.md (history)
-  - ~/.config/adk/overrides.yaml.defaults (current state)
+  - ~/.agents-devkit/improve/learning/decisions.jsonl (current cycle)
+  - ~/.agents-devkit/improve/learning/summary.md (history)
+  - ~/.agents-devkit/config/overrides.yaml.defaults (current state)
 
 Phase 1 — advise
   - Show count of decisions since last improve run
@@ -63,8 +65,8 @@ Phase 3 — validate
 
 Phase 4 — report + rotate logs
   - Print: N proposals accepted, M deferred, K rejected
-  - Append run summary to ~/.config/adk/learning/summary.md
-  - Archive current decisions.jsonl to ~/.config/adk/learning/archive/<ts>-decisions.jsonl
+  - Append run summary to ~/.agents-devkit/improve/learning/summary.md
+  - Archive current decisions.jsonl to ~/.agents-devkit/improve/learning/archive/<ts>-decisions.jsonl
   - Start fresh empty decisions.jsonl
   - Update overrides.yaml.learning_state.last_improve_run
 ```
@@ -83,14 +85,14 @@ Phase 4 — report: diff vs prior (new dashboards, removed gates, etc.)
 ## Hard rules
 
 1. **Never modify**: `shared/constitution.md`, any skill's `Must do` / `Must not do` / `Hard rules` sections, `agents/*.md` core personas.
-2. **Only modify**: `~/.config/adk/overrides.yaml` (defaults block + enriched block + learning_state block) and `~/.config/adk/metadata/*.json`.
+2. **Only modify**: `~/.agents-devkit/config/overrides.yaml` (defaults block + enriched block + learning_state block) and `~/.agents-devkit/improve/metadata/*.json`.
 3. **Never auto-apply** a proposal under `--auto`. Each proposal requires per-item confirm — `--auto` only skips the "what do you want to improve" question if `--target` is passed.
 4. **Rotate decisions.jsonl** after every successful improve run. Archive, never delete.
 5. **Show ≥3 evidence lines** per proposal. < 3 = surface as "observation, not enough evidence yet".
 
 ## Persona
 
-No dedicated persona file; pulls from `shared/advisor.md` heavily.
+No dedicated persona file; pulls from `shared/advisor.md` heavily. Narration: `shared/narration.md`.
 
 ## Fork IDs
 

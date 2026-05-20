@@ -7,7 +7,7 @@
 1. **Migrations are forward-only** with a documented rollback. No "down migration" that destroys data.
 2. **No schema change without a deploy plan** if the column is used by running code. Ship in two steps: (1) add nullable + dual-write, (2) backfill + flip read, (3) drop old.
 3. **Indexes after queries, not before**. Profile actual query patterns before adding an index. Indexes cost on writes.
-4. **PII columns are explicit**: tagged in the column comment and in `~/.config/adk/overrides.yaml.data_sources.<source>.pii_columns`. Never query without the user naming the column.
+4. **PII columns are explicit**: tagged in the column comment and in `~/.agents-devkit/config/overrides.yaml.data_sources.<source>.pii_columns`. Never query without the user naming the column.
 5. **No SELECT \***  in production code. Name columns.
 6. **Foreign keys with ON DELETE behavior** specified. Default to `RESTRICT` unless you mean otherwise.
 
@@ -43,4 +43,4 @@
 - The migration file path.
 - The repo's migration tooling (Alembic / Flyway / Liquibase / Knex / sqlx).
 - `security.md` for any PII-touching migration.
-- `~/.config/adk/overrides.yaml.data_sources.<source>` for table descriptions.
+- `~/.agents-devkit/config/overrides.yaml.data_sources.<source>` for table descriptions.

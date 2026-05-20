@@ -6,7 +6,7 @@ Five phases. Read-only by default; `--fix` extends with apply + push.
 
 - Fetch the target (PR via `gh`/MCP; local diff via `git diff base...HEAD`; doc via filesystem or MCP).
 - Pull repo conventions: `CLAUDE.md`, `AGENTS.md`, `.cursorrules`, recent commits for style, `package.json`/`pyproject.toml` for tooling.
-- Build `.temp/<task-slug>/context.md`.
+- Build `.temp/adk/review/<task>/context.md`.
 
 ## Phase 1 — advise
 
@@ -19,7 +19,7 @@ Five phases. Read-only by default; `--fix` extends with apply + push.
 **Order:** correctness → tests → security → performance → readability → consistency.
 
 - Per finding: severity, dimension, `path:line`, ≤15-word verbatim quote, fix.
-- Each pass writes `.temp/<task-slug>/findings/<dimension>.md`.
+- Each pass writes `.temp/adk/review/<task>/findings/<dimension>.md`.
 
 ## Phase 3 — validate
 

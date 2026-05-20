@@ -10,20 +10,18 @@ order: 5002
 
 Wrappers that install adk into `codex` at user level. Installed via `./install.sh --target codex`.
 
-### Prompts (8)
+### Prompts (10)
 
 - `agents-codex/prompts/adk-document.md`
 - `agents-codex/prompts/adk-explain.md`
 - `agents-codex/prompts/adk-implement.md`
 - `agents-codex/prompts/adk-improve.md`
 - `agents-codex/prompts/adk-investigate.md`
+- `agents-codex/prompts/adk-pr-review.md`
+- `agents-codex/prompts/adk-pr-reviews.md`
 - `agents-codex/prompts/adk-review.md`
 - `agents-codex/prompts/adk-setup.md`
 - `agents-codex/prompts/adk-sync.md`
-
-### Append templates
-
-- `agents-codex/codex-config.toml.append`
 
 ## README
 
@@ -33,7 +31,7 @@ Wrappers that install adk into `codex` at user level. Installed via `./install.s
 
 ## What works
 
-- **MCP servers**: Codex CLI reads `[[mcp_servers]]` blocks from `~/.codex/config.toml`. `install.sh --target codex` appends our entries (one per `mcp/adk-mcp-*.json`, translated to TOML).
+- **MCP servers**: Codex CLI reads `[[mcp_servers]]` blocks from `~/.codex/config.toml`. `install.sh --target codex` auto-generates one block per `mcp/adk-mcp-*.json` (the shared source-of-truth used by Claude / Cursor / Junie too) and writes them between `# adk-marker:start` / `# adk-marker:end`. Re-running install replaces the block; uninstall strips it.
 - **Custom prompts**: Codex supports `~/.codex/prompts/<name>.md` for invokable prompt templates. `install.sh` symlinks our `agents-codex/prompts/*.md` there.
 - **Global instructions**: `~/.codex/instructions.md` gets a one-line append pointing at `AGENTS.md`.
 
@@ -67,6 +65,6 @@ cat ~/.codex/config.toml | grep -A2 'name = "adk-mcp-'  # confirm MCP entries
 | `prompts/adk-improve.md` | `/adk-improve` |
 | `prompts/adk-explain.md` | `/adk-explain` |
 
-## Config snippet appended to ~/.codex/config.toml
+## Where MCP entries come from
 
-See `agents-codex/codex-config.toml.append` for the canonical block (with `{{ADK_REPO}}` placeholders that `install.py` substitutes).
+`install.py:merge_mcp_into_codex` reads every `mcp/adk-mcp-*.json` and generates the corresponding `[[mcp_servers]]` TOML block (http URLs with `Authorization: Bearer ${VAR}` collapse to `authorization_token_env`; stdio servers get `command`/`args`/`[mcp_servers.env]`). To add a new MCP for Codex, drop a JSON file under `mcp/` and re-run `install.sh` — there's no Codex-specific file to edit.

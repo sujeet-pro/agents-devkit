@@ -1,6 +1,6 @@
 ---
 description: Review any target (PR URL / local / doc / comment thread / repo audit). Polymorphic — dispatches by input shape.
-argument-hint: <target> [--auto | -i] [--fix] [--audit]
+argument-hint: <target> [-i | --interactive] [--fix] [--audit] [--plan|--act] [--severity blocker|critical|should]
 ---
 
 Invoke the adk-review skill at {{ADK_REPO}}/skills/adk-review/SKILL.md.

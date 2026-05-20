@@ -55,4 +55,4 @@ If `overrides.yaml.rag.enabled: true` AND the prompt matches any `rag.trigger_ke
 
 ## Output
 
-A single markdown file at `<repo>/.temp/<task-slug>/context.md`. That's it. No prose to the user during fetching; the downstream skill handles user-facing output.
+A single markdown file at `<task_dir>/context.md` — where `<task_dir>` is the path resolved in Phase 0 per `shared/paths.md` (repo-bound or global depending on the calling skill). That's it. No prose to the user during fetching; the downstream skill handles user-facing output.

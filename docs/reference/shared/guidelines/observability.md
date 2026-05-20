@@ -59,5 +59,5 @@ order: 6305
 ## Cite when reviewing
 
 - Repo's existing logger / metrics lib.
-- `~/.config/adk/overrides.yaml.repos[*].datadog.{apm_service,rum_app}` for canonical tags.
+- `~/.agents-devkit/config/overrides.yaml.repos[*].datadog.{apm_service,rum_app}` for canonical tags.
 - The service's SLO doc (link in repo or Confluence).

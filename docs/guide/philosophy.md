@@ -32,7 +32,7 @@ Every skill is wrapped in `shared/advisor.md`: plan → clarify → present 2–
 
 ### 6. Self-improving by design
 
-Every non-trivial fork — every default offered, every user override, every question asked — gets one line in `~/.config/adk/learning/decisions.jsonl`. `/adk-improve` reads these logs and proposes updates to your `~/.config/adk/overrides.yaml.defaults.*`. Your skills get more accurate as you use them.
+Every non-trivial fork — every default offered, every user override, every question asked — gets one line in `~/.agents-devkit/improve/learning/decisions.jsonl`. `/adk-improve` reads these logs and proposes updates to your `~/.agents-devkit/config/overrides.yaml.defaults.*`. Your skills get more accurate as you use them.
 
 ### 7. Auto mode skips pauses, not safety
 
@@ -40,7 +40,7 @@ Every non-trivial fork — every default offered, every user override, every que
 
 ### 8. One source of user truth
 
-`~/.config/adk/overrides.yaml` is the single config file you maintain — workspaces, repos, data dictionaries, defaults, RAG config. The skills read it (and any `<repo>/.adk/overrides.yaml` override) at every run. No raw tokens in this file (regex-enforced); secrets live in env vars referenced by `${VAR}` placeholders.
+`~/.agents-devkit/config/overrides.yaml` is the single config file you maintain — workspaces, repos, data dictionaries, defaults, RAG config. The skills read it (and any `<repo>/.adk/overrides.yaml` override) at every run. No raw tokens in this file (regex-enforced); secrets live in env vars referenced by `${VAR}` placeholders.
 
 ### 9. The constitution is final
 

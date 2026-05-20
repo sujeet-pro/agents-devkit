@@ -42,7 +42,7 @@ order: 6304
 
 ## Cite when reviewing
 
-- Repo's design system (Storybook URL if present in `package.json` or `~/.config/adk/overrides.yaml.repos[*].design_system_url`).
+- Repo's design system (Storybook URL if present in `package.json` or `~/.agents-devkit/config/overrides.yaml.repos[*].design_system_url`).
 - Repo's existing component patterns (grep before suggesting "add a new component").
 - `accessibility.md` for keyboard / contrast / aria.
 - `performance.md` for budget violations.

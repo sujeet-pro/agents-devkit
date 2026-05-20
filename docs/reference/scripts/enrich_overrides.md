@@ -1,14 +1,14 @@
 ---
 title: 'enrich_overrides.py'
-description: 'enrich_overrides.py — populate the `enriched:` block of ~/.config/adk/overrides.yaml'
+description: 'enrich_overrides.py — populate the `enriched:` block of ~/.agents-devkit/config/overrides.yaml'
 script: 'enrich_overrides.py'
 source: 'scripts/enrich_overrides.py'
 group: 'scripts'
-order: 4004
+order: 4006
 ---
 # enrich_overrides.py
 
-enrich_overrides.py — populate the `enriched:` block of ~/.config/adk/overrides.yaml
+enrich_overrides.py — populate the `enriched:` block of ~/.agents-devkit/config/overrides.yaml
 
 ## Source
 
@@ -18,7 +18,7 @@ enrich_overrides.py — populate the `enriched:` block of ~/.config/adk/override
 
 ```python
 #!/usr/bin/env python3
-"""enrich_overrides.py — populate the `enriched:` block of ~/.config/adk/overrides.yaml
+"""enrich_overrides.py — populate the `enriched:` block of ~/.agents-devkit/config/overrides.yaml
 by introspecting reachable MCPs.
 
 This script does the PROGRAMMATIC enrichment. The AI step in /adk-setup --enrich
@@ -27,7 +27,7 @@ produces nice prose around the results; this just gathers raw data.
 Usage:
   python3 scripts/enrich_overrides.py [--source datadog|statsig|mixpanel|atlassian|github|snowflake|looker|all]
                                        [--dry-run]
-                                       [--out ~/.config/adk/overrides.yaml]
+                                       [--out ~/.agents-devkit/config/overrides.yaml]
 """
 from __future__ import annotations
 
@@ -41,8 +41,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
-OVERRIDES = Path(os.path.expanduser("~/.config/adk/overrides.yaml"))
-METADATA_DIR = Path(os.path.expanduser("~/.config/adk/metadata"))
+OVERRIDES = Path(os.path.expanduser("~/.agents-devkit/config/overrides.yaml"))
+METADATA_DIR = Path(os.path.expanduser("~/.agents-devkit/improve/metadata"))
 
 
 def run(cmd: list[str], env: dict[str, str] | None = None) -> tuple[int, str, str]:
@@ -83,8 +83,8 @@ def enrich_github() -> dict[str, Any]:
 
 def enrich_datadog() -> dict[str, Any]:
     site = os.environ.get("DD_SITE", "datadoghq.com")
-    api_key = os.environ.get("DATADOG_API_KEY_CRED") or os.environ.get("DD_API_KEY")
-    app_key = os.environ.get("DATADOG_APP_KEY_CRED") or os.environ.get("DD_APP_KEY")
+    api_key = os.environ.get("DATADOG_API_KEY_CRED")
+    app_key = os.environ.get("DATADOG_APP_KEY_CRED")
     if not (api_key and app_key):
         return {"_status": "skipped", "_reason": "DATADOG_API_KEY_CRED / DATADOG_APP_KEY_CRED not set"}
     base = f"https://api.{site}/api/v1"
@@ -148,7 +148,7 @@ def enrich_atlassian() -> dict[str, Any]:
     user = os.environ.get("ATLASSIAN_USERNAME")
     token = os.environ.get("ATLASSIAN_API_TOKEN_CRED")
     if not (site and user and token):
-        return {"_status": "skipped", "_reason": "ATLASSIAN_SITE/USERNAME/API_TOKEN not all set"}
+        return {"_status": "skipped", "_reason": "ATLASSIAN_SITE/USERNAME/API_TOKEN_CRED not all set"}
     auth = ["-u", f"{user}:{token}"]
     out: dict[str, Any] = {"_status": "ok", "site": site}
     # Jira projects
@@ -193,9 +193,9 @@ def enrich_snowflake() -> dict[str, Any]:
 
 
 def enrich_looker() -> dict[str, Any]:
-    url = os.environ.get("LOOKER_BASE_URL")
+    url = os.environ.get("LOOKER_SITE")
     if not url:
-        return {"_status": "skipped", "_reason": "LOOKER_BASE_URL not set"}
+        return {"_status": "skipped", "_reason": "LOOKER_SITE not set"}
     return {"_status": "manual", "_reason": "Looker enrichment requires OAuth + MCP — run via /adk-setup --enrich"}
 
 

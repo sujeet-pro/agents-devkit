@@ -24,13 +24,17 @@ cd ~/code/agents-devkit
 ./install.sh --uninstall      # removes by marker, leaves your overrides
 ```
 
-After install, fill in `~/.config/adk/overrides.yaml` (created by `./install.sh` if missing). See `SETUP.md` for env-var requirements.
+After install, fill in `~/.agents-devkit/config/overrides.yaml` (created by `./install.sh` if missing). See `SETUP.md` for env-var requirements.
 
 ## Skills
 
 ```text
 /adk-implement   write code from any input (Jira / GH issue / Slack / TDD / Confluence / freeform)
-/adk-review      review any target (PR URL / local / doc / comment thread / whole repo)
+/adk-review      lightweight review of any target (PR URL / local / doc / comment thread / whole repo)
+/adk-pr-review   deep PR review with worktree + LanceDB embeddings + SCIP + feature-flow tracing
+                 (GitHub + Bitbucket Cloud; requires ollama + optional scip-* binaries)
+/adk-pr-reviews  batch driver — reads a CSV of PR URLs, runs N reviews in parallel; skips merged
+                 + stable rows. Designed for periodic execution (cron-friendly).
 /adk-investigate query 3P data sources (Datadog / Mixpanel / Statsig / Snowflake / Looker / Atlassian)
 /adk-document    generate any written artifact (RCA / ADR / runbook / PR body / commit msg / diagram / report)
 /adk-sync        bidirectional bridge to 3P (Confluence / Jira / GDoc / GH PR body / Slack)
@@ -43,17 +47,17 @@ Each skill is task-based and polymorphic on input. Internal sub-flows are file-r
 
 ## Key concepts
 
-- **One source of truth for user data:** `~/.config/adk/overrides.yaml` — workspaces, repos, data dictionaries (Snowflake/Looker/Mixpanel tables and columns), defaults, RAG config.
+- **One source of truth for user data:** `~/.agents-devkit/config/overrides.yaml` — workspaces, repos, data dictionaries (Snowflake/Looker/Mixpanel tables and columns), defaults, RAG config.
 - **Project-scoped overrides:** `<repo>/.adk/overrides.yaml` + `<repo>/ai-guidelines/` (or `docs/`).
-- **Task-scoped workspace:** `<repo>/.temp/<task-slug>/` — gitignored; all intermediates land here.
-- **Self-improving:** every Q&A and override is logged; `/adk-improve` reads logs and proposes updated defaults that get applied to `~/.config/adk/overrides.yaml` after you confirm.
-- **Metadata cache:** `~/.config/adk/metadata/<source>.json` — built by `/adk-setup --enrich` and refreshed by `/adk-improve --metadata`. Skills consult it instead of re-introspecting on every run.
+- **Two task-folder roots** (see `shared/paths.md`): repo-bound skills write under `<repo>/.temp/adk/<skill>/<task>/`; global skills (pr-review, investigate, sync, …) write under `~/.agents-devkit/<area>/<task>/`. The latter root is created by `install.sh`.
+- **Self-improving:** every Q&A and override is logged; `/adk-improve` reads logs and proposes updated defaults that get applied to `~/.agents-devkit/config/overrides.yaml` after you confirm.
+- **Metadata cache:** `~/.agents-devkit/improve/metadata/<source>.json` — built by `/adk-setup --enrich` and refreshed by `/adk-improve --metadata`. Skills consult it instead of re-introspecting on every run.
 - **RAG optional:** drop an `RAG_MCP_URL` into env, set `rag.enabled: true` in overrides, and every skill's context-gather phase pulls company knowledge alongside MCP results.
 
 ## Honest limits
 
 - macOS primary; Linux works. Windows unsupported.
-- Bitbucket / GitLab not in scope. GitHub only.
+- GitHub and Bitbucket Cloud supported (Bitbucket via `adk-mcp-bitbucket` + REST). GitLab and Bitbucket Server are not in scope.
 - Codex and Junie are shipped with the gaps documented; full feature parity is Claude + Cursor.
 - Slack support requires `SLACK_CREDENTIALS_FILE` to be a shell-sourceable file exporting `SLACK_BOT_TOKEN` and/or `SLACK_USER_TOKEN`.
 

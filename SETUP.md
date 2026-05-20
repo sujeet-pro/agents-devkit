@@ -4,6 +4,18 @@
 
 ```bash
 brew install gh jq fd ripgrep fzf node uv python@3.12
+
+# /adk-pr-review only (optional for the other skills):
+brew install ollama
+ollama pull nomic-embed-text                 # default embedding model
+brew install scip                            # SCIP tooling (optional but recommended)
+# Per-language SCIP indexers (install only the ones you need):
+npm i -g @sourcegraph/scip-typescript        # TypeScript / JavaScript
+pipx install scip-python                     # Python
+brew install scip-go                         # Go
+# scip-java: see https://github.com/sourcegraph/scip-java
+pip install -r skills/adk-pr-review/scripts/requirements.txt   # lancedb + requests + pyarrow
+
 gh auth login
 ```
 
@@ -13,14 +25,26 @@ gh auth login
 | `jq` | JSON in shell (used by `scripts/`, `install.sh`). |
 | `node` ≥ 18 | Runs Slack MCP (`npx slack-mcp-server`). |
 | `uv` | Runs Atlassian MCP (`uvx mcp-atlassian@latest`). Install: `curl -LsSf https://astral.sh/uv/install.sh \| sh` or `brew install uv`. |
-| `python@3.12` | `scripts/*.py` + `install.py`. |
+| `python@3.12` | `scripts/*.py` + `install.py` + `skills/adk-pr-review/scripts/*.py`. |
 | `fd`, `rg`, `fzf` | Used by various skills for fast file ops. |
+| `ollama` (optional) | **Required by `/adk-pr-review` only.** Local embeddings for code-index. Default model `nomic-embed-text` (768-dim). Other skills do not need ollama. |
+| `scip-*` (optional) | **Used by `/adk-pr-review` for symbol resolution.** Missing binaries fall back to grep + chunker `parent_symbol` matching; the skill works without them, just less accurately. |
+| `lancedb` (pip, optional) | **Required by `/adk-pr-review` only.** Vector store for the code-index. See `skills/adk-pr-review/scripts/requirements.txt`. |
 
 ## 2. Env vars
 
 Add to `~/.zshenv` (or `~/.bashrc`). Reload your shell and **restart your agent** after editing (env is read at process start).
 
 ```bash
+# Bitbucket Cloud — needed only for /adk-pr-review on Bitbucket PRs (and the adk-mcp-bitbucket MCP).
+# Per the credential convention (constitution §VII), the env var name is
+# BITBUCKET_TOKEN_CRED (the _CRED suffix is canonical; the script does NOT fall back
+# to a non-suffixed name). Atlassian unified API token preferred — pair with
+# BITBUCKET_USERNAME (your Atlassian account email) for HTTP Basic auth.
+# Source from ~/.config/creds/bitbucket/creds.sh; don't inline the value here.
+# Required: BITBUCKET_TOKEN_CRED, BITBUCKET_USERNAME
+# Optional: BITBUCKET_WORKSPACE (default workspace for tools that take one)
+
 # GitHub — fine-grained PAT (preferred) or classic
 export GITHUB_TOKEN_CRED="github_pat_..."
 
@@ -99,12 +123,12 @@ cd ~/code/agents-devkit
 
 The installer:
 
-1. Creates `~/.config/adk/` if missing; scaffolds `overrides.yaml` (with comments — empty workspaces table for you to fill).
+1. Creates `~/.agents-devkit/config/` if missing; scaffolds `overrides.yaml` (with comments — empty workspaces table for you to fill).
 2. Symlinks skills + agents + commands into each detected agent's config dir. Junie now gets the full `skills/adk-*` set under `~/.junie/skills/` (same auto-discovery model as Claude Code).
 3. **Replaces** each agent's MCP server list with the `mcp/*.json` adk set: Claude → `~/.claude.json`, Cursor → `~/.cursor/mcp.json`, Codex → `~/.codex/config.toml` (marker block), Junie → `~/.junie/mcp/mcp.json`. Any pre-configured user MCPs are stashed under `_adkRemovedMcpServers` and put back on `--uninstall`.
 4. Merges `shared/permissions/*` into each agent's settings file so all safe / read tool calls are auto-approved and only dangerous actions prompt. See `shared/permissions/README.md`.
 5. Appends a one-line reference to `AGENTS.md` in each agent's global guidelines file.
-6. Seeds `~/.config/adk/learning/decisions.jsonl` with foundational design decisions (your earlier Q&A) so the first `/adk-improve` run has evidence.
+6. Seeds `~/.agents-devkit/improve/learning/decisions.jsonl` with foundational design decisions (your earlier Q&A) so the first `/adk-improve` run has evidence.
 7. Prints a verification table.
 
 ### Tool-call permissions
@@ -139,18 +163,18 @@ Division of labor:
 | Install brew, gh, jq, uv, node, python | **You.** See §1 above. | adk doesn't run brew on your machine. |
 | Export env vars in `~/.zshenv` | **You.** See §2 above. | adk doesn't modify shell rc. |
 | Symlink skills/agents/commands; merge MCP config; wire hooks | `install.sh` | Filesystem wiring. Deterministic; no AI needed. |
-| Scaffold `~/.config/adk/overrides.yaml` (workspaces, repos, data dictionary) | `/adk-setup --init` (in your agent) | Conversational walkthrough; data dictionary needs your judgment. |
-| Query MCPs and populate `enriched:` block + `~/.config/adk/metadata/<source>.json` | `/adk-setup --enrich` | Uses the agent's MCP client to invoke stdio MCPs (uvx/npx) that `curl` can't. AI summarizes large lists. |
+| Scaffold `~/.agents-devkit/config/overrides.yaml` (workspaces, repos, data dictionary) | `/adk-setup --init` (in your agent) | Conversational walkthrough; data dictionary needs your judgment. |
+| Query MCPs and populate `enriched:` block + `~/.agents-devkit/improve/metadata/<source>.json` | `/adk-setup --enrich` | Uses the agent's MCP client to invoke stdio MCPs (uvx/npx) that `curl` can't. AI summarizes large lists. |
 | Verify env + MCPs reachable | `/adk-setup --check` or `python3 scripts/adk_mcp_health.py --probe` | The skill version also tests stdio MCPs via real MCP-client invocation and offers conversational fix-it guidance. The script is faster for repeated checks. |
 
 ```text
-/adk-setup --init       # scaffold ~/.config/adk/overrides.yaml with comments + v2 migrate if found
+/adk-setup --init       # scaffold ~/.agents-devkit/config/overrides.yaml with comments + v2 migrate if found
 /adk-setup --enrich     # query every reachable MCP, populate the enriched.* block + metadata cache
 /adk-setup --check      # superset of scripts/adk_mcp_health.py (also tests stdio MCPs)
 /adk-setup --diff       # show what --enrich would change (read-only)
 ```
 
-Edit `~/.config/adk/overrides.yaml` to fill in your workspaces (work + personal + side orgs), the repos you work in, and the data dictionary for Snowflake/Looker/Mixpanel. The skills won't be useful until at least `workspaces` and one `repos` entry are filled.
+Edit `~/.agents-devkit/config/overrides.yaml` to fill in your workspaces (work + personal + side orgs), the repos you work in, and the data dictionary for Snowflake/Looker/Mixpanel. The skills won't be useful until at least `workspaces` and one `repos` entry are filled.
 
 ## 5. Verify
 
@@ -201,7 +225,7 @@ overrides:
 ## 7. Layout
 
 ```
-~/.config/adk/
+~/.agents-devkit/config/
 ├── overrides.yaml          # YOU edit this
 ├── env.example             # cheat-sheet
 ├── metadata/               # auto: discovered dashboards, tables, etc.
@@ -219,6 +243,6 @@ Inside any repo you work on:
 
 ## 8. Privacy
 
-- No skill ever uploads `~/.config/adk/*` anywhere.
+- No skill ever uploads `~/.agents-devkit/config/*` anywhere.
 - Tokens live in `~/.zshenv` (or shell rc) only. `overrides.yaml` can reference env vars by name but **must not** contain raw token values; the installer enforces this with a regex check.
 - Decision logs are local-only; `/adk-improve` proposals stay local until you accept them.

@@ -7,9 +7,10 @@
 1. **Never** force-push (`git push --force` or `--force-with-lease`) to any remote without explicit per-invocation user confirmation that names the branch.
 2. **Never** push to a branch matching the user's repo's protected-branch patterns (default: `main`, `master`, `release/*`, `prod/*`).
 3. **Never** merge a PR — recommend merge, let the human click.
-4. **Never** post a Slack message, Jira comment, GitHub PR comment, or Confluence page update without explicit per-invocation confirmation, **even under `--auto`**.
-5. **Never** create / edit / delete a Datadog monitor / dashboard, Statsig gate / experiment, or any other feature-flag system. Read-only against these systems.
+4. **Post / comment / update only when the task requires it.** Slack messages, Jira comments / transitions, GitHub PR comments / reviews / descriptions, Bitbucket PR comments, Confluence page updates: send when the active task explicitly calls for that action (e.g., `/adk-review` posting a review summary, `/adk-pr-review` posting inline comments, `/adk-implement` attaching a PR description, `/adk-sync --to slack` publishing a thread). If the action is incidental — not part of what the user asked for in this invocation — pause and confirm before sending. Drafts to the skill's task folder (see `shared/paths.md`: `<repo>/.temp/adk/<skill>/<task>/` for repo-bound skills or `~/.agents-devkit/<area>/<task>/` for global skills) never need confirmation; transmission to a shared destination does. Under `--auto`, the task-requires test still applies: `--auto` waives clarifying questions, not the "is this in scope?" check.
+5. **Statsig writes are confirmation-gated; other observability / analytics writes follow §I.4.** Any create / update / delete against Statsig gates, experiments, dynamic configs, layers, or segments requires per-invocation user confirmation (the permission engine asks — do not propose to bypass). Writes to Datadog (dashboards, notebooks, workflows, LLMObs evaluators), Mixpanel (metrics / dashboards / experiments / feature flags), Looker (dashboards / looks), and similar observability / analytics destinations follow the post/change rule in §I.4 — proceed when the task requires the write, confirm when it doesn't.
 6. **Never** run DML / DDL / GRANT against any database. Read-only Snowflake / Looker.
+7. **Confirm before any deletion the user didn't explicitly request.** Files (`rm`, `rm -rf`, `git branch -D`, `git tag -d`), records (Confluence pages / attachments, Jira issues, GitHub files), dashboards / looks / notebooks (Datadog, Looker, Mixpanel), database rows, cloud objects (S3, GCS), or any irreversible removal: if the user said "delete X", that authorizes deleting X — it does not authorize related cleanup, dependent objects, or "while we're here" tidy-ups. For each such adjacent deletion, name the target + the reason and wait for a yes. The bar is irreversibility, not scale: deleting one production page is "major"; deleting fifty `.temp/` scratch files is not.
 
 ## II. On honesty
 
@@ -22,14 +23,14 @@
 
 1. Every skill begins with the question-first contract (`shared/question-first.md`). Even under `--auto`, the questions are recorded as if asked (and the chosen defaults logged) for self-improvement.
 2. "I don't know" / "you decide" / "what would you recommend" hands off to `/adk-explain` with full context; resume after.
-3. The user's prior decisions (in `~/.config/adk/learning/`) inform defaults — they don't override the user's current intent.
+3. The user's prior decisions (in `~/.agents-devkit/improve/learning/`) inform defaults — they don't override the user's current intent.
 
 ## IV. On output
 
-1. Every skill writes intermediate artifacts to `<repo>/.temp/<task-slug>/` (gitignored). Never to the repo root, never to `~/`, never to `/tmp`.
-2. Every skill emits one decision-log JSONL entry per non-trivial fork (`~/.config/adk/learning/decisions.jsonl`). Schema: `shared/decision-log-schema.md`.
-3. Every skill emits one session summary on completion (`~/.config/adk/learning/sessions/<date>-<skill>-<slug>.md`). One paragraph max.
-4. Final report goes to `<repo>/.temp/<task-slug>/report.md` AND is displayed in the user's agent.
+1. Every skill writes intermediate artifacts to its **task folder**, which is one of two roots per `shared/paths.md`: repo-bound skills use `<repo>/.temp/adk/<skill-stem>/<task>/` (gitignored), global skills use `~/.agents-devkit/<area>/<task>/`. Never to the repo root, never to `~/` outside the two adk-owned roots (`~/.agents-devkit/` and `~/.agents-devkit/config/`), never to `/tmp`.
+2. Every skill emits one decision-log JSONL entry per non-trivial fork (`~/.agents-devkit/improve/learning/decisions.jsonl`). Schema: `shared/decision-log-schema.md`.
+3. Every skill emits one session summary on completion (`~/.agents-devkit/improve/learning/sessions/<date>-<skill>-<slug>.md`). One paragraph max.
+4. Final report goes to `<task-folder>/report.md` AND is displayed in the user's agent. The task folder is resolved per `shared/paths.md`.
 5. Reports lead with risk (blockers / regressions / mitigations) and bury bookkeeping. Reader-first ordering.
 
 ## V. On code edits
@@ -42,7 +43,7 @@
 
 ## VI. On scope refusal
 
-1. Bitbucket, GitLab, self-hosted git outside GitHub are not supported. Mention it; don't pretend.
+1. GitHub and Bitbucket Cloud are supported (via `adk-mcp-github` and `adk-mcp-bitbucket` respectively, plus the `gh` CLI for GitHub fallbacks). GitLab, self-hosted Bitbucket Server, and other forges are not supported. Mention it; don't pretend.
 2. Windows is not supported. Mention it; don't pretend.
 3. Skills with unmet MCP requirements stop in Phase 1 with a named gap. They don't half-execute.
 

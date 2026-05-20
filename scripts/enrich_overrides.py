@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""enrich_overrides.py — populate the `enriched:` block of ~/.config/adk/overrides.yaml
+"""enrich_overrides.py — populate the `enriched:` block of ~/.agents-devkit/config/overrides.yaml
 by introspecting reachable MCPs.
 
 This script does the PROGRAMMATIC enrichment. The AI step in /adk-setup --enrich
@@ -8,7 +8,7 @@ produces nice prose around the results; this just gathers raw data.
 Usage:
   python3 scripts/enrich_overrides.py [--source datadog|statsig|mixpanel|atlassian|github|snowflake|looker|all]
                                        [--dry-run]
-                                       [--out ~/.config/adk/overrides.yaml]
+                                       [--out ~/.agents-devkit/config/overrides.yaml]
 """
 from __future__ import annotations
 
@@ -22,8 +22,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
-OVERRIDES = Path(os.path.expanduser("~/.config/adk/overrides.yaml"))
-METADATA_DIR = Path(os.path.expanduser("~/.config/adk/metadata"))
+OVERRIDES = Path(os.path.expanduser("~/.agents-devkit/config/overrides.yaml"))
+METADATA_DIR = Path(os.path.expanduser("~/.agents-devkit/improve/metadata"))
 
 
 def run(cmd: list[str], env: dict[str, str] | None = None) -> tuple[int, str, str]:

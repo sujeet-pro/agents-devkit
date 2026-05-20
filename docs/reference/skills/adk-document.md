@@ -8,7 +8,7 @@ order: 1000
 ---
 # adk-document
 
-Document, write, draft, write-up, summarize. Generates any professional markdown artifact: runbook, ADR, RCA, PR body, commit message, changelog, Mermaid diagram, README, migration guide, API reference, experiment report, incident summary, onboarding doc, design doc, handoff doc. Markdown-first; output goes to `<repo>/.temp/<task-slug>/draft.md` (or repo-canonical path with --write-to). Does NOT publish — that's /adk-sync. Composable: any other adk skill can call this to generate a writeup, then call /adk-sync to push it. Cites every non-trivial claim to a repo path or quoted source; no filler phrases (anti-pattern grep enforced). Audience-tuned (engineer / pm / exec / mixed) — voice doesn't mix. Loads adk-agent-doc-writer always; loads relevant shared/guidelines (observability for runbook/RCA, api-design for api-reference, security for RCA, accessibility for UI docs) by --type. Quotes from external sources capped at 15 words.
+Document, write, draft, write-up, summarize. Generates any professional markdown artifact: runbook, ADR, RCA, PR body, commit message, changelog, Mermaid diagram, README, migration guide, API reference, experiment report, incident summary, onboarding doc, design doc, handoff doc. Markdown-first; repo-bound: output goes to `<repo>/.temp/adk/document/<task>/draft.md` (or repo-canonical path with --write-to). Does NOT publish — that's /adk-sync. Composable: any other adk skill can call this to generate a writeup, then call /adk-sync to push it. Cites every non-trivial claim to a repo path or quoted source; no filler phrases (anti-pattern grep enforced). Audience-tuned (engineer / pm / exec / mixed) — voice doesn't mix. Loads adk-agent-doc-writer always; loads relevant shared/guidelines (observability for runbook/RCA, api-design for api-reference, security for RCA, accessibility for UI docs) by --type. Quotes from external sources capped at 15 words.
 
 ## Source
 
@@ -19,9 +19,9 @@ Document, write, draft, write-up, summarize. Generates any professional markdown
 ```yaml
 name: adk-document
 description: |
-  Document, write, draft, write-up, summarize. Generates any professional markdown artifact: runbook, ADR, RCA, PR body, commit message, changelog, Mermaid diagram, README, migration guide, API reference, experiment report, incident summary, onboarding doc, design doc, handoff doc. Markdown-first; output goes to `<repo>/.temp/<task-slug>/draft.md` (or repo-canonical path with --write-to). Does NOT publish — that's /adk-sync. Composable: any other adk skill can call this to generate a writeup, then call /adk-sync to push it. Cites every non-trivial claim to a repo path or quoted source; no filler phrases (anti-pattern grep enforced). Audience-tuned (engineer / pm / exec / mixed) — voice doesn't mix. Loads adk-agent-doc-writer always; loads relevant shared/guidelines (observability for runbook/RCA, api-design for api-reference, security for RCA, accessibility for UI docs) by --type. Quotes from external sources capped at 15 words.
+  Document, write, draft, write-up, summarize. Generates any professional markdown artifact: runbook, ADR, RCA, PR body, commit message, changelog, Mermaid diagram, README, migration guide, API reference, experiment report, incident summary, onboarding doc, design doc, handoff doc. Markdown-first; repo-bound: output goes to `<repo>/.temp/adk/document/<task>/draft.md` (or repo-canonical path with --write-to). Does NOT publish — that's /adk-sync. Composable: any other adk skill can call this to generate a writeup, then call /adk-sync to push it. Cites every non-trivial claim to a repo path or quoted source; no filler phrases (anti-pattern grep enforced). Audience-tuned (engineer / pm / exec / mixed) — voice doesn't mix. Loads adk-agent-doc-writer always; loads relevant shared/guidelines (observability for runbook/RCA, api-design for api-reference, security for RCA, accessibility for UI docs) by --type. Quotes from external sources capped at 15 words.
 allowed-tools: [Read, Edit, Write, Grep, Glob, Bash, WebFetch, Agent]
-argument-hint: "<intent-or-source> --type <artifact-type> [--audience engineer|pm|exec|mixed] [--write-to <path>] [--auto|-i]"
+argument-hint: "<intent-or-source> --type <artifact-type> [--audience engineer|pm|exec|mixed] [--write-to <path>] [-i|--interactive]"
 metadata:
   category: docs
   kind: task
@@ -43,6 +43,8 @@ metadata:
 
 Markdown-first; never publishes (that's `/adk-sync`). Cites every non-trivial claim.
 
+**Repo-bound skill** — must run from inside a repo (or `--repo <path>`). Drafts go to `<repo>/.temp/adk/document/<task>/draft.md`; `--write-to <path>` overrides to a canonical repo path. Per `shared/paths.md`.
+
 ## References (loaded as needed)
 
 | Aspect | File |
@@ -57,7 +59,7 @@ Markdown-first; never publishes (that's `/adk-sync`). Cites every non-trivial cl
 
 - Persona: `shared/personas/doc-writer.md`
 - Guidelines (auto-load by `--type`): observability / api-design / security / accessibility / data-modeling
-- Advisor + question-first: `shared/advisor.md`, `shared/question-first.md`
+- Advisor + question-first: `shared/advisor.md`, `shared/question-first.md`, `shared/narration.md`
 
 ## References shipped
 

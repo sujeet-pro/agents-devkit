@@ -8,9 +8,9 @@ What it does (per agent target):
   - Merges mcp/adk-mcp-*.json into the agent's MCP config (idempotent).
   - Appends a one-line reference to AGENTS.md in the agent's global guidelines
     file (idempotent, by marker).
-  - Seeds ~/.config/adk/learning/decisions.jsonl with shared/seed-decisions.jsonl
+  - Seeds ~/.agents-devkit/improve/learning/decisions.jsonl with shared/seed-decisions.jsonl
     (first install only).
-  - Creates ~/.config/adk/ skeleton if missing.
+  - Creates ~/.agents-devkit/config/ skeleton if missing.
 
 Targets: claude, cursor, codex, junie, all.
 
@@ -51,7 +51,7 @@ ADK_REMOVED_MCP_KEY = "_adkRemovedMcpServers"
 # `mcpServers` map is considered user-authored.
 ADK_MCP_NAME_PREFIX = "adk-mcp-"
 
-ADK_USER_DIR = Path.home() / ".config" / "adk"
+ADK_USER_DIR = Path.home() / ".agents-devkit" / "config"
 
 
 # ----------------------------------------------------------------------------
@@ -154,7 +154,11 @@ def append_with_marker(target: Path, content: str, marker_start: str, marker_end
         pattern = re.compile(
             rf"{re.escape(marker_start)}.*{re.escape(marker_end)}\n?", re.DOTALL
         )
-        new_text = pattern.sub(block, existing, count=1)
+        # Pass `block` via a callable so re.sub() does NOT interpret backslash
+        # escapes in the replacement (otherwise `\n` inside a generated TOML
+        # string — e.g. the slack MCP's multi-line python args — becomes a
+        # real newline and breaks the resulting file).
+        new_text = pattern.sub(lambda _m: block, existing, count=1)
         target.write_text(new_text, encoding="utf-8")
         return "replaced"
     sep = "" if existing.endswith("\n\n") else ("\n" if existing.endswith("\n") else "\n\n")
@@ -411,6 +415,49 @@ def _translate_mcp_entry_generic(cfg: dict[str, Any]) -> dict[str, Any]:
     return entry
 
 
+def _toml_key(k: str) -> str:
+    """Quote a TOML bare key when it contains chars outside [A-Za-z0-9_-]."""
+    if re.fullmatch(r"[A-Za-z0-9_-]+", k):
+        return k
+    return json.dumps(k)
+
+
+def _translate_mcp_entry_codex(cfg: dict[str, Any]) -> str:
+    """Translate adk schema → a Codex `[[mcp_servers]]` TOML block string.
+
+    Matches the format the hand-maintained agents-codex/codex-config.toml.append
+    used before this generator existed:
+      - http servers: `url`, plus either `authorization_token_env` (when the
+        only header is `Authorization: Bearer ${VAR}`) or `[[mcp_servers.headers]]`.
+      - stdio servers: `command`, `args`, optional `[mcp_servers.env]`.
+    """
+    lines: list[str] = ["[[mcp_servers]]", f'name = {json.dumps(cfg["name"])}']
+    if "url" in cfg:
+        lines.append(f'url = {json.dumps(cfg["url"])}')
+        headers = cfg.get("headers", {}) or {}
+        auth = headers.get("Authorization", "") if isinstance(headers, dict) else ""
+        m = re.fullmatch(r"Bearer \$\{(\w+)\}", auth) if isinstance(auth, str) else None
+        if m and len(headers) == 1:
+            lines.append(f'authorization_token_env = "{m.group(1)}"')
+        elif headers:
+            lines.append("")
+            lines.append("[[mcp_servers.headers]]")
+            for k, v in headers.items():
+                lines.append(f"{_toml_key(k)} = {json.dumps(v)}")
+    elif "command" in cfg:
+        lines.append(f'command = {json.dumps(cfg["command"])}')
+        if "args" in cfg:
+            args_repr = ", ".join(json.dumps(a) for a in cfg["args"])
+            lines.append(f"args = [{args_repr}]")
+        env = cfg.get("env", {}) or {}
+        if env:
+            lines.append("")
+            lines.append("[mcp_servers.env]")
+            for k, v in env.items():
+                lines.append(f"{_toml_key(k)} = {json.dumps(v)}")
+    return "\n".join(lines)
+
+
 def _replace_mcp_servers_and_save_user(current: dict[str, Any],
                                         adk_entries: dict[str, dict[str, Any]]) -> dict[str, str]:
     """Replace the entire `mcpServers` map with adk-only entries.
@@ -496,13 +543,35 @@ def merge_mcp_into_junie(repo_root: Path, dry_run: bool) -> dict[str, str]:
     return results
 
 
-def append_codex_toml(repo_root: Path, dry_run: bool) -> str:
-    src = repo_root / "agents-codex" / "codex-config.toml.append"
-    if not src.exists():
-        return "no-template"
-    content = src.read_text(encoding="utf-8")
+def merge_mcp_into_codex(repo_root: Path, dry_run: bool) -> dict[str, str]:
+    """Generate `[[mcp_servers]]` TOML blocks from mcp/adk-mcp-*.json and write
+    them into `~/.codex/config.toml` between the `# adk-marker:start` / `:end`
+    markers. Replaces the legacy hand-maintained
+    agents-codex/codex-config.toml.append, which duplicated mcp/adk-mcp-*.json.
+
+    Idempotent: re-running replaces the block; uninstall strips it via the
+    same marker.
+    """
     target = Path.home() / ".codex" / "config.toml"
-    return append_with_marker(target, content, MARKER_HASH_START, MARKER_HASH_END, dry_run, repo_root)
+    results: dict[str, str] = {}
+    blocks: list[str] = []
+    for name, cfg in load_mcp_configs(repo_root).items():
+        if name == "adk-mcp-rag" and not os.environ.get("RAG_MCP_URL"):
+            results[name] = "skipped (RAG_MCP_URL unset)"
+            continue
+        blocks.append(_translate_mcp_entry_codex(cfg))
+        results[name] = "installed"
+    header = (
+        "# adk v3 MCP servers — generated by install.py from "
+        "mcp/adk-mcp-*.json. Do NOT edit by hand; edit the JSON sources and "
+        "re-run install.sh."
+    )
+    content = header + "\n\n" + "\n\n".join(blocks)
+    status = append_with_marker(
+        target, content, MARKER_HASH_START, MARKER_HASH_END, dry_run, repo_root,
+    )
+    results["_marker_status"] = status
+    return results
 
 
 # ----------------------------------------------------------------------------
@@ -634,7 +703,10 @@ def install_codex(repo_root: Path, dry_run: bool, results: dict[str, Any]) -> No
     for prompt_file in sorted((repo_root / "agents-codex" / "prompts").glob("adk-*.md")):
         dst = codex_dir / "prompts" / prompt_file.name
         prompt_results[prompt_file.name] = make_symlink(prompt_file, dst, dry_run)
-    toml_append = append_codex_toml(repo_root, dry_run)
+    # MCP merge — generated from mcp/adk-mcp-*.json (single source of truth
+    # shared with Claude / Cursor / Junie). Replaces the legacy
+    # agents-codex/codex-config.toml.append hand-maintained file.
+    mcp_results = merge_mcp_into_codex(repo_root, dry_run)
     # Permissions merge (approval_policy / sandbox_mode)
     perms_result = merge_permissions_into_codex(repo_root, dry_run)
     # Global instructions pointer
@@ -645,7 +717,7 @@ def install_codex(repo_root: Path, dry_run: bool, results: dict[str, Any]) -> No
     )
     results["codex"] = {
         "prompts": prompt_results,
-        "config_toml_append": toml_append,
+        "mcp_merge": mcp_results,
         "permissions": perms_result,
         "instructions_append": instructions_append,
         "gaps": "see agents-codex/README.md for the capability table",
@@ -900,21 +972,128 @@ def uninstall_target(target: str, dry_run: bool, results: dict[str, Any]) -> Non
 # Bootstrap user dir
 # ----------------------------------------------------------------------------
 
+_LEGACY_USER_DIR = Path.home() / ".config" / "adk"
+
+
+def _migrate_legacy_user_dir(dry_run: bool, out: dict[str, str]) -> None:
+    """If ~/.config/adk/ exists and the new ~/.agents-devkit/config/ is empty
+    (or absent), COPY the user's data into the new location. We do NOT delete
+    the old dir — the user can remove it themselves once they've verified.
+    """
+    if not _LEGACY_USER_DIR.exists():
+        out["legacy_migration"] = "no-legacy-found"
+        return
+    # If the new dirs already have overrides.yaml or learning, assume migration ran before.
+    new_overrides = ADK_USER_DIR / "overrides.yaml"
+    new_learning = Path.home() / ".agents-devkit" / "improve" / "learning"
+    if new_overrides.exists() or (new_learning.exists() and any(new_learning.iterdir())):
+        out["legacy_migration"] = "skipped (new dir already populated)"
+        return
+    if dry_run:
+        out["legacy_migration"] = f"would-copy {_LEGACY_USER_DIR} → {ADK_USER_DIR}"
+        return
+    ADK_USER_DIR.mkdir(parents=True, exist_ok=True)
+    improve_root = Path.home() / ".agents-devkit" / "improve"
+    for item in _LEGACY_USER_DIR.iterdir():
+        # Items the user moved from ~/.config/adk into the new split layout:
+        #   learning/ + metadata/ → improve/
+        #   everything else (overrides.yaml, *.md, memory/) → config/
+        if item.name in ("learning", "metadata"):
+            dst = improve_root / item.name
+            dst.parent.mkdir(parents=True, exist_ok=True)
+        else:
+            dst = ADK_USER_DIR / item.name
+        if dst.exists():
+            continue  # don't clobber
+        if item.is_dir():
+            shutil.copytree(item, dst)
+        else:
+            shutil.copyfile(item, dst)
+    out["legacy_migration"] = (
+        f"copied {_LEGACY_USER_DIR} → ~/.agents-devkit/{{config,improve}}/ "
+        f"(legacy left in place — delete manually once verified)"
+    )
+
+
+_LEGACY_AGENTS_DEVKIT_CONFIGS = Path.home() / ".agents-devkit" / "configs"  # plural — pre-rename
+
+
+def _migrate_inrepo_layout(dry_run: bool, out: dict[str, str]) -> None:
+    """If `~/.agents-devkit/configs/` (plural) exists from an earlier install,
+    move its contents to the new layout:
+      configs/learning/   → improve/learning/
+      configs/metadata/   → improve/metadata/
+      configs/{everything else}/files → config/ (singular)
+    Then remove the empty `configs/` directory.
+    Skips silently if there's nothing to migrate.
+    """
+    legacy = _LEGACY_AGENTS_DEVKIT_CONFIGS
+    if not legacy.exists():
+        out["inrepo_migration"] = "no-legacy-found"
+        return
+
+    home = Path.home()
+    config_dst = home / ".agents-devkit" / "config"
+    improve_dst = home / ".agents-devkit" / "improve"
+    moved: list[str] = []
+
+    for item in list(legacy.iterdir()):
+        if item.name == "learning":
+            dst = improve_dst / "learning"
+        elif item.name == "metadata":
+            dst = improve_dst / "metadata"
+        else:
+            dst = config_dst / item.name
+
+        if dst.exists():
+            moved.append(f"{item.name}: already at destination, skipping")
+            continue
+        if dry_run:
+            moved.append(f"would-move {item} → {dst}")
+            continue
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        shutil.move(str(item), str(dst))
+        moved.append(f"moved {item.name} → {dst.relative_to(home)}")
+
+    # Remove the empty `configs/` dir (only if empty after migration).
+    if not dry_run and legacy.exists() and not any(legacy.iterdir()):
+        legacy.rmdir()
+        moved.append("removed empty .agents-devkit/configs/")
+
+    out["inrepo_migration"] = "; ".join(moved) if moved else "nothing-to-move"
+
+
 def bootstrap_user_dir(repo_root: Path, dry_run: bool) -> dict[str, str]:
-    """Create ~/.config/adk/ skeleton; seed decisions.jsonl on first install."""
+    """Create ~/.agents-devkit/ v4 skeleton.
+
+    Layout (see shared/paths.md):
+      ~/.agents-devkit/
+        memory/                # cross-session memory (root level)
+        config/                # core.yaml + repos.md + links.json5 + connectors/*.md + .legacy/
+        improve/               # learning/ + metadata/ — data /adk-improve uses
+        repos/ pr-reviews/ investigations/ reviews/ sync/ setup/ explain/
+    """
     out: dict[str, str] = {}
-    learning = ADK_USER_DIR / "learning"
-    metadata = ADK_USER_DIR / "metadata"
-    memory = ADK_USER_DIR / "memory"
+
+    # Legacy migrations: pull data forward into the new layout.
+    _migrate_legacy_user_dir(dry_run, out)       # ~/.config/adk/ → ~/.agents-devkit/config/ (first move)
+    _migrate_inrepo_layout(dry_run, out)         # ~/.agents-devkit/configs/ → config/ + improve/ (this move)
+
+    home = Path.home()
+    config_root = home / ".agents-devkit" / "config"
+    improve_root = home / ".agents-devkit" / "improve"
+
+    learning = improve_root / "learning"
+    metadata = improve_root / "metadata"
+    memory = home / ".agents-devkit" / "memory"
     sessions = learning / "sessions"
     proposals = learning / "proposals"
     archive = learning / "archive"
-    ensure_dir(learning, dry_run)
-    ensure_dir(metadata, dry_run)
-    ensure_dir(memory, dry_run)
-    ensure_dir(sessions, dry_run)
-    ensure_dir(proposals, dry_run)
-    ensure_dir(archive, dry_run)
+    connectors = config_root / "connectors"
+    for d in (config_root, connectors, improve_root, learning, metadata, memory,
+              sessions, proposals, archive):
+        ensure_dir(d, dry_run)
+
     decisions = learning / "decisions.jsonl"
     seed = repo_root / "shared" / "seed-decisions.jsonl"
     if not decisions.exists():
@@ -925,6 +1104,12 @@ def bootstrap_user_dir(repo_root: Path, dry_run: bool) -> dict[str, str]:
             out["decisions_seed"] = f"seeded from {seed.name}"
     else:
         out["decisions_seed"] = "exists (left alone)"
+
+    # ~/.agents-devkit/ — working-dir root for global skills.
+    agents_dk_root = home / ".agents-devkit"
+    for sub in ("repos", "pr-reviews", "investigations", "reviews", "sync", "setup", "explain"):
+        ensure_dir(agents_dk_root / sub, dry_run)
+    out["agents_devkit_root"] = str(agents_dk_root)
     return out
 
 
@@ -968,7 +1153,7 @@ def main() -> int:
         print(json.dumps(results, indent=2))
         return 0
 
-    # Always bootstrap ~/.config/adk/
+    # Always bootstrap ~/.agents-devkit/config/
     results["user_dir"] = bootstrap_user_dir(repo_root, dry_run)
 
     for t in targets:
@@ -994,7 +1179,7 @@ def main() -> int:
     print(f"  - targets: {targets}")
     print()
     print("next:")
-    print("  1. edit ~/.config/adk/overrides.yaml (run /adk-setup --init from your agent to scaffold).")
+    print("  1. edit ~/.agents-devkit/config/overrides.yaml (run /adk-setup --init from your agent to scaffold).")
     print("  2. set env vars per SETUP.md.")
     print("  3. restart your agent so it picks up env + MCP changes.")
     print("  4. run /adk-setup --check to verify.")

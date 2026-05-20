@@ -64,6 +64,11 @@ DECLARED_VARS: dict[str, str] = {
     "GOOGLE_CLIENT_SECRET_CRED": "OAuth client secret",
     "USER_GOOGLE_EMAIL": "Google email the workspace-mcp acts as (e.g. you@company.com)",
     "GOOGLE_WORKSPACE_MCP_CREDENTIALS_DIR": "workspace-mcp OAuth token cache",
+    # Bitbucket
+    "BITBUCKET_URL": "default: https://api.bitbucket.org/2.0",
+    "BITBUCKET_USERNAME": "your Bitbucket account email",
+    "BITBUCKET_WORKSPACE": "default workspace slug (e.g. lastbrand)",
+    "BITBUCKET_TOKEN_CRED": "Atlassian API token — https://id.atlassian.com/manage-profile/security/api-tokens",
     # RAG (optional)
     "RAG_MCP_URL": "your company RAG MCP endpoint (optional)",
     "RAG_MCP_TOKEN_CRED": "your company RAG MCP bearer token (optional)",
@@ -78,6 +83,7 @@ VARS_WITH_DEFAULTS: set[str] = {
     "SNOWFLAKE_CONNECTION_NAME",
     "GOOGLE_WORKSPACE_MCP_CREDENTIALS_DIR",
     "LOOKER_VERIFY_SSL",
+    "BITBUCKET_URL",
 }
 
 # Aliases — if right-hand var is set, the left-hand var is "satisfied".

@@ -6,23 +6,23 @@
 
 - Raw user prompt + any URLs / paths / IDs in it.
 - Current working directory (resolves `<repo>/.adk/` + `<repo>/ai-guidelines/`).
-- `~/.config/adk/overrides.yaml` (workspaces, repos, data sources).
+- `~/.agents-devkit/config/overrides.yaml` (workspaces, repos, data sources).
 
 ## Steps
 
 1. **Run `scripts/url_classifier.py`** on the prompt. Get back JSON: `{urls: [...], local_paths: [...], freeform: "..."}`.
 2. **Pick the working repo**: match `cwd` against `overrides.yaml.repos[*].path`. If no match: ask the user to confirm or specify a repo.
 3. **Pick the active workspace**: derive from the matched repo's `workspace` field. If multi-workspace user is ambiguous: ask.
-4. **Resolve task-slug**: build `<skill>-<discriminator>` where discriminator comes from input (Jira key, PR number, repo+date, etc.).
-5. **Create `<repo>/.temp/<task-slug>/`** (or `~/code/agents-devkit/.temp/<task-slug>/` if not in a repo).
+4. **Resolve task-slug + task folder** via `scripts/adk_task_slug.py --skill <stem> --input <prompt> --create --json`. The script picks the right root per `shared/paths.md` (repo-bound vs global), derives the discriminator from the input (Jira key, PR number, repo+date, etc.), and returns the absolute path. Skills that are **always global** (`pr-review`, `investigate`, `setup`, `improve`, `explain`) pass `--scope global`; skills that are **always repo-bound** (`implement`, `document`) pass `--scope repo`; **hybrid** skills (`review`, `sync`) pass `--scope auto` and let the script decide.
+5. **Use the returned `task_dir`** as the working dir for the rest of this skill run. Every artifact path below is relative to it.
 6. **Fan-out fetch each URL in parallel** (cap 4 concurrent) via the matching MCP. See `shared/input-classifiers/<type>.md` for each URL type's fetcher.
-7. **Merge results** into `<task-slug>/context.md`. One section per source. Quote ≤15 words per claim; link out for the rest.
+7. **Merge results** into `<task_dir>/context.md`. One section per source. Quote ≤15 words per claim; link out for the rest.
 8. **Optional RAG enrichment**: if `rag.enabled: true` AND prompt matches `rag.trigger_keywords` (or user explicitly says "check our internal docs"), query the RAG MCP with the prompt + key entities. Merge results tagged `[source: rag]`.
 9. **Load relevant guidelines**: based on detected task category (frontend / api / data / observability / security / …), pre-load matching `shared/guidelines/*.md` into the working context.
 
 ## Output
 
-`<task-slug>/context.md` layout:
+`<task_dir>/context.md` layout:
 
 ```markdown
 # context for <task-slug>

@@ -1,6 +1,6 @@
 ---
 title: 'adk_info.py'
-description: 'adk_info.py — read ~/.config/adk/overrides.yaml and emit JSON.'
+description: 'adk_info.py — read ~/.agents-devkit/config/overrides.yaml and emit JSON.'
 script: 'adk_info.py'
 source: 'scripts/adk_info.py'
 group: 'scripts'
@@ -8,7 +8,7 @@ order: 4000
 ---
 # adk_info.py
 
-adk_info.py — read ~/.config/adk/overrides.yaml and emit JSON.
+adk_info.py — read ~/.agents-devkit/config/overrides.yaml and emit JSON.
 
 ## Source
 
@@ -18,7 +18,7 @@ adk_info.py — read ~/.config/adk/overrides.yaml and emit JSON.
 
 ```python
 #!/usr/bin/env python3
-"""adk_info.py — read ~/.config/adk/overrides.yaml and emit JSON.
+"""adk_info.py — read ~/.agents-devkit/config/overrides.yaml and emit JSON.
 
 Three modes:
   - dump-all (default): full merged JSON of overrides + repo-level .adk/overrides.yaml if cwd is in a configured repo
@@ -42,7 +42,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-OVERRIDES = Path(os.path.expanduser("~/.config/adk/overrides.yaml"))
+OVERRIDES = Path(os.path.expanduser("~/.agents-devkit/config/overrides.yaml"))
 
 
 def load_yaml(path: Path) -> dict[str, Any]:

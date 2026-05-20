@@ -1,14 +1,14 @@
 ---
 title: 'decision_logger.py'
-description: 'decision_logger.py — append a JSONL line to ~/.config/adk/learning/decisions.jsonl.'
+description: 'decision_logger.py — append a JSONL line to ~/.agents-devkit/improve/learning/decisions.jsonl.'
 script: 'decision_logger.py'
 source: 'scripts/decision_logger.py'
 group: 'scripts'
-order: 4003
+order: 4005
 ---
 # decision_logger.py
 
-decision_logger.py — append a JSONL line to ~/.config/adk/learning/decisions.jsonl.
+decision_logger.py — append a JSONL line to ~/.agents-devkit/improve/learning/decisions.jsonl.
 
 ## Source
 
@@ -18,7 +18,7 @@ decision_logger.py — append a JSONL line to ~/.config/adk/learning/decisions.j
 
 ```python
 #!/usr/bin/env python3
-"""decision_logger.py — append a JSONL line to ~/.config/adk/learning/decisions.jsonl.
+"""decision_logger.py — append a JSONL line to ~/.agents-devkit/improve/learning/decisions.jsonl.
 
 Called from skills whenever a non-trivial fork is resolved.
 
@@ -40,7 +40,7 @@ import os
 import sys
 from pathlib import Path
 
-LOG_DIR = Path(os.path.expanduser("~/.config/adk/learning"))
+LOG_DIR = Path(os.path.expanduser("~/.agents-devkit/improve/learning"))
 LOG_FILE = LOG_DIR / "decisions.jsonl"
 
 VALID_FORK_TYPES = {"user-answered", "auto-defaulted", "override-applied", "inferred", "escalation"}

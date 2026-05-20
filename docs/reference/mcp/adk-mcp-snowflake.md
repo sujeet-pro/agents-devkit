@@ -1,14 +1,14 @@
 ---
 title: 'adk-mcp-snowflake'
-description: 'Snowflake MCP via uvx (community: isaacwasserman/mcp-snowflake-server). Read-only by default (per shared/constitution.md §I). Auth: password (SNOWFLAKE_PASSWORD) OR externalbrowser SSO (set...'
+description: 'Snowflake MCP via uvx (Snowflake-Labs/mcp). Read-only by default (per shared/constitution.md §I.6). Config: account/user/warehouse/role live in Snowflake''s native connections.toml under $SNOWFLAKE_HOME (default...'
 mcp: 'adk-mcp-snowflake'
 source: 'mcp/adk-mcp-snowflake.json'
 group: 'mcp'
-order: 3007
+order: 3009
 ---
 # adk-mcp-snowflake
 
-Snowflake MCP via uvx (community: isaacwasserman/mcp-snowflake-server). Read-only by default (per shared/constitution.md §I). Auth: password (SNOWFLAKE_PASSWORD) OR externalbrowser SSO (set SNOWFLAKE_AUTHENTICATOR=externalbrowser). PII protection: skills refuse to query columns listed in overrides.yaml.data_sources.snowflake.pii_columns. Requires `uv` on PATH. See SETUP.md.
+Snowflake MCP via uvx (Snowflake-Labs/mcp). Read-only by default (per shared/constitution.md §I.6). Config: account/user/warehouse/role live in Snowflake's native connections.toml under $SNOWFLAKE_HOME (default ~/.snowflake), selected by --connection-name. $SNOWFLAKE_SERVICE_CONFIG_FILE points at the snowflake-labs-mcp service YAML (tool allow-list, Cortex services). Auth: Programmatic Access Token in $SNOWFLAKE_ACCESS_TOKEN_CRED (shell env only, never on disk) — passed via --password, overrides any password in connections.toml. See SETUP.md.
 
 ## Source
 
@@ -16,34 +16,27 @@ Snowflake MCP via uvx (community: isaacwasserman/mcp-snowflake-server). Read-onl
 
 ## Environment variables referenced
 
-- `SNOWFLAKE_ACCOUNT`
-- `SNOWFLAKE_AUTHENTICATOR`
-- `SNOWFLAKE_DATABASE`
-- `SNOWFLAKE_PASSWORD`
-- `SNOWFLAKE_ROLE`
-- `SNOWFLAKE_SCHEMA`
-- `SNOWFLAKE_USER`
-- `SNOWFLAKE_WAREHOUSE`
+- `SNOWFLAKE_ACCESS_TOKEN_CRED`
+- `SNOWFLAKE_CONNECTION_NAME`
+- `SNOWFLAKE_HOME`
+- `SNOWFLAKE_SERVICE_CONFIG_FILE`
 
 ## Configuration
 
 ```json
 {
   "name": "adk-mcp-snowflake",
-  "command": "uvx",
+  "command": "sh",
   "args": [
-    "mcp-snowflake-server@latest"
+    "-c",
+    "exec uvx snowflake-labs-mcp@latest --connection-name \"${SNOWFLAKE_CONNECTION_NAME:-adk}\" --password \"$SNOWFLAKE_ACCESS_TOKEN_CRED\" --service-config-file \"$SNOWFLAKE_SERVICE_CONFIG_FILE\""
   ],
   "env": {
-    "SNOWFLAKE_ACCOUNT": "${SNOWFLAKE_ACCOUNT}",
-    "SNOWFLAKE_USER": "${SNOWFLAKE_USER}",
-    "SNOWFLAKE_PASSWORD": "${SNOWFLAKE_PASSWORD:-}",
-    "SNOWFLAKE_AUTHENTICATOR": "${SNOWFLAKE_AUTHENTICATOR:-}",
-    "SNOWFLAKE_WAREHOUSE": "${SNOWFLAKE_WAREHOUSE}",
-    "SNOWFLAKE_ROLE": "${SNOWFLAKE_ROLE}",
-    "SNOWFLAKE_DATABASE": "${SNOWFLAKE_DATABASE:-}",
-    "SNOWFLAKE_SCHEMA": "${SNOWFLAKE_SCHEMA:-}"
+    "SNOWFLAKE_HOME": "${SNOWFLAKE_HOME}",
+    "SNOWFLAKE_CONNECTION_NAME": "${SNOWFLAKE_CONNECTION_NAME:-adk}",
+    "SNOWFLAKE_SERVICE_CONFIG_FILE": "${SNOWFLAKE_SERVICE_CONFIG_FILE}",
+    "SNOWFLAKE_ACCESS_TOKEN_CRED": "${SNOWFLAKE_ACCESS_TOKEN_CRED}"
   },
-  "description": "Snowflake MCP via uvx (community: isaacwasserman/mcp-snowflake-server). Read-only by default (per shared/constitution.md §I). Auth: password (SNOWFLAKE_PASSWORD) OR externalbrowser SSO (set SNOWFLAKE_AUTHENTICATOR=externalbrowser). PII protection: skills refuse to query columns listed in overrides.yaml.data_sources.snowflake.pii_columns. Requires `uv` on PATH. See SETUP.md."
+  "description": "Snowflake MCP via uvx (Snowflake-Labs/mcp). Read-only by default (per shared/constitution.md §I.6). Config: account/user/warehouse/role live in Snowflake's native connections.toml under $SNOWFLAKE_HOME (default ~/.snowflake), selected by --connection-name. $SNOWFLAKE_SERVICE_CONFIG_FILE points at the snowflake-labs-mcp service YAML (tool allow-list, Cortex services). Auth: Programmatic Access Token in $SNOWFLAKE_ACCESS_TOKEN_CRED (shell env only, never on disk) — passed via --password, overrides any password in connections.toml. See SETUP.md."
 }
 ```

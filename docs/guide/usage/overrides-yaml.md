@@ -4,7 +4,7 @@ description: The single config file you maintain. Workspaces, repos, data dictio
 order: 4
 ---
 
-# `~/.config/adk/overrides.yaml`
+# `~/.agents-devkit/config/overrides.yaml`
 
 This is the only file you hand-edit. Skills read it on every run, merge any `<repo>/.adk/overrides.yaml` on top, and use the result to resolve entities and defaults.
 

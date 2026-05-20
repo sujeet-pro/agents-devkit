@@ -1,0 +1,52 @@
+// queue.json5 — the PR-review queue for /adk-pr-reviews
+//
+// Default location: ~/.agents-devkit/pr-reviews/queue.json5
+// You can populate this by hand, by `/adk-pr-reviews --scan` (auto-generates
+// from slack), or both. The scan is additive — your hand-added entries are
+// preserved.
+//
+// Schema:
+//   prs[] entry — MIN required: { pr_link: "..." }
+//                 OPTIONAL:      slack{}, supporting_docs[], notes
+//                 AUTO-MANAGED:  status, last_checked_at, slack.last_reaction_status
+{
+  // Optional batch-level filters. Currently honoured: mentioned_users (overrides
+  // slack.json5 if set here). Set to null / omit to use slack.json5's filter.
+  filters: null,
+
+  prs: [
+    // // Example: a PR with a slack thread + supporting docs.
+    // {
+    //   pr_link: "https://github.com/acme/foo/pull/42",
+    //
+    //   // Slack context (filled by --scan; can be filled by hand too).
+    //   slack: {
+    //     permalink: "https://acme.slack.com/archives/C0123456/p1745432100000123",
+    //     channel_id: "C0123456",
+    //     message_ts: "1745432100.000123",       // ts of the message containing the PR link
+    //     thread_ts: "1745432100.000123",        // top-level thread ts (== message_ts if it's the root)
+    //     thread_starter_user_id: "U0ABCDEFG",
+    //     n_pr_links_in_message: 1,              // whether we can safely react
+    //     last_reaction_status: null,            // what we last reacted with
+    //     last_reminder_at: null,                // last reminder timestamp (ISO8601)
+    //   },
+    //
+    //   // Supporting docs the reviewer should consult before reviewing the diff.
+    //   // These are forced inputs — fetch_supporting_docs.py treats them as
+    //   // first-class even if the PR body / comments don't link them.
+    //   supporting_docs: [
+    //     "https://acme.atlassian.net/wiki/spaces/ENG/pages/12345/Design",
+    //     "https://acme.atlassian.net/browse/SF-1234",
+    //     "https://docs.google.com/document/d/abc123/edit",
+    //   ],
+    //
+    //   // Auto-managed by the batch driver. Don't edit by hand unless you want
+    //   // to force a re-review (set status: "pending").
+    //   status: "pending",  // pending | in_review | reviewed | needs_fix | merged | error
+    //   last_checked_at: null,
+    //
+    //   // User-owned. The script never writes this.
+    //   notes: "priority: high",
+    // },
+  ],
+}

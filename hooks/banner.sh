@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
 # adk v3 SessionStart banner — short status line shown at the top of every Claude Code session.
-# Reads ~/.config/adk/overrides.yaml + scripts/adk_mcp_health.py for the summary.
+# Reads ~/.agents-devkit/config/overrides.yaml + scripts/adk_mcp_health.py for the summary.
 # Stays under 30 lines so it doesn't dominate the session opener.
 
 set -uo pipefail
 
 ADK_REPO="${ADK_REPO:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
-OVERRIDES="$HOME/.config/adk/overrides.yaml"
+OVERRIDES="$HOME/.agents-devkit/config/overrides.yaml"
 
 echo "[adk v3] — 8 skills: /adk-implement /adk-review /adk-investigate /adk-document /adk-sync /adk-setup /adk-improve /adk-explain"
 
 if [ ! -f "$OVERRIDES" ]; then
-  echo "[adk v3] ⚠ no ~/.config/adk/overrides.yaml — run /adk-setup --init"
+  echo "[adk v3] ⚠ no ~/.agents-devkit/config/overrides.yaml — run /adk-setup --init"
   exit 0
 fi
 
@@ -34,7 +34,7 @@ print(f'MCPs: {ok} env-ok, {miss} env-missing  ·  env: {env_present} present, {
 fi
 
 # Surface pending improve proposals if any
-proposals_dir="$HOME/.config/adk/learning/proposals"
+proposals_dir="$HOME/.agents-devkit/improve/learning/proposals"
 if [ -d "$proposals_dir" ]; then
   count=$(find "$proposals_dir" -maxdepth 1 -type f -name '*.diff' 2>/dev/null | wc -l | tr -d ' ')
   if [ "$count" -gt 0 ]; then

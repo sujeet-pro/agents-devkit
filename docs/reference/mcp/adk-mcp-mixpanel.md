@@ -4,11 +4,11 @@ description: 'Mixpanel hosted MCP. OAuth on first connect (browser pop, cached) 
 mcp: 'adk-mcp-mixpanel'
 source: 'mcp/adk-mcp-mixpanel.json'
 group: 'mcp'
-order: 3004
+order: 3006
 ---
 # adk-mcp-mixpanel
 
-Mixpanel hosted MCP. OAuth on first connect (browser pop, cached) — no env vars required. Covers events, funnels, cohorts, dashboards, experiments, feature flags. Project resolved from the authenticated identity; pin the canonical project_id in ~/.config/adk/overrides.yaml.repos[*].mixpanel.project_id so skills don't ask. See SETUP.md.
+Mixpanel hosted MCP. OAuth on first connect (browser pop, cached) — no env vars required. Covers events, funnels, cohorts, dashboards, experiments, feature flags. Project resolved from the authenticated identity; pin the canonical project_id in ~/.agents-devkit/config/overrides.yaml.repos[*].mixpanel.project_id so skills don't ask. See SETUP.md.
 
 ## Source
 
@@ -25,6 +25,6 @@ _(none)_
   "name": "adk-mcp-mixpanel",
   "type": "http",
   "url": "https://mcp.mixpanel.com/mcp",
-  "description": "Mixpanel hosted MCP. OAuth on first connect (browser pop, cached) — no env vars required. Covers events, funnels, cohorts, dashboards, experiments, feature flags. Project resolved from the authenticated identity; pin the canonical project_id in ~/.config/adk/overrides.yaml.repos[*].mixpanel.project_id so skills don't ask. See SETUP.md."
+  "description": "Mixpanel hosted MCP. OAuth on first connect (browser pop, cached) — no env vars required. Covers events, funnels, cohorts, dashboards, experiments, feature flags. Project resolved from the authenticated identity; pin the canonical project_id in ~/.agents-devkit/config/overrides.yaml.repos[*].mixpanel.project_id so skills don't ask. See SETUP.md."
 }
 ```

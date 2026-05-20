@@ -11,7 +11,7 @@ order: 5603
 
 # shared/decision-log-schema.md
 
-> The append-only JSONL at `~/.config/adk/learning/decisions.jsonl`. One line per non-trivial fork. Consumed by `/adk-improve` to propose updates to `~/.config/adk/overrides.yaml.defaults.*`.
+> The append-only JSONL at `~/.agents-devkit/improve/learning/decisions.jsonl`. One line per non-trivial fork. Consumed by `/adk-improve` to propose updates to `~/.agents-devkit/config/overrides.yaml.defaults.*`.
 
 ## Line shape
 
@@ -87,5 +87,5 @@ Adding a fork_id to a skill is a deliberate change — it's a new dimension the 
 ## File hygiene
 
 - Append-only during a session. Never truncate mid-session.
-- Rotated by `/adk-improve` on completion: current file archived to `~/.config/adk/learning/archive/<ts>-decisions.jsonl`, a fresh empty file replaces it, and the summary appended to `~/.config/adk/learning/summary.md`.
+- Rotated by `/adk-improve` on completion: current file archived to `~/.agents-devkit/improve/learning/archive/<ts>-decisions.jsonl`, a fresh empty file replaces it, and the summary appended to `~/.agents-devkit/improve/learning/summary.md`.
 - The archive is the durable history. `/adk-improve` reads `summary.md` + `decisions.jsonl` (the current cycle) when deciding what to propose.

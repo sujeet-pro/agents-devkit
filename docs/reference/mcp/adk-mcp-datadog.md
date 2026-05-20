@@ -1,14 +1,14 @@
 ---
 title: 'adk-mcp-datadog'
-description: 'Datadog Bits AI hosted MCP (Preview). Auth: DATADOG_API_KEY_CRED + DATADOG_APP_KEY_CRED (App key needs scope mcp_read; mcp_write only if you mute monitors). Non-US1 sites: override DD_MCP_URL to the regional MCP host. Legacy...'
+description: 'Datadog Bits AI hosted MCP (Preview). Auth: DATADOG_API_KEY_CRED + DATADOG_APP_KEY_CRED (App key needs scope mcp_read; mcp_write only if you mute monitors). Non-US1 sites: set DATADOG_MCP_URL to the regional MCP...'
 mcp: 'adk-mcp-datadog'
 source: 'mcp/adk-mcp-datadog.json'
 group: 'mcp'
-order: 3001
+order: 3002
 ---
 # adk-mcp-datadog
 
-Datadog Bits AI hosted MCP (Preview). Auth: DATADOG_API_KEY_CRED + DATADOG_APP_KEY_CRED (App key needs scope mcp_read; mcp_write only if you mute monitors). Non-US1 sites: override DD_MCP_URL to the regional MCP host. Legacy DD_API_KEY / DD_APP_KEY env names: alias them to the canonical names in your shell rc. Not GovCloud-eligible. See SETUP.md.
+Datadog Bits AI hosted MCP (Preview). Auth: DATADOG_API_KEY_CRED + DATADOG_APP_KEY_CRED (App key needs scope mcp_read; mcp_write only if you mute monitors). Non-US1 sites: set DATADOG_MCP_URL to the regional MCP host. The Datadog server itself reads DD_API_KEY / DD_APPLICATION_KEY natively — we map those header names to our _CRED vars at request time. Not GovCloud-eligible. See SETUP.md.
 
 ## Source
 
@@ -18,7 +18,7 @@ Datadog Bits AI hosted MCP (Preview). Auth: DATADOG_API_KEY_CRED + DATADOG_APP_K
 
 - `DATADOG_API_KEY_CRED`
 - `DATADOG_APP_KEY_CRED`
-- `DD_MCP_URL`
+- `DATADOG_MCP_URL`
 
 ## Configuration
 
@@ -26,11 +26,11 @@ Datadog Bits AI hosted MCP (Preview). Auth: DATADOG_API_KEY_CRED + DATADOG_APP_K
 {
   "name": "adk-mcp-datadog",
   "type": "http",
-  "url": "${DD_MCP_URL:-https://mcp.datadoghq.com/api/unstable/mcp-server/mcp}?toolsets=core,dashboards,error-tracking,product-analytics,security,workflows,apm,llmobs",
+  "url": "${DATADOG_MCP_URL:-https://mcp.datadoghq.com/api/unstable/mcp-server/mcp}?toolsets=core,dashboards,error-tracking,product-analytics,security,workflows,apm,llmobs",
   "headers": {
     "DD_API_KEY": "${DATADOG_API_KEY_CRED}",
     "DD_APPLICATION_KEY": "${DATADOG_APP_KEY_CRED}"
   },
-  "description": "Datadog Bits AI hosted MCP (Preview). Auth: DATADOG_API_KEY_CRED + DATADOG_APP_KEY_CRED (App key needs scope mcp_read; mcp_write only if you mute monitors). Non-US1 sites: override DD_MCP_URL to the regional MCP host. Legacy DD_API_KEY / DD_APP_KEY env names: alias them to the canonical names in your shell rc. Not GovCloud-eligible. See SETUP.md."
+  "description": "Datadog Bits AI hosted MCP (Preview). Auth: DATADOG_API_KEY_CRED + DATADOG_APP_KEY_CRED (App key needs scope mcp_read; mcp_write only if you mute monitors). Non-US1 sites: set DATADOG_MCP_URL to the regional MCP host. The Datadog server itself reads DD_API_KEY / DD_APPLICATION_KEY natively — we map those header names to our _CRED vars at request time. Not GovCloud-eligible. See SETUP.md."
 }
 ```

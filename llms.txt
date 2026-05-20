@@ -1,7 +1,7 @@
 # adk — agents-devkit
 
 > A single-repo, multi-agent skill kit for code/docs/investigations.
-> 8 polymorphic skills + 9 MCPs + 9 subagents, installed via `./install.sh` to
+> 10 polymorphic skills + 10 MCPs + 9 subagents, installed via `./install.sh` to
 > Claude Code / Cursor / Codex CLI / Junie at user level. No marketplace.
 
 ## Read first
@@ -14,7 +14,9 @@
 ## Skills
 
 - [skills/adk-implement/SKILL.md](./skills/adk-implement/SKILL.md): write code from any input (Jira / GH issue / Slack / TDD / Confluence / freeform). Specialized sub-flows for Jira (most common) and GH issues.
-- [skills/adk-review/SKILL.md](./skills/adk-review/SKILL.md): review any target (PR URL specialized; local working tree; markdown doc; comment thread; whole-repo audit).
+- [skills/adk-review/SKILL.md](./skills/adk-review/SKILL.md): lightweight review of any target (PR URL; local working tree; markdown doc; comment thread; whole-repo audit). For deep PR review, use adk-pr-review.
+- [skills/adk-pr-review/SKILL.md](./skills/adk-pr-review/SKILL.md): heavyweight PR review with worktree + LanceDB embeddings + SCIP + feature-flow tracing. GitHub + Bitbucket Cloud only. Global skill — isolates to `~/.agents-devkit/pr-reviews/<repo>_pr-<n>/`. Requires ollama + Python deps (lancedb, requests). Optional scip-typescript / scip-python / scip-go / scip-java for symbol resolution. Parallel-safe: per-repo clone-lock briefly serialises git ops; per-PR lock prevents same-PR races.
+- [skills/adk-pr-reviews/SKILL.md](./skills/adk-pr-reviews/SKILL.md): batch driver over /adk-pr-review. Reads a CSV of PR URLs from `~/.agents-devkit/pr-reviews/queue.csv` (or arg). Runs N reviews concurrently. Skips rows where PR is merged or `state.json.last_reviewed_head_oid == current head_oid` (unless `re_review_required`). Spawns `claude -p` per non-skipped row. Designed for periodic / cron execution.
 - [skills/adk-investigate/SKILL.md](./skills/adk-investigate/SKILL.md): query 3P data (Datadog / Mixpanel / Statsig / Snowflake / Looker / Atlassian / Slack). Sub-flows: incident, rca, experiment, datadog, mixpanel, statsig, snowflake, looker.
 - [skills/adk-document/SKILL.md](./skills/adk-document/SKILL.md): generate any markdown artifact (runbook / ADR / RCA / PR body / commit msg / changelog / diagram / readme / migration guide / api reference / experiment report / incident summary / handoff / onboarding / design doc).
 - [skills/adk-sync/SKILL.md](./skills/adk-sync/SKILL.md): bidirectional 3P bridge — read remote as markdown OR push markdown to Confluence / Jira-desc / Jira-comment / GDoc / GH PR body / GH issue comment / Slack.
@@ -36,7 +38,8 @@
 
 ## MCPs (env-var-driven; zero tokens in JSON)
 
-- [mcp/adk-mcp-github.json](./mcp/adk-mcp-github.json) — `GITHUB_TOKEN_CRED` or fallback `GITHUB_TOKEN_CRED`.
+- [mcp/adk-mcp-github.json](./mcp/adk-mcp-github.json) — `GITHUB_TOKEN_CRED`.
+- [mcp/adk-mcp-bitbucket.json](./mcp/adk-mcp-bitbucket.json) — `BITBUCKET_TOKEN_CRED` (or `BITBUCKET_USERNAME` + `BITBUCKET_APP_PASSWORD`).
 - [mcp/adk-mcp-datadog.json](./mcp/adk-mcp-datadog.json) — `DATADOG_API_KEY_CRED`, `DATADOG_APP_KEY_CRED`.
 - [mcp/adk-mcp-statsig.json](./mcp/adk-mcp-statsig.json) — `STATSIG_CONSOLE_API_KEY_CRED`.
 - [mcp/adk-mcp-atlassian.json](./mcp/adk-mcp-atlassian.json) — `ATLASSIAN_SITE`, `ATLASSIAN_USERNAME`, `ATLASSIAN_API_TOKEN_CRED`. Confluence image upload supported.
@@ -70,4 +73,5 @@
 
 - `<repo>/.adk/overrides.yaml` — narrows the user-level config for this repo.
 - `<repo>/ai-guidelines/*.md` (or `<repo>/docs/*.md`) — repo-specific conventions adk reads at every skill run.
-- `<repo>/.temp/<task-slug>/` — gitignored task working dir (plan, proposal, findings, report).
+- `<repo>/.temp/adk/<skill>/<task>/` — gitignored task working dir for repo-bound skills (implement, document, review-on-local). See `shared/paths.md`.
+- `~/.agents-devkit/<area>/<task>/` — working dir for global skills (pr-reviews, investigations, sync, …). Created by install.sh.

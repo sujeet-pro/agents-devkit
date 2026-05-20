@@ -8,7 +8,7 @@ order: 1002
 ---
 # adk-implement
 
-Implement, build, add, write, ship, code-up, wire-up code in an existing repo. Triggers on: Jira URL or KEY-NUM (specialized from-jira sub-flow — the most common path), GitHub issue URL or #N (from-issue), Confluence TDD URL (from-tdd), Slack thread permalink (from-slack-thread), or a freeform description (greenfield). Git mandatory; GitHub MCP optional but enables PR-by-URL flow. Every run: question-first (3 questions max), advisor-strategy plan with 2–4 trade-off options, edit-format discipline (SEARCH/REPLACE blocks per shared/edit-format.md), repo-native typecheck+lint+narrow-tests on each checkpoint. Writes plan/steps/diffs/report under `<repo>/.temp/<task-slug>/`. Pushes only after explicit confirmation; never force-pushes; never merges; never touches a protected branch. Pulls Jira context via adk-mcp-atlassian, GitHub context via adk-mcp-github, and optional RAG via adk-mcp-rag. Supports --plan (read-only planning) → --act (writes). Sub-flows under references/.
+Implement, build, add, write, ship, code-up, wire-up code in an existing repo. Triggers on: Jira URL or KEY-NUM (specialized from-jira sub-flow — the most common path), GitHub issue URL or #N (from-issue), Confluence TDD URL (from-tdd), Slack thread permalink (from-slack-thread), or a freeform description (greenfield). Git mandatory; GitHub MCP optional but enables PR-by-URL flow. Every run: question-first (3 questions max), advisor-strategy plan with 2–4 trade-off options, edit-format discipline (SEARCH/REPLACE blocks per shared/edit-format.md), repo-native typecheck+lint+narrow-tests on each checkpoint. Writes plan/steps/diffs/report under `<repo>/.temp/adk/implement/<task>/`. Pushes only after explicit confirmation; never force-pushes; never merges; never touches a protected branch. Pulls Jira context via adk-mcp-atlassian, GitHub context via adk-mcp-github, and optional RAG via adk-mcp-rag. Supports --plan (read-only planning) → --act (writes). Sub-flows under references/.
 
 ## Source
 
@@ -19,9 +19,9 @@ Implement, build, add, write, ship, code-up, wire-up code in an existing repo. T
 ```yaml
 name: adk-implement
 description: |
-  Implement, build, add, write, ship, code-up, wire-up code in an existing repo. Triggers on: Jira URL or KEY-NUM (specialized from-jira sub-flow — the most common path), GitHub issue URL or #N (from-issue), Confluence TDD URL (from-tdd), Slack thread permalink (from-slack-thread), or a freeform description (greenfield). Git mandatory; GitHub MCP optional but enables PR-by-URL flow. Every run: question-first (3 questions max), advisor-strategy plan with 2–4 trade-off options, edit-format discipline (SEARCH/REPLACE blocks per shared/edit-format.md), repo-native typecheck+lint+narrow-tests on each checkpoint. Writes plan/steps/diffs/report under `<repo>/.temp/<task-slug>/`. Pushes only after explicit confirmation; never force-pushes; never merges; never touches a protected branch. Pulls Jira context via adk-mcp-atlassian, GitHub context via adk-mcp-github, and optional RAG via adk-mcp-rag. Supports --plan (read-only planning) → --act (writes). Sub-flows under references/.
+  Implement, build, add, write, ship, code-up, wire-up code in an existing repo. Triggers on: Jira URL or KEY-NUM (specialized from-jira sub-flow — the most common path), GitHub issue URL or #N (from-issue), Confluence TDD URL (from-tdd), Slack thread permalink (from-slack-thread), or a freeform description (greenfield). Git mandatory; GitHub MCP optional but enables PR-by-URL flow. Every run: question-first (3 questions max), advisor-strategy plan with 2–4 trade-off options, edit-format discipline (SEARCH/REPLACE blocks per shared/edit-format.md), repo-native typecheck+lint+narrow-tests on each checkpoint. Writes plan/steps/diffs/report under `<repo>/.temp/adk/implement/<task>/`. Pushes only after explicit confirmation; never force-pushes; never merges; never touches a protected branch. Pulls Jira context via adk-mcp-atlassian, GitHub context via adk-mcp-github, and optional RAG via adk-mcp-rag. Supports --plan (read-only planning) → --act (writes). Sub-flows under references/.
 allowed-tools: [Read, Edit, Write, Grep, Glob, Bash, WebFetch, Agent]
-argument-hint: "<input-url-or-description> [--auto|-i] [--plan|--act] [--scope vertical-slice|full|spike] [--no-push]"
+argument-hint: "<input-url-or-description> [-i|--interactive] [--plan|--act] [--scope vertical-slice|full|spike] [--no-push]"
 metadata:
   category: code
   kind: task
@@ -43,6 +43,8 @@ metadata:
 
 Polymorphic on input. **Git mandatory; GitHub MCP optional** (enables PR-by-URL flow).
 
+**Repo-bound skill** — must run from inside a repo (or `--repo <path>`). Artifacts go to `<repo>/.temp/adk/implement/<task>/` (per `shared/paths.md`).
+
 ## References (loaded as needed)
 
 | Aspect | File |
@@ -58,7 +60,7 @@ Polymorphic on input. **Git mandatory; GitHub MCP optional** (enables PR-by-URL 
 - Edit-format: `shared/edit-format.md`
 - Plan/Act mode: `shared/plan-act-mode.md`
 - Constitution: `shared/constitution.md`
-- Advisor + question-first: `shared/advisor.md`, `shared/question-first.md`
+- Advisor + question-first: `shared/advisor.md`, `shared/question-first.md`, `shared/narration.md`
 
 ## Sub-flow status
 

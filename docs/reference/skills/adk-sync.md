@@ -1,14 +1,14 @@
 ---
 title: 'adk-sync'
-description: 'Publish, sync, push-to, post-to, update, fetch-as-markdown, pull-from-Confluence/Jira/Slack. Bidirectional 3P bridge for markdown. READ mode (--read <url>): pulls a Confluence page / Jira description / GDoc / GitHub...'
+description: 'Publish, sync, push-to, post-to, update, fetch-as-markdown, pull-from-Confluence/Jira/Slack. Bidirectional 3P bridge for markdown. Hybrid path: writes to `<repo>/.temp/adk/sync/<task>/synced/` when invoked from a...'
 skill: 'adk-sync'
 source: 'skills/adk-sync/SKILL.md'
 group: 'skills'
-order: 1007
+order: 1009
 ---
 # adk-sync
 
-Publish, sync, push-to, post-to, update, fetch-as-markdown, pull-from-Confluence/Jira/Slack. Bidirectional 3P bridge for markdown. READ mode (--read <url>): pulls a Confluence page / Jira description / GDoc / GitHub PR body / GitHub issue / Slack thread into local markdown at `<repo>/.temp/<task-slug>/synced/`. WRITE mode (--write <md-path> --to <destination>): publishes markdown to confluence / jira-desc / jira-comment / gh-pr-body / gh-issue-comment / slack / gdoc. Idempotent: match-by-id first, match-by-title-and-parent second, never by content hash. Format conversions are programmatic (md ↔ Confluence storage XHTML, md ↔ Jira ADF, md ↔ Slack blocks); AI only for "is this update safe?" checks. Per-invocation user confirmation required for every write, even under --auto (constitution §I). NEVER overwrites a human-authored target without explicit opt-in. NEVER changes sharing/restrictions/ACLs. Read helpers are called internally by other skills' Phase 0 context-gather.
+Publish, sync, push-to, post-to, update, fetch-as-markdown, pull-from-Confluence/Jira/Slack. Bidirectional 3P bridge for markdown. Hybrid path: writes to `<repo>/.temp/adk/sync/<task>/synced/` when invoked from a repo with a repo-coupled doc, else `~/.agents-devkit/sync/<task>/synced/` (default). READ mode (--read <url>): pulls a Confluence page / Jira description / GDoc / GitHub PR body / GitHub issue / Slack thread into local markdown. WRITE mode (--write <md-path> --to <destination>): publishes markdown to confluence / jira-desc / jira-comment / gh-pr-body / gh-issue-comment / slack / gdoc. Idempotent: match-by-id first, match-by-title-and-parent second, never by content hash. Format conversions are programmatic (md ↔ Confluence storage XHTML, md ↔ Jira ADF, md ↔ Slack blocks); AI only for "is this update safe?" checks. Per-invocation user confirmation required for every write regardless of mode (constitution §I.4). NEVER overwrites a human-authored target without explicit opt-in. NEVER changes sharing/restrictions/ACLs. Read helpers are called internally by other skills' Phase 0 context-gather.
 
 ## Source
 
@@ -19,9 +19,9 @@ Publish, sync, push-to, post-to, update, fetch-as-markdown, pull-from-Confluence
 ```yaml
 name: adk-sync
 description: |
-  Publish, sync, push-to, post-to, update, fetch-as-markdown, pull-from-Confluence/Jira/Slack. Bidirectional 3P bridge for markdown. READ mode (--read <url>): pulls a Confluence page / Jira description / GDoc / GitHub PR body / GitHub issue / Slack thread into local markdown at `<repo>/.temp/<task-slug>/synced/`. WRITE mode (--write <md-path> --to <destination>): publishes markdown to confluence / jira-desc / jira-comment / gh-pr-body / gh-issue-comment / slack / gdoc. Idempotent: match-by-id first, match-by-title-and-parent second, never by content hash. Format conversions are programmatic (md ↔ Confluence storage XHTML, md ↔ Jira ADF, md ↔ Slack blocks); AI only for "is this update safe?" checks. Per-invocation user confirmation required for every write, even under --auto (constitution §I). NEVER overwrites a human-authored target without explicit opt-in. NEVER changes sharing/restrictions/ACLs. Read helpers are called internally by other skills' Phase 0 context-gather.
+  Publish, sync, push-to, post-to, update, fetch-as-markdown, pull-from-Confluence/Jira/Slack. Bidirectional 3P bridge for markdown. Hybrid path: writes to `<repo>/.temp/adk/sync/<task>/synced/` when invoked from a repo with a repo-coupled doc, else `~/.agents-devkit/sync/<task>/synced/` (default). READ mode (--read <url>): pulls a Confluence page / Jira description / GDoc / GitHub PR body / GitHub issue / Slack thread into local markdown. WRITE mode (--write <md-path> --to <destination>): publishes markdown to confluence / jira-desc / jira-comment / gh-pr-body / gh-issue-comment / slack / gdoc. Idempotent: match-by-id first, match-by-title-and-parent second, never by content hash. Format conversions are programmatic (md ↔ Confluence storage XHTML, md ↔ Jira ADF, md ↔ Slack blocks); AI only for "is this update safe?" checks. Per-invocation user confirmation required for every write regardless of mode (constitution §I.4). NEVER overwrites a human-authored target without explicit opt-in. NEVER changes sharing/restrictions/ACLs. Read helpers are called internally by other skills' Phase 0 context-gather.
 allowed-tools: [Read, Write, Bash, WebFetch]
-argument-hint: "(--read <url>) | (--write <md-path> --to <destination> [--target <id-or-title>]) [--auto|-i]"
+argument-hint: "(--read <url>) | (--write <md-path> --to <destination> [--target <id-or-title>]) [-i|--interactive]"
 metadata:
   category: docs
   kind: task
@@ -51,7 +51,7 @@ metadata:
 /adk-sync --read <url>
 ```
 
-Pulls the resource into `<repo>/.temp/<task-slug>/synced/<source>.md`. Supported source URLs:
+Pulls the resource into `<task_dir>/synced/<source>.md` (path resolved per `shared/paths.md`). Supported source URLs:
 
 | URL type | Reference |
 |---|---|
@@ -97,7 +97,7 @@ Phase 1 — advise
     3. Per-invocation publish confirmation (REQUIRED, even --auto)
 
 Phase 2 — execute (programmatic + light AI)
-  - Read: fetch via MCP; convert to markdown; write to .temp/<task-slug>/synced/
+  - Read: fetch via MCP; convert to markdown; write to <task_dir>/synced/
   - Write: convert via skill script; idempotent existence check; create OR update
   - Idempotency: match by ID first; by title+parent second; never by content hash
 

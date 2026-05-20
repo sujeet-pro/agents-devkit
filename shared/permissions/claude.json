@@ -1,5 +1,6 @@
 {
   "_comment": "adk-managed permissions for Claude Code. Merged into ~/.claude/settings.json by install.py. Edit this file and re-run ./install.sh to refresh.",
+  "_comment_mcp": "Policy: all MCP tools auto-allow via blanket `mcp__*` in `allow`. The only MCP entries in `ask` are Statsig write tools (gates/experiments/configs/layers/segments — production flag system). Every other class of write/mutate/delete across adk-mcp-* is handled at the constitution level (shared/constitution.md §I.4–§I.7), where the model self-gates: it acts when the task requires the write, and confirms when it doesn't, with a separate gate for non-requested deletions. Non-adk MCPs (claude_ai_*, claude-in-chrome, …) also auto-allow via the same blanket.",
   "permissions": {
     "defaultMode": "default",
     "allow": [
@@ -57,7 +58,20 @@
       "Bash(mkfs:*)",
       "Bash(dd:*)",
       "Bash(chmod -R:*)",
-      "Bash(chown -R:*)"
+      "Bash(chown -R:*)",
+
+      "mcp__adk-mcp-statsig__Create_Dynamic_Config",
+      "mcp__adk-mcp-statsig__Create_Experiment",
+      "mcp__adk-mcp-statsig__Create_Gate",
+      "mcp__adk-mcp-statsig__Create_Layer",
+      "mcp__adk-mcp-statsig__Create_Segment",
+      "mcp__adk-mcp-statsig__Start_Experiment_Code_Cleanup",
+      "mcp__adk-mcp-statsig__Start_Gate_Code_Cleanup",
+      "mcp__adk-mcp-statsig__Update_Dynamic_Config_Entirely",
+      "mcp__adk-mcp-statsig__Update_Experiment_Entirely",
+      "mcp__adk-mcp-statsig__Update_Gate_Entirely",
+      "mcp__adk-mcp-statsig__Update_Layer_Entirely",
+      "mcp__adk-mcp-statsig__Update_Segment"
     ],
     "deny": []
   }

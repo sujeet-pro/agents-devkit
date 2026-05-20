@@ -4,8 +4,8 @@
 
 ## Steps
 
-1. **Write the final report** to `<task-slug>/report.md`.
-2. **Append a one-paragraph session summary** to `~/.config/adk/learning/sessions/<date>-<skill>-<slug>.md`.
+1. **Write the final report** to `<task_dir>/report.md` (the task folder resolved in Phase 0, per `shared/paths.md`).
+2. **Append a one-paragraph session summary** to `~/.agents-devkit/improve/learning/sessions/<date>-<skill>-<slug>.md`.
 3. **Display the report** in the agent's chat.
 4. **Suggest next-best skill** if applicable (e.g., after `/adk-investigate`, suggest `/adk-document --type rca` if symptom was post-incident).
 
@@ -29,7 +29,7 @@
 - <e.g., Slack MCP unreachable, scrape skipped>
 
 ## Evidence
-- <link to relevant artifact in `<task-slug>/`>
+- <link to relevant artifact in `<task_dir>/`>
 - <link to changed files>
 - <link to validation output>
 
@@ -40,13 +40,14 @@
 - <suggested skill or action>
 
 ---
-artifacts: <repo>/.temp/<task-slug>/
-decision log: ~/.config/adk/learning/decisions.jsonl (12 new entries this run)
+artifacts: <task_dir>     # e.g. /Users/sujeet/code/storefront-bff/.temp/adk/implement/SF-1234/
+                          #  or  /Users/sujeet/.agents-devkit/pr-reviews/storefront-bff_pr-456/
+decision log: ~/.agents-devkit/improve/learning/decisions.jsonl (12 new entries this run)
 ```
 
 ## Session summary shape
 
-`~/.config/adk/learning/sessions/2026-05-18-implement-SF-1234.md`:
+`~/.agents-devkit/improve/learning/sessions/2026-05-18-implement-SF-1234.md`:
 
 ```markdown
 # 2026-05-18 — /adk-implement SF-1234

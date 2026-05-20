@@ -1,0 +1,16 @@
+---
+description: Deep PR review (worktree + LanceDB embeddings + SCIP + feature-flow). GitHub / Bitbucket Cloud only.
+globs:
+alwaysApply: false
+---
+
+# /adk-pr-review (Cursor rule)
+
+When the user invokes `/adk-pr-review` or pastes a GitHub / Bitbucket Cloud PR URL and asks for a deep / thorough review, load the skill spec.
+
+@{{ADK_REPO}}/AGENTS.md
+@{{ADK_REPO}}/skills/adk-pr-review/SKILL.md
+@{{ADK_REPO}}/shared/constitution.md
+@{{ADK_REPO}}/shared/paths.md
+@{{ADK_REPO}}/shared/advisor.md
+@{{ADK_REPO}}/shared/question-first.md

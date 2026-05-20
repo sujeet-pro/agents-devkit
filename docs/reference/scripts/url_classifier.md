@@ -4,7 +4,7 @@ description: 'url_classifier.py — classify URLs / paths / freeform in a prompt
 script: 'url_classifier.py'
 source: 'scripts/url_classifier.py'
 group: 'scripts'
-order: 4009
+order: 4011
 ---
 # url_classifier.py
 

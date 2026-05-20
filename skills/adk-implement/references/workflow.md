@@ -8,7 +8,7 @@ Five phases, all wrapped by `shared/advisor.md`. Mode-aware (`--plan` skips Phas
 - Run `scripts/classify-input.py` to determine sub-flow.
 - Fan-out fetch all URLs/keys (Jira, GH, Confluence, Slack). One hop only.
 - Optional RAG enrichment if `overrides.yaml.rag.enabled` and prompt matches `rag.trigger_keywords`.
-- Build `.temp/<task-slug>/context.md`.
+- Build `.temp/adk/implement/<task>/context.md`.
 
 ## Phase 1 — advise
 
@@ -16,7 +16,7 @@ Five phases, all wrapped by `shared/advisor.md`. Mode-aware (`--plan` skips Phas
 - Up to 3 questions: **scope** (vertical-slice / full / spike), **constraints** (deadline / blocker / specific reviewer), **test-coverage** (when not derivable from context).
 - **Challenge fires** if `grep` of the repo suggests the task may already be done.
 - Recommend 2–4 approaches; record fork `approach`.
-- Write `.temp/<task-slug>/plan.md`.
+- Write `.temp/adk/implement/<task>/plan.md`.
 
 ## Phase 2 — execute
 
@@ -25,7 +25,7 @@ Five phases, all wrapped by `shared/advisor.md`. Mode-aware (`--plan` skips Phas
 - Read every file before writing it (constitution §V).
 - Auto-load applicable guidelines (frontend / api / data / security / testing / performance / accessibility).
 - Each checkpoint runs narrow validators.
-- Diffs → `.temp/<task-slug>/diffs/applied.jsonl`.
+- Diffs → `.temp/adk/implement/<task>/diffs/applied.jsonl`.
 
 ## Phase 3 — validate
 
@@ -37,8 +37,8 @@ Five phases, all wrapped by `shared/advisor.md`. Mode-aware (`--plan` skips Phas
 ## Phase 4 — report
 
 - `shared/workflows/phase-4-report.md`.
-- `.temp/<task-slug>/report.md` — risk-first ordering.
-- Session summary → `~/.config/adk/learning/sessions/<date>-implement-<slug>.md`.
+- `.temp/adk/implement/<task>/report.md` — risk-first ordering.
+- Session summary → `~/.agents-devkit/improve/learning/sessions/<date>-implement-<slug>.md`.
 - Next-best suggestions: `/adk-document --type pr-body`, `/adk-sync --to gh-pr-body`.
 
 ## Personas loaded

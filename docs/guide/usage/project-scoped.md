@@ -12,7 +12,7 @@ order: 5
 
 When a skill resolves a config value, it merges in this order (later wins):
 
-1. `~/.config/adk/overrides.yaml` (user-level, lowest priority)
+1. `~/.agents-devkit/config/overrides.yaml` (user-level, lowest priority)
 2. `<repo>/.adk/overrides.yaml` (repo-level)
 3. CLI flags or explicit args (highest priority)
 
@@ -68,7 +68,7 @@ Every skill writes intermediates here. Gitignored by default (in adk's `.gitigno
 │   ├── steps/                  # per-checkpoint logs
 │   ├── diffs/applied.jsonl     # SEARCH/REPLACE blocks applied
 │   ├── findings/               # validator output
-│   ├── decision-log.jsonl      # session-scoped (also tee'd to ~/.config/adk/learning/decisions.jsonl)
+│   ├── decision-log.jsonl      # session-scoped (also tee'd to ~/.agents-devkit/improve/learning/decisions.jsonl)
 │   └── report.md               # final
 ├── review-pr-456/
 │   └── ...
@@ -95,7 +95,7 @@ Goal: figure out the effective `test-framework` for a run.
 
 1. CLI flag: `/adk-implement <ticket> --test-framework jest` → wins immediately.
 2. Else: `<repo>/.adk/overrides.yaml.defaults.adk-implement.test-framework: jest` → used.
-3. Else: `~/.config/adk/overrides.yaml.defaults.adk-implement.test-framework: vitest` → used.
+3. Else: `~/.agents-devkit/config/overrides.yaml.defaults.adk-implement.test-framework: vitest` → used.
 4. Else: skill-detected from `package.json` / `pyproject.toml` / `Cargo.toml`.
 5. Else: skill recommends a default at advisor phase.
 

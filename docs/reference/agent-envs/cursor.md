@@ -10,13 +10,15 @@ order: 5001
 
 Wrappers that install adk into `cursor` at user level. Installed via `./install.sh --target cursor`.
 
-### Rules (8)
+### Rules (10)
 
 - `agents-cursor/rules/adk-document.mdc`
 - `agents-cursor/rules/adk-explain.mdc`
 - `agents-cursor/rules/adk-implement.mdc`
 - `agents-cursor/rules/adk-improve.mdc`
 - `agents-cursor/rules/adk-investigate.mdc`
+- `agents-cursor/rules/adk-pr-review.mdc`
+- `agents-cursor/rules/adk-pr-reviews.mdc`
 - `agents-cursor/rules/adk-review.mdc`
 - `agents-cursor/rules/adk-setup.mdc`
 - `agents-cursor/rules/adk-sync.mdc`

@@ -44,7 +44,7 @@ Advisor.md instructs the agent to "plan first." But the agent has Edit tools ava
 
 ## Plan output
 
-When `--plan` runs, the skill writes a structured plan to `<repo>/.temp/<task-slug>/plan.md`. The next `--act` invocation reads it from there.
+When `--plan` runs, the skill writes a structured plan to `<task_dir>/plan.md` (resolved per `shared/paths.md`). The next `--act` invocation reads it from there.
 
 ```markdown
 # plan: <task-slug>
@@ -80,7 +80,7 @@ out: [...]
 ## Resuming Act from a prior Plan
 
 ```text
-/adk-implement --act --from-plan .temp/implement-SF-1234/plan.md
+/adk-implement --act --from-plan .temp/adk/implement/SF-1234/plan.md
 ```
 
 If the plan is older than 24h OR the repo has had commits since the plan was generated, the Act step asks: "the plan is stale; re-plan or proceed?"

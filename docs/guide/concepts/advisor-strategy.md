@@ -17,7 +17,7 @@ Every adk skill wraps `shared/advisor.md`. The shape: **understand â†’ clarify â
 1. Restate the user's goal in one sentence. Quote the input.
 2. Identify the intent verb (implement / review / investigate / document / sync / explain / improve / setup).
 3. Identify entities mentioned: repo, service, PR, ticket, dashboard, experiment, dataset, channel, user.
-4. Resolve entities against `~/.config/adk/overrides.yaml` + `<repo>/.adk/overrides.yaml`. Surface ambiguity.
+4. Resolve entities against `~/.agents-devkit/config/overrides.yaml` + `<repo>/.adk/overrides.yaml`. Surface ambiguity.
 
 ### B. Clarify
 

@@ -1,0 +1,11 @@
+# adk-pr-reviews — Python deps
+# Install: pip install -r requirements.txt   (or: `uv pip install -r requirements.txt`)
+#
+# Shared with /adk-pr-review:
+requests>=2.31
+lancedb>=0.10
+pyarrow>=14
+
+# Specific to /adk-pr-reviews:
+json5>=0.9          # parse the JSON5 queue + slack config (// comments, trailing commas)
+slack-sdk>=3.27     # slack WebClient + reactions / replies / search

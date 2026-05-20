@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""proposal_generator.py — analyze ~/.config/adk/learning/decisions.jsonl and
-suggest defaults to update in ~/.config/adk/overrides.yaml.
+"""proposal_generator.py — analyze ~/.agents-devkit/improve/learning/decisions.jsonl and
+suggest defaults to update in ~/.agents-devkit/config/overrides.yaml.
 
 This is the PROGRAMMATIC pattern-detector. /adk-improve calls it, then uses
 the AI step to wrap the proposals in user-facing prose + apply diffs after
@@ -22,7 +22,7 @@ from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any
 
-LEARNING = Path(os.path.expanduser("~/.config/adk/learning"))
+LEARNING = Path(os.path.expanduser("~/.agents-devkit/improve/learning"))
 DECISIONS = LEARNING / "decisions.jsonl"
 DEFAULT_MIN_EVIDENCE = 3
 

@@ -1,0 +1,5 @@
+# adk-pr-review — Python deps
+# Install: pip install -r requirements.txt   (or use uv: `uv pip install -r requirements.txt`)
+requests>=2.31
+lancedb>=0.10
+pyarrow>=14

@@ -32,4 +32,4 @@ related test files: <list, if any>
 
 - If the path doesn't exist: ask the user (typo? need to cd?). Don't guess.
 - If the path is enormous (> 5000 files / > 500k LOC): warn and ask for a narrower scope.
-- If the path is outside the working repo (and outside `~/.config/adk/`): refuse without explicit confirmation.
+- If the path is outside the working repo (and outside `~/.agents-devkit/config/`): refuse without explicit confirmation.

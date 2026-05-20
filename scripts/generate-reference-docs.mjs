@@ -356,8 +356,8 @@ function generateHooksPage() {
 
 Deterministic enforcement of \`shared/constitution.md\`. Three events:
 
-- **PreToolUse:Bash** — blocks force-push, hard-reset on protected branches, \`rm -rf $HOME\`, unrequested PR merges, writes to \`~/.config/adk/learning/archive/\`, \`--no-verify\` bypasses.
-- **PostToolUse:Edit\\|Write** — validates SKILL.md frontmatter on writes; touches \`.temp/<task-slug>/.last-modified\`; refuses raw-token writes to \`~/.config/adk/overrides.yaml\`.
+- **PreToolUse:Bash** — blocks force-push, hard-reset on protected branches, \`rm -rf $HOME\`, unrequested PR merges, writes to \`~/.agents-devkit/improve/learning/archive/\`, \`--no-verify\` bypasses.
+- **PostToolUse:Edit\\|Write** — validates SKILL.md frontmatter on writes; touches \`.temp/<task-slug>/.last-modified\`; refuses raw-token writes to \`~/.agents-devkit/config/overrides.yaml\`.
 - **SessionStart** — prints the adk status banner.
 
 \`install.sh\` merges these into \`~/.claude/settings.json\` with an \`_adk_managed: true\` tag so they're idempotent and removable on uninstall.
