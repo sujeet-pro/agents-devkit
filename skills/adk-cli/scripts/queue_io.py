@@ -1,7 +1,7 @@
 """queue_io.py — concurrency-safe JSON5 queue read / update / merge.
 
-Replaces the older csv_io.py. The queue lives at ~/.agents-devkit/pr-reviews/queue.json5
-by default; see templates/queue.json5 for the schema.
+Replaces the older csv_io.py. The queue lives at
+~/.agents-devkit/config/pr-queue.json5 by default.
 
 Rules:
   - All writes happen under an fcntl lock on `<queue-path>.lock`.
@@ -9,10 +9,19 @@ Rules:
     by hand. The Python json5 dumper doesn't preserve comments by default, so we
     use a "blocks merge" approach: if comments are present, we re-render via a
     line-oriented patch (status fields and timestamps are mutated in place via
-    string replacement); on a full rewrite (from --scan) we write a fresh file
-    using a structured template + the user's prs[] dumped clean.
+    string replacement); on a full rewrite (from `adk pr-scan`) we write a fresh
+    file using a structured template + the user's prs[] dumped clean.
   - Dedupe key: (host, repo, pr_number) — derived from pr_link. Different repos
     sharing a pr_number don't collide.
+
+Queue-row claim/release (for `/adk-pr-review` no-arg queue mode):
+  - acquire_next_row(path) atomically picks the oldest non-terminal row whose
+    `taken_at` is either null OR older than TAKEN_LOCK_MAX_AGE_SECONDS (30 min).
+    It sets `taken_at = now_iso` and returns the row dict. Returns None if no
+    eligible row exists. The acquire is atomic — concurrent invocations from
+    multiple terminals each get a different row (or None).
+  - release_row(path, pr_link, status=..., head_oid=..., last_checked_at=...)
+    clears `taken_at` and applies the post-review updates.
 
 Public API:
   load_slack_config(path) → dict
@@ -21,6 +30,9 @@ Public API:
   update_pr_entry(path, pr_link, updates: dict) → bool
   merge_scan_results(existing_queue, scanned_entries) → dict
   dedupe_key(pr_link) → (host, repo, pr_number)
+  acquire_next_row(path) → dict | None
+  release_row(path, pr_link, **post_updates) → bool
+  find_row(path, pr_link) → dict | None
 """
 from __future__ import annotations
 
@@ -28,9 +40,10 @@ import json
 import re
 import sys
 from copy import deepcopy
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-# fcntl lock from the sibling adk-pr-review skill.
+# fcntl lock + path helpers from the sibling adk-pr-review skill.
 ADK_PR_REVIEW_SCRIPTS = Path(__file__).resolve().parent.parent.parent / "adk-pr-review" / "scripts"
 sys.path.insert(0, str(ADK_PR_REVIEW_SCRIPTS))
 from _common import file_lock  # noqa: E402
@@ -65,6 +78,16 @@ STATUS_ALIASES = {
     "needs_fix": STATUS_COMMENTS,  # legacy → canonical
 }
 
+# Auto-expire for queue-row `taken_at` locks. After this, the row is considered
+# free again so another terminal can pick it up (the prior reviewer presumably
+# died / crashed).
+TAKEN_LOCK_MAX_AGE_SECONDS = 30 * 60
+
+
+# Canonical queue location + legacy fallback for one-time migration.
+DEFAULT_QUEUE_PATH = Path.home() / ".agents-devkit" / "config" / "pr-queue.json5"
+LEGACY_QUEUE_PATH = Path.home() / ".agents-devkit" / "pr-reviews" / "queue.json5"
+
 
 def canonical_status(s: str) -> str:
     """Map legacy/alias status names to their canonical form."""
@@ -73,6 +96,22 @@ def canonical_status(s: str) -> str:
 
 def _lock_path(path: Path) -> Path:
     return Path(str(path) + ".lock")
+
+
+def _now_iso() -> str:
+    return datetime.now(tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def _parse_iso(ts: str | None) -> datetime | None:
+    if not ts:
+        return None
+    try:
+        # Accept both "Z" and "+00:00" suffixes.
+        if ts.endswith("Z"):
+            ts = ts[:-1] + "+00:00"
+        return datetime.fromisoformat(ts)
+    except ValueError:
+        return None
 
 
 # ----- parsing --------------------------------------------------------------
@@ -132,7 +171,6 @@ def load_slack_config(path: Path | None = None) -> dict:
 def _load_slack_from_connector_md(path: Path) -> dict:
     """Read connectors/slack.md frontmatter, return the `pr_reviews` section."""
     text = path.read_text(encoding="utf-8")
-    import re
     m = re.match(r"\A---\s*\n(.*?)\n---\s*\n?", text, re.DOTALL)
     if not m:
         raise ValueError(f"{path}: missing YAML frontmatter")
@@ -150,8 +188,30 @@ def _load_slack_from_connector_md(path: Path) -> dict:
     return pr
 
 
+def _migrate_legacy_queue(path: Path) -> None:
+    """One-time copy of ~/.agents-devkit/pr-reviews/queue.json5 →
+    ~/.agents-devkit/config/pr-queue.json5 if the new path is missing.
+    Never writes back to the legacy path; never overwrites the new path.
+    """
+    if path != DEFAULT_QUEUE_PATH:
+        return
+    if path.exists():
+        return
+    if not LEGACY_QUEUE_PATH.exists():
+        return
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(LEGACY_QUEUE_PATH.read_bytes())
+    sys.stderr.write(
+        f"adk: migrated queue {LEGACY_QUEUE_PATH} → {path}. "
+        "Edits should target the new path; the legacy file is left untouched.\n"
+    )
+
+
 def read_queue(path: Path) -> dict:
-    """Load the queue. If the file is missing, return an empty queue skeleton."""
+    """Load the queue. If the file is missing, return an empty queue skeleton.
+    Performs a one-shot migration from the legacy path on first read.
+    """
+    _migrate_legacy_queue(path)
     if not path.exists():
         return {"filters": None, "prs": []}
     return _load_json5_or_json(path)
@@ -165,8 +225,6 @@ def _dump_json5(obj: dict) -> str:
     comments are reapplied only via `update_pr_entry` which uses a line-oriented
     in-place patch.
     """
-    # Use stable key order in the top level + per-entry, but otherwise let json
-    # determine sub-ordering.
     return json.dumps(obj, indent=2, sort_keys=False, ensure_ascii=False) + "\n"
 
 
@@ -179,6 +237,7 @@ def write_queue(path: Path, queue: dict) -> None:
 
 def update_pr_entry(path: Path, pr_link: str, updates: dict) -> bool:
     """Read-modify-write a single entry by pr_link. Returns True if matched."""
+    path.parent.mkdir(parents=True, exist_ok=True)
     with file_lock(_lock_path(path), timeout_s=60.0):
         queue = read_queue(path)
         prs = queue.get("prs", []) or []
@@ -197,6 +256,8 @@ def update_pr_entry(path: Path, pr_link: str, updates: dict) -> bool:
 def _apply_updates(entry: dict, updates: dict) -> None:
     """In-place update. Nested dicts (e.g. `slack`) merge instead of replacing wholesale.
     Honours terminal-status protection — once merged, never downgrades.
+
+    Setting `taken_at` to None clears the lock unconditionally.
     """
     for k, v in updates.items():
         if k == "status":
@@ -216,6 +277,75 @@ def _apply_updates(entry: dict, updates: dict) -> None:
             entry["supporting_docs"] = cur
         else:
             entry[k] = v
+
+
+def find_row(path: Path, pr_link: str) -> dict | None:
+    """Read-only lookup by pr_link. Returns the row dict or None."""
+    queue = read_queue(path)
+    for entry in queue.get("prs", []) or []:
+        if entry.get("pr_link") == pr_link:
+            return entry
+    return None
+
+
+# ----- queue-row claim/release (for /adk-pr-review no-arg mode) -------------
+
+def _is_locked(entry: dict, now: datetime) -> bool:
+    """A row is locked if `taken_at` is set AND newer than the max age."""
+    ts = _parse_iso(entry.get("taken_at"))
+    if ts is None:
+        return False
+    age = (now - ts).total_seconds()
+    return age < TAKEN_LOCK_MAX_AGE_SECONDS
+
+
+def _pick_order_key(entry: dict) -> tuple[int, str]:
+    """Sort key for FIFO acquire: rows never reviewed (null last_checked_at) first,
+    then by last_checked_at ascending (oldest first).
+    """
+    lc = entry.get("last_checked_at")
+    if not lc:
+        return (0, "")
+    return (1, str(lc))
+
+
+def acquire_next_row(path: Path) -> dict | None:
+    """Atomically claim the next eligible row. Returns the row dict (with
+    `taken_at` already set in the persisted file) or None.
+
+    Eligibility:
+      - status != STATUS_MERGED
+      - taken_at is null OR older than TAKEN_LOCK_MAX_AGE_SECONDS
+    Order: FIFO by last_checked_at ascending; null (never reviewed) first.
+    """
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with file_lock(_lock_path(path), timeout_s=60.0):
+        queue = read_queue(path)
+        prs = queue.get("prs", []) or []
+        now = datetime.now(tz=timezone.utc)
+        eligible = [
+            e for e in prs
+            if e.get("status") != STATUS_MERGED and not _is_locked(e, now)
+        ]
+        if not eligible:
+            return None
+        eligible.sort(key=_pick_order_key)
+        picked = eligible[0]
+        picked["taken_at"] = _now_iso()
+        queue["prs"] = prs
+        path.write_text(_dump_json5(queue), encoding="utf-8")
+        return deepcopy(picked)
+
+
+def release_row(path: Path, pr_link: str, **post_updates) -> bool:
+    """Clear `taken_at` and apply post-review updates. Returns True if matched.
+
+    Typical caller:
+        release_row(queue_path, pr_link,
+                    status=STATUS_APPROVED, head_oid=..., last_checked_at=_now_iso())
+    """
+    updates = {"taken_at": None, **post_updates}
+    return update_pr_entry(path, pr_link, updates)
 
 
 # ----- dedupe key -----------------------------------------------------------
@@ -253,7 +383,7 @@ def merge_scan_results(existing: dict, scanned: list[dict]) -> dict:
             present, prefer EXISTING (so a user-edited slack link wins) but
             update missing fields from scanned (additive).
           - `supporting_docs`: union (preserving order, existing first).
-          - `status`, `last_checked_at`, `notes`: PRESERVE existing.
+          - `status`, `last_checked_at`, `notes`, `taken_at`: PRESERVE existing.
           - `pr_link`: preserve existing (might be canonicalised differently).
       - Terminal `merged` entries are NEVER re-added even if scanned again
         (they're effectively read-only).
@@ -285,6 +415,7 @@ def merge_scan_results(existing: dict, scanned: list[dict]) -> dict:
                 "pr_link": sc["pr_link"],
                 "status": sc.get("status", STATUS_PENDING),
                 "last_checked_at": None,
+                "taken_at": None,
             }
             if sc.get("slack"):
                 new_entry["slack"] = sc["slack"]

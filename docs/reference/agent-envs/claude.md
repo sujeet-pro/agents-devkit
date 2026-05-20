@@ -22,7 +22,7 @@ Wrappers that install adk into `claude` at user level. Installed via `./install.
 - `agents-claude/agents/adk-agent-security-reviewer.md`
 - `agents-claude/agents/adk-agent-test-engineer.md`
 
-### Commands (10)
+### Commands (9)
 
 - `agents-claude/commands/adk-document.md`
 - `agents-claude/commands/adk-explain.md`
@@ -30,7 +30,6 @@ Wrappers that install adk into `claude` at user level. Installed via `./install.
 - `agents-claude/commands/adk-improve.md`
 - `agents-claude/commands/adk-investigate.md`
 - `agents-claude/commands/adk-pr-review.md`
-- `agents-claude/commands/adk-pr-reviews.md`
 - `agents-claude/commands/adk-review.md`
 - `agents-claude/commands/adk-setup.md`
 - `agents-claude/commands/adk-sync.md`

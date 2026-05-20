@@ -1,11 +1,17 @@
-"""slack_helpers.py — slack Web-API helpers for /adk-pr-reviews.
+"""slack_helpers.py — Slack Web-API helpers used by the `adk` CLI.
+
+Originally lived under `skills/adk-pr-reviews/scripts/`; moved here because the
+CLI is the canonical consumer (the `/adk-pr-review` skill also imports from
+here when it needs to react/reply on the Slack thread that referenced a PR).
 
 All credential reading honours constitution §VII — the token value is never
 echoed; only its presence is asserted.
 
-Auth: $SLACK_BOT_TOKEN_CRED preferred, falls back to $SLACK_BOT_TOKEN.
+Auth (first hit wins):
+  $SLACK_USER_TOKEN_CRED · $SLACK_USER_TOKEN · $SLACK_BOT_TOKEN_CRED · $SLACK_BOT_TOKEN
+  ~/.config/creds/slack/slack.token.json {user_token | bot_token}
 
-API surface (kept minimal):
+API surface:
   client = SlackClient()                                  # raises if no token
   client.resolve_channel(name_or_id) → channel_id
   client.iter_channel_messages(channel_id, oldest_ts) → iter[message]
@@ -21,6 +27,7 @@ Module-level helpers (no auth needed):
   count_pr_urls(text, url_patterns) → int
   extract_mentioned_user_ids(text) → list[user_id]
   days_ago_ts(days) → str          # slack oldest= argument
+  hours_ago_ts(hours) → str
 """
 from __future__ import annotations
 
@@ -42,24 +49,14 @@ def _get_token() -> tuple[str, str]:
     """Return (token, source). Prefers user-token (xoxp-) so reads/posts appear as
     the user. Falls back to bot-token (xoxb-) if no user token is configured.
 
-    Lookup order:
-      1. $SLACK_USER_TOKEN_CRED              (user token, _CRED naming)
-      2. $SLACK_USER_TOKEN
-      3. $SLACK_BOT_TOKEN_CRED
-      4. $SLACK_BOT_TOKEN
-      5. ~/.config/creds/slack/slack.token.json `user_token` field
-      6. ~/.config/creds/slack/slack.token.json `bot_token`  field
-
     Per constitution §VII the value never enters LLM context — only the source name does.
     """
-    # 1–4: env vars.
     for env_name in ("SLACK_USER_TOKEN_CRED", "SLACK_USER_TOKEN",
                      "SLACK_BOT_TOKEN_CRED", "SLACK_BOT_TOKEN"):
         v = os.environ.get(env_name)
         if v:
             return v, f"env:{env_name}"
 
-    # 5–6: token.json (canonical adk-creds location).
     token_json = Path.home() / ".config" / "creds" / "slack" / "slack.token.json"
     if token_json.exists():
         try:
@@ -82,19 +79,18 @@ def _get_token() -> tuple[str, str]:
     return "", ""  # unreachable
 
 
-# Mention pattern in slack text: <@U…>
 _MENTION_RE = re.compile(r"<@([UW][A-Z0-9]+)(?:\|[^>]*)?>")
-_BARE_LOOKING_RE = re.compile(r"@([a-zA-Z0-9_\.-]+)")
 
 
 def find_pr_urls(text: str, url_patterns: list[str]) -> list[str]:
-    """Find every URL in `text` that starts with one of the patterns. Case-insensitive."""
+    """Find every URL in `text` that starts with one of the patterns. Case-insensitive.
+    Preserves first-seen order.
+    """
     if not text or not url_patterns:
         return []
-    # Liberal URL match — slack messages often wrap URLs in <…>.
     out: list[str] = []
     seen: set[str] = set()
-    # First: try slack's own <url> form.
+    # First: Slack's <url> form (often with |display-text).
     for m in re.finditer(r"<(https?://[^>|]+)(?:\|[^>]*)?>", text):
         url = m.group(1)
         for pat in url_patterns:
@@ -103,7 +99,7 @@ def find_pr_urls(text: str, url_patterns: list[str]) -> list[str]:
                     seen.add(url)
                     out.append(url)
                 break
-    # Then bare URLs (not inside <>).
+    # Then bare URLs.
     for m in re.finditer(r"https?://[^\s<>\]\)]+", text):
         url = m.group(0).rstrip(".,);:")
         for pat in url_patterns:
@@ -132,6 +128,12 @@ def days_ago_ts(days: int) -> str:
     return f"{dt.timestamp():.6f}"
 
 
+def hours_ago_ts(hours: float) -> str:
+    """Return a slack `oldest=` timestamp for N hours ago."""
+    dt = datetime.now(tz=timezone.utc) - timedelta(hours=hours)
+    return f"{dt.timestamp():.6f}"
+
+
 class SlackClient:
     """Thin wrapper around slack_sdk.WebClient with read-only-ish defaults."""
 
@@ -147,8 +149,6 @@ class SlackClient:
         self.WebClient = WebClient
         self.SlackApiError = SlackApiError
         token, source = _get_token()
-        # Detect token kind from prefix — `xoxp-` = user token, `xoxb-` = bot token.
-        # We do NOT log the value, only the prefix.
         kind = "user" if token.startswith("xoxp-") else ("bot" if token.startswith("xoxb-") else "unknown")
         self.token_kind = kind
         self.token_source = source
@@ -161,17 +161,6 @@ class SlackClient:
     # ----- channels -----
 
     def resolve_channel(self, name_or_id: str) -> str:
-        """Accept '#name', 'name', or 'C…' / 'G…'; return channel ID.
-
-        Strategy:
-          1. If it's already an ID-shaped string, accept it.
-          2. With a USER token: list the channels the user is a member of (cheap +
-             includes private channels). This covers the common case where the user
-             is in the channel they want to scan.
-          3. Fall back to `conversations.list` over public + private channels (works
-             for bot tokens; for user tokens it also enumerates public channels the
-             user can SEE but isn't in).
-        """
         s = name_or_id.strip()
         if s in self._channel_cache:
             return self._channel_cache[s]
@@ -181,8 +170,6 @@ class SlackClient:
         bare = s.lstrip("#").strip()
 
         # 1. users.conversations — channels the calling identity is a MEMBER of.
-        # Works for both user and bot tokens; user-token users typically ARE in their
-        # own review channels, so this is the fast path.
         cursor = None
         while True:
             resp = self._call(
@@ -198,7 +185,7 @@ class SlackClient:
             if not cursor:
                 break
 
-        # 2. conversations.list — any channel visible (membership not required).
+        # 2. conversations.list — any channel visible.
         for kind in ("public_channel", "private_channel"):
             cursor = None
             while True:
@@ -274,9 +261,6 @@ class SlackClient:
         return d
 
     def resolve_user_token(self, token: str) -> str | None:
-        """Resolve a token like '@sujeet', '@Sujeet Jaiswal', 'sujeet@x.com', or 'U…'
-        to a user ID. Matches `name`, `profile.display_name`, `profile.real_name`,
-        `real_name`, and `profile.email`. Case-insensitive comparison."""
         if not token:
             return None
         if token.startswith(("U", "W")) and token[1:].isalnum():
@@ -352,16 +336,11 @@ class SlackClient:
     # ----- low-level -----
 
     def _call(self, method_dot: str, params: dict) -> dict:
-        """Call slack via the WebClient. `method_dot` uses underscore form (e.g.
-        'conversations_history'); we map it to slack's dotted form internally.
-        """
         method_name = method_dot
-        # slack_sdk uses underscore form for method names → no transformation needed.
         for attempt in range(3):
             try:
                 fn = getattr(self._client, method_name)
                 resp = fn(**params)
-                # Honour rate limit
                 if resp.get("ok") is False:
                     raise self.SlackApiError("slack error", response=resp)
                 return resp.data if hasattr(resp, "data") else dict(resp)

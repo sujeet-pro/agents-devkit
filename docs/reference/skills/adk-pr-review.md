@@ -1,6 +1,6 @@
 ---
 title: 'adk-pr-review'
-description: 'Deep PR review: worktree + LanceDB embeddings + SCIP + feature-flow tracing. Triggers on a GitHub or Bitbucket Cloud pull-request URL. **Global skill** — runs from anywhere; isolates to...'
+description: 'Deep PR review with queue mode: drains the next eligible row from ~/.agents-devkit/config/pr-queue.json5 when no URL is passed, or reviews a specific PR when one is. Run in N terminals for parallel review (30-min auto-expiring `taken_at` lock).'
 skill: 'adk-pr-review'
 source: 'skills/adk-pr-review/SKILL.md'
 group: 'skills'
@@ -8,7 +8,7 @@ order: 1005
 ---
 # adk-pr-review
 
-Deep PR review: worktree + LanceDB embeddings + SCIP + feature-flow tracing. Triggers on a GitHub or Bitbucket Cloud pull-request URL. **Global skill** — runs from anywhere; isolates to `~/.agents-devkit/pr-reviews/<repo>_pr-<n>/` (per `shared/paths.md`); never touches the cwd. Phase 0: ensure ollama running + repo cloned to `~/.agents-devkit/repos/<repo>/`. Phase 1: serialized worktree creation at the PR's head OID. Phase 2: parallel-fan-out — chunker → ollama embeddings → LanceDB; SCIP indices (scip-typescript / scip-python / scip-go / scip-java when on PATH); diff fetch; supporting docs from PR body + Confluence/Jira/GDoc links. Phase 3: review with retrieval against embeddings + SCIP + repo configs; trace feature flags / experiments / dynamic configs across Statsig + repo config files. Phase 4: walk existing PR comments and classify each {fixed / unfixed / offline-aligned} → resolve or reopen; post new inline comments via adk-mcp-bitbucket / adk-mcp-github after explicit confirmation. Heavyweight. For lightweight review, use `/adk-review`.
+Deep PR review: tree-sitter AST chunking + ollama embeddings + LanceDB hybrid (vector + BM25) retrieval + SCIP cross-file symbols + harness-LLM reranker + feature-flow tracing + accept/reject/edit triage before posting. Triggers on a GitHub or Bitbucket Cloud pull-request URL. **Global skill** — runs from anywhere; isolates to `~/.agents-devkit/pr-reviews/<repo>_pr-<n>/` (per `shared/paths.md`); never touches the cwd. Pipeline: clone+worktree at the PR head, tree-sitter chunker → ollama embed (`nomic-embed-text` default, `bge-m3` via `--detailed`) → LanceDB w/ FTS index, optional SCIP indices when scip-typescript/python/go/java are on PATH, hybrid query merge (vector + BM25) → optional harness-LLM rerank (JSONL queue contract; harness picks the model) → findings.json. Triage step before posting: in `-i`/`--interactive` mode the user walks each finding accept/reject/edit (edits go through an iterative LLM rewrite loop driven by the harness). Posts via adk-mcp-bitbucket / adk-mcp-github after explicit confirmation. Heavyweight. For lightweight review, use `/adk-review`.
 
 ## Source
 
@@ -19,9 +19,9 @@ Deep PR review: worktree + LanceDB embeddings + SCIP + feature-flow tracing. Tri
 ```yaml
 name: adk-pr-review
 description: |
-  Deep PR review: worktree + LanceDB embeddings + SCIP + feature-flow tracing. Triggers on a GitHub or Bitbucket Cloud pull-request URL. **Global skill** — runs from anywhere; isolates to `~/.agents-devkit/pr-reviews/<repo>_pr-<n>/` (per `shared/paths.md`); never touches the cwd. Phase 0: ensure ollama running + repo cloned to `~/.agents-devkit/repos/<repo>/`. Phase 1: serialized worktree creation at the PR's head OID. Phase 2: parallel-fan-out — chunker → ollama embeddings → LanceDB; SCIP indices (scip-typescript / scip-python / scip-go / scip-java when on PATH); diff fetch; supporting docs from PR body + Confluence/Jira/GDoc links. Phase 3: review with retrieval against embeddings + SCIP + repo configs; trace feature flags / experiments / dynamic configs across Statsig + repo config files. Phase 4: walk existing PR comments and classify each {fixed / unfixed / offline-aligned} → resolve or reopen; post new inline comments via adk-mcp-bitbucket / adk-mcp-github after explicit confirmation. Heavyweight. For lightweight review, use `/adk-review`.
+  Deep PR review: tree-sitter AST chunking + ollama embeddings + LanceDB hybrid (vector + BM25) retrieval + SCIP cross-file symbols + harness-LLM reranker + feature-flow tracing + accept/reject/edit triage before posting. Triggers on a GitHub or Bitbucket Cloud pull-request URL. **Global skill** — runs from anywhere; isolates to `~/.agents-devkit/pr-reviews/<repo>_pr-<n>/` (per `shared/paths.md`); never touches the cwd. Pipeline: clone+worktree at the PR head, tree-sitter chunker → ollama embed (`nomic-embed-text` default, `bge-m3` via `--detailed`) → LanceDB w/ FTS index, optional SCIP indices when scip-typescript/python/go/java are on PATH, hybrid query merge (vector + BM25) → optional harness-LLM rerank (JSONL queue contract; harness picks the model) → findings.json. Triage step before posting: in `-i`/`--interactive` mode the user walks each finding accept/reject/edit (edits go through an iterative LLM rewrite loop driven by the harness). Posts via adk-mcp-bitbucket / adk-mcp-github after explicit confirmation. Heavyweight. For lightweight review, use `/adk-review`.
 allowed-tools: [Read, Grep, Glob, Bash, WebFetch, Agent]
-argument-hint: "<pr-url> [-i|--interactive] [--no-post] [--no-resolve-existing] [--embed-model <name>] [--scope security|correctness|tests|all]"
+argument-hint: "<pr-url> [-i|--interactive] [--detailed] [--no-hybrid] [--no-reranker] [--no-triage] [--no-post] [--no-resolve-existing] [--embed-model <name>] [--scope security|correctness|tests|all]"
 metadata:
   category: code
   kind: task
@@ -231,6 +231,41 @@ Return a single JSON object matching `finding.template.json`. The `findings` arr
 - Ambiguous PRs where you genuinely lack context: `recommendation: comment_only`, finding(s) with severity `question` explaining what's missing.
 - Prefer one good finding over three thin ones.
 
+## Pipeline you participate in
+
+The orchestrator runs phases 0-3 (clone, worktree, fetch, chunk + embed + SCIP, precis). Phase 4 is YOU producing `findings.json`. Phases 5-6 (resolve existing comments, triage, post, report) run after.
+
+**Retrieval (Phase 4 — your queries):**
+
+- `query_index.py --query <text>` is **hybrid by default**: vector top-50 ⊕ BM25 top-50 → weighted-merged top-80 (config: `retrieval.vector_weight 0.6`, `retrieval.fts_weight 0.4`). Each result has `score_breakdown` so you can see whether vector or BM25 found it. Use `--no-hybrid` if you specifically want vector-only.
+- For exact-symbol questions ("who calls `extractEvents`", "where is `OverrideRule` defined") — `--callers <sym>` / `--defs <sym>` route through SCIP when available, regex fallback otherwise. These are EXACT and beat semantic search for identifier-level questions.
+- For semantic questions ("how does the validation profile flow work", "what handles the v2 batch transport") — `--query` with hybrid scoring is the right tool.
+
+**Reranking (optional Phase 4.5):**
+
+If retrieval surfaces ~80 candidates and you need to compress to ~10 high-precision picks, use the queue-file rerank contract:
+
+1. Author a small `queries.json5` with the 5-10 questions the diff actually raises.
+2. Run `python3 scripts/rerank.py --task-dir <dir> --build-queue --queries queries.json5 --out <dir>/rerank-queue.jsonl`.
+3. **Spawn a Haiku subagent** to score the queue against `references/rerank-harness.md`. Sonnet-inline works too but is wasteful at K=80×N queries.
+4. Run `python3 scripts/rerank.py --task-dir <dir> --apply-scores <dir>/rerank-scores.jsonl --queue <dir>/rerank-queue.jsonl --out <dir>/rerank-final.jsonl`.
+5. Read `rerank-final.jsonl` and use the top-N candidates as the context for writing findings.
+
+Skip rerank entirely if your queries are narrow enough that hybrid alone surfaces obvious top candidates — typical for small-to-medium PRs.
+
+**Triage (Phase 5 — before posting):**
+
+After you write `findings.json`, the orchestrator runs `comment_resolver.py` for existing-comment classification, then triage:
+
+- **Auto mode** (default, no `-i` flag): `triage.py --init --default-state accept` marks every finding `accept`, then `--finalize` writes `findings-final.json`. Post step runs unchanged.
+- **Interactive mode** (`-i`): `triage.py --init --default-state pending`. YOU then walk each pending finding with the user (via `AskUserQuestion` in Claude Code):
+  - **Accept** → `triage.py --mark <id> --state accept`.
+  - **Reject** → `triage.py --mark <id> --state reject` (won't be posted).
+  - **Edit** → ask the user for an edit prompt; you rewrite the finding's `title` / `body` / `suggestion` / `impact_if_unfixed` per their direction; push back via `triage.py --rewrite <id> --fields-json '{...}'`; show the new version; loop until the user says accept or reject. The finding stays in `edit` state until `--mark accept` lands.
+  - When every finding is `accept` or `reject`, run `triage.py --finalize`. `findings-final.json` lands and posting proceeds.
+
+You never post directly. Posting is the orchestrator's job and is gated by the constitution §I.4 confirmation regardless of auto/interactive.
+
 ## References (loaded as needed)
 
 | Aspect | File |
@@ -242,6 +277,7 @@ Return a single JSON object matching `finding.template.json`. The `findings` arr
 | Existing-comments resolution (resolve / reopen / offline-alignment) | `references/comment-resolution.md` |
 | Indexing details (chunker / embedder / SCIP) | `references/indexing.md` |
 | Feature-flow tracing (Statsig + dynamic-config + experiments) | `references/feature-flow-tracing.md` |
+| Reranker queue contract (harness picks the LLM) | `references/rerank-harness.md` |
 
 ## Cross-skill dependencies
 
@@ -263,5 +299,6 @@ Return a single JSON object matching `finding.template.json`. The `findings` arr
 - `references/feature-flow-tracing.md` — see [`/adk-pr-review/references/feature-flow-tracing.md`](https://github.com/sujeet-pro/agents-devkit/blob/main/skills/adk-pr-review/references/feature-flow-tracing.md)
 - `references/forks.md` — see [`/adk-pr-review/references/forks.md`](https://github.com/sujeet-pro/agents-devkit/blob/main/skills/adk-pr-review/references/forks.md)
 - `references/indexing.md` — see [`/adk-pr-review/references/indexing.md`](https://github.com/sujeet-pro/agents-devkit/blob/main/skills/adk-pr-review/references/indexing.md)
+- `references/rerank-harness.md` — see [`/adk-pr-review/references/rerank-harness.md`](https://github.com/sujeet-pro/agents-devkit/blob/main/skills/adk-pr-review/references/rerank-harness.md)
 - `references/rules.md` — see [`/adk-pr-review/references/rules.md`](https://github.com/sujeet-pro/agents-devkit/blob/main/skills/adk-pr-review/references/rules.md)
 - `references/workflow.md` — see [`/adk-pr-review/references/workflow.md`](https://github.com/sujeet-pro/agents-devkit/blob/main/skills/adk-pr-review/references/workflow.md)

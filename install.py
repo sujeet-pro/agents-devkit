@@ -25,6 +25,7 @@ import json
 import os
 import re
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any, Iterable
@@ -52,6 +53,14 @@ ADK_REMOVED_MCP_KEY = "_adkRemovedMcpServers"
 ADK_MCP_NAME_PREFIX = "adk-mcp-"
 
 ADK_USER_DIR = Path.home() / ".agents-devkit" / "config"
+
+# Skill directories under skills/ that are NOT slash-invokable agent skills:
+# they hold shared python modules / CLI subcommands and should not be symlinked
+# into ~/.claude/skills/, ~/.junie/skills/, etc.
+NON_SLASH_SKILLS: set[str] = {"adk-cli", "adk-pr-reviews"}
+
+# Where the `adk` CLI binary lives (symlinked at install time).
+ADK_BIN_TARGET = Path.home() / ".local" / "bin" / "adk"
 
 
 # ----------------------------------------------------------------------------
@@ -623,16 +632,336 @@ def merge_hooks_into_claude(repo_root: Path, dry_run: bool) -> dict[str, Any]:
     return {"status": "ok", "events": actions}
 
 
+def cleanup_stale_adk_symlinks(dest_dir: Path, dry_run: bool) -> list[str]:
+    """Remove adk-prefixed symlinks under `dest_dir` whose target no longer exists.
+
+    Triggered on re-install when a previously-shipped skill / command is removed
+    upstream (e.g. /adk-pr-reviews → CLI). Without this, the dead symlinks linger
+    in the agent's skill dir and confuse the agent at load time.
+    """
+    if not dest_dir.exists():
+        return []
+    removed: list[str] = []
+    for p in dest_dir.glob("adk-*"):
+        if not p.is_symlink():
+            continue
+        try:
+            target = p.resolve(strict=False)
+        except OSError:
+            target = None
+        if target and target.exists():
+            continue
+        if dry_run:
+            info(f"would remove stale symlink {p} (target missing)")
+        else:
+            try:
+                p.unlink()
+                info(f"removed stale symlink {p}")
+            except OSError as e:
+                warn(f"could not remove stale symlink {p}: {e}")
+                continue
+        removed.append(p.name)
+    return removed
+
+
+def _detect_platform() -> str:
+    """Return 'mac' | 'linux' | 'other'. Linux detection assumes apt-get if present."""
+    if sys.platform == "darwin":
+        return "mac"
+    if sys.platform.startswith("linux"):
+        return "linux"
+    return "other"
+
+
+def _run_capture(cmd: list[str]) -> tuple[int, str, str]:
+    """Run a command, capture output, never raise. Used by dep install."""
+    try:
+        cp = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
+        return cp.returncode, cp.stdout, cp.stderr
+    except Exception as e:
+        return 1, "", str(e)
+
+
+def install_deps(repo_root: Path, dry_run: bool, results: dict[str, Any],
+                 yes: bool = True, allow_curl_bash: bool = False,
+                 models: list[str] | None = None) -> None:
+    """Detect missing deps and install them. Platform-aware (brew on mac,
+    apt-get on linux). Best-effort: a single failure does not bail the run.
+
+    Always:
+      - System binaries: git, gh, jq, ollama
+      - Python pip packages: slack_sdk, json5, PyYAML, requests, lancedb,
+        tree_sitter_language_pack
+      - scip-* indexers (npm / pip / go install, each guarded by its toolchain)
+      - Ollama models (nomic-embed-text always; opt-in for bge-m3 via --models)
+
+    Linux + ollama: skipped unless `--allow-curl-bash` (uses the upstream
+    install.sh which curl-bashes a shell script — gated for safety).
+    """
+    info("=== dependencies ===")
+    platform = _detect_platform()
+    out: dict[str, Any] = {"platform": platform, "binaries": {}, "python": {},
+                          "scip": {}, "ollama_models": {}}
+
+    if platform == "other":
+        warn(f"unsupported platform {sys.platform}; printing required deps but skipping install")
+        out["status"] = "platform-unsupported"
+        results["deps"] = out
+        return
+
+    brew = shutil.which("brew") if platform == "mac" else None
+    apt = shutil.which("apt-get") if platform == "linux" else None
+
+    def _install_binary(name: str, mac_args: list[str] | None,
+                         apt_args: list[str] | None, fallback_hint: str = "") -> None:
+        existing = shutil.which(name)
+        if existing:
+            out["binaries"][name] = {"status": "present", "path": existing}
+            return
+        cmd: list[str] | None = None
+        if platform == "mac" and brew and mac_args:
+            cmd = ["brew"] + mac_args
+        elif platform == "linux" and apt and apt_args:
+            cmd = (["sudo"] if os.geteuid() != 0 else []) + ["apt-get"] + apt_args
+        if cmd is None:
+            out["binaries"][name] = {"status": "skipped", "hint": fallback_hint or f"install {name} manually"}
+            warn(f"{name} missing; manual install needed ({fallback_hint or 'no package manager'})")
+            return
+        info(f"$ {' '.join(cmd)}")
+        if dry_run:
+            out["binaries"][name] = {"status": "would-install", "cmd": " ".join(cmd)}
+            return
+        code, _stdout, stderr = _run_capture(cmd)
+        if code != 0:
+            out["binaries"][name] = {"status": "failed", "code": code,
+                                      "stderr": stderr.strip()[-300:]}
+            warn(f"{name} install failed (rc={code}): {stderr.strip()[-200:]}")
+        else:
+            out["binaries"][name] = {"status": "installed"}
+
+    _install_binary("git", ["install", "git"], ["install", "-y", "git"],
+                    fallback_hint="brew install git OR apt-get install git")
+    _install_binary("gh", ["install", "gh"], ["install", "-y", "gh"],
+                    fallback_hint="brew install gh OR see cli.github.com")
+    _install_binary("jq", ["install", "jq"], ["install", "-y", "jq"],
+                    fallback_hint="brew install jq OR apt-get install jq")
+    # Ollama: brew on mac is safe; on linux, curl-bash is the upstream path.
+    if shutil.which("ollama"):
+        out["binaries"]["ollama"] = {"status": "present", "path": shutil.which("ollama")}
+    elif platform == "mac" and brew:
+        _install_binary("ollama", ["install", "ollama"], None,
+                        fallback_hint="brew install ollama")
+    elif platform == "linux" and (allow_curl_bash and yes):
+        cmd = ["sh", "-c", "curl -fsSL https://ollama.com/install.sh | sh"]
+        info(f"$ {' '.join(cmd)}  (curl-bash; gated by --allow-curl-bash)")
+        if dry_run:
+            out["binaries"]["ollama"] = {"status": "would-install", "via": "curl-bash"}
+        else:
+            code, _stdout, stderr = _run_capture(cmd)
+            out["binaries"]["ollama"] = (
+                {"status": "installed", "via": "curl-bash"}
+                if code == 0 else {"status": "failed", "code": code,
+                                   "stderr": stderr.strip()[-300:]}
+            )
+    else:
+        out["binaries"]["ollama"] = {"status": "skipped",
+                                      "hint": "linux ollama install gates behind --allow-curl-bash; "
+                                              "or run `curl -fsSL https://ollama.com/install.sh | sh`"}
+        warn("ollama not installed (linux); re-run with --allow-curl-bash or install manually")
+
+    # Python pip deps — always pip-install missing ones into the user site.
+    py_pkgs = [
+        ("slack_sdk", "slack_sdk"),
+        ("json5", "json5"),
+        ("yaml", "PyYAML"),
+        ("requests", "requests"),
+        ("lancedb", "lancedb"),
+        ("tree_sitter_language_pack", "tree_sitter_language_pack"),
+    ]
+    for mod, pkg in py_pkgs:
+        try:
+            __import__(mod)
+            out["python"][pkg] = {"status": "present"}
+            continue
+        except ImportError:
+            pass
+        cmd = [sys.executable, "-m", "pip", "install", "--user", pkg]
+        info(f"$ {' '.join(cmd)}")
+        if dry_run:
+            out["python"][pkg] = {"status": "would-install"}
+            continue
+        code, _stdout, stderr = _run_capture(cmd)
+        out["python"][pkg] = (
+            {"status": "installed"} if code == 0
+            else {"status": "failed", "code": code, "stderr": stderr.strip()[-300:]}
+        )
+
+    # scip-* indexers (best-effort; each gated by its toolchain).
+    if not shutil.which("scip-typescript") and shutil.which("npm"):
+        cmd = ["npm", "install", "-g", "@sourcegraph/scip-typescript"]
+        info(f"$ {' '.join(cmd)}")
+        if dry_run:
+            out["scip"]["scip-typescript"] = "would-install"
+        else:
+            code, _stdout, stderr = _run_capture(cmd)
+            out["scip"]["scip-typescript"] = "installed" if code == 0 else f"failed ({code})"
+    elif shutil.which("scip-typescript"):
+        out["scip"]["scip-typescript"] = "present"
+    else:
+        out["scip"]["scip-typescript"] = "skipped (no npm)"
+
+    if not shutil.which("scip-python"):
+        cmd = [sys.executable, "-m", "pip", "install", "--user", "scip-python"]
+        info(f"$ {' '.join(cmd)}")
+        if dry_run:
+            out["scip"]["scip-python"] = "would-install"
+        else:
+            code, _stdout, stderr = _run_capture(cmd)
+            out["scip"]["scip-python"] = "installed" if code == 0 else f"failed ({code})"
+    else:
+        out["scip"]["scip-python"] = "present"
+
+    if not shutil.which("scip-go") and shutil.which("go"):
+        cmd = ["go", "install", "github.com/sourcegraph/scip-go/cmd/scip-go@latest"]
+        info(f"$ {' '.join(cmd)}")
+        if dry_run:
+            out["scip"]["scip-go"] = "would-install"
+        else:
+            code, _stdout, stderr = _run_capture(cmd)
+            out["scip"]["scip-go"] = "installed" if code == 0 else f"failed ({code})"
+    elif shutil.which("scip-go"):
+        out["scip"]["scip-go"] = "present"
+    else:
+        out["scip"]["scip-go"] = "skipped (no go toolchain)"
+
+    if not shutil.which("scip-java") and platform == "mac" and brew:
+        cmd = ["brew", "install", "scip-java"]
+        info(f"$ {' '.join(cmd)}")
+        if dry_run:
+            out["scip"]["scip-java"] = "would-install"
+        else:
+            code, _stdout, stderr = _run_capture(cmd)
+            out["scip"]["scip-java"] = "installed" if code == 0 else f"failed ({code})"
+    elif shutil.which("scip-java"):
+        out["scip"]["scip-java"] = "present"
+    else:
+        out["scip"]["scip-java"] = "skipped (mac-only auto-install via brew)"
+
+    # Ollama models (only if the binary exists).
+    wanted_models = models or ["nomic-embed-text"]
+    if shutil.which("ollama"):
+        code, list_stdout, _ = _run_capture(["ollama", "list"])
+        have = list_stdout if code == 0 else ""
+        for model in wanted_models:
+            base = model.rsplit(":", 1)[0]
+            if base in have:
+                out["ollama_models"][model] = "present"
+                continue
+            info(f"$ ollama pull {model}")
+            if dry_run:
+                out["ollama_models"][model] = "would-pull"
+                continue
+            # Pull is interactive (progress bar) — let it stream to the terminal.
+            try:
+                cp = subprocess.run(["ollama", "pull", model], timeout=900)
+                out["ollama_models"][model] = "pulled" if cp.returncode == 0 else f"failed ({cp.returncode})"
+            except Exception as e:
+                out["ollama_models"][model] = f"error: {e}"
+    else:
+        out["ollama_models"]["_skipped"] = "ollama binary missing; cannot pull models"
+
+    results["deps"] = out
+
+
+def install_completions(dry_run: bool, results: dict[str, Any]) -> None:
+    """Install shell completion scripts to the conventional user paths.
+
+    Best-effort: bash + zsh + fish, each only if the dest dir already exists OR
+    can be created without sudo. Always uses `bin/adk completion <shell>` via
+    subprocess so the static script stays in sync with the CLI module.
+    """
+    info("=== shell completions ===")
+    out: dict[str, Any] = {}
+    # During dry-run the symlink hasn't been created yet, so call the source
+    # bin/adk directly. Otherwise call through the symlink.
+    adk = ADK_BIN_TARGET if ADK_BIN_TARGET.exists() else (
+        Path(__file__).resolve().parent / "bin" / "adk"
+    )
+    if not adk.exists():
+        warn("adk binary not found; skipping completion install")
+        results["completions"] = {"status": "skipped"}
+        return
+
+    targets = [
+        ("bash", Path.home() / ".local" / "share" / "bash-completion" / "completions" / "adk"),
+        ("zsh",  Path.home() / ".zsh" / "completions" / "_adk"),
+        ("fish", Path.home() / ".config" / "fish" / "completions" / "adk.fish"),
+    ]
+    for shell, dst in targets:
+        try:
+            cp = subprocess.run([str(adk), "completion", shell],
+                                capture_output=True, text=True, check=True, timeout=10)
+        except Exception as e:
+            out[shell] = {"status": "failed", "error": str(e)}
+            continue
+        if dry_run:
+            out[shell] = {"status": "would-write", "dst": str(dst)}
+            continue
+        try:
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            dst.write_text(cp.stdout, encoding="utf-8")
+            out[shell] = {"status": "written", "dst": str(dst)}
+        except Exception as e:
+            out[shell] = {"status": "failed", "error": str(e), "dst": str(dst)}
+    results["completions"] = out
+
+
+def install_adk_bin(repo_root: Path, dry_run: bool, results: dict[str, Any]) -> None:
+    """Symlink <repo>/bin/adk → ~/.local/bin/adk so the `adk` CLI is on PATH.
+
+    Creates ~/.local/bin if missing. If ~/.local/bin is not on PATH, prints a
+    one-line export hint (does not touch shell-init files).
+    """
+    info("=== adk CLI ===")
+    src = repo_root / "bin" / "adk"
+    if not src.exists():
+        warn(f"bin/adk missing at {src}; skipping CLI symlink")
+        results["adk_bin"] = {"status": "skipped-source-missing", "src": str(src)}
+        return
+    target_dir = ADK_BIN_TARGET.parent
+    ensure_dir(target_dir, dry_run)
+    sym_result = make_symlink(src, ADK_BIN_TARGET, dry_run)
+    info(f"adk CLI: {sym_result} → {ADK_BIN_TARGET}")
+    # PATH hint (no shell-init edits).
+    path_env = os.environ.get("PATH", "")
+    on_path = str(target_dir) in path_env.split(":")
+    if not on_path:
+        warn(
+            f"{target_dir} is not on $PATH. Add this to your shell init:\n"
+            f"    export PATH=\"{target_dir}:$PATH\""
+        )
+    results["adk_bin"] = {
+        "status": sym_result,
+        "src": str(src),
+        "target": str(ADK_BIN_TARGET),
+        "on_path": on_path,
+    }
+
+
 def install_claude(repo_root: Path, dry_run: bool, results: dict[str, Any]) -> None:
     info("=== Claude Code ===")
     home_claude = Path.home() / ".claude"
     ensure_dir(home_claude / "skills", dry_run)
     ensure_dir(home_claude / "agents", dry_run)
     ensure_dir(home_claude / "commands", dry_run)
+    # Prune stale symlinks from previous installs (e.g. /adk-pr-reviews → CLI).
+    stale_skills = cleanup_stale_adk_symlinks(home_claude / "skills", dry_run)
+    stale_agents = cleanup_stale_adk_symlinks(home_claude / "agents", dry_run)
+    stale_cmds = cleanup_stale_adk_symlinks(home_claude / "commands", dry_run)
     # skills
     skill_results = {}
     for skill_dir in sorted((repo_root / "skills").glob("adk-*")):
-        if skill_dir.is_dir():
+        if skill_dir.is_dir() and skill_dir.name not in NON_SLASH_SKILLS:
             dst = home_claude / "skills" / skill_dir.name
             skill_results[skill_dir.name] = make_symlink(skill_dir, dst, dry_run)
     # agents
@@ -659,6 +988,7 @@ def install_claude(repo_root: Path, dry_run: bool, results: dict[str, Any]) -> N
     perms_result = merge_permissions_into_claude(repo_root, dry_run)
     results["claude"] = {
         "skills": skill_results, "agents": agent_results, "commands": cmd_results,
+        "stale_removed": {"skills": stale_skills, "agents": stale_agents, "commands": stale_cmds},
         "claude_md_append": append_result, "mcp_merge": mcp_results, "hooks": hooks_result,
         "permissions": perms_result,
     }
@@ -668,6 +998,7 @@ def install_cursor(repo_root: Path, dry_run: bool, results: dict[str, Any]) -> N
     info("=== Cursor ===")
     rules_dir = Path.home() / ".cursor" / "rules"
     ensure_dir(rules_dir, dry_run)
+    stale_rules = cleanup_stale_adk_symlinks(rules_dir, dry_run)
     # rules
     rule_results = {}
     for rule_file in sorted((repo_root / "agents-cursor" / "rules").glob("adk-*.mdc")):
@@ -690,7 +1021,8 @@ def install_cursor(repo_root: Path, dry_run: bool, results: dict[str, Any]) -> N
     # Permissions merge (allow-most / ask-on-dangerous)
     perms_result = merge_permissions_into_cursor(repo_root, dry_run)
     results["cursor"] = {
-        "rules": rule_results, "always_rule_append": append_result, "mcp_merge": mcp_results,
+        "rules": rule_results, "stale_removed": {"rules": stale_rules},
+        "always_rule_append": append_result, "mcp_merge": mcp_results,
         "permissions": perms_result,
     }
 
@@ -738,7 +1070,7 @@ def install_junie(repo_root: Path, dry_run: bool, results: dict[str, Any]) -> No
     # with a SKILL.md in each subdir, same as Claude Code.
     skill_results: dict[str, str] = {}
     for skill_dir in sorted((repo_root / "skills").glob("adk-*")):
-        if skill_dir.is_dir():
+        if skill_dir.is_dir() and skill_dir.name not in NON_SLASH_SKILLS:
             dst = junie_dir / "skills" / skill_dir.name
             skill_results[skill_dir.name] = make_symlink(skill_dir, dst, dry_run)
     # Slash commands: Junie skills are auto-invoked by description match, not
@@ -879,6 +1211,21 @@ def strip_permissions_from_junie(dry_run: bool) -> str:
         return "would-remove"
     target.unlink()
     return "removed"
+
+
+def uninstall_adk_bin(dry_run: bool) -> dict[str, Any]:
+    """Remove the ~/.local/bin/adk symlink if it points to our repo's bin/adk."""
+    p = ADK_BIN_TARGET
+    if not p.is_symlink() and not p.exists():
+        return {"status": "missing", "target": str(p)}
+    if not p.is_symlink():
+        return {"status": "skipped-not-symlink", "target": str(p)}
+    if dry_run:
+        info(f"would remove symlink {p}")
+        return {"status": "would-remove", "target": str(p)}
+    p.unlink()
+    info(f"removed symlink {p}")
+    return {"status": "removed", "target": str(p)}
 
 
 def uninstall_target(target: str, dry_run: bool, results: dict[str, Any]) -> None:
@@ -1123,6 +1470,14 @@ def main() -> int:
     ap.add_argument("--target", default=None, help="comma-separated; or 'all'")
     ap.add_argument("--uninstall", action="store_true")
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--no-deps", action="store_true",
+                    help="skip auto-install of system + python dependencies")
+    ap.add_argument("--no-completions", action="store_true",
+                    help="skip shell-completion install")
+    ap.add_argument("--allow-curl-bash", action="store_true",
+                    help="allow upstream curl-bash installer on linux (ollama)")
+    ap.add_argument("--models", default="nomic-embed-text",
+                    help="comma-separated ollama models to pull (default: nomic-embed-text)")
     args = ap.parse_args()
 
     repo_root: Path = args.repo_root.resolve()
@@ -1150,11 +1505,41 @@ def main() -> int:
     if args.uninstall:
         for t in targets:
             uninstall_target(t, dry_run, results)
+        # adk CLI symlink: only remove on full-fleet uninstall (`--target all` or
+        # an explicit listing of every supported target). A single-target
+        # uninstall leaves the CLI alone — the user may still want `adk pr-scan`.
+        if set(targets) >= set(SUPPORTED):
+            results["adk_bin"] = uninstall_adk_bin(dry_run)
         print(json.dumps(results, indent=2))
         return 0
 
     # Always bootstrap ~/.agents-devkit/config/
     results["user_dir"] = bootstrap_user_dir(repo_root, dry_run)
+
+    # Always install the `adk` CLI (target-agnostic — it's a user-level shell binary).
+    try:
+        install_adk_bin(repo_root, dry_run, results)
+    except Exception as e:
+        err(f"adk CLI install failed: {e}")
+        results["adk_bin"] = {"error": str(e)}
+
+    # Dependency auto-install (full-auto unless --no-deps).
+    if not args.no_deps:
+        models = [m.strip() for m in args.models.split(",") if m.strip()]
+        try:
+            install_deps(repo_root, dry_run, results, yes=True,
+                         allow_curl_bash=args.allow_curl_bash, models=models)
+        except Exception as e:
+            err(f"dep install failed: {e}")
+            results["deps"] = {"error": str(e)}
+
+    # Shell completions (after adk binary is in place).
+    if not args.no_completions:
+        try:
+            install_completions(dry_run, results)
+        except Exception as e:
+            err(f"completion install failed: {e}")
+            results["completions"] = {"error": str(e)}
 
     for t in targets:
         try:

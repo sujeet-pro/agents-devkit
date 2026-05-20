@@ -1,6 +1,21 @@
 #!/usr/bin/env python3
 """run_review.py — orchestrator for /adk-pr-review.
 
+Two invocation modes:
+
+  1. URL mode:   `python3 run_review.py <pr-url> [...flags]`
+     Reviews the named PR. If the PR is found in the queue
+     (~/.agents-devkit/config/pr-queue.json5) the row's `taken_at` is
+     atomically claimed for the duration of this run, and the row's
+     `slack` + `supporting_docs` are merged into the review context.
+
+  2. Queue mode: `python3 run_review.py [--queue <path>] [...flags]`
+     With no URL, picks the next eligible row from the queue (oldest by
+     last_checked_at, nulls first; status != merged; `taken_at` null or
+     older than the 30-min auto-expire). Atomically claims it and reviews
+     it. Another `/adk-pr-review` running in a parallel terminal picks
+     a different row.
+
 Behavior on EVERY invocation (whether first run or N-th):
 
   Phase 0 (prereq)     — always runs.
@@ -24,11 +39,15 @@ What this script does NOT do: invoke `claude -p`. The calling agent does that
 after reading precis.md + SKILL.md + finding.template.json, then calls back into
 comment_resolver.py + post_comments.py + report.py.
 
+The queue release (set status, clear taken_at, update slack reaction) happens
+in report.py at the tail of the review.
+
 Usage:
-  python3 run_review.py <pr-url> [--auto] [--rebuild] [--no-post]
-                                 [--no-resolve-existing]
-                                 [--embed-model nomic-embed-text]
-                                 [--scope all|security|correctness|tests]
+  python3 run_review.py [<pr-url>] [--auto] [--rebuild] [--no-post]
+                                   [--no-resolve-existing]
+                                   [--embed-model nomic-embed-text]
+                                   [--scope all|security|correctness|tests]
+                                   [--queue <path>]
 """
 from __future__ import annotations
 
@@ -44,6 +63,15 @@ from _common import (  # noqa: E402
     pr_lock_for, try_file_lock, LockHeldError,
     read_state, mark_phase, write_state, write_json, read_json,
     get_logger, die, run, which, get_cfg,
+)
+
+# CLI helpers live under skills/adk-cli/scripts/. Add to sys.path so we can
+# import queue_io for the queue-acquire / URL-lookup flow.
+ADK_CLI_SCRIPTS = Path(__file__).resolve().parent.parent.parent / "adk-cli" / "scripts"
+sys.path.insert(0, str(ADK_CLI_SCRIPTS))
+from queue_io import (  # noqa: E402
+    DEFAULT_QUEUE_PATH, acquire_next_row, find_row, update_pr_entry,
+    TAKEN_LOCK_MAX_AGE_SECONDS, STATUS_IN_REVIEW,
 )
 
 THIS_DIR = Path(__file__).parent
@@ -83,7 +111,10 @@ def diff_changed_files(repo_path: Path, old_oid: str | None, new_oid: str, log) 
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("url", help="PR URL")
+    ap.add_argument("url", nargs="?", default=None,
+                    help="PR URL (omit to acquire the next eligible row from the queue)")
+    ap.add_argument("--queue", default=str(DEFAULT_QUEUE_PATH),
+                    help=f"queue path (default: {DEFAULT_QUEUE_PATH})")
     ap.add_argument("--auto", action="store_true")
     ap.add_argument("--rebuild", action="store_true", help="force full re-index from scratch")
     ap.add_argument("--no-post", action="store_true")
@@ -122,27 +153,89 @@ def main() -> int:
     args.embed_model = embed_model  # for downstream code that reads args.embed_model
 
     ensure_dirs()
+    queue_path = Path(args.queue).expanduser()
+
+    # Resolve URL: either explicit (URL mode) or by claiming the next eligible
+    # queue row (queue mode). In both cases queue_row may be None — when the
+    # PR isn't tracked in the queue OR the queue is empty in queue mode.
+    queue_row: dict | None = None
+    if args.url is None:
+        queue_row = acquire_next_row(queue_path)
+        if queue_row is None:
+            print(json.dumps({
+                "action": "queue_empty",
+                "queue": str(queue_path),
+                "message": "no eligible rows in the queue. Run `adk pr-scan` to refresh, or pass a PR URL.",
+            }, indent=2))
+            return 0
+        args.url = queue_row["pr_link"]
+    else:
+        # URL mode — check the queue for a matching row and claim it (so a
+        # parallel queue-mode terminal won't pick the same PR while we review).
+        existing = find_row(queue_path, args.url)
+        if existing is not None:
+            from datetime import datetime, timezone
+            taken_at = existing.get("taken_at")
+            if taken_at:
+                try:
+                    iso = taken_at[:-1] + "+00:00" if taken_at.endswith("Z") else taken_at
+                    ts = datetime.fromisoformat(iso)
+                    age = (datetime.now(tz=timezone.utc) - ts).total_seconds()
+                    if age < TAKEN_LOCK_MAX_AGE_SECONDS:
+                        die(
+                            f"queue row for {args.url} is locked by another reviewer "
+                            f"(taken_at={taken_at}, {int(TAKEN_LOCK_MAX_AGE_SECONDS - age)}s remaining). "
+                            f"Wait or `adk pr-queue release {args.url}` to override."
+                        )
+                except ValueError:
+                    pass
+            from queue_io import _now_iso  # type: ignore[attr-defined]
+            update_pr_entry(queue_path, args.url, {"taken_at": _now_iso(),
+                                                    "status": STATUS_IN_REVIEW})
+            queue_row = find_row(queue_path, args.url)
+
     parsed = parse_pr_url(args.url)
     host, owner, repo, n = parsed["host"], parsed["owner"], parsed["repo"], parsed["pr_number"]
     task_dir = task_dir_for(repo, n)
     task_dir.mkdir(parents=True, exist_ok=True)
     log = get_logger("orchestrator", task_dir)
     log.info("=== /adk-pr-review %s ===", args.url)
+    if queue_row is not None:
+        log.info("queue context: pr_link=%s, slack=%s, supporting_docs=%d",
+                 queue_row.get("pr_link"),
+                 bool(queue_row.get("slack")),
+                 len(queue_row.get("supporting_docs") or []))
+        # Write queue-context.json so report.py can pick up slack-info + queue_path
+        # without re-parsing the queue at the end.
+        write_json(task_dir / "queue-context.json", {
+            "queue_path": str(queue_path),
+            "pr_link": queue_row.get("pr_link"),
+            "slack": queue_row.get("slack"),
+            "supporting_docs": queue_row.get("supporting_docs") or [],
+        })
+        # Forced supporting docs — fetch_supporting_docs.py picks these up.
+        forced = queue_row.get("supporting_docs") or []
+        if forced:
+            write_json(task_dir / "forced-supporting-docs.json", forced)
 
-    # Per-PR lock — prevents two simultaneous reviews of the same PR.
-    # Fail fast by default (use --wait to queue). Parallel reviews of
-    # DIFFERENT PRs do not contend on this lock.
-    #
-    # ADK_PR_LOCK_HELD=1 (set by the /adk-pr-reviews batch worker) signals that
-    # the caller already holds this PR's lock; skip re-acquisition.
+    # Per-PR lock — prevents two simultaneous reviews of the same PR. Sits
+    # underneath the queue-row `taken_at` lock as a low-level safety net for
+    # the corner case where two terminals somehow both think they own this PR.
+    # Fail fast by default (use --wait to queue). Parallel reviews of DIFFERENT
+    # PRs do not contend on this lock.
     pr_lock_ctx = None
-    if os.environ.get("ADK_PR_LOCK_HELD") != "1":
-        try:
-            pr_lock_ctx = try_file_lock(pr_lock_for(repo, n), wait=args.wait, timeout_s=0.0)
-            pr_lock_ctx.__enter__()
-        except LockHeldError as e:
-            die(str(e))
-            return 1  # unreachable
+    try:
+        pr_lock_ctx = try_file_lock(pr_lock_for(repo, n), wait=args.wait, timeout_s=0.0)
+        pr_lock_ctx.__enter__()
+    except LockHeldError as e:
+        # Release the queue-row claim so it doesn't sit locked for 30 min.
+        if queue_row is not None:
+            try:
+                update_pr_entry(queue_path, args.url, {"taken_at": None})
+            except Exception:
+                pass
+        die(str(e))
+        return 1  # unreachable
     try:
         return _main_inner(args, parsed, task_dir, log)
     finally:

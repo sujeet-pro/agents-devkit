@@ -32,9 +32,17 @@ After install, fill in `~/.agents-devkit/config/overrides.yaml` (created by `./i
 /adk-implement   write code from any input (Jira / GH issue / Slack / TDD / Confluence / freeform)
 /adk-review      lightweight review of any target (PR URL / local / doc / comment thread / whole repo)
 /adk-pr-review   deep PR review with worktree + LanceDB embeddings + SCIP + feature-flow tracing
-                 (GitHub + Bitbucket Cloud; requires ollama + optional scip-* binaries)
-/adk-pr-reviews  batch driver — reads a CSV of PR URLs, runs N reviews in parallel; skips merged
-                 + stable rows. Designed for periodic execution (cron-friendly).
+                 (GitHub + Bitbucket Cloud; requires ollama + optional scip-* binaries).
+                 With no arg, atomically drains the next eligible row from
+                 ~/.agents-devkit/config/pr-queue.json5. Run in N terminals for parallel review.
+
+Queue management (shell binary; installed at ~/.local/bin/adk):
+  adk pr-scan                      walk configured Slack channels (main message + thread replies)
+                                   and upsert PR rows into the queue
+  adk pr-queue list / show         inspect entries
+  adk pr-queue ready-to-merge      grouped by approved-no-comments vs approved-with-comments
+  adk pr-queue clean [--all]       drop merged rows + folders (or everything)
+  adk pr-queue release <pr-url>    clear `taken_at` lock
 /adk-investigate query 3P data sources (Datadog / Mixpanel / Statsig / Snowflake / Looker / Atlassian)
 /adk-document    generate any written artifact (RCA / ADR / runbook / PR body / commit msg / diagram / report)
 /adk-sync        bidirectional bridge to 3P (Confluence / Jira / GDoc / GH PR body / Slack)

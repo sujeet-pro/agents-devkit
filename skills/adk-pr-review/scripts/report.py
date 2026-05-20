@@ -25,6 +25,19 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 from _common import read_json, get_logger, die  # noqa: E402
 
+# CLI helpers (queue release + ready-to-merge tail) live under adk-cli.
+ADK_CLI_SCRIPTS = Path(__file__).resolve().parent.parent.parent / "adk-cli" / "scripts"
+sys.path.insert(0, str(ADK_CLI_SCRIPTS))
+try:
+    from queue_release import release_after_review  # noqa: E402
+    from queue_io import (  # noqa: E402
+        DEFAULT_QUEUE_PATH, read_queue, load_slack_config,
+    )
+    from pr_queue import print_summary  # noqa: E402
+    _CLI_AVAILABLE = True
+except Exception:
+    _CLI_AVAILABLE = False
+
 
 SEV_ORDER = {"blocker": 0, "critical": 1, "should-have": 2, "may-have": 3, "nitpick": 4, "question": 5}
 SEV_TAG = {"blocker": "[blocker]", "critical": "[critical]", "should-have": "[should]",
@@ -168,7 +181,76 @@ def main() -> int:
             if len(line) > 110:
                 line = line[:107] + "…"
             print(line)
+
+    # Queue release + merge-ready tail (no-op if CLI module imports failed).
+    if _CLI_AVAILABLE:
+        _release_and_print_tail(task_dir, pr, findings_blob, log)
+
     return 0
+
+
+def _release_and_print_tail(task_dir: Path, pr: dict, findings_blob: dict, log) -> None:
+    """Release the queue row (if any) and print the cumulative merge-ready list.
+
+    Idempotent: if no queue-context.json was written, we still print the tail
+    so the user sees the latest state; we just skip the row update.
+    """
+    queue_ctx_path = task_dir / "queue-context.json"
+    queue_path = DEFAULT_QUEUE_PATH
+    slack_info = None
+    pr_link = pr.get("url")
+    if queue_ctx_path.exists():
+        try:
+            ctx = read_json(queue_ctx_path)
+            qp = ctx.get("queue_path")
+            if qp:
+                queue_path = Path(qp)
+            slack_info = ctx.get("slack")
+            if ctx.get("pr_link"):
+                pr_link = ctx["pr_link"]
+        except Exception as e:
+            log.warning("queue-context.json unreadable: %s", e)
+
+    n_findings = len(findings_blob.get("findings", []) or [])
+    recommendation = findings_blob.get("recommendation")
+    review_decision = pr.get("reviewDecision") or pr.get("review_decision")
+    approved_host = (review_decision == "APPROVED")
+
+    slack_cfg = None
+    if slack_info:
+        try:
+            slack_cfg = load_slack_config()
+        except FileNotFoundError:
+            slack_cfg = None
+        except Exception as e:
+            log.warning("could not load slack config for reaction update: %s", e)
+
+    try:
+        new_status = release_after_review(
+            queue_path=queue_path,
+            pr_link=pr_link,
+            head_oid=pr.get("head_oid") or pr.get("headRefOid"),
+            n_findings=n_findings,
+            approved_host=approved_host,
+            recommendation=recommendation,
+            slack_cfg=slack_cfg,
+            slack_info=slack_info,
+            log=log,
+        )
+    except Exception as e:
+        log.warning("queue release failed: %s", e)
+        new_status = None
+    if new_status is not None:
+        print(f"\nqueue: {pr_link} → {new_status}")
+
+    # Always show the cumulative merge-ready summary at the tail.
+    try:
+        queue = read_queue(queue_path)
+        prs = queue.get("prs", []) or []
+        print()
+        print_summary(prs)
+    except Exception as e:
+        log.warning("could not load queue for ready-to-merge tail: %s", e)
 
 
 if __name__ == "__main__":

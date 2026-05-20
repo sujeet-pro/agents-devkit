@@ -39,6 +39,7 @@ A skill writes its artifacts to **exactly one** of two roots:
 │   ├── repos.md                 # frontmatter: repo defs. body: per-repo notes
 │   ├── links.json5              # cross-connector entity graph (see below)
 │   ├── settings.json5           # session-level settings
+│   ├── pr-queue.json5           # PR review queue — curated by `adk pr-scan`, drained by /adk-pr-review
 │   ├── connectors/              # one .md per data source — frontmatter is config, body is notes
 │   │   ├── datadog.md mixpanel.md statsig.md snowflake.md
 │   │   ├── slack.md             # absorbs pr_reviews: section (was pr-reviews-slack.json5)
@@ -49,8 +50,8 @@ A skill writes its artifacts to **exactly one** of two roots:
 │   └── metadata/<source>.json   # MCP introspection cache
 ├── repos/<repo-name>/.git/      # checkouts; the base for PR-review worktrees
 ├── pr-reviews/
-│   ├── queue.json5              # /adk-pr-reviews batch queue (JSON5)
-│   └── <repo>_pr-<n>/{code/, pr.json, diff.patch, docs/, code-index/, findings.{json,md}, report.md, state.json}
+│   └── <repo>_pr-<n>/{code/, pr.json, diff.patch, docs/, code-index/, findings.{json,md}, report.md, state.json, queue-context.json}
+# The queue itself lives under config/ (see above): config/pr-queue.json5.
 ├── investigations/<task>/
 ├── reviews/<task>/              # lightweight /adk-review on remote PRs
 ├── sync/<task>/synced/
@@ -68,7 +69,7 @@ auth:
   token_env: SLACK_BOT_TOKEN_CRED
 channels:
   - "#sf-web-pr-reviews"
-pr_reviews:                       # /adk-pr-reviews's slice of this connector
+pr_reviews:                       # used by `adk pr-scan` + /adk-pr-review queue mode
   url_patterns: [...]
   status_emoji: { ... }
 ---

@@ -18,7 +18,6 @@ Wrappers that install adk into `codex` at user level. Installed via `./install.s
 - `agents-codex/prompts/adk-improve.md`
 - `agents-codex/prompts/adk-investigate.md`
 - `agents-codex/prompts/adk-pr-review.md`
-- `agents-codex/prompts/adk-pr-reviews.md`
 - `agents-codex/prompts/adk-review.md`
 - `agents-codex/prompts/adk-setup.md`
 - `agents-codex/prompts/adk-sync.md`
