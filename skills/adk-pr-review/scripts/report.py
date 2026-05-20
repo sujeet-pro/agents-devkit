@@ -40,6 +40,23 @@ except Exception:
 
 
 SEV_ORDER = {"blocker": 0, "critical": 1, "should-have": 2, "may-have": 3, "nitpick": 4, "question": 5}
+BLOCKING_SEV = {"blocker", "critical"}
+
+
+def derive_recommendation(findings: list[dict], approved_host: bool = False) -> str:
+    """Re-derive the post-triage recommendation from the accepted findings.
+
+    Why: the pre-triage findings.json carries the AI reviewer's first guess.
+    After triage rejects findings, the recommendation stored in that file
+    can contradict the actual posted set (e.g., 'request_changes' with zero
+    accepted findings). The post-triage source of truth is the count and
+    severity of what survived triage.
+    """
+    if not findings:
+        return "approve" if approved_host else "comment_only"
+    if any(f.get("severity") in BLOCKING_SEV for f in findings):
+        return "request_changes"
+    return "comment_only"
 SEV_TAG = {"blocker": "[blocker]", "critical": "[critical]", "should-have": "[should]",
            "may-have": "[may]", "nitpick": "[nit]", "question": "[?]"}
 SEV_TO_CATEGORY = {
@@ -59,17 +76,32 @@ def main() -> int:
 
     task_dir = Path(args.task_dir)
     pr_path = task_dir / "pr.json"
-    f_path = task_dir / "findings.json"
+    # Prefer the post-triage source of truth so the report matches what
+    # actually gets posted. Falls back to the pre-triage file for back-compat
+    # with task dirs from before triage shipped.
+    final_path = task_dir / "findings-final.json"
+    legacy_path = task_dir / "findings.json"
+    if final_path.exists():
+        f_path = final_path
+    elif legacy_path.exists():
+        f_path = legacy_path
+    else:
+        die(f"missing {final_path} (preferred) and {legacy_path} (fallback)")
     if not pr_path.exists():
         die(f"missing {pr_path}")
-    if not f_path.exists():
-        die(f"missing {f_path}")
 
     log = get_logger("report", task_dir)
     pr = read_json(pr_path)
     findings_blob = read_json(f_path)
     findings = sorted(findings_blob.get("findings", []),
                       key=lambda x: (SEV_ORDER.get(x.get("severity", "may-have"), 9), x.get("file", "")))
+    # Re-derive recommendation from the post-triage set when reading findings-final.
+    if f_path == final_path:
+        review_decision = pr.get("reviewDecision") or pr.get("review_decision")
+        approved_host = (review_decision == "APPROVED")
+        findings_blob["recommendation"] = derive_recommendation(findings, approved_host=approved_host)
+        log.info("post-triage recommendation: %s (n_findings=%d, approved_host=%s)",
+                 findings_blob["recommendation"], len(findings), approved_host)
     actions = []
     actions_path = task_dir / "comment-actions.json"
     if actions_path.exists():

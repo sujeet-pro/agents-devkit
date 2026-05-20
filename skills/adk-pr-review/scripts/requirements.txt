@@ -1,5 +1,6 @@
-# adk-pr-review — Python deps
-# Install: pip install -r requirements.txt   (or use uv: `uv pip install -r requirements.txt`)
-requests>=2.31
-lancedb>=0.10
-pyarrow>=14
+# adk-pr-review — Python deps.
+#
+# All indexer deps live in the shared lib; this file just references that
+# requirements set so `pip install -r` against this skill still installs
+# everything needed.
+-r ../../../scripts/lib/code_index/requirements.txt

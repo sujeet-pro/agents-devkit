@@ -259,10 +259,25 @@ def bb_resolve(workspace: str, repo: str, n: int, comment_id: str, resolve: bool
 
 # ----- entrypoint ----------------------------------------------------------
 
+def should_post_review(findings: dict) -> bool:
+    """Suppress an empty request_changes review.
+
+    Posting a `request_changes` review with zero inline comments leaves a
+    confusing artifact on the PR — a verdict with no substance. When triage
+    rejects everything, the right thing is to skip the review post and let
+    the resolve/reopen actions stand on their own.
+    """
+    n = len(findings.get("findings", []) or [])
+    if n > 0:
+        return True
+    # No new findings — only post if the recommendation is positive (approve).
+    return (findings.get("recommendation") == "approve")
+
+
 def plan_only(task_dir: Path, findings: dict, actions: list[dict]) -> dict:
     return {
         "task_dir": str(task_dir),
-        "would_post_review": True,
+        "would_post_review": should_post_review(findings),
         "n_findings": len(findings.get("findings", [])),
         "recommendation": findings.get("recommendation"),
         "n_resolve": sum(1 for a in actions if a.get("decision") == "resolve" and a.get("verified")),
@@ -311,6 +326,27 @@ def main() -> int:
     findings = read_json(findings_path)
     actions = read_json(actions_path).get("actions", []) if actions_path.exists() else []
 
+    # Improvement #6: chain comment_resolver.py when actions exist but none are
+    # `verified`, AND no comment-resolver state has been written. Skipping the
+    # resolver leaves `n_resolve=0 / n_reopen=0` and silently drops the user's
+    # intent. Running it here is idempotent — it just rewrites the actions
+    # JSON with `verified` flags set.
+    resolver_state = task_dir / "comment-resolver-state.json"
+    if actions and not resolver_state.exists() and \
+            not any(a.get("verified") for a in actions if a.get("decision") in ("resolve", "reopen")):
+        resolver = Path(__file__).resolve().parent / "comment_resolver.py"
+        log.info("chaining comment_resolver.py (unverified actions, no resolver state)")
+        cp = subprocess.run(
+            [sys.executable, str(resolver), "--task-dir", str(task_dir), "--json"],
+            capture_output=True, text=True, check=False,
+        )
+        if cp.returncode != 0:
+            log.warning("comment_resolver.py failed (rc=%d) — continuing with unverified actions: %s",
+                        cp.returncode, (cp.stderr or "")[:200])
+        else:
+            # Reload actions; resolver may have flipped verified flags.
+            actions = read_json(actions_path).get("actions", []) if actions_path.exists() else []
+
     if args.confirmed != "yes":
         result = plan_only(task_dir, findings, actions)
         return emit_json(result) if args.json else (print(json.dumps(result, indent=2)) or 0)
@@ -318,12 +354,22 @@ def main() -> int:
     host = pr.get("host")
     out = {"task_dir": str(task_dir), "host": host, "posted": [], "resolved": []}
 
+    post_review = should_post_review(findings)
+    if not post_review:
+        out["skipped_review"] = {
+            "reason": "n_findings=0 and recommendation is not 'approve'",
+            "recommendation": findings.get("recommendation"),
+            "n_findings": 0,
+        }
+        log.info("skipping review post: n_findings=0; resolves/reopens still allowed")
+
     if host == "github":
-        res = gh_post_review(pr["owner"], pr["repo"], pr["pr_number"], pr["head_oid"],
-                             findings.get("findings", []), findings.get("summary", ""),
-                             findings.get("recommendation", "comment_only"),
-                             findings, log)
-        out["posted"].append(res)
+        if post_review:
+            res = gh_post_review(pr["owner"], pr["repo"], pr["pr_number"], pr["head_oid"],
+                                 findings.get("findings", []), findings.get("summary", ""),
+                                 findings.get("recommendation", "comment_only"),
+                                 findings, log)
+            out["posted"].append(res)
         if not args.no_resolve_existing:
             for a in actions:
                 if a.get("verified") and a.get("decision") in ("resolve", "reopen"):
@@ -331,9 +377,10 @@ def main() -> int:
                         pr["owner"], pr["repo"], pr["pr_number"], a["comment_id"],
                         resolve=(a["decision"] == "resolve"), log=log))
     elif host == "bitbucket":
-        res = bb_post_inline(pr["owner"], pr["repo"], pr["pr_number"],
-                             findings.get("findings", []), findings, log)
-        out["posted"].append(res)
+        if post_review:
+            res = bb_post_inline(pr["owner"], pr["repo"], pr["pr_number"],
+                                 findings.get("findings", []), findings, log)
+            out["posted"].append(res)
         if not args.no_resolve_existing:
             for a in actions:
                 if a.get("verified") and a.get("decision") in ("resolve", "reopen"):

@@ -770,12 +770,14 @@ def install_deps(repo_root: Path, dry_run: bool, results: dict[str, Any],
         warn("ollama not installed (linux); re-run with --allow-curl-bash or install manually")
 
     # Python pip deps — always pip-install missing ones into the user site.
+    # lancedb has a tight upper bound because 0.30 introduced a breaking change
+    # to `list_tables()`. Keep in sync with scripts/lib/code_index/requirements.txt.
     py_pkgs = [
         ("slack_sdk", "slack_sdk"),
         ("json5", "json5"),
         ("yaml", "PyYAML"),
         ("requests", "requests"),
-        ("lancedb", "lancedb"),
+        ("lancedb", "lancedb>=0.30,<0.40"),
         ("tree_sitter_language_pack", "tree_sitter_language_pack"),
         # textual: optional at the doctor level (it gracefully falls back to
         # plain text) but cheap to have for `adk doctor --tui`. Auto-installing
