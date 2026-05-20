@@ -244,6 +244,17 @@ def bb_post_inline(workspace: str, repo: str, n: int, findings: list[dict],
             "n_comments": len(results), "results": results}
 
 
+def bb_approve(workspace: str, repo: str, n: int, log) -> dict:
+    """Approve a Bitbucket PR. Called only when recommendation == 'approve'
+    AND comment-actions.json's approve_ready is true."""
+    s = _bb_session()
+    url = f"{BB_API}/repositories/{workspace}/{repo}/pullrequests/{n}/approve"
+    r = s.post(url, json={}, timeout=30)
+    if r.status_code >= 300:
+        return {"status": "failed", "code": r.status_code, "body": r.text[:300]}
+    return {"status": "ok", "approved_by": (r.json() or {}).get("user", {}).get("display_name")}
+
+
 def bb_resolve(workspace: str, repo: str, n: int, comment_id: str, resolve: bool, log) -> dict:
     s = _bb_session()
     # BB Cloud exposes resolution as PUT/DELETE on /comments/<id>/resolution.
@@ -300,6 +311,10 @@ def main() -> int:
     ap.add_argument("--plan-only", action="store_true",
                     help="rehearse posting without transmitting (overrides --confirmed yes).")
     ap.add_argument("--no-resolve-existing", action="store_true")
+    ap.add_argument("--use-mcp", action="store_true",
+                    help="emit posting-plan.json for the host agent to dispatch via MCP; "
+                         "skip the direct-API transmission path. references/platform-mcp.md "
+                         "documents the per-platform tool table.")
     ap.add_argument("--json", action="store_true")
     args = ap.parse_args()
     if args.plan_only:
@@ -347,12 +362,50 @@ def main() -> int:
             # Reload actions; resolver may have flipped verified flags.
             actions = read_json(actions_path).get("actions", []) if actions_path.exists() else []
 
+    # Build an MCP-first posting plan REGARDLESS of mode. The plan is the
+    # machine-readable recipe the host agent will execute (`mcp__adk-mcp-*`
+    # tools — see references/platform-mcp.md). The direct-API path below
+    # stays as a headless fallback for when no agent is wrapping the run
+    # (e.g. CI rehearsal).
+    approve_ready = _comment_actions_approve_ready(task_dir)
+    recommendation = findings.get("recommendation", "comment_only")
+    plan = build_posting_plan(
+        pr=pr,
+        findings_blob=findings,
+        actions=actions,
+        no_resolve_existing=args.no_resolve_existing,
+        approve_ready=approve_ready,
+    )
+    write_json(task_dir / "posting-plan.json", plan)
+    log.info("posting-plan.json: %d step(s) — %s",
+             len(plan.get("steps", [])),
+             ", ".join(s.get("kind", "?") for s in plan.get("steps", [])) or "<empty>")
+
     if args.confirmed != "yes":
         result = plan_only(task_dir, findings, actions)
+        result["posting_plan"] = str(task_dir / "posting-plan.json")
+        result["plan_steps"] = len(plan.get("steps", []))
         return emit_json(result) if args.json else (print(json.dumps(result, indent=2)) or 0)
 
+    if args.use_mcp:
+        # MCP-first mode: the calling agent dispatches each step in
+        # posting-plan.json via the named MCP tool. The script doesn't
+        # transmit anything itself. This avoids direct-API duplication
+        # of work the agent's MCP client already handles.
+        log.info("--use-mcp: emitted posting-plan.json; agent will dispatch via MCP")
+        out = {
+            "task_dir": str(task_dir),
+            "mode": "mcp-plan",
+            "posting_plan": str(task_dir / "posting-plan.json"),
+            "n_steps": len(plan.get("steps", [])),
+            "note": "Host agent dispatches each step via the named mcp__adk-mcp-{github,bitbucket}__* tool. NEVER merge — that's a human action.",
+        }
+        write_json(task_dir / "post-result.json", out)
+        return emit_json(out) if args.json else (print(json.dumps(out, indent=2)) or 0)
+
     host = pr.get("host")
-    out = {"task_dir": str(task_dir), "host": host, "posted": [], "resolved": []}
+    out = {"task_dir": str(task_dir), "host": host,
+           "mode": "direct-api", "posted": [], "resolved": [], "approved": None}
 
     post_review = should_post_review(findings)
     if not post_review:
@@ -367,9 +420,12 @@ def main() -> int:
         if post_review:
             res = gh_post_review(pr["owner"], pr["repo"], pr["pr_number"], pr["head_oid"],
                                  findings.get("findings", []), findings.get("summary", ""),
-                                 findings.get("recommendation", "comment_only"),
-                                 findings, log)
+                                 recommendation, findings, log)
             out["posted"].append(res)
+            # GitHub's review POST already encodes the APPROVE event when
+            # recommendation == "approve" — no separate approve call.
+            if recommendation == "approve" and approve_ready:
+                out["approved"] = {"status": "ok", "via": "review_event=APPROVE"}
         if not args.no_resolve_existing:
             for a in actions:
                 if a.get("verified") and a.get("decision") in ("resolve", "reopen"):
@@ -387,11 +443,186 @@ def main() -> int:
                     out["resolved"].append(bb_resolve(
                         pr["owner"], pr["repo"], pr["pr_number"], a["comment_id"],
                         resolve=(a["decision"] == "resolve"), log=log))
+        # Bitbucket has no APPROVE-in-review like GH — separate endpoint.
+        if recommendation == "approve" and approve_ready:
+            out["approved"] = bb_approve(pr["owner"], pr["repo"], pr["pr_number"], log)
     else:
         die(f"unsupported host: {host}")
 
     write_json(task_dir / "post-result.json", out)
     return emit_json(out) if args.json else 0
+
+
+def _comment_actions_approve_ready(task_dir: Path) -> bool:
+    """Read comment-actions.json (if present) and return its approve_ready flag.
+
+    Defaults to False when absent — we don't approve a PR whose existing
+    threads haven't been classified at all.
+    """
+    p = task_dir / "comment-actions.json"
+    if not p.exists():
+        return False
+    try:
+        return bool(json.loads(p.read_text(encoding="utf-8")).get("approve_ready", False))
+    except Exception:
+        return False
+
+
+def build_posting_plan(*, pr: dict, findings_blob: dict, actions: list[dict],
+                       no_resolve_existing: bool, approve_ready: bool) -> dict:
+    """Translate the post-step intent into a list of MCP-tool invocations.
+
+    Each step carries:
+      kind:      semantic action — review_summary | inline_comment | resolve |
+                 reopen | approve
+      mcp_tool:  the named MCP tool the host agent should call
+      mcp_args:  kwargs for the MCP tool (host-rendered)
+      fallback:  what to do if the MCP tool is unreachable (usually the
+                 direct-API equivalent; see references/platform-mcp.md)
+
+    Constitution §I.4: each step is gated by the run-level posting confirm
+    (handled by the orchestrator's `--no-post` flag and the auto-mode rule);
+    individual steps do NOT prompt again.
+
+    NEVER includes a merge step. Merging is a human action regardless of
+    findings — the user clicks merge.
+    """
+    host = pr.get("host")
+    owner = pr.get("owner")
+    repo = pr.get("repo")
+    n = pr.get("pr_number")
+    head = pr.get("head_oid") or pr.get("headRefOid")
+    findings = findings_blob.get("findings", []) or []
+    recommendation = findings_blob.get("recommendation", "comment_only")
+    post_review = should_post_review(findings_blob)
+    steps: list[dict] = []
+
+    # ---- Review summary + inline comments ----
+    if post_review:
+        if host == "github":
+            steps.append({
+                "kind": "review_summary",
+                "mcp_tool": "mcp__adk-mcp-github__pull_request_review_write",
+                "mcp_args": {
+                    "owner": owner, "repo": repo, "pullNumber": n,
+                    "commitID": head,
+                    "body": format_review_summary(findings_blob),
+                    "event": {"approve": "APPROVE", "request_changes": "REQUEST_CHANGES",
+                              "comment_only": "COMMENT"}.get(recommendation, "COMMENT"),
+                    "comments": [
+                        {"path": f["file"],
+                         "line": int(f.get("line_end", f.get("line_start", 1))),
+                         "side": "RIGHT",
+                         "body": format_comment_body(f)}
+                        for f in findings
+                    ],
+                },
+                "fallback": "gh_post_review (direct REST POST /pulls/<n>/reviews)",
+            })
+        elif host == "bitbucket":
+            steps.append({
+                "kind": "review_summary",
+                "mcp_tool": "mcp__adk-mcp-bitbucket__addPullRequestComment",
+                "mcp_args": {
+                    "workspace": owner, "repoSlug": repo, "pullRequestId": n,
+                    "content": {"raw": format_review_summary(findings_blob)},
+                },
+                "fallback": "POST /pullrequests/<n>/comments",
+            })
+            for f in findings:
+                steps.append({
+                    "kind": "inline_comment",
+                    "mcp_tool": "mcp__adk-mcp-bitbucket__addPullRequestComment",
+                    "mcp_args": {
+                        "workspace": owner, "repoSlug": repo, "pullRequestId": n,
+                        "content": {"raw": format_comment_body(f)},
+                        "inline": {"path": f["file"],
+                                   "to": int(f.get("line_end", f.get("line_start", 1)))},
+                    },
+                    "fallback": "POST /pullrequests/<n>/comments (with inline.path/to)",
+                    "finding_id": f.get("id"),
+                })
+    else:
+        steps.append({
+            "kind": "review_summary_skipped",
+            "reason": "n_findings=0 and recommendation is not 'approve'",
+        })
+
+    # ---- Resolve / reopen existing threads ----
+    if not no_resolve_existing:
+        for a in actions:
+            if not a.get("verified"):
+                continue
+            decision = a.get("decision")
+            if decision not in ("resolve", "reopen"):
+                continue
+            cid = a.get("comment_id")
+            if host == "github":
+                # GraphQL is the only API that flips thread state; the script's
+                # current fallback posts a reply. The MCP tool is also a reply.
+                steps.append({
+                    "kind": decision,
+                    "mcp_tool": "mcp__adk-mcp-github__add_reply_to_pull_request_comment",
+                    "mcp_args": {
+                        "owner": owner, "repo": repo, "pullNumber": n,
+                        "commentID": cid,
+                        "body": (
+                            "[adk-pr-review] Resolving this thread — the diff at the anchored line addresses the concern."
+                            if decision == "resolve" else
+                            "[adk-pr-review] Reopening this thread — the concern was not addressed in the latest push."
+                        ),
+                    },
+                    "fallback": "POST /pulls/<n>/comments/<id>/replies",
+                    "comment_id": cid,
+                    "reason": a.get("reason"),
+                })
+            elif host == "bitbucket":
+                steps.append({
+                    "kind": decision,
+                    "mcp_tool": ("mcp__adk-mcp-bitbucket__resolveComment"
+                                  if decision == "resolve"
+                                  else "mcp__adk-mcp-bitbucket__reopenComment"),
+                    "mcp_args": {
+                        "workspace": owner, "repoSlug": repo, "pullRequestId": n,
+                        "commentID": cid,
+                    },
+                    "fallback": ("PUT /pullrequests/<n>/comments/<id>/resolution"
+                                  if decision == "resolve"
+                                  else "DELETE /pullrequests/<n>/comments/<id>/resolution"),
+                    "comment_id": cid,
+                    "reason": a.get("reason"),
+                })
+
+    # ---- Approve PR when mergeable ----
+    if recommendation == "approve" and approve_ready:
+        if host == "github":
+            # GitHub: APPROVE is encoded in the review_summary step's `event`.
+            # No separate step; surface that the approval is bundled.
+            steps.append({
+                "kind": "approve_pr",
+                "via": "bundled_in_review_summary_event=APPROVE",
+                "note": "GitHub approves via the review's event field; no separate MCP call.",
+            })
+        elif host == "bitbucket":
+            steps.append({
+                "kind": "approve_pr",
+                "mcp_tool": "mcp__adk-mcp-bitbucket__approvePullRequest",
+                "mcp_args": {"workspace": owner, "repoSlug": repo, "pullRequestId": n},
+                "fallback": "POST /pullrequests/<n>/approve",
+            })
+
+    return {
+        "host": host,
+        "pr_link": pr.get("url"),
+        "recommendation": recommendation,
+        "approve_ready": approve_ready,
+        "post_review": post_review,
+        "n_findings": len(findings),
+        "n_actions": sum(1 for a in actions if a.get("verified") and a.get("decision") in ("resolve", "reopen")),
+        "steps": steps,
+        "never_merge": True,  # explicit: this plan NEVER includes a merge step
+        "doc": "Execute each step via its mcp_tool with mcp_args. See skills/adk-pr-review/references/platform-mcp.md.",
+    }
 
 
 if __name__ == "__main__":

@@ -10,6 +10,9 @@
 6. **Quote ≤ 15 words verbatim** from any source (PR body, comment, doc, code) per constitution §II.1.
 7. **State confidence on every claim** (`low / med / high`). High = code read. Med = reasoned. Low = pattern-match.
 8. **Honor the schema.** Output strictly matches `finding.template.json`. Invalid findings are dropped, not patched.
+9. **Classify every existing comment thread.** Every thread MUST appear in `existing_comment_actions[]`. Threads the AI omits are auto-classified by `comment_resolver.py` (flagged with `auto_classified: true`) — but explicit beats implicit. See `references/comment-resolution.md`.
+10. **Prefer MCP for writes.** `post_comments.py` emits `posting-plan.json` listing each step as an `mcp__adk-mcp-{github,bitbucket}__*` tool + args. The host agent dispatches; direct API is only the headless fallback. See `references/platform-mcp.md`.
+11. **Approve when mergeable.** Set `recommendation: "approve"` when there are zero blocker/critical findings AND no thread requires `reopen`. The post step queues an approve action (GitHub: bundled in the review's APPROVE event; Bitbucket: separate `approvePullRequest` call).
 
 ## Must not
 
@@ -20,6 +23,7 @@
 5. **Never run DDL / DML / GRANT.** Constitution §I.6.
 6. **Never invent files / symbols / flags.** If retrieval returns nothing, the finding's confidence drops to `low` and the body says "couldn't verify caller".
 7. **Never quote a secret value.** Constitution §VII. If the diff contains a secret, the finding cites the line range without the value.
+8. **Never merge the PR.** Approving (when applicable) is the skill's last act. `posting-plan.json.never_merge` is always `true`. The MCP `merge_pull_request` / `mergePullRequest` tools are forbidden from any plan the skill emits. If the user explicitly asks for a merge, refuse and tell them to click merge themselves.
 
 ## Refusals (Phase 0 stops; the rest don't run)
 

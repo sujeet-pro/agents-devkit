@@ -163,6 +163,12 @@ def main() -> int:
                     help="skip seeding from the repo-level base index; index the PR worktree from scratch.")
     ap.add_argument("--max-base-staleness", type=int, default=None,
                     help="reject the base index if older than N days (default: from config base_index.max_staleness_days, fallback 7).")
+    ap.add_argument("--use-mcp", action="store_true", default=True,
+                    help="emit posting-plan.json for the host agent to dispatch via MCP "
+                         "(default). Add --no-use-mcp for the direct-API fallback path "
+                         "(headless CI runs).")
+    ap.add_argument("--no-use-mcp", dest="use_mcp", action="store_false",
+                    help="disable MCP-first posting; post_comments.py uses direct REST API.")
     args = ap.parse_args()
 
     # Resolve the embed model: explicit --embed-model wins, else --detailed picks
@@ -525,12 +531,24 @@ def _main_inner(args, parsed, task_dir, log) -> int:
     # interactive mode. Pass --no-post on the orchestrator to inhibit (rehearsal
     # only). The post_comments.py default is now `--confirmed yes` so we don't
     # need to pass any flag in the happy path; --plan-only flips it off.
+    #
+    # `--use-mcp` makes post_comments.py emit posting-plan.json and exit
+    # without touching the direct API — the host agent then dispatches each
+    # step via the named mcp__adk-mcp-{github,bitbucket}__* tool per
+    # references/platform-mcp.md. Falls back to direct API when --no-mcp.
     post_flag = " --plan-only" if args.no_post else ""
+    use_mcp_flag = " --use-mcp" if args.use_mcp else ""
     post_comment_hint = "   # plan-only (--no-post was set)" if args.no_post else "   # auto-post (constitution §I.4: task requires this)"
     next_steps += [
-        f"python3 scripts/post_comments.py --task-dir {task_dir} --json{post_flag}{post_comment_hint}",
-        f"python3 scripts/report.py --task-dir {task_dir}",
+        f"python3 scripts/post_comments.py --task-dir {task_dir} --json{use_mcp_flag}{post_flag}{post_comment_hint}",
     ]
+    if args.use_mcp:
+        next_steps.append(
+            f"agent: read {task_dir / 'posting-plan.json'} — for each step, "
+            "invoke its mcp_tool with mcp_args. NEVER call merge_pull_request / "
+            "mergePullRequest. See references/platform-mcp.md."
+        )
+    next_steps.append(f"python3 scripts/report.py --task-dir {task_dir}")
     summary = {
         "task_dir": str(task_dir),
         "pr_url": args.url,

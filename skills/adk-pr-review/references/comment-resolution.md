@@ -2,6 +2,8 @@
 
 Every PR review begins by reading every existing review comment thread (`pr-comments.json`). The reviewer's job for each thread is to **classify and act**, then declare the action in `existing_comment_actions[]`.
 
+**MANDATORY: every thread MUST appear in `existing_comment_actions[]`.** A thread without a decision is treated as a verifier issue. If you're genuinely unsure, emit `decision: "leave-as-is"` with `reason: "ambiguous — needs human"`. Threads the AI doesn't address are auto-classified by `comment_resolver.py` (using the same rules) and flagged with `auto_classified: true` so the report can show them — but if you found a thread worth fixing, propose it explicitly.
+
 ## The four classifications
 
 | Class | Definition | Action |
@@ -27,6 +29,26 @@ The skill applies these transitions on the host PR:
 | RESOLVED | ambiguous | RESOLVED (leave-as-is) |
 
 The user's intent: "if its marked resolved, leave it, if not marked resolved, leave is" applies specifically to **offline-aligned** threads — the alignment overrides the resolved/open bit. For fixed/unfixed threads, the skill makes the state match the reality of the code.
+
+## Acceptable-reply detection (broader than offline-alignment)
+
+A thread with an *acceptable reply* is left alone regardless of its current state — the reply IS the disposition. Three flavors of acceptable reply:
+
+### 1. Offline-alignment
+
+The discussion moved off-platform: "agreed offline", "discussed in standup", "we'll handle this in a follow-up PR", "out of scope per <person>", "talked about this and decided X". See patterns below.
+
+### 2. Jira (or similar) ticket reference
+
+The concern was tracked in another ticket: "tracked in PROJ-1234", "moved to INFRA-42", "filed JIRA-5678 for next sprint", "follow-up in BACK-99". Pattern: a key matching `[A-Z][A-Z0-9]{1,9}-\d+` adjacent to a tracking verb (tracked, filed, logged, opened, created, moved, migrated, follow-up).
+
+When this matches, the thread is left in whatever state it's in, and the Jira key is recorded in `comment-actions.json[].valid_reply.detail` so the report shows the tracking handoff.
+
+### 3. "Synced with @person"
+
+The reviewer / author named a human they aligned with: "synced with @alice", "spoke to @bob", "per chat with @carol", "as per @dave". Same effect — leave alone, record the handle.
+
+In all three cases the verifier sets `valid_reply: {kind, detail}` on the action; the report renders this so a human can trace why a thread was left alone.
 
 ## Offline-alignment detection heuristics
 
@@ -83,10 +105,16 @@ Otherwise: a `decision: reopen` action on the existing thread is sufficient, wit
 
 ## Posting mechanics
 
-- **GitHub**: `resolveReviewThread` / `unresolveReviewThread` via GraphQL (the REST API doesn't support it). The script falls back to a status comment ("Resolving this thread: the diff at `path:line` addresses the concern.") if the token can't access GraphQL.
-- **Bitbucket Cloud**: `resolveComment` / `reopenComment` via the MCP. Both supported on the standard token.
+The post step is **MCP-first**. `post_comments.py` always writes `posting-plan.json` listing each step with its `mcp_tool` + `mcp_args`. Under `--use-mcp` (the recommended path when the host agent has MCP access), the script emits the plan and exits; the agent dispatches each call via the named tool. Direct-API stays only as the headless fallback for CI / rehearsal runs.
 
-All resolve / reopen actions are reported in `report.md` with the comment ID and the reason.
+Per-platform tool table: see `references/platform-mcp.md`. Highlights:
+
+- **GitHub**: review summary + inline comments + APPROVE event ship in one MCP call (`pull_request_review_write`). Resolve / reopen go through a textual reply via `add_reply_to_pull_request_comment` because REST + most token scopes cannot flip the resolved state directly; the team can flip the actual state from the UI afterward (or via GraphQL).
+- **Bitbucket Cloud**: each comment is its own POST (or pending-comment + final publish). Resolve / reopen are first-class — `resolveComment` / `reopenComment`. Approve is its own endpoint — `approvePullRequest`.
+
+**No merge step, ever.** `posting-plan.json.never_merge` is always `true`. Reviewing approves; humans merge.
+
+All resolve / reopen / approve actions are reported in `report.md` with the comment ID, the reason, and (when applicable) the `valid_reply.kind/detail` that justified the disposition.
 
 ## Edge cases
 

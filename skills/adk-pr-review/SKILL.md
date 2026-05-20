@@ -92,7 +92,12 @@ You do **not** have write access to the worktree. Do not attempt to edit files i
 
 1. **Fetch supporting docs first.** Open `<task_dir>/docs/index.json`. For every entry with `status: "pending_mcp"`, call the MCP tool named in `mcp_tool` with `mcp_args`, convert the response to markdown, write it to the entry's `path`, and update its `status` to `"fetched"` (or `"failed: <reason>"`). Jira tickets and Confluence pages linked from the PR body are first-class inputs — they describe the *intent* the diff is supposed to implement. If a tool fails or the MCP is unreachable, mark the entry `failed` and continue; surface `[<adapter>: skipped]` in the report.
 2. **Read PR meta + diff + supporting docs.** Identify the *intent* from title, body, and the fetched docs. Note any acceptance criteria, design constraints, or success metrics named in the linked Jira/Confluence/GDoc. The diff must satisfy what the docs say; flag drift as a `docs` or `api` finding.
-3. **Read existing PR comments (`pr-comments.json`).** For each thread, decide if your review should *re-raise*, *defer to*, or *not duplicate* it. Drive-by re-raises are forbidden (anti-patterns below). See `references/comment-resolution.md`.
+3. **Read existing PR comments (`pr-comments.json`) — and classify every thread.** For each thread (no exceptions), emit one `existing_comment_actions[]` entry. The three rules (see `references/comment-resolution.md`):
+   - **Open + the diff resolves the concern** → `decision: "resolve"`. Cite the `file:line` in `evidence_ref`.
+   - **Open or Resolved + an acceptable reply explains the disposition** (offline-aligned, "tracked in PROJ-1234", "synced with @alice") → `decision: "leave-as-is"`.
+   - **Resolved + the diff did NOT resolve the concern AND no acceptable reply** → `decision: "reopen"`.
+   - **Anything else** (ambiguous, missing context, bot comment) → `decision: "leave-as-is"` with `reason: "ambiguous — needs human"`.
+   Threads you omit get auto-classified by `comment_resolver.py` and flagged in the report — but explicit > implicit. Drive-by re-raises in `findings[]` are forbidden (see anti-patterns below).
 4. **Plan retrieval.** For each non-trivial change, list what additional context you need: callers, related tests, similar patterns elsewhere, doc requirements, feature-flag resolution, experiment exposure. Use the pre-loaded index context first; spelunk further only when an evidence gap matters.
 5. **Trace control flow for new behavior.** If the diff adds a code path behind a feature flag, experiment, or dynamic config:
    - Find the flag/experiment/config reference in the diff.
@@ -244,6 +249,12 @@ Return a single JSON object matching `finding.template.json`. The `findings` arr
 - Ambiguous PRs where you genuinely lack context: `recommendation: comment_only`, finding(s) with severity `question` explaining what's missing.
 - Prefer one good finding over three thin ones.
 
+## Approve when mergeable. NEVER merge.
+
+- Set `recommendation: "approve"` when the PR has **no blocker/critical findings AND no thread requires `reopen`**. The post step will queue an approve action (GitHub: APPROVE event bundled with the review; Bitbucket: `approvePullRequest` MCP call) iff `comment-actions.json.approve_ready` is `true`.
+- The post step **never includes a merge action**. `posting-plan.json.never_merge` is always `true`. Approving lets the human reviewer / author click merge; the skill does not click for them. The constitution (§I.3) and `references/rules.md` enforce this.
+- If the user explicitly asks for a merge (`--merge` flag — not currently implemented), the skill refuses and surfaces the link with "merge this yourself".
+
 ## Pipeline you participate in
 
 The orchestrator runs phases 0-3 (clone, worktree, fetch, chunk + embed + SCIP, precis). Phase 4 is YOU producing `findings.json`. Phases 5-6 (resolve existing comments, triage, post, report) run after.
@@ -279,6 +290,10 @@ After you write `findings.json`, the orchestrator runs `comment_resolver.py` for
 
 You never post directly. Posting is `post_comments.py`'s job. In both auto and interactive modes the **default is to transmit** — constitution §I.4 explicitly names "adk-pr-review posting inline comments" as a task-required action, so no separate prompt fires. Pass `--no-post` (orchestrator) or `--plan-only` (post_comments.py) to inhibit.
 
+**Posting is MCP-first.** `post_comments.py` always writes `posting-plan.json` listing each step as an MCP tool + args (per `references/platform-mcp.md`). When `--use-mcp` is set (the path the host agent should take, since the agent has MCP access and the script doesn't), `post_comments.py` emits the plan and exits — YOU dispatch each step via the named `mcp__adk-mcp-{github,bitbucket}__*` tool. Direct-API mode stays for headless CI runs.
+
+When `recommendation: "approve"` AND `comment-actions.json.approve_ready` is true, the plan includes an `approve_pr` step. On GitHub that's bundled in the `pull_request_review_write` `event: APPROVE` field; on Bitbucket it's a separate `approvePullRequest` MCP call. **NEVER add a `merge_pull_request` / `mergePullRequest` step. Merging is the human's job.**
+
 ## References (loaded as needed)
 
 | Aspect | File |
@@ -287,7 +302,8 @@ You never post directly. Posting is `post_comments.py`'s job. In both auto and i
 | Phase-by-phase workflow | `references/workflow.md` |
 | Hard rules + refusals | `references/rules.md` |
 | Fork IDs | `references/forks.md` |
-| Existing-comments resolution (resolve / reopen / offline-alignment) | `references/comment-resolution.md` |
+| Existing-comments resolution (resolve / reopen / offline-alignment / Jira-reply / synced-with) | `references/comment-resolution.md` |
+| Per-platform MCP tool table (get / reply / resolve / reopen / approve — never merge) | `references/platform-mcp.md` |
 | Indexing details (chunker / embedder / SCIP) | `references/indexing.md` |
 | Feature-flow tracing (Statsig + dynamic-config + experiments) | `references/feature-flow-tracing.md` |
 | Reranker queue contract (harness picks the LLM) | `references/rerank-harness.md` |

@@ -42,20 +42,90 @@ OFFLINE_PATTERNS = [
     re.compile(r"\bdeferred\b", re.I),
     re.compile(r"\b(thanks|sounds\s+good)[,!]?\s+(closing|resolving)\b", re.I),
 ]
+
+# A Jira-style reply IS an acceptable disposition — "tracked in PROJ-1234",
+# "moved to JIRA-5678", "filed as INFRA-42 for next sprint". The ticket
+# becomes the new owner of the concern, so the comment thread is no longer
+# the right place to re-litigate it.
+JIRA_REPLY_PATTERNS = [
+    # Phrases that signal "we tracked this elsewhere": tracked / filed /
+    # logged / opened / created — followed by a Jira-style key within ~40
+    # chars. The first capture in each pattern is the key.
+    re.compile(r"\b(?:tracked|filed|logged|opened|created|moved|migrated)\b[^.\n]{0,40}\b([A-Z][A-Z0-9]{1,9}-\d+)\b", re.I),
+    re.compile(r"\b(?:see|ref(?:erence)?|follow(?:-?up)?(?:\s+in)?|will\s+(?:do|handle|address|fix)\s+(?:in|via))\b[^.\n]{0,30}\b([A-Z][A-Z0-9]{1,9}-\d+)\b", re.I),
+    # Bare key adjacent to a "follow-up" keyword — looser fallback.
+    re.compile(r"\bfollow[- ]?up\b[^.\n]{0,20}\b([A-Z][A-Z0-9]{1,9}-\d+)\b", re.I),
+]
+
+# "Synced with @person" / "spoke to @person" — explicit human alignment.
+# @ is required: "synced with the team" is too generic; we want a specific
+# accountable handle so the report can name who took the decision.
+SYNCED_WITH_PATTERNS = [
+    re.compile(r"\b(?:synced|sync'?d|spoke|spoken|talked|aligned|discussed)\s+(?:with|to)\s+@([A-Za-z][\w.-]{1,40})\b", re.I),
+    re.compile(r"\b(?:per|as\s+per|per\s+chat\s+with)\s+@([A-Za-z][\w.-]{1,40})\b", re.I),
+]
+
 NEGATIVE_PATTERNS = [
     re.compile(r"\b(but|however|except|unless)\b", re.I),
 ]
+
+
+def _passes_negatives(body: str) -> bool:
+    """The body must not contain negation/qualifier and must not end with ?."""
+    if any(p.search(body) for p in NEGATIVE_PATTERNS):
+        return False
+    if body.strip().endswith("?"):
+        return False
+    return True
 
 
 def has_offline_marker(body: str) -> bool:
     body = body or ""
     if not any(p.search(body) for p in OFFLINE_PATTERNS):
         return False
-    if any(p.search(body) for p in NEGATIVE_PATTERNS):
-        return False
-    if body.strip().endswith("?"):
-        return False
-    return True
+    return _passes_negatives(body)
+
+
+def extract_jira_reply_ref(body: str) -> str | None:
+    """Return the Jira key if the reply tracks this in another ticket."""
+    body = body or ""
+    if not _passes_negatives(body):
+        return None
+    for p in JIRA_REPLY_PATTERNS:
+        m = p.search(body)
+        if m:
+            return m.group(1)
+    return None
+
+
+def extract_synced_with(body: str) -> str | None:
+    """Return the @person handle if the reply names a sync partner."""
+    body = body or ""
+    if not _passes_negatives(body):
+        return None
+    for p in SYNCED_WITH_PATTERNS:
+        m = p.search(body)
+        if m:
+            return m.group(1)
+    return None
+
+
+def classify_reply(body: str) -> tuple[str | None, str | None]:
+    """Return (kind, detail) for an acceptable-reply reading.
+
+    kind ∈ {"offline", "jira", "synced", None}.
+    detail is the ticket key / @handle / the matching phrase, used downstream
+    when surfacing why a thread was left alone.
+    """
+    if has_offline_marker(body):
+        return ("offline", body.strip().split("\n", 1)[0][:120])
+    jira = extract_jira_reply_ref(body)
+    if jira:
+        return ("jira", jira)
+    handle = extract_synced_with(body)
+    if handle:
+        return ("synced", handle)
+    return (None, None)
 
 
 def host_of(pr: dict) -> str:
@@ -166,22 +236,34 @@ def verify_action(action: dict, threads: dict, touched: dict, log) -> dict:
     result["thread_root"] = thread_root
     result["thread_currently_resolved"] = thread_state.get("resolved", False)
 
-    # Verify offline-alignment independently.
-    verified_offline = False
+    # Verify acceptable-reply independently — broader than the original
+    # offline-only check. Acceptable replies (any kind) mean "leave alone":
+    #   offline: agreed in standup / out-of-band / followup-PR
+    #   jira:    "tracked in PROJ-1234" / "moved to INFRA-42"
+    #   synced:  "synced with @alice" / "per chat with @bob"
+    valid_reply_kind: str | None = None
+    valid_reply_detail: str | None = None
     for c in thread_state["thread"]:
-        if has_offline_marker(c.get("body", "")):
-            verified_offline = True
+        kind, detail = classify_reply(c.get("body", ""))
+        if kind:
+            valid_reply_kind = kind
+            valid_reply_detail = detail
             break
+    verified_offline = (valid_reply_kind == "offline")
     result["offline_alignment_verified"] = verified_offline
+    result["valid_reply"] = {
+        "kind": valid_reply_kind,
+        "detail": valid_reply_detail,
+    } if valid_reply_kind else None
     if claimed_offline and not verified_offline:
         result["verifier_note"] += " | model claimed offline but no marker found; downgrading"
         result["offline_alignment_detected"] = False
 
     # Apply state-transition rules (see references/comment-resolution.md).
     currently_resolved = thread_state.get("resolved", False)
-    if verified_offline:
+    if valid_reply_kind:
         result["decision"] = "leave-as-is"
-        result["verifier_note"] += " | offline-aligned, leaving as-is"
+        result["verifier_note"] += f" | acceptable-reply ({valid_reply_kind}), leaving as-is"
         result["verified"] = True
         return result
 
@@ -251,24 +333,114 @@ def main() -> int:
     touched = lines_touched_by_diff(diff.read_text(encoding="utf-8", errors="replace")) if diff.exists() else {}
 
     proposed: list[dict] = []
+    findings_blob: dict = {}
     if findings.exists():
-        f = read_json(findings)
-        proposed = f.get("existing_comment_actions", [])
+        findings_blob = read_json(findings)
+        proposed = findings_blob.get("existing_comment_actions", [])
 
     verified = [verify_action(a, threads, touched, log) for a in proposed]
+
+    # Auto-classify orphan threads — every thread the model did NOT name in
+    # existing_comment_actions[] still needs a decision (user requirement:
+    # every comment must be reviewed). The auto-classification follows the
+    # same rules as verify_action; it lands with `auto_classified: true`
+    # so the report can surface "the AI didn't propose anything for these".
+    addressed_ids = {str(a.get("comment_id")) for a in proposed if a.get("comment_id")}
+    for root_id, t in threads.items():
+        thread_ids = {c["id"] for c in t["thread"]}
+        if thread_ids & addressed_ids:
+            continue  # at least one comment in this thread already addressed
+        auto = _auto_classify_thread(t, touched)
+        auto["auto_classified"] = True
+        verified.append(auto)
+
+    # Approve-readiness. The PR is "approve-ready" when:
+    #   (a) the AI's findings carry no blocker/critical severity, and
+    #   (b) no thread is left UNRESOLVED-and-unfixed (no open finding-equivalent).
+    findings_list = findings_blob.get("findings", []) or []
+    blocking_severities = {"blocker", "critical"}
+    has_blocker = any((f.get("severity") in blocking_severities) for f in findings_list)
+    unresolved_blocking_threads = [
+        v for v in verified
+        if v.get("decision") == "reopen" and v.get("verified")
+    ]
+    approve_ready = (not has_blocker) and (not unresolved_blocking_threads)
+
     out = {
         "task_dir": str(task_dir),
         "host": pr.get("host"),
         "n_threads": len(threads),
         "n_actions_proposed": len(proposed),
+        "n_actions_auto_classified": sum(1 for v in verified if v.get("auto_classified")),
         "n_actions_verified": sum(1 for v in verified if v.get("verified")),
+        "approve_ready": approve_ready,
+        "approve_ready_reason": (
+            "no blocker/critical findings AND no thread requires reopen"
+            if approve_ready
+            else f"has_blocker={has_blocker}, threads_to_reopen={len(unresolved_blocking_threads)}"
+        ),
         "actions": verified,
     }
     write_json(task_dir / "comment-actions.json", out)
     if args.json:
         return emit_json(out)
-    log.info("verified %d/%d actions", out["n_actions_verified"], out["n_actions_proposed"])
+    log.info("verified %d/%d actions (%d auto-classified) · approve_ready=%s",
+             out["n_actions_verified"], out["n_actions_proposed"],
+             out["n_actions_auto_classified"], approve_ready)
     return 0
+
+
+def _auto_classify_thread(thread_state: dict, touched: dict) -> dict:
+    """Classify an orphan thread (no model action) using the same rules.
+
+    Same shape as verify_action's return, but with a leading auto-pass:
+    - acceptable reply present → leave-as-is
+    - currently OPEN + diff touched anchored line → resolve
+    - currently RESOLVED + diff did not touch + no acceptable reply → reopen
+    - everything else → leave-as-is (ambiguous)
+    """
+    root_id = thread_state.get("root_id")
+    root = thread_state["thread"][0] if thread_state["thread"] else {}
+    cid = str(root.get("id") or root_id or "")
+    currently_resolved = bool(thread_state.get("resolved", False))
+    path = root.get("path")
+    line = root.get("line")
+    touched_ranges = touched.get(path, []) if path else []
+    line_touched = any(a <= (line or 0) <= b for (a, b) in touched_ranges)
+
+    # Check every reply for an acceptable disposition.
+    valid_reply_kind: str | None = None
+    valid_reply_detail: str | None = None
+    for c in thread_state["thread"]:
+        kind, detail = classify_reply(c.get("body", ""))
+        if kind:
+            valid_reply_kind = kind
+            valid_reply_detail = detail
+            break
+
+    result: dict = {
+        "comment_id": cid,
+        "thread_root": root_id,
+        "thread_currently_resolved": currently_resolved,
+        "verified": True,
+        "valid_reply": ({"kind": valid_reply_kind, "detail": valid_reply_detail}
+                         if valid_reply_kind else None),
+    }
+    if valid_reply_kind:
+        result["decision"] = "leave-as-is"
+        result["reason"] = f"acceptable reply ({valid_reply_kind}): {valid_reply_detail or '-'}"
+        return result
+    if not currently_resolved and line_touched:
+        result["decision"] = "resolve"
+        result["reason"] = f"diff touched anchored line {path}:{line}"
+        return result
+    if currently_resolved and not line_touched:
+        result["decision"] = "reopen"
+        result["reason"] = "thread is RESOLVED but the diff did not touch the anchored line and no acceptable reply"
+        return result
+    result["decision"] = "leave-as-is"
+    result["reason"] = "ambiguous — no clear signal from diff or replies"
+    return result
 
 
 if __name__ == "__main__":
