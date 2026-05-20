@@ -49,6 +49,12 @@ A skill writes its artifacts to **exactly one** of two roots:
 │   ├── learning/{decisions.jsonl, sessions/, archive/, proposals/}
 │   └── metadata/<source>.json   # MCP introspection cache
 ├── repos/<repo-name>/.git/      # checkouts; the base for PR-review worktrees
+├── repos/.indices/<repo>/       # repo-level code index (built by `adk repo add|update`)
+│   ├── repo-meta.json           # indexed_oid, indexed_at, default_branch
+│   └── code-index/              # chunks.jsonl + chunks.lance/ + scip/ + meta.json
+│                                # consumed by /adk-pr-review (seed-and-overlay), and
+│                                # by /adk-implement, /adk-investigate, /adk-document
+│                                # via scripts/lib/code_index/query.py
 ├── pr-reviews/
 │   └── <repo>_pr-<n>/{code/, pr.json, diff.patch, docs/, code-index/, findings.{json,md}, report.md, state.json, queue-context.json}
 # The queue itself lives under config/ (see above): config/pr-queue.json5.
