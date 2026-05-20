@@ -53,18 +53,23 @@ Fanned out concurrently:
 
 ## Phase 3 — index (parallel)
 
-1. `scripts/chunker.py` — heuristic AST chunker (function / class / method / top-level / const / doc) for `ts / tsx / js / jsx / py / go / java / rs / rb / md`. Caps: 1500-token chunks, 50-token minimum, oversized-split.
-2. `scripts/embedder.py` — POST batches of 24 chunks to ollama (`/api/embed`), idle-eviction via `keep_alive: 0`. Writes to LanceDB table `code-index/chunks.lance/` with schema `(id, file, line_start, line_end, parent_symbol, language, content, vector)`.
-3. `scripts/scip_runner.py` — detect `scip-typescript` / `scip-python` / `scip-go` / `scip-java` on PATH. For each language present in the worktree, run the corresponding scip indexer at `code/`, output to `code-index/scip/<lang>/index.scip`. Missing binaries are marked `not_installed` in `code-index/meta.json` — the review falls back to chunker `parent_symbol` matching.
-4. Write `code-index/meta.json` — provider, dim, chunk count, SCIP languages indexed, ts.
+> **Indexer paths.** The chunker / embedder / scip_runner / query_index live in `scripts/lib/code_index/` (Phase 2 of refactor-a). Run paths in this doc that say `scripts/chunker.py` (etc.) resolve via the runpy shim in `skills/adk-pr-review/scripts/`; new callers should point at `scripts/lib/code_index/<file>.py` directly.
+
+1. `scripts/lib/code_index/chunker.py` — tree-sitter AST chunker (function / class / method / top-level / const / doc) for `ts / tsx / js / jsx / py / go / java / rs / rb / md`. Caps: 1500-token chunks, 50-token minimum, oversized-split. Heuristic fallback for any language without a grammar.
+2. `scripts/lib/code_index/embedder.py` — POST batches of 24 chunks to ollama (`/api/embed`), idle-eviction via `keep_alive: 0`. Writes to LanceDB table `code-index/chunks.lance/` with schema `(id, file, line_start, line_end, parent_symbol, language, content, vector)`. Modes: `replace`, `incremental`. Oversized-input errors short-circuit retries (improvement #8).
+3. `scripts/lib/code_index/scip_runner.py` — detect `scip-typescript` / `scip-python` / `scip-go` / `scip-java` on PATH. For each language present in the worktree, run the corresponding scip indexer at `code/`, output to `code-index/scip/<lang>/index.scip`. Missing binaries are marked `not_installed` in `code-index/meta.json` — the review falls back to chunker `parent_symbol` matching.
+4. **Seed-from-base** (Phase 3 of refactor-a): before chunking, check `~/.agents-devkit/repos/.indices/<repo>/code-index/`. If present, fresh enough, and the embed model matches → `seed_copy()` into the task dir, then run the embedder in `--mode incremental` for just the files that changed between `base.indexed_sha` and the PR's `head_oid`. Cold path: ~9 min. Warm seeded path on a 12-file PR: ~30 s. Disable with `--no-base-seed` for a clean reindex.
+5. Write `code-index/meta.json` — provider, dim, chunk count, SCIP languages indexed, ts, `seeded_from_base` + `seeded_from_sha` when seeding. The Phase-3 `state.json` entry is written BEFORE the post-Phase-3 health check (improvements #9 + #11) — a transient health failure no longer orphans the index.
 
 ## Phase 4 — review
 
-1. The orchestrator prepares the user-prompt with a pre-loaded `# Index context` section: changed-files, top-k chunks per changed file, symbol matches, feature-flag references found in the diff (via `scripts/query_index.py --feature-flags-in-diff`).
-2. Invoke `claude -p` with:
+> **Orchestrator hand-off (current behavior).** The orchestrator does NOT spawn `claude -p`. It exits cleanly after Phase 3 / precis with `state.next-step = phase-4`; the parent agent (already loaded with `SKILL.md` as system prompt) reads `precis.md` and writes `findings.json`. The old `claude -p`-subprocess design described below is preserved as a historical reference for a possible future revival.
+
+1. The orchestrator prepares the user-prompt with a pre-loaded `# Index context` section: changed-files, top-k chunks per changed file, symbol matches, feature-flag references found in the diff (via `scripts/lib/code_index/query_index.py --feature-flags-in-diff`).
+2. (Hypothetical `claude -p` revival, not the current path.) Invoke `claude -p` with:
    - `--system-prompt skills/adk-pr-review/SKILL.md`
    - `--add-dir ~/.agents-devkit/pr-reviews/<task>/code`
-   - `--allowedTools Read,Glob,Grep,Bash` (Bash limited to `python3 scripts/query_index.py …` via permissions)
+   - `--allowedTools Read,Glob,Grep,Bash` (Bash limited to `python3 scripts/lib/code_index/query_index.py …` via permissions)
    - `--permission-mode auto`
    - `--output-format stream-json`
    - `--json-schema skills/adk-pr-review/finding.template.json`

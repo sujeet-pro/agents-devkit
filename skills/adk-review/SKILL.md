@@ -41,5 +41,6 @@ Polymorphic on target. Read-only by default; `--fix` extends to apply + push (ne
 
 - Personas: `shared/personas/{code-reviewer,security-reviewer,test-engineer}.md`
 - Plan/Act mode: `shared/plan-act-mode.md`
+- Code index (light path): `shared/guidelines/code-index.md` — `similar()` over each diff hunk to surface adjacent code the diff alone doesn't show. Heavy PR review with full embedding + reranking is `/adk-pr-review`, not this skill.
 - Constitution: `shared/constitution.md`
 - Advisor + question-first: `shared/advisor.md`, `shared/question-first.md`, `shared/narration.md`

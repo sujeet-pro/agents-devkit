@@ -36,7 +36,7 @@ from _common import parse_pr_url, task_dir_for, die, get_logger  # noqa: E402
 from queue_io import (  # noqa: E402
     DEFAULT_QUEUE_PATH,
     read_queue, write_queue, update_pr_entry, find_row, merge_scan_results,
-    STATUS_APPROVED, STATUS_COMMENTS, STATUS_MERGED, STATUS_PENDING,
+    STATUS_APPROVED, STATUS_COMMENTS, STATUS_MERGED, STATUS_PENDING, STATUS_IN_REVIEW,
     TAKEN_LOCK_MAX_AGE_SECONDS, _now_iso,
 )
 
@@ -98,6 +98,22 @@ def cmd_show(args) -> int:
 
 # ----- clean ---------------------------------------------------------------
 
+def _row_age_days(entry: dict) -> float | None:
+    """Days since the row's last_checked_at. None if not parseable."""
+    raw = entry.get("last_checked_at") or ""
+    if not raw:
+        return None
+    try:
+        from datetime import datetime, timezone
+        s = raw[:-1] if raw.endswith("Z") else raw
+        dt = datetime.fromisoformat(s)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return (datetime.now(timezone.utc) - dt).total_seconds() / 86400.0
+    except Exception:
+        return None
+
+
 def cmd_clean(args) -> int:
     queue_path = Path(args.queue).expanduser()
     queue = read_queue(queue_path)
@@ -109,6 +125,27 @@ def cmd_clean(args) -> int:
     if args.all:
         to_drop = list(prs)
         action = f"drop ALL {len(to_drop)} entries + their task folders"
+    elif args.stale_days is not None:
+        # Sweep rows older than N days, not currently locked, not in_review.
+        # Improvement #10 (worktree disk pressure).
+        if args.stale_days < 1:
+            print(f"--stale-days must be >= 1 (got {args.stale_days})")
+            return 2
+        to_drop = []
+        for e in prs:
+            if (e.get("status") or "") == STATUS_IN_REVIEW:
+                continue
+            if e.get("taken_at"):
+                continue  # actively locked
+            age = _row_age_days(e)
+            if age is not None and age >= args.stale_days:
+                to_drop.append(e)
+        if not to_drop:
+            print(f"(no rows older than {args.stale_days} days to clean)")
+            return 0
+        action = (f"drop {len(to_drop)} stale entr"
+                  f"{'y' if len(to_drop) == 1 else 'ies'} "
+                  f"(last_checked_at >= {args.stale_days} days ago) + their task folders")
     else:
         to_drop = [e for e in prs if (e.get("status") or "") == STATUS_MERGED]
         if not to_drop:
@@ -119,6 +156,10 @@ def cmd_clean(args) -> int:
     if args.all and not args.yes:
         print(f"About to {action}. This is irreversible.")
         print("Re-run with --yes to confirm, or remove --all to drop only merged rows.")
+        return 2
+    if args.stale_days is not None and not args.yes:
+        print(f"About to {action}. This is irreversible.")
+        print(f"Re-run with --yes to confirm.")
         return 2
 
     dropped_links: list[str] = []
@@ -444,11 +485,14 @@ def main(argv: list[str] | None = None) -> int:
     sp_upd.add_argument("-y", "--yes", action="store_true")
     sp_upd.set_defaults(func=cmd_update)
 
-    sp_clean = sub.add_parser("clean", help="drop merged rows (or --all)")
+    sp_clean = sub.add_parser("clean", help="drop merged rows (or --all, or --stale-days N)")
     sp_clean.add_argument("--all", action="store_true",
                           help="drop EVERY entry + task folder (requires --yes to confirm)")
+    sp_clean.add_argument("--stale-days", type=int, default=None,
+                          help="drop rows with last_checked_at >= N days ago "
+                               "(skips in_review and currently-locked rows). Requires --yes.")
     sp_clean.add_argument("-y", "--yes", action="store_true",
-                          help="confirm a --all clean (no-op without --all)")
+                          help="confirm --all or --stale-days clean")
     sp_clean.set_defaults(func=cmd_clean)
 
     sp_rtm = sub.add_parser("ready-to-merge", help="list approved PRs grouped by comment state")

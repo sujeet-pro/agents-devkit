@@ -41,6 +41,7 @@ Polymorphic on input. **Git mandatory; GitHub MCP optional** (enables PR-by-URL 
 - Plan/Act mode: `shared/plan-act-mode.md`
 - Constitution: `shared/constitution.md`
 - Advisor + question-first: `shared/advisor.md`, `shared/question-first.md`, `shared/narration.md`
+- Code index (TDD sub-flow): `shared/guidelines/code-index.md` — when drafting a TDD from a Jira ticket, call `from scripts.lib.code_index.query import open_index, similar, callers` to surface related code patterns + blast-radius estimates. Fail open on `IndexNotBuilt` (prompt the user to run `adk repo add <git-url>`). Surface `indexed_sha` + `age_days` in the draft.
 
 ## Sub-flow status
 

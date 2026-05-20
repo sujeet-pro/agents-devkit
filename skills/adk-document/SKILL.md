@@ -39,4 +39,5 @@ Markdown-first; never publishes (that's `/adk-sync`). Cites every non-trivial cl
 
 - Persona: `shared/personas/doc-writer.md`
 - Guidelines (auto-load by `--type`): observability / api-design / security / accessibility / data-modeling
+- Code index (runbook / ADR / migration): `shared/guidelines/code-index.md` — `similar()` to find related modules the doc must reference; `defs()`/`callers()` to enumerate the API surface a migration touches.
 - Advisor + question-first: `shared/advisor.md`, `shared/question-first.md`, `shared/narration.md`

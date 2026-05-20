@@ -39,5 +39,6 @@ Read-only. Two-source minimum. State confidence honestly. Pin every window.
 
 - Personas: `shared/personas/{investigator,context-gatherer}.md`
 - Guidelines: `shared/guidelines/{observability,security,performance}.md`
+- Code index (lower-confidence second signal): `shared/guidelines/code-index.md` — when a symptom mentions a service / endpoint / feature, `from scripts.lib.code_index.query import open_index, similar` returns candidate code paths to anchor the trace correlation. Always treat as a secondary signal next to DD / Slack / Statsig.
 - Constitution: `shared/constitution.md`
 - Advisor + question-first: `shared/advisor.md`, `shared/question-first.md`, `shared/narration.md`
