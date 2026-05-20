@@ -43,93 +43,168 @@ BB_API = "https://api.bitbucket.org/2.0"
 
 # ----- comment formatting --------------------------------------------------
 
-# Maps the 6 internal severities → the 3 public comment categories the user wants.
+# Maps the 7 internal severities → the 4 public comment categories the user wants.
 SEVERITY_TO_CATEGORY = {
-    "blocker":     "Must-Have/Blocker",
-    "critical":    "Must-Have/Blocker",
-    "should-have": "Should-Have",
-    "may-have":    "May-Have/Nitpicks",
-    "nitpick":     "May-Have/Nitpicks",
-    "question":    "Clarification needed",
+    "blocker":      "Must fix before merge",
+    "critical":     "Must fix before merge",
+    "should-have":  "Worth addressing",
+    "may-have":     "Nice to have",
+    "nitpick":      "Nice to have",
+    "question":     "Clarification needed",
+    "appreciation": "Appreciation",
+}
+
+# Friendly opening lines per severity. The AI writes the body; this prefix
+# sets the tone. Human voice — not robotic.
+SEVERITY_OPENING = {
+    "blocker":      "I think this needs a fix before merge — happy to be wrong if I'm missing context.",
+    "critical":     "Flagging this as load-bearing — worth a careful look before merge.",
+    "should-have":  "Not a blocker, but I think this is worth tightening up:",
+    "may-have":     "Optional polish you might want to apply:",
+    "nitpick":      "Small thing — feel free to ignore:",
+    "question":     "I don't have enough context to call this right or wrong — could you confirm the intent?",
+    "appreciation": "Nice — wanted to call this out.",
 }
 
 
 def format_comment_body(f: dict) -> str:
-    """Render a finding as a structured PR comment.
+    """Render a finding as a human-voiced PR comment.
 
-    Layout:
-        **<title>**                                  ← one-line headline
+    Layout (regular finding):
+        **<title>**                                       ← one-line headline
 
-        *Category:* <Must-Have|Should-Have|May-Have> · *Dimension:* <dim> · *Confidence:* <high|med|low>
+        *Category:* … · *Dimension:* … · *Confidence:* …
 
-        <body — what the issue is and why>
+        <severity opening line>
 
-        **How to fix**         (optional, when `suggestion` is present)
+        ### What's happening
+        <body>
+
+        ### Why this matters
+        <impact_if_unfixed>                                (when present)
+
+        ### Suggested fix
+        ```suggestion
         <suggestion>
+        ```
 
-        **Need clarity on**    (only when severity == "question")
-        <body, but phrased as a question>
+        — adk-pr-review · <severity> · finding <id>
 
-        **Impact if unfixed**  (when impact_if_unfixed is present, and not a question)
-        <impact_if_unfixed>
+    For severity=="question": replaces the body/why/fix sections with a
+    single clarification ask.
 
-        — adk-pr-review · <severity> · finding `<id>`
+    For severity=="appreciation": replaces the body section with a positive
+    callout — no "Why this matters", no "Suggested fix".
     """
-    title = (f.get("title") or "").strip() or "(no title)"
     severity = f.get("severity", "may-have")
-    category = SEVERITY_TO_CATEGORY.get(severity, "May-Have/Nitpicks")
+    if severity == "appreciation":
+        return format_appreciation_body(f)
+
+    title = (f.get("title") or "").strip() or "(no title)"
+    category = SEVERITY_TO_CATEGORY.get(severity, "Nice to have")
     dimension = f.get("dimension", "")
     confidence = f.get("confidence", "")
     body = (f.get("body") or "").rstrip()
     suggestion = (f.get("suggestion") or "").rstrip()
     impact = (f.get("impact_if_unfixed") or "").rstrip()
     fid = f.get("id", "")
+    opening = SEVERITY_OPENING.get(severity, "")
 
     parts = [
         f"**{title}**",
         "",
-        f"*Category:* {category} · *Dimension:* `{dimension}` · *Confidence:* `{confidence}`",
+        f"*{category}* · `{dimension}` · confidence `{confidence}`",
         "",
-        body,
     ]
+    if opening:
+        parts += [opening, ""]
 
     if severity == "question":
-        # Question findings ASK rather than assert. The "How to fix" section is
-        # replaced by a single explicit clarification ask.
         parts += [
+            "### What I'm not sure about",
+            body or "(no detail provided)",
             "",
-            "**Need clarity on**",
-            "Could the author confirm the intent / share the design rationale / point to the doc that motivates this approach? I don't have enough context to call this right or wrong.",
+            "Could the author confirm the intent / share the design rationale / point to the doc that motivates this approach?",
         ]
     else:
+        parts += [
+            "### What's happening",
+            body or "(no detail provided)",
+        ]
+        if impact:
+            parts += ["", "### Why this matters", impact]
         if suggestion:
             parts += [
                 "",
-                "**How to fix**",
+                "### Suggested fix",
                 "",
                 suggestion if suggestion.startswith("```") else f"```suggestion\n{suggestion}\n```",
             ]
-        if impact:
-            parts += ["", f"**Impact if unfixed:** {impact}"]
 
-    parts += ["", f"— `adk-pr-review` · {severity} · finding `{fid}`"]
+    parts += ["", f"_— adk-pr-review · `{severity}` · `{fid}`_"]
     return "\n".join(parts)
 
 
+def format_appreciation_body(f: dict) -> str:
+    """Render an `appreciation` finding as a celebratory PR comment.
+
+    No 'How to fix', no 'Impact if unfixed' — just naming what's nice and
+    why it's worth celebrating. Posted as an inline comment anchored to
+    the code so the author sees it where the work happened.
+    """
+    title = (f.get("title") or "").strip() or "Nice work"
+    dimension = f.get("dimension", "") or "general"
+    body = (f.get("body") or "").rstrip() or "(no detail provided)"
+    fid = f.get("id", "")
+    return "\n".join([
+        f"**{title}** 🎉",
+        "",
+        f"*Appreciation* · `{dimension}`",
+        "",
+        SEVERITY_OPENING["appreciation"],
+        "",
+        body,
+        "",
+        f"_— adk-pr-review · `appreciation` · `{fid}`_",
+    ])
+
+
 def format_review_summary(findings_blob: dict) -> str:
-    """The body text of the review (above the inline comments)."""
+    """The body text of the review (above the inline comments).
+
+    Appreciation findings are surfaced separately from issue findings so the
+    author sees the positive callouts up front.
+    """
     summary = (findings_blob.get("summary") or "").strip()
+    findings = findings_blob.get("findings", []) or []
+    appreciations = [f for f in findings if f.get("severity") == "appreciation"]
+    issues = [f for f in findings if f.get("severity") != "appreciation"]
     by_cat: dict[str, int] = {}
-    for fi in findings_blob.get("findings", []):
-        cat = SEVERITY_TO_CATEGORY.get(fi.get("severity", "may-have"), "May-Have/Nitpicks")
+    for fi in issues:
+        cat = SEVERITY_TO_CATEGORY.get(fi.get("severity", "may-have"), "Nice to have")
         by_cat[cat] = by_cat.get(cat, 0) + 1
     rec = findings_blob.get("recommendation", "comment_only")
-    cat_line = " · ".join(f"{k}: {v}" for k, v in by_cat.items()) or "no findings"
-    return (
-        f"**adk-pr-review** · recommendation: `{rec}`\n\n"
-        f"{summary}\n\n"
-        f"*Findings:* {cat_line}\n"
-    )
+    rec_human = {
+        "approve":         "Approving — looks ready to ship.",
+        "request_changes": "Holding for changes — see comments below.",
+        "comment_only":    "Comments only — author decides.",
+    }.get(rec, rec)
+    parts = [
+        "## adk-pr-review",
+        "",
+        rec_human,
+        "",
+    ]
+    if summary:
+        parts += [summary, ""]
+    if appreciations:
+        parts += [f"**Appreciations:** {len(appreciations)} — see inline.", ""]
+    if by_cat:
+        cat_line = " · ".join(f"{k}: {v}" for k, v in by_cat.items())
+        parts += [f"**Issues:** {cat_line}"]
+    else:
+        parts += ["**Issues:** none"]
+    return "\n".join(parts) + "\n"
 
 
 # ----- GitHub --------------------------------------------------------------
@@ -277,12 +352,21 @@ def should_post_review(findings: dict) -> bool:
     confusing artifact on the PR — a verdict with no substance. When triage
     rejects everything, the right thing is to skip the review post and let
     the resolve/reopen actions stand on their own.
+
+    Exception: a review consisting only of appreciations IS worth posting —
+    positive feedback is the whole point of the feature, and authors should
+    see it in the PR thread, not just in findings.md.
     """
     n = len(findings.get("findings", []) or [])
     if n > 0:
         return True
     # No new findings — only post if the recommendation is positive (approve).
     return (findings.get("recommendation") == "approve")
+
+
+def has_only_appreciations(findings: dict) -> bool:
+    fs = findings.get("findings", []) or []
+    return bool(fs) and all(f.get("severity") == "appreciation" for f in fs)
 
 
 def plan_only(task_dir: Path, findings: dict, actions: list[dict]) -> dict:
@@ -315,6 +399,9 @@ def main() -> int:
                     help="emit posting-plan.json for the host agent to dispatch via MCP; "
                          "skip the direct-API transmission path. references/platform-mcp.md "
                          "documents the per-platform tool table.")
+    ap.add_argument("--no-slack-summary", action="store_true",
+                    help="suppress the Slack summary reply (otherwise posted to the same "
+                         "thread the queue row's `slack` metadata names).")
     ap.add_argument("--json", action="store_true")
     args = ap.parse_args()
     if args.plan_only:
@@ -369,12 +456,19 @@ def main() -> int:
     # (e.g. CI rehearsal).
     approve_ready = _comment_actions_approve_ready(task_dir)
     recommendation = findings.get("recommendation", "comment_only")
+    # Pick up the queue's slack thread (populated by `adk pr-scan` + merged in
+    # by run_review.py when the PR appears in the queue). Absent for URL-only
+    # reviews — the Slack step then emits a "skipped" marker.
+    queue_ctx_path = task_dir / "queue-context.json"
+    queue_ctx = read_json(queue_ctx_path) if queue_ctx_path.exists() else None
     plan = build_posting_plan(
         pr=pr,
         findings_blob=findings,
         actions=actions,
         no_resolve_existing=args.no_resolve_existing,
         approve_ready=approve_ready,
+        slack_summary_enabled=not args.no_slack_summary,
+        queue_ctx=queue_ctx,
     )
     write_json(task_dir / "posting-plan.json", plan)
     log.info("posting-plan.json: %d step(s) — %s",
@@ -468,8 +562,55 @@ def _comment_actions_approve_ready(task_dir: Path) -> bool:
         return False
 
 
+def format_slack_summary(*, pr: dict, findings_blob: dict, approve_ready: bool,
+                          actions: list[dict]) -> str:
+    """Short Slack message — one verdict line + items-to-fix bullets + link.
+
+    Goes to the same thread that `adk pr-scan` picked the PR from.
+    """
+    rec = findings_blob.get("recommendation", "comment_only")
+    findings = findings_blob.get("findings", []) or []
+    issues = [f for f in findings if f.get("severity") != "appreciation"]
+    appreciations = [f for f in findings if f.get("severity") == "appreciation"]
+    blockers = [f for f in issues if f.get("severity") in ("blocker", "critical")]
+    n_resolve = sum(1 for a in actions if a.get("verified") and a.get("decision") == "resolve")
+    n_reopen = sum(1 for a in actions if a.get("verified") and a.get("decision") == "reopen")
+
+    if rec == "approve" and approve_ready:
+        verdict = ":white_check_mark: *APPROVE* — no changes required."
+    elif blockers:
+        verdict = f":octagonal_sign: *Changes requested* — {len(blockers)} blocking issue{'s' if len(blockers) != 1 else ''}."
+    elif issues:
+        verdict = f":speech_balloon: *Comments only* — {len(issues)} finding{'s' if len(issues) != 1 else ''}, none blocking."
+    else:
+        verdict = ":speech_balloon: *Comments only* — no issues, see PR."
+
+    lines = [f":robot_face: adk-pr-review · <{pr.get('url')}|{pr.get('repo')}#{pr.get('pr_number')}>",
+             verdict]
+    if blockers:
+        lines.append("Items to fix:")
+        for f in blockers[:5]:
+            title = (f.get("title") or "").strip()
+            loc = f"{f.get('file')}:{f.get('line_start')}"
+            lines.append(f"  • {title} — `{loc}`")
+        if len(blockers) > 5:
+            lines.append(f"  • …+{len(blockers) - 5} more")
+    if appreciations:
+        lines.append(f":sparkles: {len(appreciations)} appreciation{'s' if len(appreciations) != 1 else ''} called out inline.")
+    if n_resolve or n_reopen:
+        bits = []
+        if n_resolve:
+            bits.append(f"{n_resolve} resolved")
+        if n_reopen:
+            bits.append(f"{n_reopen} reopened")
+        lines.append(f"Threads: {', '.join(bits)}.")
+    return "\n".join(lines)
+
+
 def build_posting_plan(*, pr: dict, findings_blob: dict, actions: list[dict],
-                       no_resolve_existing: bool, approve_ready: bool) -> dict:
+                       no_resolve_existing: bool, approve_ready: bool,
+                       slack_summary_enabled: bool = True,
+                       queue_ctx: dict | None = None) -> dict:
     """Translate the post-step intent into a list of MCP-tool invocations.
 
     Each step carries:
@@ -609,6 +750,35 @@ def build_posting_plan(*, pr: dict, findings_blob: dict, actions: list[dict],
                 "mcp_tool": "mcp__adk-mcp-bitbucket__approvePullRequest",
                 "mcp_args": {"workspace": owner, "repoSlug": repo, "pullRequestId": n},
                 "fallback": "POST /pullrequests/<n>/approve",
+            })
+
+    # ---- Slack summary reply (when the queue carried a slack thread) ----
+    if slack_summary_enabled and queue_ctx:
+        slack = queue_ctx.get("slack") or {}
+        channel_id = slack.get("channel_id")
+        # Reply on the same thread `adk pr-scan` picked the PR from. message_ts
+        # may point at a reply (when link_origin == "reply"); thread_ts is the
+        # parent thread root.
+        thread_ts = slack.get("thread_ts") or slack.get("message_ts")
+        if channel_id and thread_ts:
+            steps.append({
+                "kind": "slack_summary",
+                "mcp_tool": "mcp__adk-mcp-slack__conversations_add_message",
+                "mcp_args": {
+                    "channel": channel_id,
+                    "thread_ts": thread_ts,
+                    "text": format_slack_summary(
+                        pr=pr, findings_blob=findings_blob,
+                        approve_ready=approve_ready, actions=actions,
+                    ),
+                },
+                "fallback": "slack-sdk WebClient.chat_postMessage(channel, text, thread_ts=...)",
+                "note": "Posts a short verdict + items-to-fix in the existing review thread.",
+            })
+        else:
+            steps.append({
+                "kind": "slack_summary_skipped",
+                "reason": "no slack channel/thread_ts in queue context — PR was reviewed by URL or not in queue",
             })
 
     return {

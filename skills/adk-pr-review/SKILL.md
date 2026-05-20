@@ -128,16 +128,17 @@ Score each cluster against these dimensions; a finding hangs off whichever caugh
 
 ## Severity rubric → category mapping
 
-You set `severity` per finding (6 levels). The orchestrator maps severity → the 3 public **comment categories** shown on the PR:
+You set `severity` per finding (7 levels). The orchestrator maps severity → the 4 public **comment categories** shown on the PR:
 
 | Internal `severity` | Public category in the posted comment |
 |---|---|
-| `blocker`     | **Must-Have/Blocker** |
-| `critical`    | **Must-Have/Blocker** |
-| `should-have` | **Should-Have** |
-| `may-have`    | **May-Have/Nitpicks** |
-| `nitpick`     | **May-Have/Nitpicks** |
-| `question`    | **Clarification needed** |
+| `blocker`      | **Must fix before merge** |
+| `critical`     | **Must fix before merge** |
+| `should-have`  | **Worth addressing** |
+| `may-have`     | **Nice to have** |
+| `nitpick`      | **Nice to have** |
+| `question`     | **Clarification needed** |
+| `appreciation` | **Appreciation** |
 
 Definitions:
 
@@ -147,6 +148,18 @@ Definitions:
 - **may-have** — a polish suggestion; acceptable to defer.
 - **nitpick** — style or naming. Use sparingly.
 - **question** — you genuinely don't have context to judge; ask, don't accuse.
+- **appreciation** — something nice the author did that's worth calling out. A clean refactor, a thoughtful test boundary, a well-named abstraction, a comment that explains a subtle invariant. Posts as an inline PR comment so the author sees it where the work happened. **Aim for 1-3 per PR when the work warrants it** — don't manufacture appreciations on a trivial PR.
+
+## Tone — write like a human reviewer
+
+The reviewer is a Principal Engineer offering peer feedback, not a robot. Cover the engineering substance, but in a tone the author wants to receive. Concretely:
+
+- **Lead with what the issue actually is**, not its severity tag. The template adds the severity label; your `body` should read like "I think `validateToken` returns true even when the token is expired — see the `if exp < now` branch on line 47" not "[BLOCKER] Token validation is broken."
+- **Explain *why* this matters** in `impact_if_unfixed` — what concretely goes wrong if shipped. One sentence is plenty.
+- **Suggest, don't dictate.** Phrase suggestions as "you could…" / "one option is…", not "you must…". Use the `suggestion` field for the proposed code; reserve `body` prose for the *idea*.
+- **Acknowledge ambiguity.** If you're 70% sure, lower `confidence` to `med` and say "I might be missing context — does X cover this?"
+- **Appreciations are first-person specific.** "Nice — the way you split `AuthProvider` from `SessionService` (auth/login.py:88-102) makes this much easier to swap for SSO. Would have been easy to inline." Not "Good refactor."
+- **No filler.** Drop "thanks for the PR" / "looks great overall but…" — straight to the substance. The verdict line in the review summary already conveys the overall stance.
 
 ## Posted comment structure
 
@@ -155,24 +168,27 @@ The orchestrator (`scripts/post_comments.py`) renders each finding as:
 ```markdown
 **<title>**                                           ← one-line headline (`title`)
 
-*Category:* <Must-Have|Should-Have|May-Have|Clarification needed>
-  · *Dimension:* `<dimension>`
-  · *Confidence:* `<high|med|low>`
+*<category>* · `<dimension>` · confidence `<high|med|low>`
 
-<body>                                                ← what the issue is + why
+<severity opening line — friendly, sets the tone>     ← see SEVERITY_OPENING
 
-**How to fix**                                        ← (optional, when `suggestion` is set; non-question only)
+### What's happening
+<body>
+
+### Why this matters
+<impact_if_unfixed>                                   ← when present
+
+### Suggested fix
 ```suggestion
 <suggestion>
 ```
 
-**Impact if unfixed:** <impact_if_unfixed>            ← (non-question only)
-
-**Need clarity on**                                   ← (question severity only)
-Could the author confirm the intent / share the design rationale / point to the doc that motivates this approach? I don't have enough context to call this right or wrong.
-
-— `adk-pr-review` · <severity> · finding `<id>`
+_— adk-pr-review · `<severity>` · `<id>`_
 ```
+
+For `question` severity: replaces the "What's happening / Why / Fix" trio with a "What I'm not sure about" + clarification ask.
+
+For `appreciation` severity: replaces the body section with "What's nice about this" and skips "Why this matters" + "Suggested fix" entirely. Title gets a 🎉.
 
 To get this structure on the PR, your finding JSON must populate:
 
@@ -283,10 +299,15 @@ After you write `findings.json`, the orchestrator runs `comment_resolver.py` for
 
 - **Auto mode** (default, no `-i` flag): `triage.py --init --default-state accept` marks every finding `accept`, then `--finalize` writes `findings-final.json`. Post step runs unchanged.
 - **Interactive mode** (`-i`): `triage.py --init --default-state pending`. YOU then walk each pending finding with the user (via `AskUserQuestion` in Claude Code):
+  - **Show the rich view first.** Before asking accept/reject/edit, call `triage.py --render <id> --json` to get a markdown rendering that includes the code snippet (with context lines around the anchored range), what's happening, why it matters, the suggested fix, AND a preview of *exactly* what the PR comment will say. Drop the `rendered_md` into the AskUserQuestion description so the user has all the context. Don't ask "accept f-001?" — that's not enough information.
   - **Accept** → `triage.py --mark <id> --state accept`.
   - **Reject** → `triage.py --mark <id> --state reject` (won't be posted).
-  - **Edit** → ask the user for an edit prompt; you rewrite the finding's `title` / `body` / `suggestion` / `impact_if_unfixed` per their direction; push back via `triage.py --rewrite <id> --fields-json '{...}'`; show the new version; loop until the user says accept or reject. The finding stays in `edit` state until `--mark accept` lands.
+  - **Edit** → ask the user for an edit prompt; you rewrite the finding's `title` / `body` / `suggestion` / `impact_if_unfixed` per their direction; push back via `triage.py --rewrite <id> --fields-json '{...}'`; **re-call `triage.py --render <id>` to show the new version** including the updated post preview; loop until the user says accept or reject. The finding stays in `edit` state until `--mark accept` lands.
   - When every finding is `accept` or `reject`, run `triage.py --finalize`. `findings-final.json` lands and posting proceeds.
+
+**Slack summary (Phase 6, last step):**
+
+When the queue row carries `slack.channel_id` + `slack.thread_ts` (populated by `adk pr-scan`), the posting plan includes a `slack_summary` step that replies to that thread with a short verdict + items-to-fix bullets + the PR link. The text is shaped by `format_slack_summary` in `post_comments.py` — emoji verdict, ≤5 blocker bullets, appreciation count, thread state changes. URL-only reviews (PR not in the queue) emit a `slack_summary_skipped` marker instead. Disable with `--no-slack-summary`.
 
 You never post directly. Posting is `post_comments.py`'s job. In both auto and interactive modes the **default is to transmit** — constitution §I.4 explicitly names "adk-pr-review posting inline comments" as a task-required action, so no separate prompt fires. Pass `--no-post` (orchestrator) or `--plan-only` (post_comments.py) to inhibit.
 

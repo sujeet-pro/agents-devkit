@@ -169,6 +169,9 @@ def main() -> int:
                          "(headless CI runs).")
     ap.add_argument("--no-use-mcp", dest="use_mcp", action="store_false",
                     help="disable MCP-first posting; post_comments.py uses direct REST API.")
+    ap.add_argument("--no-slack-summary", action="store_true",
+                    help="suppress the Slack summary reply that would otherwise post to the "
+                         "queue row's slack thread.")
     args = ap.parse_args()
 
     # Resolve the embed model: explicit --embed-model wins, else --detailed picks
@@ -538,9 +541,10 @@ def _main_inner(args, parsed, task_dir, log) -> int:
     # references/platform-mcp.md. Falls back to direct API when --no-mcp.
     post_flag = " --plan-only" if args.no_post else ""
     use_mcp_flag = " --use-mcp" if args.use_mcp else ""
+    no_slack_flag = " --no-slack-summary" if args.no_slack_summary else ""
     post_comment_hint = "   # plan-only (--no-post was set)" if args.no_post else "   # auto-post (constitution §I.4: task requires this)"
     next_steps += [
-        f"python3 scripts/post_comments.py --task-dir {task_dir} --json{use_mcp_flag}{post_flag}{post_comment_hint}",
+        f"python3 scripts/post_comments.py --task-dir {task_dir} --json{use_mcp_flag}{no_slack_flag}{post_flag}{post_comment_hint}",
     ]
     if args.use_mcp:
         next_steps.append(

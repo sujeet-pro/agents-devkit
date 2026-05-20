@@ -39,8 +39,206 @@ except Exception:
     _CLI_AVAILABLE = False
 
 
-SEV_ORDER = {"blocker": 0, "critical": 1, "should-have": 2, "may-have": 3, "nitpick": 4, "question": 5}
+SEV_ORDER = {"blocker": 0, "critical": 1, "should-have": 2, "may-have": 3,
+             "nitpick": 4, "question": 5, "appreciation": 6}
 BLOCKING_SEV = {"blocker", "critical"}
+APPRECIATION_SEV = "appreciation"
+SEV_EMOJI = {
+    "blocker": "🛑", "critical": "🛑", "should-have": "⚠️ ",
+    "may-have": "💡", "nitpick": "🔹", "question": "❓",
+    "appreciation": "🎉",
+}
+
+
+def _read_code_snippet(task_dir: Path, file_path: str,
+                       line_start: int, line_end: int,
+                       context_lines: int = 4) -> str | None:
+    """Return a fenced markdown block with the code around a finding's line range.
+
+    Looks under <task_dir>/code/ (the PR worktree). Returns None when the
+    file is absent or the line range is out of bounds — the caller renders
+    "code unavailable" in that case.
+    """
+    if not file_path:
+        return None
+    p = task_dir / "code" / file_path
+    if not p.exists() or not p.is_file():
+        return None
+    try:
+        text = p.read_text(encoding="utf-8", errors="replace")
+    except Exception:
+        return None
+    lines = text.splitlines()
+    n_lines = len(lines)
+    if n_lines == 0:
+        return None
+    start = max(1, (line_start or 1) - context_lines)
+    end = min(n_lines, (line_end or line_start or 1) + context_lines)
+    width = len(str(end))
+    rendered: list[str] = []
+    for i in range(start, end + 1):
+        marker = "→ " if line_start <= i <= line_end else "  "
+        rendered.append(f"{marker}{str(i).rjust(width)}  {lines[i - 1]}")
+    # Use a language tag derived from extension so syntax highlighting kicks in
+    # on viewers that render fenced blocks.
+    ext = p.suffix.lstrip(".").lower()
+    lang_map = {"ts": "typescript", "tsx": "tsx", "js": "javascript", "jsx": "jsx",
+                "py": "python", "go": "go", "rs": "rust", "java": "java",
+                "rb": "ruby", "kt": "kotlin", "swift": "swift", "cs": "csharp",
+                "cpp": "cpp", "c": "c", "h": "c", "hpp": "cpp",
+                "sh": "bash", "sql": "sql", "yaml": "yaml", "yml": "yaml",
+                "json": "json", "toml": "toml", "md": "markdown"}
+    lang = lang_map.get(ext, "")
+    fence = f"```{lang}\n" + "\n".join(rendered) + "\n```"
+    return fence
+
+
+def render_finding_block(fi: dict, *, task_dir: Path, format_comment_body=None) -> str:
+    """Render one finding as a rich markdown section.
+
+    Sections (issue): code-context · what · why-this-matters · suggested-fix · evidence · post-preview
+    Sections (appreciation): code-context · what's-nice · evidence · post-preview
+    """
+    sev = fi.get("severity") or "may-have"
+    fid = fi.get("id") or "f-?"
+    title = fi.get("title") or "(no title)"
+    file_path = fi.get("file") or ""
+    line_start = fi.get("line_start") or 0
+    line_end = fi.get("line_end") or line_start
+    dim = fi.get("dimension") or ""
+    conf = fi.get("confidence") or ""
+    body = (fi.get("body") or "").rstrip()
+    suggestion = (fi.get("suggestion") or "").rstrip()
+    impact = (fi.get("impact_if_unfixed") or "").rstrip()
+    evidence = fi.get("evidence") or []
+    emoji = SEV_EMOJI.get(sev, "·")
+
+    lines: list[str] = [
+        f"### {emoji} `{fid}` — {title}",
+        "",
+        f"`{file_path}:{line_start}-{line_end}` · **{sev}** · `{dim}` · confidence `{conf}`",
+        "",
+    ]
+
+    snippet = _read_code_snippet(task_dir, file_path, int(line_start), int(line_end))
+    if snippet:
+        lines += ["**Code in question**", "", snippet, ""]
+
+    if sev == APPRECIATION_SEV:
+        lines += ["**What's nice about this**", "", body or "(no detail)", ""]
+    else:
+        lines += ["**What's happening**", "", body or "(no detail)", ""]
+        if impact:
+            lines += ["**Why this matters**", "", impact, ""]
+        if suggestion:
+            sug_block = suggestion if suggestion.startswith("```") else f"```\n{suggestion}\n```"
+            lines += ["**Suggested fix**", "", sug_block, ""]
+
+    if evidence:
+        lines += ["**Evidence**"]
+        for e in evidence:
+            kind = e.get("kind", "")
+            ref = e.get("ref", "")
+            state = f" ({e['state']})" if e.get("state") else ""
+            lines.append(f"- {kind}: `{ref}`{state}")
+        lines.append("")
+
+    if format_comment_body is not None:
+        try:
+            preview = format_comment_body(fi)
+        except Exception:
+            preview = None
+        if preview:
+            lines += [
+                "<details><summary><b>What will be posted (preview)</b></summary>",
+                "",
+                preview,
+                "",
+                "</details>",
+                "",
+            ]
+    lines.append("---\n")
+    return "\n".join(lines)
+
+
+def render_findings_md(*, task_dir: Path, pr: dict, findings_blob: dict,
+                       appreciations: list[dict], issues: list[dict],
+                       actions: list[dict]) -> str:
+    """Top-level findings.md: header → appreciations → issues → existing-comment actions.
+
+    Imports format_comment_body lazily so the report can be regenerated
+    even if post_comments.py is unavailable for some reason.
+    """
+    try:
+        from post_comments import format_comment_body  # noqa: WPS433 — lazy
+    except Exception:
+        format_comment_body = None
+
+    rec_human = {
+        "approve":         "Approving — looks ready to ship.",
+        "request_changes": "Holding for changes — see the blocker section below.",
+        "comment_only":    "Comments only — author decides.",
+    }.get(findings_blob.get("recommendation"), findings_blob.get("recommendation", "—"))
+
+    summary = (findings_blob.get("summary") or "").strip()
+    head = [
+        f"# {pr.get('repo')}#{pr.get('pr_number')} — review notes",
+        "",
+        f"**PR:** [{pr.get('title') or '(untitled)'}]({pr.get('url')})",
+        f"**Author:** {(pr.get('author') or {}).get('login') or (pr.get('author') or {}).get('display_name') or '—'}",
+        f"**Verdict:** {rec_human}",
+        "",
+    ]
+    if summary:
+        head += [summary, ""]
+
+    out: list[str] = head[:]
+
+    if appreciations:
+        out += [f"## 🎉 Appreciations ({len(appreciations)})",
+                "Things worth celebrating in this PR. These post as inline comments so the author sees them where the work happened.",
+                ""]
+        for fi in appreciations:
+            out.append(render_finding_block(fi, task_dir=task_dir,
+                                             format_comment_body=format_comment_body))
+
+    if issues:
+        out += [f"## Issues ({len(issues)})", ""]
+        # Group by severity to give the reader a scannable structure.
+        for sev in ("blocker", "critical", "should-have", "may-have", "nitpick", "question"):
+            in_sev = [f for f in issues if f.get("severity") == sev]
+            if not in_sev:
+                continue
+            label = sev.replace("-", " ")
+            out += [f"### {SEV_EMOJI.get(sev, '')} {label} · {len(in_sev)}", ""]
+            for fi in in_sev:
+                out.append(render_finding_block(fi, task_dir=task_dir,
+                                                 format_comment_body=format_comment_body))
+    elif not appreciations:
+        out += ["## Issues (0)",
+                "No issues found. 🚀", ""]
+
+    # Existing-comment actions section — what we proposed to do with the threads
+    # that were already on the PR before this review.
+    if actions:
+        out += [f"## Existing comment actions ({len(actions)})", ""]
+        decisions = {"resolve": "✅ Resolve", "reopen": "🔁 Reopen", "leave-as-is": "—  Leave as-is"}
+        for a in actions:
+            cid = a.get("comment_id", "—")
+            decision = a.get("decision", "leave-as-is")
+            reason = (a.get("reason") or a.get("verifier_note") or "").strip()
+            valid = a.get("valid_reply") or {}
+            tag = decisions.get(decision, decision)
+            auto = " · auto-classified" if a.get("auto_classified") else ""
+            extra = ""
+            if valid.get("kind"):
+                extra = f" · acceptable-reply ({valid['kind']}: {valid.get('detail') or '-'})"
+            out.append(f"- `comment {cid}` · **{tag}**{auto}{extra}")
+            if reason:
+                out.append(f"  - reason: {reason}")
+        out.append("")
+
+    return "\n".join(out).rstrip() + "\n"
 
 
 def derive_recommendation(findings: list[dict], approved_host: bool = False) -> str:
@@ -52,9 +250,10 @@ def derive_recommendation(findings: list[dict], approved_host: bool = False) -> 
     accepted findings). The post-triage source of truth is the count and
     severity of what survived triage.
     """
-    if not findings:
+    real_issues = [f for f in findings if f.get("severity") != APPRECIATION_SEV]
+    if not real_issues:
         return "approve" if approved_host else "comment_only"
-    if any(f.get("severity") in BLOCKING_SEV for f in findings):
+    if any(f.get("severity") in BLOCKING_SEV for f in real_issues):
         return "request_changes"
     return "comment_only"
 SEV_TAG = {"blocker": "[blocker]", "critical": "[critical]", "should-have": "[should]",
@@ -108,35 +307,16 @@ def main() -> int:
         actions = read_json(actions_path).get("actions", [])
     post_result = read_json(task_dir / "post-result.json") if (task_dir / "post-result.json").exists() else None
 
-    # findings.md
-    f_md = [
-        f"# Findings — {pr.get('host')}:{pr.get('owner')}/{pr.get('repo')}#{pr.get('pr_number')}",
-        f"\n[{pr.get('title')}]({pr.get('url')})\n",
-        f"**Recommendation:** {findings_blob.get('recommendation','comment_only')}",
-        f"\n{findings_blob.get('summary','')}\n",
-        f"## Findings ({len(findings)})\n",
-    ]
-    for fi in findings:
-        sev = fi.get("severity", "")
-        cat = SEV_TO_CATEGORY.get(sev, "May-Have/Nitpicks")
-        f_md.append(f"### {SEV_TAG.get(sev, '')} {fi.get('title','')}")
-        f_md.append(f"`{fi.get('file','')}:{fi.get('line_start','')}-{fi.get('line_end','')}` "
-                    f"· **{cat}** · dim={fi.get('dimension','')} · conf={fi.get('confidence','')}")
-        f_md.append("")
-        f_md.append(fi.get("body", "").rstrip())
-        if fi.get("suggestion"):
-            f_md.append("\n```suggestion\n" + fi["suggestion"].rstrip() + "\n```")
-        if fi.get("impact_if_unfixed"):
-            f_md.append(f"\n*Impact if unfixed:* {fi['impact_if_unfixed']}")
-        if fi.get("evidence"):
-            f_md.append("\n*Evidence:*")
-            for e in fi["evidence"]:
-                kind = e.get("kind", "")
-                ref = e.get("ref", "")
-                state = f" ({e['state']})" if e.get("state") else ""
-                f_md.append(f"- {kind}: `{ref}`{state}")
-        f_md.append("")
-    (task_dir / "findings.md").write_text("\n".join(f_md), encoding="utf-8")
+    # findings.md — the rich human-facing artifact. This is what you read
+    # months later when re-reading what was found on the PR. The JSON is
+    # just the wire-format for triage / post / report; the user lives
+    # here. (Per refactor-a Phase 7 + the user's "markdown for tracking"
+    # ask.)
+    appreciations = [f for f in findings if f.get("severity") == APPRECIATION_SEV]
+    issues = [f for f in findings if f.get("severity") != APPRECIATION_SEV]
+    f_md = render_findings_md(task_dir=task_dir, pr=pr, findings_blob=findings_blob,
+                              appreciations=appreciations, issues=issues, actions=actions)
+    (task_dir / "findings.md").write_text(f_md, encoding="utf-8")
 
     # report.md (1-pager)
     n_by_sev = {s: 0 for s in SEV_ORDER}
@@ -174,6 +354,7 @@ def main() -> int:
         f"- may-have: {n_by_sev.get('may-have',0)}",
         f"- nitpick: {n_by_sev.get('nitpick',0)}",
         f"- question: {n_by_sev.get('question',0)}",
+        f"- appreciation: {n_by_sev.get('appreciation',0)}",
         "",
         "## Existing comments",
         f"- resolved: {n_resolved}",

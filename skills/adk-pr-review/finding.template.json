@@ -10,7 +10,7 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["id", "title", "dimension", "severity", "confidence", "file", "line_start", "line_end", "body", "impact_if_unfixed", "evidence"],
+        "required": ["id", "title", "dimension", "severity", "confidence", "file", "line_start", "line_end", "body", "evidence"],
         "properties": {
           "id": { "type": "string", "pattern": "^f-\\d{3,}$" },
           "title": { "type": "string", "maxLength": 80 },
@@ -32,7 +32,7 @@
           },
           "severity": {
             "type": "string",
-            "enum": ["blocker", "critical", "should-have", "may-have", "nitpick", "question"]
+            "enum": ["blocker", "critical", "should-have", "may-have", "nitpick", "question", "appreciation"]
           },
           "confidence": { "type": "string", "enum": ["high", "med", "low"] },
           "file": { "type": "string" },

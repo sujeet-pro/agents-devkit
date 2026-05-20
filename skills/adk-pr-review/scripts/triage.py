@@ -185,6 +185,46 @@ def cmd_show(task_dir: Path, finding_id: str, log) -> dict:
     }
 
 
+def cmd_render(task_dir: Path, finding_id: str, log) -> dict:
+    """Return a rich markdown rendering of one finding — what the agent
+    shows the user during the interactive triage walk.
+
+    Includes:
+      - the location + severity + dimension header
+      - the code snippet with context lines around the anchored range
+      - "What's happening" / "Why this matters" / "Suggested fix"
+      - a preview of EXACTLY what would post to the PR
+      - the current triage state (so the agent can offer the right options)
+    """
+    state = read_json(_state_path(task_dir))
+    findings_blob = read_json(_findings_path(task_dir))
+    findings_by_id = {f["id"]: f for f in findings_blob.get("findings", [])}
+    if finding_id not in findings_by_id:
+        die(f"unknown finding_id: {finding_id}")
+    f = findings_by_id[finding_id]
+    edited = state.get("edited", {}).get(finding_id, {})
+    merged = _merge_finding(f, edited)
+
+    # Lazy imports — report.render_finding_block + post_comments.format_comment_body.
+    # We use report's rich block but switch the "preview" to the post template.
+    try:
+        from report import render_finding_block  # noqa: WPS433
+        from post_comments import format_comment_body  # noqa: WPS433
+    except Exception as e:
+        die(f"could not import rendering helpers: {e}")
+
+    rendered = render_finding_block(
+        merged, task_dir=task_dir, format_comment_body=format_comment_body,
+    )
+    return {
+        "id": finding_id,
+        "state": state["findings"][finding_id]["state"],
+        "edits": state["findings"][finding_id].get("edits", 0),
+        "rendered_md": rendered,
+        "post_preview": format_comment_body(merged),
+    }
+
+
 def cmd_finalize(task_dir: Path, log) -> dict:
     state = read_json(_state_path(task_dir))
     findings_blob = read_json(_findings_path(task_dir))
@@ -228,6 +268,7 @@ def main() -> int:
     sub.add_argument("--rewrite", help="finding_id to rewrite")
     sub.add_argument("--list", action="store_true")
     sub.add_argument("--show", help="finding_id to inspect")
+    sub.add_argument("--render", help="finding_id to render as rich markdown (code snippet + what/why/impact + post preview) for the interactive walk")
     sub.add_argument("--finalize", action="store_true")
 
     ap.add_argument("--default-state", choices=("accept", "pending"), default="pending",
@@ -262,6 +303,8 @@ def main() -> int:
         result = cmd_list(task_dir, args.filter_state, args.include_content, log)
     elif args.show:
         result = cmd_show(task_dir, args.show, log)
+    elif args.render:
+        result = cmd_render(task_dir, args.render, log)
     elif args.finalize:
         result = cmd_finalize(task_dir, log)
     else:
