@@ -39,6 +39,10 @@ from pathlib import Path
 
 THIS_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(THIS_DIR))
+# Phase 2 moved the indexer to scripts/lib/code_index/. The pr-review-scripts
+# path is still added to sys.path for back-compat with any helper that hasn't
+# migrated, but indexer invocations now point at the lib directly.
+CODE_INDEX_LIB = THIS_DIR.parent.parent.parent / "scripts" / "lib" / "code_index"
 ADK_PR_REVIEW_SCRIPTS = THIS_DIR.parent.parent / "adk-pr-review" / "scripts"
 sys.path.insert(0, str(ADK_PR_REVIEW_SCRIPTS))
 
@@ -148,12 +152,12 @@ def _write_repo_meta(name: str, meta: dict) -> None:
 def _full_index(repo_clone: Path, task_dir: Path, embed_model: str, log) -> None:
     chunks_path = task_dir / "code-index" / "chunks.jsonl"
     chunks_path.parent.mkdir(parents=True, exist_ok=True)
-    _step([PY, str(ADK_PR_REVIEW_SCRIPTS / "chunker.py"),
+    _step([PY, str(CODE_INDEX_LIB / "chunker.py"),
            "--worktree", str(repo_clone), "--out", str(chunks_path)], log)
-    _step([PY, str(ADK_PR_REVIEW_SCRIPTS / "embedder.py"),
+    _step([PY, str(CODE_INDEX_LIB / "embedder.py"),
            "--task-dir", str(task_dir), "--chunks", str(chunks_path),
            "--model", embed_model, "--mode", "replace", "--json"], log)
-    _step([PY, str(ADK_PR_REVIEW_SCRIPTS / "scip_runner.py"),
+    _step([PY, str(CODE_INDEX_LIB / "scip_runner.py"),
            "--task-dir", str(task_dir), "--worktree", str(repo_clone), "--json"], log)
 
 
@@ -167,17 +171,17 @@ def _incremental_index(repo_clone: Path, task_dir: Path, changed: list[str],
     files_list = code_index / "changed-files.txt"
     files_list.write_text("\n".join(changed), encoding="utf-8")
     delta = code_index / "chunks-delta.jsonl"
-    _step([PY, str(ADK_PR_REVIEW_SCRIPTS / "chunker.py"),
+    _step([PY, str(CODE_INDEX_LIB / "chunker.py"),
            "--worktree", str(repo_clone), "--files-list", str(files_list),
            "--out", str(delta)], log)
-    _step([PY, str(ADK_PR_REVIEW_SCRIPTS / "embedder.py"),
+    _step([PY, str(CODE_INDEX_LIB / "embedder.py"),
            "--task-dir", str(task_dir), "--chunks", str(delta),
            "--model", embed_model, "--mode", "incremental",
            "--replaced-files", str(files_list), "--json"], log)
     langs = sorted({_EXT_TO_LANG[Path(f).suffix.lower()]
                     for f in changed if Path(f).suffix.lower() in _EXT_TO_LANG})
     if langs:
-        _step([PY, str(ADK_PR_REVIEW_SCRIPTS / "scip_runner.py"),
+        _step([PY, str(CODE_INDEX_LIB / "scip_runner.py"),
                "--task-dir", str(task_dir), "--worktree", str(repo_clone),
                "--langs", ",".join(langs), "--json"], log)
 

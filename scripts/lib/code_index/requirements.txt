@@ -1,0 +1,10 @@
+# scripts.lib.code_index — Python deps (shared across all skills that use the index).
+# Install: pip install -r requirements.txt
+requests>=2.31
+# lancedb upper bound: 0.30 changed `list_tables() -> ListTablesResponse`.
+# Floating past 0.40 may break embedder.py / query_index.py membership checks.
+lancedb>=0.30,<0.40
+pyarrow>=14
+# tree-sitter-language-pack supplies grammars for the chunker's AST mode.
+tree-sitter-language-pack>=0.4
+PyYAML>=6
