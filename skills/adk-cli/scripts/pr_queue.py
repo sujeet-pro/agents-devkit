@@ -3,9 +3,12 @@
 list                — print the queue as a compact table.
 show <pr-url>       — dump a single entry as JSON.
 add <url>           — single-shot upsert. URL may be a PR link (direct insert
-                      after cheap meta-fetch) OR a Slack permalink (fetch that
-                      message + replies, walk for PR links, upsert each).
-update <pr-url>     — refresh head_oid + merged-state on one row (cheap meta
+                      after cheap meta-fetch), a Slack permalink (fetch that
+                      message + replies, walk for PR links, upsert each), or
+                      a bare PR number that resolves against
+                      ~/.agents-devkit/config/core.yaml's defaults.repo (with
+                      defaults.platform, default "github").
+update <pr-url>     — refresh head_sha + merged-state on one row (cheap meta
                       only — does not trigger a review).
 clean               — drop rows whose status == merged (and their task folders).
 clean --all -y      — drop EVERY row + every task folder (requires --yes).
@@ -37,15 +40,38 @@ from queue_io import (  # noqa: E402
     DEFAULT_QUEUE_PATH,
     read_queue, write_queue, update_pr_entry, find_row, merge_scan_results,
     classify_pr_state, acquire_next_row,
-    STATUS_APPROVED, STATUS_COMMENTS, STATUS_MERGED, STATUS_DECLINED,
+    STATUS_APPROVED, STATUS_COMMENTS, STATUS_MERGED, STATUS_CLOSED,
     STATUS_PENDING, STATUS_IN_REVIEW,
     TERMINAL_STATUSES, TAKEN_LOCK_MAX_AGE_SECONDS, _now_iso,
 )
 
 
-def _task_dir_for_link(pr_link: str) -> Path | None:
+def _load_defaults() -> dict:
+    """Return the `defaults` block from ~/.agents-devkit/config/core.yaml,
+    or {} if the file or block is absent. Only the `defaults` key is
+    retained — every other top-level key is discarded so we never bring
+    unrelated config (which may contain tokens, paths, or other state)
+    into call sites. Per constitution §VII.
+    """
     try:
-        p = parse_pr_url(pr_link)
+        # Make scripts/ importable so we can use load_core (consistent path
+        # resolution + yaml.safe_load).
+        SCRIPTS_ROOT = THIS_DIR.parent.parent.parent / "scripts"
+        if str(SCRIPTS_ROOT) not in sys.path:
+            sys.path.insert(0, str(SCRIPTS_ROOT))
+        from config_io import load_core  # noqa: WPS433
+        cfg = load_core() or {}
+    except Exception:
+        return {}
+    defaults = cfg.get("defaults")
+    if not isinstance(defaults, dict):
+        return {}
+    return defaults
+
+
+def _task_dir_for_link(pr_url: str) -> Path | None:
+    try:
+        p = parse_pr_url(pr_url)
     except ValueError:
         return None
     return task_dir_for(p["repo"], p["pr_number"])
@@ -68,7 +94,7 @@ def cmd_list(args) -> int:
         prs = [e for e in prs if (e.get("status") or STATUS_PENDING) == args.status]
     if args.urls_only:
         for e in prs:
-            link = e.get("pr_link")
+            link = e.get("pr_url")
             if link:
                 print(link)
         return 0
@@ -81,11 +107,11 @@ def cmd_list(args) -> int:
         rows.append((
             _short_status(e),
             (e.get("last_checked_at") or "-")[:19],
-            e.get("pr_link") or "",
+            e.get("pr_url") or "",
         ))
     w_status = max(len(r[0]) for r in rows + [("status", "", "")])
     w_lc = max(len(r[1]) for r in rows + [("", "last_checked_at", "")])
-    print(f"{'status'.ljust(w_status)}  {'last_checked_at'.ljust(w_lc)}  pr_link")
+    print(f"{'status'.ljust(w_status)}  {'last_checked_at'.ljust(w_lc)}  pr_url")
     print(f"{'-' * w_status}  {'-' * w_lc}  -")
     for r in rows:
         print(f"{r[0].ljust(w_status)}  {r[1].ljust(w_lc)}  {r[2]}")
@@ -155,11 +181,11 @@ def cmd_clean(args) -> int:
                   f"{'y' if len(to_drop) == 1 else 'ies'} "
                   f"(last_checked_at >= {args.stale_days} days ago) + their task folders")
     else:
-        # Default sweep: both terminal states (merged + declined). Together they
+        # Default sweep: both terminal states (merged + closed). Together they
         # cover everything the origin API has confirmed will not move again.
         to_drop = [e for e in prs if (e.get("status") or "") in TERMINAL_STATUSES]
         if not to_drop:
-            print("(no merged or declined entries to clean)")
+            print("(no merged or closed entries to clean)")
             return 0
         kinds = sorted({e.get("status") for e in to_drop})
         action = (f"drop {len(to_drop)} {'/'.join(kinds)} entr"
@@ -174,12 +200,12 @@ def cmd_clean(args) -> int:
         print(f"Re-run with --yes to confirm.")
         return 2
 
-    dropped_links: list[str] = []
+    dropped_urls: list[str] = []
     removed_dirs: list[str] = []
     failed_dirs: list[str] = []
     for e in to_drop:
-        link = e.get("pr_link") or ""
-        dropped_links.append(link)
+        link = e.get("pr_url") or ""
+        dropped_urls.append(link)
         td = _task_dir_for_link(link)
         if td and td.exists():
             try:
@@ -193,7 +219,7 @@ def cmd_clean(args) -> int:
     write_queue(queue_path, queue)
 
     print(json.dumps({
-        "dropped_rows": len(dropped_links),
+        "dropped_rows": len(dropped_urls),
         "removed_task_dirs": len(removed_dirs),
         "failed_task_dirs": failed_dirs,
         "queue": str(queue_path),
@@ -236,15 +262,15 @@ def print_summary(prs: list[dict]) -> None:
     print("==============")
     print(f"Approved (no open comments)   · {len(approved_clean)}")
     for e in approved_clean:
-        print(f"  - {e.get('pr_link')}")
+        print(f"  - {e.get('pr_url')}")
     print()
     print(f"Approved (open comments)      · {len(approved_with_comments)}")
     for e in approved_with_comments:
-        print(f"  - {e.get('pr_link')}")
+        print(f"  - {e.get('pr_url')}")
     print()
     print(f"Reviewed (open comments)      · {len(reviewed_with_comments)}")
     for e in reviewed_with_comments:
-        print(f"  - {e.get('pr_link')}")
+        print(f"  - {e.get('pr_url')}")
 
 
 # ----- add (single-shot upsert from PR URL or Slack permalink) -------------
@@ -289,11 +315,56 @@ def _looks_like_pr_url(url: str) -> bool:
         return False
 
 
+_BARE_PR_NUMBER_RE = re.compile(r"^#?(\d+)$")
+
+
+def _resolve_bare_pr_number(token: str) -> str | None:
+    """If `token` is a bare PR number (e.g. `1234` or `#1234`), expand it to
+    a full PR URL using `defaults.platform` + `defaults.repo` from
+    ~/.agents-devkit/config/core.yaml. Returns None if `token` is not a
+    bare-number form. Raises SystemExit (via `die`) on configuration errors
+    so the caller surfaces a clear actionable message.
+    """
+    m = _BARE_PR_NUMBER_RE.match(token)
+    if not m:
+        return None
+    n = int(m.group(1))
+    if n <= 0:
+        die(f"bare PR number must be positive (got {n}).")
+    defaults = _load_defaults()
+    repo = defaults.get("repo")
+    if not repo:
+        die(
+            "bare PR number requires defaults.repo in "
+            "~/.agents-devkit/config/core.yaml. Example: "
+            "defaults: { platform: github, repo: acme/storefront-bff }. "
+            "Or pass a full URL."
+        )
+    platform = (defaults.get("platform") or "github").lower()
+    if platform == "github":
+        return f"https://github.com/{repo}/pull/{n}"
+    if platform == "bitbucket":
+        return f"https://bitbucket.org/{repo}/pull-requests/{n}"
+    die(
+        f"defaults.platform={platform!r} not supported. "
+        "Allowed: github, bitbucket."
+    )
+    return None  # unreachable
+
+
 def cmd_add(args) -> int:
-    """Add a single PR to the queue, by direct PR URL or by Slack permalink."""
+    """Add a single PR to the queue, by direct PR URL, by Slack permalink,
+    or by bare PR number (resolves against core.yaml defaults.repo)."""
     queue_path = Path(args.queue).expanduser()
     log = get_logger("pr-queue-add")
     url = args.url.strip()
+
+    # Bare PR number form (`adk pr-queue add 1234` or `... add #1234`):
+    # resolve against `defaults.platform` + `defaults.repo` from core.yaml.
+    bare_resolved = _resolve_bare_pr_number(url)
+    if bare_resolved is not None:
+        log.info("resolved bare PR number %s → %s", url, bare_resolved)
+        return _add_from_pr_url(bare_resolved, queue_path, args, log)
 
     if _looks_like_pr_url(url):
         return _add_from_pr_url(url, queue_path, args, log)
@@ -305,8 +376,9 @@ def cmd_add(args) -> int:
     die(
         f"unrecognized URL: {url}\n"
         "Expected a PR URL (github.com/<owner>/<repo>/pull/<n> or "
-        "bitbucket.org/<ws>/<repo>/pull-requests/<n>) or a Slack permalink "
-        "(https://<workspace>.slack.com/archives/<channel>/p<ts>)."
+        "bitbucket.org/<ws>/<repo>/pull-requests/<n>), a Slack permalink "
+        "(https://<workspace>.slack.com/archives/<channel>/p<ts>), or a "
+        "bare PR number (uses core.yaml defaults.repo)."
     )
     return 1  # unreachable
 
@@ -321,7 +393,7 @@ def _add_from_pr_url(pr_url: str, queue_path: Path, args, log) -> int:
     if meta.get("merged_at"):
         log.info("%s is already merged; status=merged on insert", pr_url)
     candidate = {
-        "pr_link": pr_url,
+        "pr_url": pr_url,
         "status": STATUS_MERGED if meta.get("merged_at") else STATUS_PENDING,
         "supporting_docs": [],
     }
@@ -382,7 +454,7 @@ def _add_from_slack_permalink(url: str, slack_info: dict, queue_path: Path, args
     main_permalink = client.get_message_permalink(cid, thread_ts)
     for pr_url in main_prs:
         candidates.append({
-            "pr_link": pr_url,
+            "pr_url": pr_url,
             "supporting_docs": supporting,
             "slack": _slack_for(
                 pr_url, channel_id=cid, message_ts=thread_ts, thread_ts=thread_ts,
