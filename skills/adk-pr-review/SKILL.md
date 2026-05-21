@@ -353,6 +353,17 @@ You never post directly. Posting is `post_comments.py`'s job. In both auto and i
 
 **Posting is MCP-first.** `post_comments.py` always writes `posting-plan.json` listing each step as an MCP tool + args (per `references/platform-mcp.md`). When `--use-mcp` is set (the path the host agent should take, since the agent has MCP access and the script doesn't), `post_comments.py` emits the plan and exits — YOU dispatch each step via the named `mcp__adk-mcp-{github,bitbucket}__*` tool. Direct-API mode stays for headless CI runs.
 
+**Interactive mode: walk the posting plan before you dispatch.** `triage.py` only walks NEW findings; the bulk of posting volume (existing-comment resolutions, the approve, the slack summary) slides straight to `posting-plan.json` without per-item user review. Closing that gap is `walk_posting_plan.py`'s job. In `-i` mode, after `post_comments.py --use-mcp` writes the plan, run:
+
+  1. `python3 scripts/walk_posting_plan.py --task-dir <td> --init --default-state pending`
+  2. `python3 scripts/walk_posting_plan.py --task-dir <td> --list` — show step summaries.
+  3. For each step, `--render <step_id>` (returns rich markdown with the full posting body **and the worktree context at the affected anchor** — for resolve/reopen steps it shows the original comment + the current code at that line, so YOU can re-verify the diff actually addresses the concern). Drop this rendering into `AskUserQuestion` so the user sees both the post body and the re-validation evidence.
+  4. `--mark <step_id> --state accept|reject` per the user's choice.
+  5. `--finalize` → `posting-plan-final.json`. Special-case: if the user rejected `approve_pr` but accepted `review_summary`, the finalize step demotes the event from APPROVE to COMMENT so the approve doesn't ride along.
+  6. Dispatch each step in `posting-plan-final.json` via the named MCP tool. NEVER dispatch from `posting-plan.json` directly in `-i` mode.
+
+This is also the practical "LLM-backed re-validation" of existing-comment actions: by showing the worktree at the comment's anchor, the walk lets YOU (the agent in-context) confirm the concern is actually addressed before posting `resolve`, or actually present before posting `reopen`.
+
 When `recommendation: "approve"` AND `comment-actions.json.approve_ready` is true, the plan includes an `approve_pr` step. On GitHub that's bundled in the `pull_request_review_write` `event: APPROVE` field; on Bitbucket it's a separate `approvePullRequest` MCP call. **NEVER add a `merge_pull_request` / `mergePullRequest` step. Merging is the human's job.**
 
 ## References (loaded as needed)
