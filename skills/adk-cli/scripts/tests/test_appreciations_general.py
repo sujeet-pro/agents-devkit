@@ -50,12 +50,12 @@ def triage_mod():
 
 def _gh_pr() -> dict:
     return {"host": "github", "owner": "acme", "repo": "foo",
-            "pr_number": 42, "head_oid": "abc123", "url": "https://github.com/acme/foo/pull/42"}
+            "pr_number": 42, "head_sha": "abc123", "url": "https://github.com/acme/foo/pull/42"}
 
 
 def _bb_pr() -> dict:
     return {"host": "bitbucket", "owner": "acme", "repo": "ecomm-ssr",
-            "pr_number": 5521, "head_oid": "deadbeef",
+            "pr_number": 5521, "head_sha": "deadbeef",
             "url": "https://bitbucket.org/acme/ecomm-ssr/pull-requests/5521"}
 
 

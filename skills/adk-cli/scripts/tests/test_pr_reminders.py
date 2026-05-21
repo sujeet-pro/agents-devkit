@@ -25,10 +25,10 @@ def _iso(dt: datetime) -> str:
 
 def _row(**overrides) -> dict:
     base = {
-        "pr_link": "https://github.com/acme/foo/pull/1",
+        "pr_url": "https://github.com/acme/foo/pull/1",
         "status": STATUS_PENDING,
-        "head_oid": "abc",
-        "last_reviewed_head_oid": "abc",
+        "head_sha": "abc",
+        "last_reviewed_head_sha": "abc",
         "last_reviewed_at": _iso(NOW - timedelta(hours=26)),
         "slack": {"channel_id": "C123", "thread_ts": "1700000000.000123"},
     }
@@ -50,7 +50,7 @@ def test_not_yet_stale_within_threshold():
 def test_new_commits_disqualify():
     """Author pushed new commits since the review → no nudge (it's their
     turn anyway, and the review is stale for a different reason)."""
-    row = _row(head_oid="newhead", last_reviewed_head_oid="oldhead")
+    row = _row(head_sha="newhead", last_reviewed_head_sha="oldhead")
     assert pr_reminders._is_stale_review(row, now=NOW, threshold_hours=24) is False
 
 
@@ -81,7 +81,7 @@ def test_no_slack_info_skipped():
 
 
 def test_no_review_yet_skipped():
-    row = _row(last_reviewed_at=None, last_reviewed_head_oid=None)
+    row = _row(last_reviewed_at=None, last_reviewed_head_sha=None)
     assert pr_reminders._is_stale_review(row, now=NOW, threshold_hours=24) is False
 
 
@@ -101,7 +101,7 @@ def test_send_reminders_no_qualifying_rows(tmp_path):
 
 
 def test_send_reminders_dry_run_reports_targets(tmp_path):
-    q = _write(tmp_path, [_row(pr_link="u1"), _row(pr_link="u2")])
+    q = _write(tmp_path, [_row(pr_url="u1"), _row(pr_url="u2")])
     out = pr_reminders.send_reminders(q, threshold_hours=24, dry_run=True, now=NOW)
     assert out["dry_run"] is True
     assert set(out["would_remind"]) == {"u1", "u2"}
@@ -112,7 +112,7 @@ def test_send_reminders_dry_run_reports_targets(tmp_path):
 
 def test_send_reminders_posts_and_stamps(tmp_path, monkeypatch):
     """The end-to-end happy path: send + stamp `last_reminded_at`."""
-    q = _write(tmp_path, [_row(pr_link="u1")])
+    q = _write(tmp_path, [_row(pr_url="u1")])
 
     posted: list[tuple[str, str, str]] = []
 
@@ -140,7 +140,7 @@ def test_send_reminders_posts_and_stamps(tmp_path, monkeypatch):
 
 def test_send_reminders_collects_failures(tmp_path, monkeypatch):
     """One row fails to post → recorded in `failed`, others continue."""
-    q = _write(tmp_path, [_row(pr_link="u1"), _row(pr_link="u2")])
+    q = _write(tmp_path, [_row(pr_url="u1"), _row(pr_url="u2")])
 
     class FakeClient:
         def __init__(self, *a, **kw):
@@ -158,12 +158,12 @@ def test_send_reminders_collects_failures(tmp_path, monkeypatch):
     out = pr_reminders.send_reminders(q, threshold_hours=24, now=NOW)
     assert len(out["sent"]) == 1
     assert len(out["failed"]) == 1
-    assert out["failed"][0]["pr_link"] == "u1"
+    assert out["failed"][0]["pr_url"] == "u1"
 
 
 def test_send_reminders_handles_missing_slack_config(tmp_path, monkeypatch):
     """No slack config on disk → report cleanly without crashing the sync pipeline."""
-    q = _write(tmp_path, [_row(pr_link="u1")])
+    q = _write(tmp_path, [_row(pr_url="u1")])
 
     def _raise(*a, **kw):
         raise FileNotFoundError("slack config not present")

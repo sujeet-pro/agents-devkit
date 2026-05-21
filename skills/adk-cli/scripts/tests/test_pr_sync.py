@@ -48,7 +48,7 @@ def test_sync_runs_all_six_steps_in_order(stubbed_steps):
     assert names == [
         "pr-scan",         # 1
         "pr-queue",        # 2: update --all
-        "pr-queue",        # 3: clean (merged + declined)
+        "pr-queue",        # 3: clean (merged + closed)
         "pr-task",         # 4: clean-orphans (dry-run by default)
         "pr-queue",        # 5: remind (dry-run by default)
         "pr-task",         # 6: prepare --all
@@ -221,7 +221,7 @@ def test_audit_skips_rows_without_target_branch(tmp_path):
     """Rows missing target_branch (e.g., never refreshed) are counted as
     skipped but don't trigger a warning."""
     qpath = _write_queue(tmp_path, [
-        {"pr_link": "https://github.com/acme/foo/pull/1",
+        {"pr_url": "https://github.com/acme/foo/pull/1",
          "status": "pending"},  # no target_branch
     ])
     log = pr_sync.get_logger("t-audit-skip")
@@ -231,13 +231,13 @@ def test_audit_skips_rows_without_target_branch(tmp_path):
 
 
 def test_audit_skips_terminal_rows(tmp_path):
-    """Merged / declined rows are out of scope — base index doesn't matter
+    """Merged / closed rows are out of scope — base index doesn't matter
     for a PR that's already done."""
     qpath = _write_queue(tmp_path, [
-        {"pr_link": "https://github.com/acme/foo/pull/1",
+        {"pr_url": "https://github.com/acme/foo/pull/1",
          "status": "merged", "target_branch": "main"},
-        {"pr_link": "https://github.com/acme/foo/pull/2",
-         "status": "declined", "target_branch": "main"},
+        {"pr_url": "https://github.com/acme/foo/pull/2",
+         "status": "closed", "target_branch": "main"},
     ])
     log = pr_sync.get_logger("t-audit-terminal")
     res = pr_sync._audit_base_indexes(qpath, mode="warn", embed_model=None, log=log)
@@ -248,9 +248,9 @@ def test_audit_warns_missing_index(tmp_path, monkeypatch, caplog):
     """When pick_base_index reports no exact match, the audit emits a warning
     naming the (repo, target_branch) and the `adk repo branch add …` command."""
     qpath = _write_queue(tmp_path, [
-        {"pr_link": "https://github.com/acme/foo/pull/1",
+        {"pr_url": "https://github.com/acme/foo/pull/1",
          "status": "pending", "target_branch": "develop"},
-        {"pr_link": "https://github.com/acme/foo/pull/2",
+        {"pr_url": "https://github.com/acme/foo/pull/2",
          "status": "pending", "target_branch": "develop"},
     ])
     # Stub base_index — exact missing, no fallback.
@@ -277,7 +277,7 @@ def test_audit_warns_stale_index(tmp_path, monkeypatch):
     """A stale exact-match index emits a stale warning + the `adk repo update
     … --branch …` command (not the branch-add command)."""
     qpath = _write_queue(tmp_path, [
-        {"pr_link": "https://bitbucket.org/team/foo/pull-requests/5",
+        {"pr_url": "https://bitbucket.org/team/foo/pull-requests/5",
          "status": "pending", "target_branch": "develop"},
     ])
     stale_idx = SimpleNamespace(
@@ -304,7 +304,7 @@ def test_audit_off_mode_still_returns_summary_silently(tmp_path, monkeypatch):
     """off mode: still counts groups + gaps so callers can act on the summary;
     no warning log lines should fire."""
     qpath = _write_queue(tmp_path, [
-        {"pr_link": "https://github.com/acme/foo/pull/1",
+        {"pr_url": "https://github.com/acme/foo/pull/1",
          "status": "pending", "target_branch": "develop"},
     ])
     fake = SimpleNamespace(
@@ -325,7 +325,7 @@ def test_audit_auto_mode_invokes_repo_main(tmp_path, monkeypatch):
     """auto mode: for each gap, runs the corresponding `adk repo …` command
     via repo.main and records the rc back on the gap dict."""
     qpath = _write_queue(tmp_path, [
-        {"pr_link": "https://github.com/acme/foo/pull/1",
+        {"pr_url": "https://github.com/acme/foo/pull/1",
          "status": "pending", "target_branch": "develop"},
     ])
     fake_base = SimpleNamespace(

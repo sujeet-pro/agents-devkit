@@ -24,10 +24,10 @@ def test_three_buckets_with_approved_host_signal():
     open comments' from 'reviewed with open comments but no approval'.
     """
     prs = [
-        {"pr_link": "u1", "status": STATUS_APPROVED},  # clean approval
-        {"pr_link": "u2", "status": STATUS_COMMENTS, "approved_host": True},
-        {"pr_link": "u3", "status": STATUS_COMMENTS, "approved_host": False},
-        {"pr_link": "u4", "status": STATUS_COMMENTS},  # missing field == not approved
+        {"pr_url": "u1", "status": STATUS_APPROVED},  # clean approval
+        {"pr_url": "u2", "status": STATUS_COMMENTS, "approved_host": True},
+        {"pr_url": "u3", "status": STATUS_COMMENTS, "approved_host": False},
+        {"pr_url": "u4", "status": STATUS_COMMENTS},  # missing field == not approved
     ]
     out = _capture(prs)
     assert "Approved (no open comments)" in out
@@ -44,9 +44,9 @@ def test_three_buckets_with_approved_host_signal():
 
 def test_omits_non_approved_statuses():
     prs = [
-        {"pr_link": "https://github.com/acme/foo/pull/1", "status": STATUS_REVIEWED},
-        {"pr_link": "https://github.com/acme/foo/pull/2", "status": STATUS_MERGED},
-        {"pr_link": "https://github.com/acme/foo/pull/3", "status": "pending"},
+        {"pr_url": "https://github.com/acme/foo/pull/1", "status": STATUS_REVIEWED},
+        {"pr_url": "https://github.com/acme/foo/pull/2", "status": STATUS_MERGED},
+        {"pr_url": "https://github.com/acme/foo/pull/3", "status": "pending"},
     ]
     out = _capture(prs)
     # No approved/comments rows → "Ready to merge: none."
@@ -58,10 +58,10 @@ def test_omits_non_approved_statuses():
 def test_counts_match_bucket_membership():
     """Counts in the three headers exactly match the bucket sizes."""
     prs = [
-        {"pr_link": "u1", "status": STATUS_APPROVED},
-        {"pr_link": "u2", "status": STATUS_APPROVED},
-        {"pr_link": "u3", "status": STATUS_COMMENTS, "approved_host": True},
-        {"pr_link": "u4", "status": STATUS_COMMENTS, "approved_host": False},
+        {"pr_url": "u1", "status": STATUS_APPROVED},
+        {"pr_url": "u2", "status": STATUS_APPROVED},
+        {"pr_url": "u3", "status": STATUS_COMMENTS, "approved_host": True},
+        {"pr_url": "u4", "status": STATUS_COMMENTS, "approved_host": False},
     ]
     out = _capture(prs)
     # 2 approved-clean, 1 approved-with-comments, 1 reviewed-with-comments.

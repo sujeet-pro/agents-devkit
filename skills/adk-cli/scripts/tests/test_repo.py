@@ -101,7 +101,7 @@ def test_update_all_iterates_each_repo(fake_repos_root, monkeypatch, capsys):
         calls.append(name)
         if name == "beta":
             raise SystemExit("simulated failure")
-        return {"name": name, "head_oid": "deadbeef", "indexed": "skipped",
+        return {"name": name, "head_sha": "deadbeef", "indexed": "skipped",
                 "reason": "HEAD unchanged"}
 
     monkeypatch.setattr(repo, "_update_one", fake_update_one)

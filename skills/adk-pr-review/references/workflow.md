@@ -6,27 +6,27 @@ Six phases. Phase 1 (worktree creation) is **serialized**; every other phase can
 
 Every time `/adk-pr-review <url>` runs, the orchestrator:
 
-1. Re-fetches the PR (`fetch_pr.py`) to get the latest `head_oid`.
+1. Re-fetches the PR (`fetch_pr.py`) to get the latest `head_sha`.
 2. Re-runs `ensure_repo_clone.py` → `git fetch --all --prune` against the adk-owned clone, hard-resets to `origin/<default>`.
-3. Re-runs `create_worktree.py` against the new `head_oid` (no-op if the worktree is already at that OID, `git checkout --detach` if it isn't).
+3. Re-runs `create_worktree.py` against the new `head_sha` (no-op if the worktree is already at that OID, `git checkout --detach` if it isn't).
 4. Re-runs `fetch_supporting_docs.py` to refresh `docs/index.json` from the (possibly updated) PR body + comments.
-5. Decides what to do with the embeddings + SCIP index based on whether `head_oid` changed since the prior index pass — see *Incremental re-index* below.
+5. Decides what to do with the embeddings + SCIP index based on whether `head_sha` changed since the prior index pass — see *Incremental re-index* below.
 
 There is no "skip phase X because it ran last time" path for phases 1 (worktree) or 2 (fetch). They run on every invocation.
 
 ## Incremental re-index
 
-`state.phases.3_index.head_oid_at_index` records the OID the index was built against. On a fresh invocation:
+`state.phases.3_index.head_sha_at_index` records the OID the index was built against. On a fresh invocation:
 
 | Condition | Action |
 |---|---|
 | No prior index | Full chunk + embed + SCIP. |
-| `head_oid_at_index == current head_oid` | Skip Phase 3 entirely — index is up to date. |
-| `head_oid_at_index != current head_oid` AND `git diff --name-only <old>..<new>` succeeds | **Incremental**: chunk only the changed files, delete those files' rows from the LanceDB table, embed + insert. Re-run SCIP only for languages whose files changed. |
-| `head_oid_at_index != current head_oid` AND the old OID is unreachable (e.g. PR was force-pushed with a rebase) | Full re-index. |
+| `head_sha_at_index == current head_sha` | Skip Phase 3 entirely — index is up to date. |
+| `head_sha_at_index != current head_sha` AND `git diff --name-only <old>..<new>` succeeds | **Incremental**: chunk only the changed files, delete those files' rows from the LanceDB table, embed + insert. Re-run SCIP only for languages whose files changed. |
+| `head_sha_at_index != current head_sha` AND the old OID is unreachable (e.g. PR was force-pushed with a rebase) | Full re-index. |
 | `--rebuild` | Full re-index regardless. |
 
-The AI review pass never starts before Phase 3 settles — the precis the model reads always reflects the current `head_oid`.
+The AI review pass never starts before Phase 3 settles — the precis the model reads always reflects the current `head_sha`.
 
 ## Phase 0 — prerequisites + URL dispatch
 
@@ -41,7 +41,7 @@ A **process-level file lock** at `~/.agents-devkit/repos/.worktree-lock` seriali
 
 1. `scripts/ensure_repo_clone.py` — if `~/.agents-devkit/repos/<repo-name>/` doesn't exist, clone via `gh repo clone` (GitHub) or `git clone` from the BB SSH URL. If it exists, `git fetch --all --prune`.
 2. **Reset to current implementation** — the user's note: "Before creating working tree, it must be set back to its current implementation." The clone's default branch is checked out and reset to the remote head. Any local commits in the clone are unexpected (it's an adk-owned clone) and surfaced as a refusal.
-3. `scripts/create_worktree.py` — acquires the lock, then `git worktree add <task>/code <head-oid>`. Sets the worktree to detached HEAD so no branch shenanigans.
+3. `scripts/create_worktree.py` — acquires the lock, then `git worktree add <task>/code <head-sha>`. Sets the worktree to detached HEAD so no branch shenanigans.
 4. Release the lock. The orchestrator records `worktree_path` in `<task>/state.json`.
 
 ## Phase 2 — fetch PR + supporting docs (parallel)
@@ -58,7 +58,7 @@ Fanned out concurrently:
 1. `scripts/lib/code_index/chunker.py` — tree-sitter AST chunker (function / class / method / top-level / const / doc) for `ts / tsx / js / jsx / py / go / java / rs / rb / md`. Caps: 1500-token chunks, 50-token minimum, oversized-split. Heuristic fallback for any language without a grammar.
 2. `scripts/lib/code_index/embedder.py` — POST batches of 24 chunks to ollama (`/api/embed`), idle-eviction via `keep_alive: 0`. Writes to LanceDB table `code-index/chunks.lance/` with schema `(id, file, line_start, line_end, parent_symbol, language, content, vector)`. Modes: `replace`, `incremental`. Oversized-input errors short-circuit retries (improvement #8).
 3. `scripts/lib/code_index/scip_runner.py` — detect `scip-typescript` / `scip-python` / `scip-go` / `scip-java` on PATH. For each language present in the worktree, run the corresponding scip indexer at `code/`, output to `code-index/scip/<lang>/index.scip`. Missing binaries are marked `not_installed` in `code-index/meta.json` — the review falls back to chunker `parent_symbol` matching.
-4. **Seed-from-base** (Phase 3 of refactor-a): before chunking, check `~/.agents-devkit/repos/.indices/<repo>/code-index/`. If present, fresh enough, and the embed model matches → `seed_copy()` into the task dir, then run the embedder in `--mode incremental` for just the files that changed between `base.indexed_sha` and the PR's `head_oid`. Cold path: ~9 min. Warm seeded path on a 12-file PR: ~30 s. Disable with `--no-base-seed` for a clean reindex.
+4. **Seed-from-base** (Phase 3 of refactor-a): before chunking, check `~/.agents-devkit/repos/.indices/<repo>/code-index/`. If present, fresh enough, and the embed model matches → `seed_copy()` into the task dir, then run the embedder in `--mode incremental` for just the files that changed between `base.indexed_sha` and the PR's `head_sha`. Cold path: ~9 min. Warm seeded path on a 12-file PR: ~30 s. Disable with `--no-base-seed` for a clean reindex.
 5. Write `code-index/meta.json` — provider, dim, chunk count, SCIP languages indexed, ts, `seeded_from_base` + `seeded_from_sha` when seeding. The Phase-3 `state.json` entry is written BEFORE the post-Phase-3 health check (improvements #9 + #11) — a transient health failure no longer orphans the index.
 
 ## Phase 4 — review
@@ -111,7 +111,7 @@ Every finding posted to the PR is a public mutation (constitution §I.4). The tr
   "owner": "acme",
   "repo": "foo",
   "pr_number": 42,
-  "head_oid": "abc123…",
+  "head_sha": "abc123…",
   "worktree_path": "/Users/sujeet/.agents-devkit/pr-reviews/foo_pr-42/code",
   "phases": {
     "0_prereq": {"status": "done", "ts": "2026-05-19T20:00:00Z"},
@@ -128,7 +128,7 @@ A re-run of `/adk-pr-review <same-url>` resumes from the last incomplete phase. 
 
 ## Validators
 
-- Phase 1: `git worktree list` shows the new worktree; `git -C <worktree> rev-parse HEAD` matches `pr.json.head_oid`.
+- Phase 1: `git worktree list` shows the new worktree; `git -C <worktree> rev-parse HEAD` matches `pr.json.head_sha`.
 - Phase 3: `code-index/chunks.lance/` exists and `query_index.py --health` returns `ok`. SCIP indices' size > 0 if produced.
 - Phase 4: `findings.json` parses against `finding.template.json`; every `file` exists in the worktree; every `line_end <= LOC(file)`.
 - Phase 5: post is no-op when `--no-post`; under `--no-resolve-existing`, the comment-resolver phase is skipped.

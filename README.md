@@ -41,7 +41,7 @@ adk pr-sync --since-hours 24 -y
 
 # 4. In your agent (Claude Code / Cursor / …), drain the queue:
 /adk-pr-review           # claims the next eligible row from the queue
-                         # (skips rows already reviewed at the current head_oid)
+                         # (skips rows already reviewed at the current head_sha)
 
 # Or review one specific PR:
 /adk-pr-review https://github.com/acme/storefront-bff/pull/42
@@ -65,14 +65,14 @@ adk pr-sync --rebuild --detailed            # nuclear: force full re-index + bge
 
 # Or step-by-step (these are exactly what pr-sync chains together):
 adk pr-scan --since-hours 24                # 1. Slack → queue (upsert PR rows)
-adk pr-queue update --all                   # 2. refresh head_oid + merged/declined via origin API
-adk pr-queue clean                          # 3. drop merged + declined rows + their task folders
+adk pr-queue update --all                   # 2. refresh head_sha + merged/closed via origin API
+adk pr-queue clean                          # 3. drop merged + closed rows + their task folders
 adk pr-task clean-orphans --dry-run         # 4. preview folders with no queue row
 adk pr-task clean-orphans -y                #    actually delete them
 adk pr-queue remind --dry-run               # 5. preview stale-review Slack pings
 adk pr-queue remind                         #    actually post reminders (one per 24h window)
 adk pr-task prepare --all                   # 6. create/refresh task folders for remaining rows
-                                            #    short-circuits when head_oid hasn't moved
+                                            #    short-circuits when head_sha hasn't moved
 ```
 
 **What each step does**
@@ -80,26 +80,26 @@ adk pr-task prepare --all                   # 6. create/refresh task folders for
 | Step | What happens | Idempotency |
 |---|---|---|
 | 1 | `pr-scan` walks configured Slack channels; new PR links → new queue rows (status=pending) | Re-scans dedupe by PR URL |
-| 2 | `pr-queue update --all` fetches cheap metadata per row via the origin API (GitHub `gh pr view` / Bitbucket REST). The `state` field is interpreted uniformly: `merged_at` set → status=merged; GitHub `CLOSED`-without-merge or Bitbucket `DECLINED` / `SUPERSEDED` → status=declined; otherwise open. | Re-runs are cheap; one call per row |
-| 3 | `pr-queue clean` drops every row in a terminal state (merged or declined) AND its `~/.agents-devkit/pr-reviews/<repo>_pr-<n>/` task folder | No-op when nothing is terminal |
+| 2 | `pr-queue update --all` fetches cheap metadata per row via the origin API (GitHub `gh pr view` / Bitbucket REST). The `state` field is interpreted uniformly: `merged_at` set → status=merged; GitHub `CLOSED`-without-merge or Bitbucket `DECLINED` / `SUPERSEDED` → status=closed; otherwise open. | Re-runs are cheap; one call per row |
+| 3 | `pr-queue clean` drops every row in a terminal state (merged or closed) AND its `~/.agents-devkit/pr-reviews/<repo>_pr-<n>/` task folder | No-op when nothing is terminal |
 | 4 | `pr-task clean-orphans` removes any task folder whose PR isn't in the queue (or whose row is in a terminal state) | Always dry-run unless `-y`; safe to repeat |
-| 5 | `pr-queue remind` posts a Slack reply in the original thread for every row that: was reviewed >=24h ago, has no new commits since (`head_oid == last_reviewed_head_oid`), isn't terminal, hasn't been reminded in the last 24h, and has `slack.{channel_id,thread_ts}` populated. Stamps `last_reminded_at` so the next pass doesn't re-fire | One reminder per 24h window per row |
-| 6 | `pr-task prepare --all` runs Phase 0-4a for every remaining row: fetch PR, sync clone, materialise worktree at the PR head, chunk + embed + SCIP, build precis | Triple-incremental: (a) when `head_oid == last_indexed_head`, Phase 3 skips entirely; (b) when head moved but file delta is computable, only changed files are re-indexed; (c) embed-model is read from the existing `code-index/meta.json` so a re-run without `--detailed` keeps the prior model. Pass `--rebuild` to override and re-index from scratch. |
+| 5 | `pr-queue remind` posts a Slack reply in the original thread for every row that: was reviewed >=24h ago, has no new commits since (`head_sha == last_reviewed_head_sha`), isn't terminal, hasn't been reminded in the last 24h, and has `slack.{channel_id,thread_ts}` populated. Stamps `last_reminded_at` so the next pass doesn't re-fire | One reminder per 24h window per row |
+| 6 | `pr-task prepare --all` runs Phase 0-4a for every remaining row: fetch PR, sync clone, materialise worktree at the PR head, chunk + embed + SCIP, build precis | Triple-incremental: (a) when `head_sha == last_indexed_head`, Phase 3 skips entirely; (b) when head moved but file delta is computable, only changed files are re-indexed; (c) embed-model is read from the existing `code-index/meta.json` so a re-run without `--detailed` keeps the prior model. Pass `--rebuild` to override and re-index from scratch. |
 
 **Queue acquisition behaviour**
 
 `/adk-pr-review` (no args) drains the queue through `adk pr-queue get-next`, which:
 
-1. Atomically claims the next FIFO row that's not locked, not in a terminal state, and not already reviewed at the current `head_oid` (`last_reviewed_head_oid == head_oid`).
-2. **Validates the candidate against the origin API.** If the PR has been merged or declined since the last sync, the row is dropped from the queue (and its on-disk task folder cleaned) — the picker moves on to the next candidate.
-3. Refreshes `head_oid` on the row from the API result before handing it back, so the worktree is materialised at the actual head, not a stale snapshot.
+1. Atomically claims the next FIFO row that's not locked, not in a terminal state, and not already reviewed at the current `head_sha` (`last_reviewed_head_sha == head_sha`).
+2. **Validates the candidate against the origin API.** If the PR has been merged or closed since the last sync, the row is dropped from the queue (and its on-disk task folder cleaned) — the picker moves on to the next candidate.
+3. Refreshes `head_sha` on the row from the API result before handing it back, so the worktree is materialised at the actual head, not a stale snapshot.
 
 ```bash
 adk pr-queue get-next                       # claim the next eligible row (origin-API validated)
 adk pr-queue get-next --no-validate         # skip the API check (legacy in-memory pick)
 ```
 
-Explicit `/adk-pr-review <pr-url>` bypasses queue filters and reviews the PR even if it's merged or declined — useful when re-reviewing for posterity, where any posted comments serve as future-reference material.
+Explicit `/adk-pr-review <pr-url>` bypasses queue filters and reviews the PR even if it's merged or closed — useful when re-reviewing for posterity, where any posted comments serve as future-reference material.
 
 ### Design principles
 
@@ -108,10 +108,10 @@ Explicit `/adk-pr-review <pr-url>` bypasses queue filters and reviews the PR eve
 | Concern | Verb | What it touches |
 |---|---|---|
 | Slack → queue | `adk pr-scan` | queue rows (upsert, dedupe by URL) |
-| Origin API → queue metadata | `adk pr-queue update [--all]` | `head_oid`, `status` (merged/declined detection) |
+| Origin API → queue metadata | `adk pr-queue update [--all]` | `head_sha`, `status` (merged/closed detection) |
 | Queue → task folder | `adk pr-task prepare [--all] [--rebuild]` | worktree + chunk + embed + SCIP + precis |
 | Findings gate | `adk pr-task validate <url>` | drops drifted anchors + no-fix findings |
-| Drop terminal rows | `adk pr-queue clean` | merged + declined rows + their folders |
+| Drop terminal rows | `adk pr-queue clean` | merged + closed rows + their folders |
 | Drop stranded folders | `adk pr-task clean-orphans` | folders with no queue row |
 | Slack-thread nudges | `adk pr-queue remind` | one ping per 24h per stale review |
 | Claim next PR | `adk pr-queue get-next` | atomic claim with origin-API validation |
@@ -121,7 +121,7 @@ Explicit `/adk-pr-review <pr-url>` bypasses queue filters and reviews the PR eve
 
 - `pr-scan` dedupes by PR URL — re-scans only add genuinely new rows.
 - `pr-queue update` is metadata-only — one cheap origin-API call per row.
-- `pr-task prepare` skips Phase 3 (chunk + embed + SCIP) when `head_oid == last_indexed_head`; when head moved, only the changed files are re-indexed.
+- `pr-task prepare` skips Phase 3 (chunk + embed + SCIP) when `head_sha == last_indexed_head`; when head moved, only the changed files are re-indexed.
 - `pr-queue remind` rate-limits to one ping per 24h via `last_reminded_at`.
 - `pr-task clean-orphans` is naturally idempotent.
 
@@ -137,7 +137,7 @@ Every review goes through this pipeline. Scripts handle every phase except Phase
 
 | # | Phase | Who | CLI entry | Output |
 |---|---|---|---|---|
-| 0 | Claim — pick next eligible PR (FIFO + origin-API validated; auto-drop merged/declined) | script | `adk pr-queue get-next` | `taken_at` set |
+| 0 | Claim — pick next eligible PR (FIFO + origin-API validated; auto-drop merged/closed) | script | `adk pr-queue get-next` | `taken_at` set |
 | 1 | Prepare — clone fetch, worktree at PR head, chunk + embed + SCIP, supporting docs, precis. **Does NOT review.** Idempotent. | script | `adk pr-task prepare <url>` | `pr.json`, `code/`, `code-index/`, `precis.md` |
 | 2 | Review — agent reads precis + diff + index; may spawn child agents for parallel passes (security, tests, feature-flow); writes findings per `finding.template.json` | **agent** | n/a | `findings.json` |
 | 3 | Validate — each finding gated on (a) anchor still resolves in worktree and (b) `suggestion` is non-trivial. Findings without an identifiable fix stay in the audit trail but are NOT posted. `question` and `appreciation` exempt from (b). | script | `adk pr-task validate <url>` | `validated-findings.json` + `initial-findings.json` + `validation-report.json` |
@@ -209,10 +209,10 @@ adk pr-queue list --status open          # filter
 adk pr-queue list --urls-only            # one URL per line (used by shell completion)
 adk pr-queue show <pr-url>               # one entry as JSON (slack threads, supporting docs, lock)
 adk pr-queue add <slack-permalink>       # single-shot upsert (accepts a PR URL too)
-adk pr-queue update <pr-url>             # metadata only — origin API → head_oid + merged/declined
+adk pr-queue update <pr-url>             # metadata only — origin API → head_sha + merged/closed
 adk pr-queue update --all                # bulk metadata refresh on every non-terminal row
 adk pr-queue ready-to-merge              # approved PRs, grouped by open-comment state
-adk pr-queue clean                       # drop merged + declined rows + their pr-reviews/ folders
+adk pr-queue clean                       # drop merged + closed rows + their pr-reviews/ folders
 adk pr-queue clean --all -y              # nuke everything (queue + per-PR scratch dirs)
 adk pr-queue release <pr-url>            # clear a stuck `taken_at` lock
 adk pr-queue get-next                    # Phase 0: claim next eligible row (origin-API validated)
@@ -223,7 +223,7 @@ adk pr-queue remind [--threshold-hours N] [--dry-run]   # Slack reminders for st
 
 **One verb does one thing.** `pr-queue update` only refreshes the row's metadata via the origin API; it does NOT touch the worktree or the index. To create / refresh the task folder (worktree + chunk + embed + SCIP), use `adk pr-task prepare`. To do both at once, use `adk pr-sync`. This separation is intentional — every operation is composable.
 
-**Queue acquisition skips already-reviewed PRs.** When `/adk-pr-review` is invoked with no URL, it drains the queue FIFO but excludes any row whose `head_oid == last_reviewed_head_oid` (set by the prior review's completion step). New commits push the row back into eligibility automatically. Merged PRs are skipped the same way. Explicit `/adk-pr-review <pr-url>` always reviews — useful for re-reviewing a merged PR for posterity, where comments still post for future reference.
+**Queue acquisition skips already-reviewed PRs.** When `/adk-pr-review` is invoked with no URL, it drains the queue FIFO but excludes any row whose `head_sha == last_reviewed_head_sha` (set by the prior review's completion step). New commits push the row back into eligibility automatically. Merged PRs are skipped the same way. Explicit `/adk-pr-review <pr-url>` always reviews — useful for re-reviewing a merged PR for posterity, where comments still post for future reference.
 
 ### `adk pr-task` — manage per-PR task folders
 
@@ -231,16 +231,16 @@ The stable CLI surface for the per-PR scratch dir at `~/.agents-devkit/pr-review
 
 ```bash
 adk pr-task prepare <pr-url>             # create or refresh the task folder (phase 0-4a)
-                                         # idempotent — unchanged head_oid short-circuits
+                                         # idempotent — unchanged head_sha short-circuits
 adk pr-task prepare <pr-url> --rebuild   # force a full index rebuild
 adk pr-task prepare <pr-url> --detailed  # use the bge-m3 embedder (higher recall, slower)
-adk pr-task info <pr-url>                # JSON: task_dir, head_oid, last_indexed_head, has-findings
+adk pr-task info <pr-url>                # JSON: task_dir, head_sha, last_indexed_head, has-findings
 adk pr-task list                         # every task folder under ~/.agents-devkit/pr-reviews/
 adk pr-task list --names-only            # one folder name per line (used by completion)
 adk pr-task list --paths                 # one absolute path per line
 ```
 
-`prepare` is the same Phase 0-4a work as `pr-queue update <url> --full`, minus the queue metadata write. Use `pr-task prepare` when you only care about the cached worktree + index; use `pr-queue update --full` when you also want the queue's `head_oid` / `status` refreshed.
+`prepare` is the same Phase 0-4a work as `pr-queue update <url> --full`, minus the queue metadata write. Use `pr-task prepare` when you only care about the cached worktree + index; use `pr-queue update --full` when you also want the queue's `head_sha` / `status` refreshed.
 
 ### `adk completion` — shell completion
 

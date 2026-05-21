@@ -108,7 +108,7 @@ def test_reply_pr_link_emits_row_with_reply_ts(monkeypatch):
 
     # 1 from main + 2 from replies = 3 rows.
     assert len(candidates) == 3
-    by_link = {c["pr_link"]: c for c in candidates}
+    by_link = {c["pr_url"]: c for c in candidates}
     assert by_link["https://github.com/acme/foo/pull/1"]["slack"]["link_origin"] == "main"
     assert by_link["https://github.com/acme/foo/pull/1"]["slack"]["message_ts"] == "100.000"
     assert by_link["https://github.com/acme/foo/pull/2"]["slack"]["link_origin"] == "reply"
@@ -156,7 +156,7 @@ def test_supporting_docs_are_shared_across_thread_rows(monkeypatch):
     log = logging.getLogger("test")
     candidates, _ = pr_scan.scan(_slack_cfg(), oldest_ts="0", log=log)
 
-    docs_per_pr = {c["pr_link"]: set(c["supporting_docs"]) for c in candidates}
+    docs_per_pr = {c["pr_url"]: set(c["supporting_docs"]) for c in candidates}
     expected = {"https://acme.atlassian.net/wiki/spaces/X/pages/42/Spec",
                 "https://www.figma.com/file/abc/Designs"}
     assert docs_per_pr["https://github.com/acme/foo/pull/1"] == expected

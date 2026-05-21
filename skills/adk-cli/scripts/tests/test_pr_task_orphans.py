@@ -37,8 +37,8 @@ def test_clean_orphans_keeps_queued_folders(fake_pr_reviews, capsys):
     (reviews / "bar_pr-2").mkdir()  # this one stays in the queue
 
     queue = _write_queue(fake_pr_reviews, [
-        {"pr_link": "https://github.com/acme/bar/pull/2",
-         "status": STATUS_PENDING, "head_oid": "x"},
+        {"pr_url": "https://github.com/acme/bar/pull/2",
+         "status": STATUS_PENDING, "head_sha": "x"},
     ])
     args = SimpleNamespace(queue=str(queue), dry_run=True, yes=False)
     rc = pr_task.cmd_clean_orphans(args)
@@ -57,8 +57,8 @@ def test_clean_orphans_removes_when_yes(fake_pr_reviews, capsys):
     (reviews / "bar_pr-2").mkdir()
 
     queue = _write_queue(fake_pr_reviews, [
-        {"pr_link": "https://github.com/acme/bar/pull/2",
-         "status": STATUS_PENDING, "head_oid": "x"},
+        {"pr_url": "https://github.com/acme/bar/pull/2",
+         "status": STATUS_PENDING, "head_sha": "x"},
     ])
     args = SimpleNamespace(queue=str(queue), dry_run=False, yes=True)
     rc = pr_task.cmd_clean_orphans(args)
@@ -91,8 +91,8 @@ def test_merged_row_folder_treated_as_orphan(fake_pr_reviews, capsys):
     (reviews / "foo_pr-1").mkdir()
 
     queue = _write_queue(fake_pr_reviews, [
-        {"pr_link": "https://github.com/acme/foo/pull/1",
-         "status": STATUS_MERGED, "head_oid": "x"},
+        {"pr_url": "https://github.com/acme/foo/pull/1",
+         "status": STATUS_MERGED, "head_sha": "x"},
     ])
     args = SimpleNamespace(queue=str(queue), dry_run=True, yes=False)
     pr_task.cmd_clean_orphans(args)
@@ -104,8 +104,8 @@ def test_clean_orphans_no_op_when_all_queued(fake_pr_reviews, capsys):
     reviews = pr_task.PR_REVIEWS_ROOT
     (reviews / "foo_pr-1").mkdir()
     queue = _write_queue(fake_pr_reviews, [
-        {"pr_link": "https://github.com/acme/foo/pull/1",
-         "status": STATUS_PENDING, "head_oid": "x"},
+        {"pr_url": "https://github.com/acme/foo/pull/1",
+         "status": STATUS_PENDING, "head_sha": "x"},
     ])
     args = SimpleNamespace(queue=str(queue), dry_run=False, yes=True)
     rc = pr_task.cmd_clean_orphans(args)
@@ -119,19 +119,19 @@ def test_prepare_all_skips_merged_rows(fake_pr_reviews, monkeypatch, capsys):
     """`pr-task prepare --all` should iterate the queue but skip merged
     rows (we're about to drop them in the sync flow)."""
     queue = _write_queue(fake_pr_reviews, [
-        {"pr_link": "https://github.com/acme/foo/pull/1",
-         "status": STATUS_PENDING, "head_oid": "x"},
-        {"pr_link": "https://github.com/acme/foo/pull/2",
-         "status": STATUS_MERGED, "head_oid": "y"},
-        {"pr_link": "https://github.com/acme/foo/pull/3",
-         "status": STATUS_PENDING, "head_oid": "z"},
+        {"pr_url": "https://github.com/acme/foo/pull/1",
+         "status": STATUS_PENDING, "head_sha": "x"},
+        {"pr_url": "https://github.com/acme/foo/pull/2",
+         "status": STATUS_MERGED, "head_sha": "y"},
+        {"pr_url": "https://github.com/acme/foo/pull/3",
+         "status": STATUS_PENDING, "head_sha": "z"},
     ])
 
     calls: list[str] = []
 
     def fake_prepare_one(pr_url, *, queue, rebuild, detailed, embed_model, log):
         calls.append(pr_url)
-        return {"pr_url": pr_url, "action": "prepared", "head_oid": "abc"}
+        return {"pr_url": pr_url, "action": "prepared", "head_sha": "abc"}
 
     monkeypatch.setattr(pr_task, "_prepare_one", fake_prepare_one)
     rc = pr_task.main(["prepare", "--all", "--queue", str(queue)])
@@ -144,9 +144,9 @@ def test_prepare_all_skips_merged_rows(fake_pr_reviews, monkeypatch, capsys):
 
 def test_prepare_all_continues_past_failures(fake_pr_reviews, monkeypatch, capsys):
     queue = _write_queue(fake_pr_reviews, [
-        {"pr_link": "u1", "status": STATUS_PENDING, "head_oid": "x"},
-        {"pr_link": "u2", "status": STATUS_PENDING, "head_oid": "y"},
-        {"pr_link": "u3", "status": STATUS_PENDING, "head_oid": "z"},
+        {"pr_url": "u1", "status": STATUS_PENDING, "head_sha": "x"},
+        {"pr_url": "u2", "status": STATUS_PENDING, "head_sha": "y"},
+        {"pr_url": "u3", "status": STATUS_PENDING, "head_sha": "z"},
     ])
 
     def fake_prepare_one(pr_url, *, queue, rebuild, detailed, embed_model, log):

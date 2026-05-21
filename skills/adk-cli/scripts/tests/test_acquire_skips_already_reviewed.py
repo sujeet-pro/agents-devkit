@@ -1,5 +1,5 @@
 """Tests for the queue acquisition filter: `/adk-pr-review` (no arg) should
-skip rows whose head_oid matches `last_reviewed_head_oid` so the same commit
+skip rows whose head_sha matches `last_reviewed_head_sha` so the same commit
 isn't reviewed twice in a row. New commits push the row back into eligibility.
 
 Explicit URL invocations bypass this filter — they go through `find_row`,
@@ -20,30 +20,30 @@ from queue_io import (
 
 def test_is_already_reviewed_at_head_true_when_matches():
     assert _is_already_reviewed_at_head({
-        "head_oid": "abc123",
-        "last_reviewed_head_oid": "abc123",
+        "head_sha": "abc123",
+        "last_reviewed_head_sha": "abc123",
     }) is True
 
 
 def test_is_already_reviewed_at_head_false_when_new_commits():
     assert _is_already_reviewed_at_head({
-        "head_oid": "newhead",
-        "last_reviewed_head_oid": "oldhead",
+        "head_sha": "newhead",
+        "last_reviewed_head_sha": "oldhead",
     }) is False
 
 
 def test_is_already_reviewed_at_head_false_when_never_reviewed():
-    """A row scanned but never reviewed has no last_reviewed_head_oid."""
-    assert _is_already_reviewed_at_head({"head_oid": "abc123"}) is False
+    """A row scanned but never reviewed has no last_reviewed_head_sha."""
+    assert _is_already_reviewed_at_head({"head_sha": "abc123"}) is False
     assert _is_already_reviewed_at_head({
-        "head_oid": "abc123",
-        "last_reviewed_head_oid": None,
+        "head_sha": "abc123",
+        "last_reviewed_head_sha": None,
     }) is False
 
 
 def test_is_already_reviewed_at_head_false_when_no_head_oid():
-    """Defensive: missing head_oid → never skip."""
-    assert _is_already_reviewed_at_head({"last_reviewed_head_oid": "xx"}) is False
+    """Defensive: missing head_sha → never skip."""
+    assert _is_already_reviewed_at_head({"last_reviewed_head_sha": "xx"}) is False
 
 
 def _write(tmp_path: Path, prs: list[dict]) -> Path:
@@ -58,27 +58,27 @@ def test_acquire_skips_already_reviewed(tmp_path):
     NEIGHBORS, not the row itself."""
     p = _write(tmp_path, [
         {
-            "pr_link": "https://github.com/acme/foo/pull/1",
+            "pr_url": "https://github.com/acme/foo/pull/1",
             "status": STATUS_PENDING,
-            "head_oid": "abc",
-            "last_reviewed_head_oid": "abc",   # skip — no new commits
+            "head_sha": "abc",
+            "last_reviewed_head_sha": "abc",   # skip — no new commits
         },
         {
-            "pr_link": "https://github.com/acme/foo/pull/2",
+            "pr_url": "https://github.com/acme/foo/pull/2",
             "status": STATUS_PENDING,
-            "head_oid": "newhead",
-            "last_reviewed_head_oid": "oldhead",  # new commits since last review
+            "head_sha": "newhead",
+            "last_reviewed_head_sha": "oldhead",  # new commits since last review
         },
         {
-            "pr_link": "https://github.com/acme/foo/pull/3",
+            "pr_url": "https://github.com/acme/foo/pull/3",
             "status": STATUS_PENDING,
-            "head_oid": "fresh",
+            "head_sha": "fresh",
             # never reviewed
         },
     ])
     picked = acquire_next_row(p)
     assert picked is not None
-    assert picked["pr_link"] in {
+    assert picked["pr_url"] in {
         "https://github.com/acme/foo/pull/2",
         "https://github.com/acme/foo/pull/3",
     }
@@ -89,12 +89,12 @@ def test_acquire_returns_none_when_only_already_reviewed_left(tmp_path):
     returns None and the caller prints `queue_empty`."""
     p = _write(tmp_path, [
         {
-            "pr_link": "u1", "status": STATUS_PENDING,
-            "head_oid": "x", "last_reviewed_head_oid": "x",
+            "pr_url": "u1", "status": STATUS_PENDING,
+            "head_sha": "x", "last_reviewed_head_sha": "x",
         },
         {
-            "pr_link": "u2", "status": STATUS_MERGED,
-            "head_oid": "y", "last_reviewed_head_oid": "y",
+            "pr_url": "u2", "status": STATUS_MERGED,
+            "head_sha": "y", "last_reviewed_head_sha": "y",
         },
     ])
     assert acquire_next_row(p) is None
@@ -105,15 +105,15 @@ def test_new_commit_after_review_makes_row_eligible_again(tmp_path):
     head=B → next acquire claims it."""
     p = _write(tmp_path, [
         {
-            "pr_link": "u1",
+            "pr_url": "u1",
             "status": STATUS_PENDING,
-            "head_oid": "B",        # author pushed new commits
-            "last_reviewed_head_oid": "A",
+            "head_sha": "B",        # author pushed new commits
+            "last_reviewed_head_sha": "A",
         },
     ])
     picked = acquire_next_row(p)
     assert picked is not None
-    assert picked["pr_link"] == "u1"
+    assert picked["pr_url"] == "u1"
 
 
 if __name__ == "__main__":

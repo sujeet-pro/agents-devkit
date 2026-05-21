@@ -92,7 +92,7 @@ feedback on otherwise-trivial PRs still ships.
 ```json
 {
   "host": "bitbucket",
-  "pr_link": "https://bitbucket.org/acme/ecomm-ssr/pull-requests/5521",
+  "pr_url": "https://bitbucket.org/acme/ecomm-ssr/pull-requests/5521",
   "recommendation": "approve",
   "approve_ready": true,
   "post_review": false,

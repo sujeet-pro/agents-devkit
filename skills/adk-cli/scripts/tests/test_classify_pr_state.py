@@ -1,5 +1,5 @@
 """Tests for `classify_pr_state` — the central origin-API state interpreter
-that turns host-specific meta into one of {open, merged, declined, unknown}.
+that turns host-specific meta into one of {open, merged, closed, unknown}.
 
 Why this matters: the queue picker, sync cleanup, and reminder logic all
 depend on a consistent verdict. A GitHub `CLOSED + not merged` PR and a
@@ -25,18 +25,18 @@ def test_github_state_merged_without_merged_at():
     assert classify_pr_state({"merged_at": None, "state": "MERGED"}) == "merged"
 
 
-def test_github_closed_without_merge_is_declined():
-    assert classify_pr_state({"merged_at": None, "state": "CLOSED"}) == "declined"
+def test_github_closed_without_merge_is_closed():
+    assert classify_pr_state({"merged_at": None, "state": "CLOSED"}) == "closed"
 
 
-def test_bitbucket_declined_is_declined():
-    assert classify_pr_state({"merged_at": None, "state": "DECLINED"}) == "declined"
+def test_bitbucket_declined_is_closed():
+    assert classify_pr_state({"merged_at": None, "state": "DECLINED"}) == "closed"
 
 
-def test_bitbucket_superseded_is_declined():
+def test_bitbucket_superseded_is_closed():
     """SUPERSEDED PRs have been replaced by a newer PR — same outcome for us:
     don't keep reviewing them."""
-    assert classify_pr_state({"merged_at": None, "state": "SUPERSEDED"}) == "declined"
+    assert classify_pr_state({"merged_at": None, "state": "SUPERSEDED"}) == "closed"
 
 
 def test_open_state():
@@ -47,7 +47,7 @@ def test_lowercase_state_handled():
     """Defensive: hosts shouldn't return lowercase but the function shouldn't
     misclassify if they do."""
     assert classify_pr_state({"merged_at": None, "state": "open"}) == "open"
-    assert classify_pr_state({"merged_at": None, "state": "declined"}) == "declined"
+    assert classify_pr_state({"merged_at": None, "state": "declined"}) == "closed"
 
 
 def test_meta_error_is_unknown():

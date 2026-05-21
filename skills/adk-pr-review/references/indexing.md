@@ -116,13 +116,13 @@ All sub-commands print JSON when given `--json`.
 
 ## Re-indexing on PR push
 
-`<task>/state.json` carries `phases.3_index.head_oid`. If a re-run sees a different `head_oid` from `pr.json.head_oid`:
+`<task>/state.json` carries `phases.3_index.head_sha`. If a re-run sees a different `head_sha` from `pr.json.head_sha`:
 
 1. `git fetch` + `git worktree` update.
 2. Compute the file delta: `git diff --name-only <old> <new>`.
 3. For each changed file: delete its chunks from the LanceDB table, re-chunk, re-embed, insert.
 4. SCIP: rerun only for languages whose files changed.
-5. Bump `head_oid` in `state.json`.
+5. Bump `head_sha` in `state.json`.
 
 This is much cheaper than a full rebuild for incremental pushes. Force a full rebuild with `--rebuild`.
 

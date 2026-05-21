@@ -75,7 +75,7 @@ def test_info_reads_state_and_pr_json(tmp_path, monkeypatch, capsys):
     # Fake the state.json that run_review.py would have written.
     state = {
         "phases": {
-            "2a_fetch_pr": {"head_oid": "deadbeefcafe1234"},
+            "2a_fetch_pr": {"head_sha": "deadbeefcafe1234"},
             "3_index":     {"head_oid_at_index": "deadbeefcafe1234"},
         }
     }
@@ -93,7 +93,7 @@ def test_info_reads_state_and_pr_json(tmp_path, monkeypatch, capsys):
     assert out["has_pr_json"] is True
     assert out["has_precis"] is True
     assert out["has_findings"] is False
-    assert out["head_oid"] == "deadbeefcafe1234"
+    assert out["head_sha"] == "deadbeefcafe1234"
     assert out["last_indexed_head"] == "deadbeefcafe1234"
     assert out["title"] == "fix: stuff"
     assert out["state"] == "open"
@@ -111,7 +111,7 @@ def test_prepare_forwards_to_run_review(monkeypatch, capsys):
 
     class FakeCP:
         returncode = 0
-        stdout = '{"action": "prepared", "head_oid": "abc"}\n'
+        stdout = '{"action": "prepared", "head_sha": "abc"}\n'
         stderr = ""
 
     def fake_run(cmd, **kw):
@@ -200,7 +200,7 @@ def test_prepare_all_sequential_default(monkeypatch, capsys):
     seen: list[str] = []
     def fake_prepare_one(url, **kw):
         seen.append(url)
-        return {"pr_url": url, "status": "prepared", "head_oid": "abc"}
+        return {"pr_url": url, "status": "prepared", "head_sha": "abc"}
     monkeypatch.setattr(pr_task, "_prepare_one", fake_prepare_one)
 
     rc = pr_task.cmd_prepare(_all_args())

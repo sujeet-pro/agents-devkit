@@ -51,7 +51,7 @@ def test_row_age_days_handles_missing(pr_queue_mod):
 def test_clean_stale_days_refuses_without_yes(tmp_path, pr_queue_mod):
     q = tmp_path / "pr-queue.json5"
     _write_queue(q, [
-        {"pr_link": "https://github.com/a/b/pull/1", "status": "reviewed",
+        {"pr_url": "https://github.com/a/b/pull/1", "status": "reviewed",
          "last_checked_at": _ts_n_days_ago(30)},
     ])
     args = type("A", (), {"queue": str(q), "all": False, "stale_days": 7, "yes": False})()
@@ -65,9 +65,9 @@ def test_clean_stale_days_refuses_without_yes(tmp_path, pr_queue_mod):
 def test_clean_stale_days_drops_old_rows(tmp_path, pr_queue_mod, monkeypatch):
     q = tmp_path / "pr-queue.json5"
     _write_queue(q, [
-        {"pr_link": "https://github.com/a/b/pull/1", "status": "reviewed",
+        {"pr_url": "https://github.com/a/b/pull/1", "status": "reviewed",
          "last_checked_at": _ts_n_days_ago(30)},
-        {"pr_link": "https://github.com/a/b/pull/2", "status": "reviewed",
+        {"pr_url": "https://github.com/a/b/pull/2", "status": "reviewed",
          "last_checked_at": _ts_n_days_ago(1)},
     ])
     monkeypatch.setattr(pr_queue_mod, "_task_dir_for_link", lambda link: None)  # no folder cleanup
@@ -76,13 +76,13 @@ def test_clean_stale_days_drops_old_rows(tmp_path, pr_queue_mod, monkeypatch):
     assert rc == 0
     rows = json.loads(q.read_text(encoding="utf-8"))["prs"]
     assert len(rows) == 1
-    assert rows[0]["pr_link"].endswith("/pull/2")
+    assert rows[0]["pr_url"].endswith("/pull/2")
 
 
 def test_clean_stale_days_skips_in_review(tmp_path, pr_queue_mod, monkeypatch):
     q = tmp_path / "pr-queue.json5"
     _write_queue(q, [
-        {"pr_link": "https://github.com/a/b/pull/1", "status": "in_review",
+        {"pr_url": "https://github.com/a/b/pull/1", "status": "in_review",
          "last_checked_at": _ts_n_days_ago(30)},
     ])
     monkeypatch.setattr(pr_queue_mod, "_task_dir_for_link", lambda link: None)
@@ -97,7 +97,7 @@ def test_clean_stale_days_skips_locked(tmp_path, pr_queue_mod, monkeypatch):
     """taken_at set → row is actively being reviewed → don't sweep it."""
     q = tmp_path / "pr-queue.json5"
     _write_queue(q, [
-        {"pr_link": "https://github.com/a/b/pull/1", "status": "reviewed",
+        {"pr_url": "https://github.com/a/b/pull/1", "status": "reviewed",
          "last_checked_at": _ts_n_days_ago(30), "taken_at": _ts_now()},
     ])
     monkeypatch.setattr(pr_queue_mod, "_task_dir_for_link", lambda link: None)
@@ -109,7 +109,7 @@ def test_clean_stale_days_skips_locked(tmp_path, pr_queue_mod, monkeypatch):
 
 def test_clean_stale_days_rejects_zero(tmp_path, pr_queue_mod):
     q = tmp_path / "pr-queue.json5"
-    _write_queue(q, [{"pr_link": "x", "last_checked_at": _ts_n_days_ago(1)}])
+    _write_queue(q, [{"pr_url": "x", "last_checked_at": _ts_n_days_ago(1)}])
     args = type("A", (), {"queue": str(q), "all": False, "stale_days": 0, "yes": True})()
     rc = pr_queue_mod.cmd_clean(args)
     assert rc == 2
