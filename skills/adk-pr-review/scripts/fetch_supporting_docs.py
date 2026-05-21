@@ -156,7 +156,7 @@ def main() -> int:
     urls, bare_jira_keys = collect_urls_and_keys(task_dir)
 
     # Forced supporting docs (from the pr-queue.json5 row's supporting_docs[],
-    # injected by run_review.py when the PR was found in the queue). When
+    # injected by prepare_task.py when the PR was found in the queue). When
     # <task_dir>/forced-supporting-docs.json is present, those URLs are added
     # as first-class inputs even if they don't appear in the PR body.
     forced_path = task_dir / "forced-supporting-docs.json"

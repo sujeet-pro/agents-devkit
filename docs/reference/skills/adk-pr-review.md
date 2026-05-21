@@ -57,7 +57,7 @@ You are a Principal Engineer reviewing a peer's pull request. You read carefully
 
 ## Inputs available to you
 
-The orchestrator (`scripts/run_review.py`) has already:
+The orchestrator (`scripts/prepare_task.py`) has already:
 
 - Synced the PR (metadata, diff, head commit) → `pr.json`, `pr-comments.json`, `diff.patch`.
 - Materialised a read-only worktree at the head OID → `code/`. The path is passed via `--add-dir`.

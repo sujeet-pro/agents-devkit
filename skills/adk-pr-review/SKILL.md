@@ -65,7 +65,7 @@ CLI surface for queue management — all via the `adk` binary:
 | # | Phase | Who runs it | CLI entry | Output artifact |
 |---|---|---|---|---|
 | 0 | **Claim** — pick the next eligible PR (FIFO, origin-API validated; skips merged/closed/locked/already-reviewed-at-head). Auto-drops merged/closed rows when discovered. | script | `adk pr-queue get-next` | `taken_at` set on the row |
-| 1 | **Prepare** — fetch PR meta + diff + comments, sync clone, materialise worktree at the PR head, build chunk + SCIP indexes, mirror supporting docs, build `precis.md`. Idempotent: re-runs short-circuit when `head_sha == last_indexed_head`. **Does NOT review.** | script | `adk pr-task prepare <url>` (or `run_review.py --prepare-only <url>`) | `pr.json`, `pr-comments.json`, `diff.patch`, `code/`, `code-index/`, `docs/`, `precis.md` |
+| 1 | **Prepare** — fetch PR meta + diff + comments, sync clone, materialise worktree at the PR head, build chunk + SCIP indexes, mirror supporting docs, build `precis.md`. Idempotent: re-runs short-circuit when `head_sha == last_indexed_head`. **Does NOT review.** | script | `adk pr-task prepare <url>` (or `prepare_task.py --prepare-only <url>`) | `pr.json`, `pr-comments.json`, `diff.patch`, `code/`, `code-index/`, `docs/`, `precis.md` |
 | 2 | **Review** — read precis + diff + supporting docs + index; produce findings per the rubric below. You may spawn child agents via the Agent tool for independent passes (security pass, tests pass, feature-flow pass). Output one JSON object matching `finding.template.json`. | **YOU** (the parent agent) | n/a | `findings.json` |
 | 3 | **Validate** — gate each finding on two cheap checks: the `file:line_start..line_end` anchor still resolves in the worktree, and a non-trivial `suggestion` is present (except for `question` / `appreciation`). Findings that fail either check stay in the audit trail but are **not** posted. The user's rule: "If the fix can not be identified, we will not have it in the finding comments." | script | `adk pr-task validate <url>` | `validated-findings.json` (full audit) + `initial-findings.json` (subset to post) + `validation-report.json` |
 | 4 | **Triage** — auto (default) or interactive (`-i`). Auto: `posted-comments` = `initial-findings`. Interactive: you walk each finding accept / reject / edit via `AskUserQuestion`; edits go through an iterative LLM rewrite loop. | script + you (in `-i`) | `python3 scripts/triage.py --init --finalize` | `triage.json`, then `posted-comments.json` |
@@ -100,7 +100,7 @@ You are a Principal Engineer reviewing a peer's pull request. You read carefully
 
 ## Inputs available to you
 
-The orchestrator (`scripts/run_review.py`, also reachable as `adk pr-task prepare <pr-url>`) has already:
+The orchestrator (`scripts/prepare_task.py`, also reachable as `adk pr-task prepare <pr-url>`) has already:
 
 - Synced the PR (metadata, diff, head commit) → `pr.json`, `pr-comments.json`, `diff.patch`.
 - Materialised a read-only worktree at the head OID → `code/`. The path is passed via `--add-dir`.

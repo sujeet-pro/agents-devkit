@@ -22,7 +22,7 @@ list                 Names of every task folder under
                      ~/.agents-devkit/skill-pr-review/. Pair with `--paths` to
                      get the full paths instead. Powers shell completion.
 
-Internals: prepare delegates to skills/adk-pr-review/scripts/run_review.py
+Internals: prepare delegates to skills/adk-pr-review/scripts/prepare_task.py
 --prepare-only. This module is a stable wrapper — the skill (and any
 external caller) doesn't need to know that path.
 """
@@ -84,7 +84,7 @@ def _resolve_pr_review_root() -> Path:
 
 
 PR_REVIEWS_ROOT = PR_REVIEW_ROOT  # legacy import name; new code uses _resolve_pr_review_root().
-RUN_REVIEW = ADK_PR_REVIEW_SCRIPTS / "run_review.py"
+PREPARE_TASK = ADK_PR_REVIEW_SCRIPTS / "prepare_task.py"
 VALIDATE_FINDINGS = ADK_PR_REVIEW_SCRIPTS / "validate_findings.py"
 
 
@@ -122,9 +122,9 @@ def _task_dir_for(pr_url: str) -> Path:
 
 def _prepare_one(pr_url: str, *, queue: str, rebuild: bool, detailed: bool,
                  embed_model: str | None, log) -> dict:
-    """Spawn run_review.py --prepare-only for one PR. Returns a structured
+    """Spawn prepare_task.py --prepare-only for one PR. Returns a structured
     dict so the --all caller can aggregate. Never raises."""
-    cmd = [sys.executable, str(RUN_REVIEW), "--prepare-only",
+    cmd = [sys.executable, str(PREPARE_TASK), "--prepare-only",
            "--queue", str(Path(queue).expanduser())]
     if rebuild:
         cmd.append("--rebuild")
@@ -134,7 +134,7 @@ def _prepare_one(pr_url: str, *, queue: str, rebuild: bool, detailed: bool,
         cmd += ["--embed-model", embed_model]
     cmd.append(pr_url)
 
-    log.info("$ %s --prepare-only %s", RUN_REVIEW.name, pr_url)
+    log.info("$ %s --prepare-only %s", PREPARE_TASK.name, pr_url)
     try:
         cp = subprocess.run(cmd, capture_output=True, text=True, check=False)
     except Exception as e:
@@ -153,8 +153,8 @@ def _prepare_one(pr_url: str, *, queue: str, rebuild: bool, detailed: bool,
 
 def cmd_prepare(args) -> int:
     log = get_logger("pr-task-prepare")
-    if not RUN_REVIEW.exists():
-        die(f"run_review.py not found at {RUN_REVIEW} — check your install")
+    if not PREPARE_TASK.exists():
+        die(f"prepare_task.py not found at {PREPARE_TASK} — check your install")
 
     if args.all:
         if args.pr_url:
@@ -180,7 +180,7 @@ def cmd_prepare(args) -> int:
                     had_failure = True
                 results.append(r)
         else:
-            # Each worker spawns its own run_review.py subprocess. Effective
+            # Each worker spawns its own prepare_task.py subprocess. Effective
             # parallelism is capped further by (1) the per-repo clone lock
             # held briefly during Phase 1a/1b in run_review and (2) Ollama's
             # OLLAMA_NUM_PARALLEL for concurrent embed requests. Failures are
@@ -220,7 +220,7 @@ def cmd_prepare(args) -> int:
 
     # Single-PR path: stream stdout/stderr through unchanged so the caller
     # sees the orchestrator's live phase log, not just the trailing JSON.
-    cmd = [sys.executable, str(RUN_REVIEW), "--prepare-only",
+    cmd = [sys.executable, str(PREPARE_TASK), "--prepare-only",
            "--queue", str(Path(args.queue).expanduser())]
     if args.rebuild:
         cmd.append("--rebuild")

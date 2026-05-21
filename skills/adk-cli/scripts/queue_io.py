@@ -462,7 +462,7 @@ def acquire_next_row(path: Path) -> dict | None:
     Note: this is the IN-MEMORY picker. For an API-validated pick (which
     auto-drops PRs that have merged or been declined since the last sync),
     callers should go through `pr_queue.get_next_eligible(path)` — invoked
-    by `adk pr-queue get-next` and by `run_review.py` in queue mode.
+    by `adk pr-queue get-next` and by `prepare_task.py` in queue mode.
     """
     path.parent.mkdir(parents=True, exist_ok=True)
     with file_lock(_lock_path(path), timeout_s=60.0):

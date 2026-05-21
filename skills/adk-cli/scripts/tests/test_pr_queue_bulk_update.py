@@ -4,7 +4,7 @@
 - update <url> --all is rejected (mutually exclusive).
 - update --all iterates non-merged rows, skips merged ones, and continues
   past per-row failures with rc=1.
-- update --full invokes run_review.py --prepare-only and folds its output.
+- update --full invokes prepare_task.py --prepare-only and folds its output.
 """
 from __future__ import annotations
 

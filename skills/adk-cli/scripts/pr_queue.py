@@ -636,7 +636,7 @@ def get_next_eligible(queue_path: Path, *, validate: bool = True,
 
     `validate=False` is the legacy in-memory path — used by tests and by
     callers who already validated separately. The CLI front-end
-    (`adk pr-queue get-next`) and `run_review.py` queue mode use
+    (`adk pr-queue get-next`) and `prepare_task.py` queue mode use
     `validate=True`.
     """
     if log is None:

@@ -1,6 +1,6 @@
 # workflow — adk-pr-review
 
-Six phases. Phase 1 (worktree creation) is **serialized**; every other phase can fan out. The orchestrator is `scripts/run_review.py`.
+Six phases. Phase 1 (worktree creation) is **serialized**; every other phase can fan out. The orchestrator is `scripts/prepare_task.py`.
 
 ## Always-resync semantics (every invocation)
 

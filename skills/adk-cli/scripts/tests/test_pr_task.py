@@ -1,5 +1,5 @@
 """Tests for `adk pr-task`:
-- prepare → forwards to run_review.py --prepare-only with the right args.
+- prepare → forwards to prepare_task.py --prepare-only with the right args.
 - info → reads state.json + pr.json and emits a JSON status block.
 - list → enumerates ~/.agents-devkit/skill-pr-review/ and supports --names-only / --paths.
 """
@@ -74,7 +74,7 @@ def test_info_for_nonexistent_task(monkeypatch, tmp_path, capsys):
 def test_info_reads_state_and_pr_json(tmp_path, monkeypatch, capsys):
     task = tmp_path / "foo_pr-42"
     task.mkdir()
-    # Fake the state.json that run_review.py would have written.
+    # Fake the state.json that prepare_task.py would have written.
     state = {
         "phases": {
             "2a_fetch_pr": {"head_sha": "deadbeefcafe1234"},
@@ -102,10 +102,10 @@ def test_info_reads_state_and_pr_json(tmp_path, monkeypatch, capsys):
 
 
 def test_prepare_forwards_to_run_review(monkeypatch, capsys):
-    """`pr-task prepare <url>` should spawn `run_review.py --prepare-only <url>`
+    """`pr-task prepare <url>` should spawn `prepare_task.py --prepare-only <url>`
     with the queue path, and pass through the exit code.
 
-    Relies on the real RUN_REVIEW file existing in the repo (it does — the
+    Relies on the real PREPARE_TASK file existing in the repo (it does — the
     test runs from the same checkout that supplies the script). We only mock
     `subprocess.run` so no actual orchestrator work happens.
     """
@@ -132,7 +132,7 @@ def test_prepare_forwards_to_run_review(monkeypatch, capsys):
     assert rc == 0
     cmd = captured["cmd"]
     assert cmd[0] == sys.executable
-    assert "run_review.py" in cmd[1]
+    assert "prepare_task.py" in cmd[1]
     assert "--prepare-only" in cmd
     assert "https://github.com/acme/foo/pull/9" in cmd
 

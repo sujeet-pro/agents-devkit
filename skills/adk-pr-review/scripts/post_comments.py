@@ -504,7 +504,7 @@ def main() -> int:
     approve_ready = _comment_actions_approve_ready(task_dir)
     recommendation = findings.get("recommendation", "comment_only")
     # Pick up the queue's slack thread (populated by `adk pr-scan` + merged in
-    # by run_review.py when the PR appears in the queue). Absent for URL-only
+    # by prepare_task.py when the PR appears in the queue). Absent for URL-only
     # reviews — the Slack step then emits a "skipped" marker.
     queue_ctx_path = task_dir / "queue-context.json"
     queue_ctx = read_json(queue_ctx_path) if queue_ctx_path.exists() else None

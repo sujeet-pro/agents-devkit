@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
-"""run_review.py — orchestrator for /adk-pr-review.
+"""prepare_task.py — orchestrator for /adk-pr-review.
 
 Two invocation modes:
 
-  1. URL mode:   `python3 run_review.py <pr-url> [...flags]`
+  1. URL mode:   `python3 prepare_task.py <pr-url> [...flags]`
      Reviews the named PR. If the PR is found in the queue
      (~/.agents-devkit/config/pr-queue.json5) the row's `taken_at` is
      atomically claimed for the duration of this run, and the row's
      `slack` + `supporting_docs` are merged into the review context.
 
-  2. Queue mode: `python3 run_review.py [--queue <path>] [...flags]`
+  2. Queue mode: `python3 prepare_task.py [--queue <path>] [...flags]`
      With no URL, picks the next eligible row from the queue (oldest by
      last_checked_at, nulls first; status != merged; `taken_at` null or
      older than the 30-min auto-expire). Atomically claims it and reviews
@@ -43,7 +43,7 @@ The queue release (set status, clear taken_at, update slack reaction) happens
 in report.py at the tail of the review.
 
 Usage:
-  python3 run_review.py [<pr-url>] [--auto] [--rebuild] [--no-post]
+  python3 prepare_task.py [<pr-url>] [--auto] [--rebuild] [--no-post]
                                    [--no-resolve-existing]
                                    [--embed-model nomic-embed-text]
                                    [--scope all|security|correctness|tests]

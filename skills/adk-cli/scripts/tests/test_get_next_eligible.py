@@ -1,7 +1,7 @@
 """Tests for `pr_queue.get_next_eligible` — the API-validated picker that
 auto-drops merged/closed rows discovered at claim time.
 
-Wired in as `adk pr-queue get-next` and used by `run_review.py` in queue
+Wired in as `adk pr-queue get-next` and used by `prepare_task.py` in queue
 mode. The previous design (calling `acquire_next_row` directly) could hand
 back a row that had merged between scans; this fixes that.
 """
