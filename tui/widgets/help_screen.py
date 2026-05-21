@@ -12,12 +12,15 @@ _HELP_TEXT = """adk TUI · keys
   ?              this help
   f              cycle filter
   S              cycle sort
+  s              start `adk pr-sync` (streams into log pane)
+  r              start a review on the highlighted row (claim+prepare+claude)
+  R              run all selected rows as a batch (parallel cap)
+  space          toggle selection on the highlighted row
+  p              cycle parallel cap (1 → 2 → 4 → 8)
   j / down       move cursor down
   k / up         move cursor up
   g / home       jump to first row
   G / end        jump to last row
-  s              start `adk pr-sync` (streams into log pane)
-  r              start a review on the highlighted row (claim+prepare+claude)
   enter          (read-only — no action yet)
   escape         close this help
 """

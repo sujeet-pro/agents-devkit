@@ -204,3 +204,13 @@ def eligible_queue_path(tmp_path: Path) -> Path:
     dst = tmp_path / "eligible-queue.json5"
     shutil.copyfile(src, dst)
     return dst
+
+
+@pytest.fixture
+def eligible_multi_queue(tmp_path: Path) -> Path:
+    """A queue with 3 rows, all ready_for_review=True (mirrors eligible_queue.json5
+    but with 3 distinct URLs)."""
+    src = _FIXTURES_DIR / "eligible_multi_queue.json5"
+    dst = tmp_path / "eligible-multi.json5"
+    shutil.copyfile(src, dst)
+    return dst

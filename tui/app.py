@@ -29,6 +29,7 @@ if TYPE_CHECKING:
 
 _FILTER_CYCLE: tuple[FilterMode, ...] = ("all", "open", "ready", "reviewed", "terminal")
 _SORT_CYCLE: tuple[SortMode, ...] = ("fifo", "newest", "repo")
+_PARALLEL_CYCLE: tuple[int, ...] = (1, 2, 4, 8)
 
 
 class AdkApp(App):
@@ -42,6 +43,9 @@ class AdkApp(App):
         Binding("S", "cycle_sort", "sort"),
         Binding("s", "sync", "sync"),
         Binding("r", "review", "review"),
+        Binding("R", "run_selected", "run-selected"),
+        Binding("space", "toggle_select", "select"),
+        Binding("p", "cycle_parallel", "parallel"),
         Binding("j", "cursor_down", show=False),
         Binding("k", "cursor_up", show=False),
         Binding("g", "cursor_home", show=False),
@@ -78,8 +82,11 @@ class AdkApp(App):
         self._rows_by_url: dict[str, QueueRow] = {}
         self._sync_proc: asyncio.subprocess.Process | None = None
         self._sync_task: asyncio.Task | None = None
-        self._review_proc: asyncio.subprocess.Process | None = None
-        self._review_task: asyncio.Task | None = None
+        self._selection_order: list[str] = []
+        self._review_workers: dict[str, asyncio.subprocess.Process] = {}
+        self._review_tasks: dict[str, asyncio.Task] = {}
+        self._parallel_n: int = 4
+        self._batch_task: asyncio.Task | None = None
 
     def compose(self) -> ComposeResult:
         yield HeaderBar()
@@ -99,7 +106,13 @@ class AdkApp(App):
         self._model = QueueModel(queue_path=self._queue_path)
         self._plan_model = SyncPlanModel(plan_path=self._plan_path)
         self._workers_model = WorkersModel(workers_dir=self._heartbeat_dir)
-        self.query_one(FooterBar).update_status(self._filter_mode, self._sort_mode, sync_running=False)
+        self.query_one(FooterBar).update_status(
+            self._filter_mode, self._sort_mode,
+            sync_running=False,
+            review_running=False,
+            selected_count=len(self._selection_order),
+            parallel_n=self._parallel_n,
+        )
         self._reload(force=True)
         self._reload_plan(force=True)
         self._reload_workers(force=True)
@@ -115,9 +128,21 @@ class AdkApp(App):
             sort_mode=self._sort_mode,
         )
         self._rows_by_url = {row.pr_url: row for row in snapshot.rows}
+        # Prune disappeared URLs from selection.
+        self._selection_order = [u for u in self._selection_order if u in self._rows_by_url]
         self.query_one(HeaderBar).update_snapshot(snapshot)
-        self.query_one(QueueTable).load(snapshot, ascii_only=self._ascii_only)
-        self.query_one(FooterBar).update_status(self._filter_mode, self._sort_mode)
+        self.query_one(QueueTable).load(
+            snapshot,
+            ascii_only=self._ascii_only,
+            selected_order=list(self._selection_order),
+        )
+        self.query_one(FooterBar).update_status(
+            self._filter_mode, self._sort_mode,
+            sync_running=(self._sync_proc is not None and self._sync_proc.returncode is None),
+            review_running=bool(self._review_workers),
+            selected_count=len(self._selection_order),
+            parallel_n=self._parallel_n,
+        )
         self._refresh_detail()
 
     def _reload_plan(self, *, force: bool = False) -> None:
@@ -187,16 +212,18 @@ class AdkApp(App):
     def action_escape(self) -> None:
         return None
 
-    def _busy(self) -> str | None:
+    def _busy_label(self) -> str | None:
         """Return a short label of any running subprocess, else None."""
         if self._sync_proc is not None and self._sync_proc.returncode is None:
             return "sync"
-        if self._review_proc is not None and self._review_proc.returncode is None:
+        if self._batch_task is not None and not self._batch_task.done():
+            return "batch"
+        if self._review_workers:
             return "review"
         return None
 
     def action_sync(self) -> None:
-        busy = self._busy()
+        busy = self._busy_label()
         if busy == "sync":
             # Preserve legacy message for s-while-s-running (matches existing test).
             self.query_one(LogPane).write("(sync already running — wait or quit and restart)")
@@ -208,9 +235,18 @@ class AdkApp(App):
         self._sync_task.add_done_callback(self._on_sync_task_done)
 
     def action_review(self) -> None:
-        busy = self._busy()
-        if busy is not None:
+        busy = self._busy_label()
+        if busy in ("sync", "batch"):
             self.query_one(LogPane).write(f"(can't start review — {busy} already running)")
+            return
+        # Count live tasks, not workers: _review_tasks is populated immediately
+        # at task creation, _review_workers only after the subprocess exec returns.
+        # Using tasks closes the race where a rapid `r` press could exceed the cap.
+        live_tasks = sum(1 for t in self._review_tasks.values() if not t.done())
+        if live_tasks >= self._parallel_n:
+            self.query_one(LogPane).write(
+                f"(can't start review — parallel cap reached ({self._parallel_n}))"
+            )
             return
         table = self.query_one(QueueTable)
         pr_url = table.selected_pr_url()
@@ -226,10 +262,112 @@ class AdkApp(App):
                 f"(row not ready: prep_status={row.prep_status!r}, status={row.status!r})"
             )
             return
-        self._review_task = asyncio.create_task(self._run_review(pr_url))
-        self._review_task.add_done_callback(self._on_review_task_done)
+        if pr_url in self._review_tasks and not self._review_tasks[pr_url].done():
+            self.query_one(LogPane).write(f"(review already running for {pr_url})")
+            return
+        task = asyncio.create_task(self._run_review(pr_url))
+        self._review_tasks[pr_url] = task
+        task.add_done_callback(self._on_review_task_done)
+
+    def action_toggle_select(self) -> None:
+        table = self.query_one(QueueTable)
+        pr_url = table.selected_pr_url()
+        if not pr_url:
+            return
+        if pr_url in self._selection_order:
+            self._selection_order.remove(pr_url)
+        else:
+            self._selection_order.append(pr_url)
+        self._reload(force=True)
+
+    def action_cycle_parallel(self) -> None:
+        try:
+            idx = _PARALLEL_CYCLE.index(self._parallel_n)
+        except ValueError:
+            idx = 0
+        self._parallel_n = _PARALLEL_CYCLE[(idx + 1) % len(_PARALLEL_CYCLE)]
+        self.query_one(FooterBar).update_status(
+            self._filter_mode, self._sort_mode,
+            sync_running=(self._sync_proc is not None and self._sync_proc.returncode is None),
+            review_running=bool(self._review_workers),
+            selected_count=len(self._selection_order),
+            parallel_n=self._parallel_n,
+        )
+
+    def action_run_selected(self) -> None:
+        busy = self._busy_label()
+        if busy is not None:
+            self.query_one(LogPane).write(f"(can't start batch — {busy} already running)")
+            return
+        if not self._selection_order:
+            self.query_one(LogPane).write("(no rows selected — press `space` on rows to select)")
+            return
+        ready: list[str] = []
+        log_pane = self.query_one(LogPane)
+        for url in list(self._selection_order):
+            row = self._rows_by_url.get(url)
+            if row is None or not row.ready_for_review:
+                log_pane.write(f"(skipping {url} — not ready)")
+                continue
+            ready.append(url)
+        if not ready:
+            log_pane.write("(no eligible rows in selection)")
+            return
+        log_pane.write(f"(batch start — {len(ready)} rows, parallel={self._parallel_n})")
+        self._batch_task = asyncio.create_task(self._run_batch(ready))
+        self._batch_task.add_done_callback(self._on_batch_task_done)
+
+    async def _run_batch(self, urls: list[str]) -> None:
+        queue: list[str] = list(urls)
+        inflight: set[asyncio.Task] = set()
+
+        def _start_next() -> None:
+            while queue and len(inflight) < self._parallel_n:
+                url = queue.pop(0)
+                t = asyncio.create_task(self._run_review(url))
+                self._review_tasks[url] = t
+                t.add_done_callback(self._on_review_task_done)
+                inflight.add(t)
+
+        _start_next()
+        while inflight:
+            done, _pending = await asyncio.wait(inflight, return_when=asyncio.FIRST_COMPLETED)
+            for t in done:
+                inflight.discard(t)
+            _start_next()
+
+        log_pane = self.query_one(LogPane)
+        log_pane.write(f"(batch done — {len(urls)} rows)")
+        self.query_one(FooterBar).update_status(
+            self._filter_mode, self._sort_mode,
+            sync_running=False,
+            review_running=False,
+            selected_count=len(self._selection_order),
+            parallel_n=self._parallel_n,
+        )
+        self._reload(force=True)
+
+    def _on_batch_task_done(self, task: asyncio.Task) -> None:
+        try:
+            exc = task.exception()
+        except (asyncio.CancelledError, asyncio.InvalidStateError):
+            return
+        if exc is not None:
+            try:
+                self.query_one(LogPane).write(f"(batch crashed: {exc!r})")
+            except Exception:
+                pass
+        self._batch_task = None
 
     def _on_review_task_done(self, task: asyncio.Task) -> None:
+        # Find the URL this task was associated with so we can drop it from the registry.
+        url_done: str | None = None
+        for url, t in self._review_tasks.items():
+            if t is task:
+                url_done = url
+                break
+        if url_done is not None:
+            self._review_tasks.pop(url_done, None)
         try:
             exc = task.exception()
         except (asyncio.CancelledError, asyncio.InvalidStateError):
@@ -239,11 +377,15 @@ class AdkApp(App):
                 self.query_one(LogPane).write(f"(review crashed: {exc!r})")
                 self.query_one(FooterBar).update_status(
                     self._filter_mode, self._sort_mode,
-                    sync_running=False, review_running=False,
+                    sync_running=False,
+                    review_running=bool(self._review_workers),
+                    selected_count=len(self._selection_order),
+                    parallel_n=self._parallel_n,
                 )
             except Exception:
                 pass
-            self._review_proc = None
+            # _review_workers is popped by _run_review's finally on every exit
+            # path — no manual cleanup needed here.
 
     def _on_sync_task_done(self, task: asyncio.Task) -> None:
         # Surface unhandled exceptions to the LogPane so a quiet hang never
@@ -256,7 +398,11 @@ class AdkApp(App):
             try:
                 self.query_one(LogPane).write(f"(sync crashed: {exc!r})")
                 self.query_one(FooterBar).update_status(
-                    self._filter_mode, self._sort_mode, sync_running=False,
+                    self._filter_mode, self._sort_mode,
+                    sync_running=False,
+                    review_running=bool(self._review_workers),
+                    selected_count=len(self._selection_order),
+                    parallel_n=self._parallel_n,
                 )
             except Exception:
                 pass
@@ -270,7 +416,13 @@ class AdkApp(App):
         adk = self._resolve_adk_bin()
         cmd = [str(adk), "pr-sync", *queue_arg]
         log_pane.write(f"$ {' '.join(shlex.quote(c) for c in cmd)}")
-        self.query_one(FooterBar).update_status(self._filter_mode, self._sort_mode, sync_running=True)
+        self.query_one(FooterBar).update_status(
+            self._filter_mode, self._sort_mode,
+            sync_running=True,
+            review_running=bool(self._review_workers),
+            selected_count=len(self._selection_order),
+            parallel_n=self._parallel_n,
+        )
         env = dict(os.environ)
         if self._plan_path is not None:
             env["ADK_TUI_PLAN_PATH"] = str(self._plan_path)
@@ -284,7 +436,13 @@ class AdkApp(App):
         except (FileNotFoundError, PermissionError, OSError) as exc:
             log_pane.write(f"(error: {exc})")
             self._sync_proc = None
-            self.query_one(FooterBar).update_status(self._filter_mode, self._sort_mode, sync_running=False)
+            self.query_one(FooterBar).update_status(
+                self._filter_mode, self._sort_mode,
+                sync_running=False,
+                review_running=bool(self._review_workers),
+                selected_count=len(self._selection_order),
+                parallel_n=self._parallel_n,
+            )
             return
         assert self._sync_proc.stdout is not None
         while True:
@@ -295,7 +453,13 @@ class AdkApp(App):
         rc = await self._sync_proc.wait()
         log_pane.write(f"(pr-sync exited rc={rc})")
         self._sync_proc = None
-        self.query_one(FooterBar).update_status(self._filter_mode, self._sort_mode, sync_running=False)
+        self.query_one(FooterBar).update_status(
+            self._filter_mode, self._sort_mode,
+            sync_running=False,
+            review_running=bool(self._review_workers),
+            selected_count=len(self._selection_order),
+            parallel_n=self._parallel_n,
+        )
         self._reload_plan(force=True)
         if self._model is not None:
             self._reload(force=True)
@@ -327,41 +491,53 @@ class AdkApp(App):
         if self._heartbeat_dir is not None:
             cmd += ["--heartbeat-dir", str(self._heartbeat_dir)]
         log_pane.write(f"$ {' '.join(shlex.quote(c) for c in cmd)}")
-        self.query_one(FooterBar).update_status(
-            self._filter_mode, self._sort_mode,
-            sync_running=False, review_running=True,
-        )
         try:
-            self._review_proc = await asyncio.create_subprocess_exec(
+            proc = await asyncio.create_subprocess_exec(
                 *cmd,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.STDOUT,
             )
         except (FileNotFoundError, PermissionError, OSError) as exc:
             log_pane.write(f"(error: {exc})")
-            self._review_proc = None
             self.query_one(FooterBar).update_status(
                 self._filter_mode, self._sort_mode,
-                sync_running=False, review_running=False,
+                sync_running=False,
+                review_running=bool(self._review_workers),
+                selected_count=len(self._selection_order),
+                parallel_n=self._parallel_n,
             )
             return
-        assert self._review_proc.stdout is not None
-        while True:
-            line = await self._review_proc.stdout.readline()
-            if not line:
-                break
-            log_pane.write(line.decode(errors="replace").rstrip("\n"))
-        rc = await self._review_proc.wait()
-        log_pane.write(f"(worker exited rc={rc})")
-        self._review_proc = None
+        self._review_workers[pr_url] = proc
         self.query_one(FooterBar).update_status(
             self._filter_mode, self._sort_mode,
-            sync_running=False, review_running=False,
+            sync_running=False,
+            review_running=bool(self._review_workers),
+            selected_count=len(self._selection_order),
+            parallel_n=self._parallel_n,
         )
-        self._reload(force=True)
+        try:
+            assert proc.stdout is not None
+            while True:
+                line = await proc.stdout.readline()
+                if not line:
+                    break
+                log_pane.write(line.decode(errors="replace").rstrip("\n"))
+            rc = await proc.wait()
+            log_pane.write(f"(worker exited rc={rc})")
+        finally:
+            self._review_workers.pop(pr_url, None)
+            self.query_one(FooterBar).update_status(
+                self._filter_mode, self._sort_mode,
+                sync_running=False,
+                review_running=bool(self._review_workers),
+                selected_count=len(self._selection_order),
+                parallel_n=self._parallel_n,
+            )
+            self._reload(force=True)
 
     async def on_unmount(self) -> None:
-        for proc in (self._sync_proc, self._review_proc):
+        procs = [self._sync_proc, *self._review_workers.values()]
+        for proc in procs:
             if proc is not None and proc.returncode is None:
                 try:
                     proc.terminate()

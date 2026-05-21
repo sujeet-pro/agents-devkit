@@ -1,0 +1,56 @@
+{
+  "filters": null,
+  "prs": [
+    {
+      "pr_url": "https://github.com/foo/bar/pull/300",
+      "status": "pending",
+      "prep_status": "ready",
+      "head_sha": "aaa3000000000000000000000000000000000030",
+      "prep_head_sha": "aaa3000000000000000000000000000000000030",
+      "last_reviewed_head_sha": "0000beef00000000000000000000000000000000",
+      "last_reviewed_at": "2026-05-19T10:00:00Z",
+      "target_branch": "main",
+      "taken_at": null,
+      "last_checked_at": "2026-05-21T17:00:00Z",
+      "title": "eligible-multi-1",
+      "author": "alice",
+      "slack": {
+        "permalink": "https://example.slack.com/archives/C001/p3000000000000001"
+      }
+    },
+    {
+      "pr_url": "https://github.com/foo/bar/pull/301",
+      "status": "pending",
+      "prep_status": "ready",
+      "head_sha": "aaa3100000000000000000000000000000000031",
+      "prep_head_sha": "aaa3100000000000000000000000000000000031",
+      "last_reviewed_head_sha": "0000beef00000000000000000000000000000000",
+      "last_reviewed_at": "2026-05-19T10:30:00Z",
+      "target_branch": "main",
+      "taken_at": null,
+      "last_checked_at": "2026-05-21T17:05:00Z",
+      "title": "eligible-multi-2",
+      "author": "bob",
+      "slack": {
+        "permalink": "https://example.slack.com/archives/C001/p3000000000000002"
+      }
+    },
+    {
+      "pr_url": "https://github.com/foo/bar/pull/302",
+      "status": "pending",
+      "prep_status": "ready",
+      "head_sha": "aaa3200000000000000000000000000000000032",
+      "prep_head_sha": "aaa3200000000000000000000000000000000032",
+      "last_reviewed_head_sha": "0000beef00000000000000000000000000000000",
+      "last_reviewed_at": "2026-05-19T11:00:00Z",
+      "target_branch": "main",
+      "taken_at": null,
+      "last_checked_at": "2026-05-21T17:10:00Z",
+      "title": "eligible-multi-3",
+      "author": "carol",
+      "slack": {
+        "permalink": "https://example.slack.com/archives/C001/p3000000000000003"
+      }
+    }
+  ]
+}

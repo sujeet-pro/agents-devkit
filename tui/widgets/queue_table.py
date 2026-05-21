@@ -10,7 +10,7 @@ if TYPE_CHECKING:
 
 
 _COLUMNS: tuple[tuple[str, int], ...] = (
-    ("", 2),
+    ("", 5),
     ("#", 8),
     ("repo", 24),
     ("title", 40),
@@ -61,7 +61,13 @@ class QueueTable(DataTable):
             self.add_column(label, width=width)
         self._columns_added = True
 
-    def load(self, snapshot: QueueSnapshot, *, ascii_only: bool = False) -> None:
+    def load(
+        self,
+        snapshot: QueueSnapshot,
+        *,
+        ascii_only: bool = False,
+        selected_order: list[str] | None = None,
+    ) -> None:
         from tui.model.row_state import derive
 
         self._ensure_columns()
@@ -82,12 +88,21 @@ class QueueTable(DataTable):
             self._row_urls.append(None)
             return
 
+        selected_order = selected_order or []
+        sel_pos: dict[str, int] = {url: i + 1 for i, url in enumerate(selected_order)}
+
         for row in snapshot.rows:
             state = derive(row, ascii_only=ascii_only, now=snapshot.now)
             branch = row.target_branch or "—"
             title = row.title or "—"
+            pos = sel_pos.get(row.pr_url)
+            if pos is not None:
+                marker_label = f"[{min(pos, 9)}]"
+                icon_cell = f"{marker_label}{state.icon}"
+            else:
+                icon_cell = f"   {state.icon}"
             self.add_row(
-                state.icon,
+                icon_cell,
                 str(row.number),
                 row.repo,
                 title,
