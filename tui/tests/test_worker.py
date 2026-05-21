@@ -323,6 +323,16 @@ def test_sigterm_releases_and_cleans_heartbeat(
         if list(worker_heartbeat_dir.glob("*.json")):
             break
         time.sleep(0.05)
+    else:
+        # Heartbeat file never appeared — fail loudly instead of letting the
+        # downstream SIGTERM-then-assert produce a confusing failure.
+        proc.terminate()
+        try:
+            proc.wait(timeout=2.0)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            proc.wait(timeout=2.0)
+        pytest.fail("heartbeat file never appeared within 3 s")
 
     proc.send_signal(signal.SIGTERM)
     try:

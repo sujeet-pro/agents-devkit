@@ -130,6 +130,74 @@ def worker_heartbeat_dir(tmp_path: Path) -> Path:
 
 
 @pytest.fixture
+def workers_dir_with_two(tmp_path: Path) -> Path:
+    """A workers/ dir containing two fresh heartbeat files."""
+    d = tmp_path / "workers"
+    d.mkdir(parents=True)
+    now_iso = "2026-05-22T14:00:00Z"
+    for pid, pr in [
+        (11111, "https://github.com/acme/foo/pull/42"),
+        (22222, "https://github.com/acme/bar/pull/7"),
+    ]:
+        (d / f"{pid}.json").write_text(
+            json.dumps(
+                {
+                    "pid": pid,
+                    "pr_url": pr,
+                    "task_type": "review",
+                    "agent": "claude",
+                    "queue": "/tmp/q",
+                    "started_at": now_iso,
+                    "last_heartbeat": now_iso,
+                    "current_phase": "review",
+                    "rc": None,
+                }
+            )
+        )
+    return d
+
+
+@pytest.fixture
+def stale_worker_file(tmp_path: Path) -> Path:
+    """A workers/ dir with a single STALE heartbeat (5 min ago)."""
+    d = tmp_path / "workers"
+    d.mkdir(parents=True)
+    old_iso = "2026-05-22T13:55:00Z"
+    (d / "99999.json").write_text(
+        json.dumps(
+            {
+                "pid": 99999,
+                "pr_url": "https://github.com/acme/old/pull/1",
+                "task_type": "review",
+                "agent": "claude",
+                "queue": "/tmp/q",
+                "started_at": old_iso,
+                "last_heartbeat": old_iso,
+                "current_phase": "review",
+                "rc": None,
+            }
+        )
+    )
+    return d
+
+
+@pytest.fixture
+def fake_slow_adk_script(tmp_path: Path) -> Path:
+    """A /bin/sh adk that takes >1s to complete each verb — used by the SIGTERM
+    streaming tests. Reads $ADK_SLOW_S (default 2) for sleep duration."""
+    p = tmp_path / "slow-adk"
+    p.write_text(
+        "#!/bin/sh\n"
+        'echo "slow-adk $@"\n'
+        'sleep "${ADK_SLOW_S:-2}"\n'
+        "echo ok\n"
+        "exit 0\n"
+    )
+    p.chmod(0o755)
+    return p
+
+
+@pytest.fixture
 def eligible_queue_path(tmp_path: Path) -> Path:
     """A queue file with exactly one row that's ready_for_review=True."""
     src = _FIXTURES_DIR / "eligible_queue.json5"

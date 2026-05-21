@@ -7,6 +7,7 @@ from .help_screen import HelpScreen
 from .log_pane import LogPane
 from .queue_table import QueueTable
 from .sync_plan_pane import SyncPlanPane
+from .workers_pane import WorkersPane
 
 __all__ = [
     "DetailPane",
@@ -16,4 +17,5 @@ __all__ = [
     "LogPane",
     "QueueTable",
     "SyncPlanPane",
+    "WorkersPane",
 ]

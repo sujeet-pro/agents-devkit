@@ -19,10 +19,12 @@ from tui.widgets.help_screen import HelpScreen
 from tui.widgets.log_pane import LogPane
 from tui.widgets.queue_table import QueueTable
 from tui.widgets.sync_plan_pane import SyncPlanPane
+from tui.widgets.workers_pane import WorkersPane
 
 if TYPE_CHECKING:
     from tui.model.queue_model import FilterMode, QueueModel, QueueRow, SortMode
     from tui.model.sync_plan_model import SyncPlanModel
+    from tui.model.workers_model import WorkersModel
 
 
 _FILTER_CYCLE: tuple[FilterMode, ...] = ("all", "open", "ready", "reviewed", "terminal")
@@ -72,6 +74,7 @@ class AdkApp(App):
         self._sort_mode: SortMode = "fifo"
         self._model: QueueModel | None = None
         self._plan_model: SyncPlanModel | None = None
+        self._workers_model: WorkersModel | None = None
         self._rows_by_url: dict[str, QueueRow] = {}
         self._sync_proc: asyncio.subprocess.Process | None = None
         self._sync_task: asyncio.Task | None = None
@@ -83,6 +86,7 @@ class AdkApp(App):
         with Horizontal(id="main"):
             yield QueueTable()
             yield DetailPane()
+        yield WorkersPane()
         yield SyncPlanPane()
         yield LogPane()
         yield FooterBar()
@@ -90,12 +94,15 @@ class AdkApp(App):
     async def on_mount(self) -> None:
         from tui.model.queue_model import QueueModel
         from tui.model.sync_plan_model import SyncPlanModel
+        from tui.model.workers_model import WorkersModel
 
         self._model = QueueModel(queue_path=self._queue_path)
         self._plan_model = SyncPlanModel(plan_path=self._plan_path)
+        self._workers_model = WorkersModel(workers_dir=self._heartbeat_dir)
         self.query_one(FooterBar).update_status(self._filter_mode, self._sort_mode, sync_running=False)
         self._reload(force=True)
         self._reload_plan(force=True)
+        self._reload_workers(force=True)
         self.set_interval(self.poll_interval, self._maybe_reload)
 
     def _reload(self, *, force: bool = False) -> None:
@@ -121,10 +128,19 @@ class AdkApp(App):
         snapshot = self._plan_model.snapshot()
         self.query_one(SyncPlanPane).update_snapshot(snapshot, ascii_only=self._ascii_only)
 
+    def _reload_workers(self, *, force: bool = False) -> None:
+        if self._workers_model is None:
+            return
+        if not force and not self._workers_model.has_changed():
+            return
+        rows = self._workers_model.snapshot()
+        self.query_one(WorkersPane).update_workers(rows, ascii_only=self._ascii_only)
+
     def _maybe_reload(self) -> None:
         if self._model is not None and self._model.has_changed():
             self._reload(force=True)
         self._reload_plan()
+        self._reload_workers()
 
     def _refresh_detail(self) -> None:
         table = self.query_one(QueueTable)

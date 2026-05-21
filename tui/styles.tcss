@@ -39,6 +39,14 @@ DetailPane {
     background: $surface;
 }
 
+WorkersPane {
+    height: auto;
+    min-height: 1;
+    max-height: 10;
+    padding: 0 1;
+    background: $boost;
+}
+
 SyncPlanPane {
     height: auto;
     min-height: 3;

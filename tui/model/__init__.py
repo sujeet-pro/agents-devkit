@@ -14,6 +14,11 @@ from .sync_plan_model import (
     SyncPlanStep,
     default_plan_path,
 )
+from .workers_model import (
+    WorkerRow,
+    WorkersModel,
+    default_workers_dir,
+)
 
 __all__ = [
     "ASCII_FALLBACK",
@@ -27,6 +32,9 @@ __all__ = [
     "SyncPlanModel",
     "SyncPlanSnapshot",
     "SyncPlanStep",
+    "WorkerRow",
+    "WorkersModel",
     "default_plan_path",
+    "default_workers_dir",
     "derive",
 ]

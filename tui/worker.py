@@ -11,7 +11,6 @@ import asyncio
 import json
 import os
 import signal
-import subprocess
 import sys
 import tempfile
 from datetime import datetime, timezone
@@ -59,12 +58,20 @@ def _emit(line: str) -> None:
     sys.stdout.flush()
 
 
-def _run_sync(cmd: list[str]) -> int:
-    proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
-    if proc.stdout:
-        for ln in proc.stdout.splitlines():
-            _emit(ln)
-    return proc.returncode
+async def _run_streamed(cmd: list[str]) -> int:
+    proc = await asyncio.create_subprocess_exec(
+        *cmd,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.STDOUT,
+    )
+    assert proc.stdout is not None
+    while True:
+        line = await proc.stdout.readline()
+        if not line:
+            break
+        sys.stdout.write(line.decode(errors="replace"))
+        sys.stdout.flush()
+    return await proc.wait()
 
 
 async def _bump_loop(adk_bin: str, pr_url: str, queue: str, interval: float) -> None:
@@ -97,6 +104,17 @@ async def _stream_proc(proc: asyncio.subprocess.Process) -> None:
         sys.stdout.flush()
 
 
+async def _release(adk_bin: str, pr_url: str, queue: str, *, status: str | None = None) -> None:
+    cmd = [adk_bin, "pr-queue", "release", pr_url, "--queue", queue]
+    if status:
+        cmd += ["--status", status]
+    rc = await _run_streamed(cmd)
+    if rc == 0:
+        _emit(f"(released: {pr_url})")
+    else:
+        _emit(f"(error: release rc={rc} — lock may be stuck)")
+
+
 async def _drive(args: argparse.Namespace) -> int:
     try:
         parse_pr_url(args.pr_url)
@@ -108,23 +126,42 @@ async def _drive(args: argparse.Namespace) -> int:
     agent_bin = str(args.agent_bin) if args.agent_bin else "claude"
     queue = str(args.queue) if args.queue else str(DEFAULT_QUEUE_PATH)
 
-    if _run_sync([adk_bin, "pr-queue", "claim", args.pr_url, "--queue", queue]) != 0:
+    agent_proc: asyncio.subprocess.Process | None = None
+    sig_received = False
+
+    def _on_sigterm() -> None:
+        nonlocal sig_received
+        sig_received = True
+        if agent_proc is not None and agent_proc.returncode is None:
+            try:
+                agent_proc.terminate()
+            except ProcessLookupError:
+                pass
+
+    try:
+        asyncio.get_running_loop().add_signal_handler(signal.SIGTERM, _on_sigterm)
+    except NotImplementedError:  # pragma: no cover
+        pass
+
+    if await _run_streamed([adk_bin, "pr-queue", "claim", args.pr_url, "--queue", queue]) != 0:
         _emit("(error: claim failed — row may be locked by another reviewer)")
         return 2
     _emit(f"(claimed: {args.pr_url})")
+    if sig_received:
+        await _release(adk_bin, args.pr_url, queue, status="error")
+        return 130
 
     if not args.no_prepare:
         prep_cmd = [adk_bin, "pr-task", "prepare", args.pr_url, "--queue", queue]
         _emit("$ " + " ".join(prep_cmd))
-        rc = _run_sync(prep_cmd)
+        rc = await _run_streamed(prep_cmd)
         if rc != 0:
             _emit(f"(error: prepare failed rc={rc})")
-            rel_rc = _run_sync([adk_bin, "pr-queue", "release", args.pr_url, "--queue", queue, "--status", "error"])
-            if rel_rc == 0:
-                _emit(f"(released: {args.pr_url})")
-            else:
-                _emit(f"(error: release rc={rel_rc} — lock may be stuck)")
+            await _release(adk_bin, args.pr_url, queue, status="error")
             return 1
+        if sig_received:
+            await _release(adk_bin, args.pr_url, queue, status="error")
+            return 130
 
     hb_path = Path(args.heartbeat_dir).expanduser() / f"{os.getpid()}.json"
     started = _now_iso()
@@ -142,23 +179,7 @@ async def _drive(args: argparse.Namespace) -> int:
     agent_cmd = [agent_bin, "-p", f"/adk-pr-review {args.pr_url}"]
     _emit("$ " + " ".join(agent_cmd))
 
-    agent_proc: asyncio.subprocess.Process | None = None
     agent_rc = 1
-    sig_received = False
-
-    def _on_sigterm() -> None:
-        nonlocal sig_received
-        sig_received = True
-        if agent_proc is not None and agent_proc.returncode is None:
-            try:
-                agent_proc.terminate()
-            except ProcessLookupError:
-                pass
-
-    try:
-        asyncio.get_running_loop().add_signal_handler(signal.SIGTERM, _on_sigterm)
-    except NotImplementedError:  # pragma: no cover
-        pass
 
     try:
         agent_proc = await asyncio.create_subprocess_exec(
@@ -201,14 +222,8 @@ async def _drive(args: argparse.Namespace) -> int:
 
         _emit(f"(review exited rc={agent_rc})")
 
-        release_cmd = [adk_bin, "pr-queue", "release", args.pr_url, "--queue", queue]
-        if sig_received or agent_rc != 0:
-            release_cmd += ["--status", "error"]
-        rel_rc = _run_sync(release_cmd)
-        if rel_rc == 0:
-            _emit(f"(released: {args.pr_url})")
-        else:
-            _emit(f"(error: release rc={rel_rc} — lock may be stuck)")
+        status = "error" if (sig_received or agent_rc != 0) else None
+        await _release(adk_bin, args.pr_url, queue, status=status)
 
     if sig_received:
         return 130
