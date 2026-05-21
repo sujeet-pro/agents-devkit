@@ -181,7 +181,7 @@ def _load_pr_comments(task_dir: Path) -> dict[str, dict]:
 
 
 def _worktree_snippet(task_dir: Path, rel_path: str, line: int | None) -> str:
-    """Read code/<rel_path> around `line`. Returns a fenced snippet or '(unavailable)'."""
+    """Read code/<rel_path> around `line`. Returns a fenced snippet or a note."""
     if not rel_path:
         return "(no file path on the original comment — cannot show worktree context)"
     if not line or line < 1:
@@ -195,16 +195,27 @@ def _worktree_snippet(task_dir: Path, rel_path: str, line: int | None) -> str:
         all_lines = fp.read_text(encoding="utf-8", errors="replace").splitlines()
     except OSError as e:
         return f"(unreadable {rel_path}: {e})"
-    if not all_lines:
+    n = len(all_lines)
+    if n == 0:
         return f"(empty file: `{rel_path}`)"
-    lo = max(1, line - _CONTEXT_LINES_BEFORE)
-    hi = min(len(all_lines), line + _CONTEXT_LINES_AFTER)
+    # If the comment's original_line is past EOF (file was shortened in the
+    # diff), surface that explicitly and pin the window to the file's tail
+    # so the agent can see "what's there now."
+    note = ""
+    anchor = line
+    if line > n:
+        note = (f"(note: original_line {line} is past EOF — file now has "
+                f"{n} line{'s' if n != 1 else ''}; showing the file's tail.)\n\n")
+        anchor = n
+    lo = max(1, anchor - _CONTEXT_LINES_BEFORE)
+    hi = min(n, anchor + _CONTEXT_LINES_AFTER)
     body_lines = []
     for ln in range(lo, hi + 1):
-        marker = " →" if ln == line else "  "
+        marker = " →" if ln == anchor else "  "
         body_lines.append(f"{ln:>5}{marker} {all_lines[ln - 1]}")
     lang_hint = fp.suffix.lstrip(".") or ""
-    return f"`{rel_path}` (lines {lo}-{hi}, anchor at L{line}):\n```{lang_hint}\n" + "\n".join(body_lines) + "\n```"
+    return (f"{note}`{rel_path}` (lines {lo}-{hi}, anchor at L{anchor}):\n"
+            f"```{lang_hint}\n" + "\n".join(body_lines) + "\n```")
 
 
 def _existing_comment_context(task_dir: Path, comment_id: str) -> str:

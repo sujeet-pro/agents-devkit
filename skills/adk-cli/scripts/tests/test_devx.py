@@ -214,7 +214,8 @@ def test_plan_includes_slack_step_when_queue_ctx_has_thread(pc_mod):
     slack_steps = [s for s in plan["steps"] if s.get("kind") == "slack_summary"]
     assert len(slack_steps) == 1
     assert slack_steps[0]["mcp_tool"] == "mcp__adk-mcp-slack__conversations_add_message"
-    assert slack_steps[0]["mcp_args"]["channel"] == "C12345"
+    # MCP signature uses `channel_id`, not the older `channel` REST naming.
+    assert slack_steps[0]["mcp_args"]["channel_id"] == "C12345"
     assert slack_steps[0]["mcp_args"]["thread_ts"] == "1700000000.000001"
     assert "APPROVE" in slack_steps[0]["mcp_args"]["text"]
 

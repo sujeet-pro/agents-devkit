@@ -703,6 +703,9 @@ def build_posting_plan(*, pr: dict, findings_blob: dict, actions: list[dict],
                 "kind": "review_summary",
                 "mcp_tool": "mcp__adk-mcp-github__pull_request_review_write",
                 "mcp_args": {
+                    # `method` is required by the current MCP signature
+                    # (create / submit_pending / delete_pending / resolve_thread / unresolve_thread).
+                    "method": "create",
                     "owner": owner, "repo": repo, "pullNumber": n,
                     "commitID": head,
                     "body": format_review_summary(findings_blob),
@@ -793,12 +796,18 @@ def build_posting_plan(*, pr: dict, findings_blob: dict, actions: list[dict],
             if host == "github":
                 # GraphQL is the only API that flips thread state; the script's
                 # current fallback posts a reply. The MCP tool is also a reply.
+                # NB: the MCP signature uses `commentId` (lower d, integer) — not
+                # `commentID` (the GH REST naming). Coerce the queue's string to int.
+                try:
+                    cid_int = int(cid)
+                except (TypeError, ValueError):
+                    cid_int = cid
                 steps.append({
                     "kind": decision,
                     "mcp_tool": "mcp__adk-mcp-github__add_reply_to_pull_request_comment",
                     "mcp_args": {
                         "owner": owner, "repo": repo, "pullNumber": n,
-                        "commentID": cid,
+                        "commentId": cid_int,
                         "body": (
                             "[adk-pr-review] Resolving this thread — the diff at the anchored line addresses the concern."
                             if decision == "resolve" else
@@ -857,7 +866,8 @@ def build_posting_plan(*, pr: dict, findings_blob: dict, actions: list[dict],
                 "kind": "slack_summary",
                 "mcp_tool": "mcp__adk-mcp-slack__conversations_add_message",
                 "mcp_args": {
-                    "channel": channel_id,
+                    # MCP signature uses `channel_id`, not `channel`.
+                    "channel_id": channel_id,
                     "thread_ts": thread_ts,
                     "text": format_slack_summary(
                         pr=pr, findings_blob=findings_blob,

@@ -281,7 +281,8 @@ def main() -> int:
 
     task_dir = Path(args.task_dir)
     pr_path = pr_review_file(task_dir, "pr.json")
-    f_path = pr_review_file(task_dir, "findings-final.json")
+    final_path = pr_review_file(task_dir, "findings-final.json")
+    f_path = final_path
     if not f_path.exists():
         die(f"missing {f_path} — run triage first.")
     if not pr_path.exists():
