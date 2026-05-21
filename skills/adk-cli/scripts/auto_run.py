@@ -255,7 +255,12 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--report-to-slack", default=None,
                     help="post a summary to this Slack channel (e.g. '#pr-reviews') "
                          "at the end of the run. Requires SLACK_BOT_TOKEN_CRED.")
+    ap.add_argument("-v", "--verbose", action="store_true",
+                    help="write a structured DEBUG log to ~/.agents-devkit/logs/")
     args = ap.parse_args(argv)
+    if getattr(args, "verbose", False):
+        from _verbose import setup_verbose  # type: ignore  # noqa: WPS433
+        setup_verbose("auto", enabled=True, argv=argv)
 
     log = get_logger("adk-auto")
     started_ts = _now_iso()

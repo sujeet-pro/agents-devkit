@@ -1027,6 +1027,8 @@ def cmd_list(args) -> int:
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="adk repo",
                                  description="Manage repo clones + indices under ~/.agents-devkit/repos/")
+    ap.add_argument("-v", "--verbose", action="store_true",
+                    help="write a structured DEBUG log to ~/.agents-devkit/logs/")
     sub = ap.add_subparsers(dest="cmd", required=True)
 
     sp_add = sub.add_parser("add", help="clone + index a repo")
@@ -1139,6 +1141,9 @@ def main(argv: list[str] | None = None) -> int:
     sp_list.set_defaults(func=cmd_list)
 
     args = ap.parse_args(argv)
+    if getattr(args, "verbose", False):
+        from _verbose import setup_verbose  # type: ignore  # noqa: WPS433
+        setup_verbose("repo", enabled=True, argv=argv)
     return args.func(args)
 
 

@@ -153,7 +153,12 @@ def main(argv: list[str] | None = None) -> int:
                     help="list what would be reminded; don't post or stamp")
     ap.add_argument("-y", "--yes", action="store_true",
                     help="non-interactive; equivalent to not asking for confirmation")
+    ap.add_argument("-v", "--verbose", action="store_true",
+                    help="write a structured DEBUG log to ~/.agents-devkit/logs/")
     args = ap.parse_args(argv)
+    if getattr(args, "verbose", False):
+        from _verbose import setup_verbose  # type: ignore  # noqa: WPS433
+        setup_verbose("pr-queue-remind", enabled=True, argv=argv)
 
     log = get_logger("pr-queue-remind")
     out = send_reminders(Path(args.queue).expanduser(),

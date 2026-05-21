@@ -235,7 +235,12 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("-y", "--yes", action="store_true",
                     help="accepted for uniformity with other adk subcommands; pr-sync's "
                          "destructive steps are actual-by-default")
+    ap.add_argument("-v", "--verbose", action="store_true",
+                    help="write a structured DEBUG log to ~/.agents-devkit/logs/")
     args = ap.parse_args(argv)
+    if getattr(args, "verbose", False):
+        from _verbose import setup_verbose  # type: ignore  # noqa: WPS433
+        setup_verbose("pr-sync", enabled=True, argv=argv)
 
     log = get_logger("pr-sync")
     queue = args.queue

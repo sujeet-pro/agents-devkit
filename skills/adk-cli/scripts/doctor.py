@@ -243,7 +243,12 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--json", action="store_true",
                     help="machine-readable output (overrides --tui)")
     ap.add_argument("-y", "--yes", action="store_true", help="no-op; accepted for uniformity")
+    ap.add_argument("-v", "--verbose", action="store_true",
+                    help="write a structured DEBUG log to ~/.agents-devkit/logs/")
     args = ap.parse_args(argv)
+    if getattr(args, "verbose", False):
+        from _verbose import setup_verbose  # type: ignore  # noqa: WPS433
+        setup_verbose("doctor", enabled=True, argv=argv)
 
     results = all_checks()
     fails = [r for r in results if r["status"] == FAIL]

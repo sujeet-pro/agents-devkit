@@ -344,7 +344,12 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("-y", "--yes", action="store_true",
                     help="non-interactive; smart defaults")
+    ap.add_argument("-v", "--verbose", action="store_true",
+                    help="write a structured DEBUG log to ~/.agents-devkit/logs/")
     args = ap.parse_args(argv)
+    if getattr(args, "verbose", False):
+        from _verbose import setup_verbose  # type: ignore  # noqa: WPS433
+        setup_verbose("pr-scan", enabled=True, argv=argv)
 
     log = get_logger("pr-scan")
     slack_cfg_path = Path(args.slack_config).expanduser()

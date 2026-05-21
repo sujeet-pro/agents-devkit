@@ -399,6 +399,8 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="adk pr-task",
                                  description="Manage per-PR task folders "
                                              "under ~/.agents-devkit/skill-pr-review/")
+    ap.add_argument("-v", "--verbose", action="store_true",
+                    help="write a structured DEBUG log to ~/.agents-devkit/logs/")
     sub = ap.add_subparsers(dest="cmd", required=True)
 
     sp_prep = sub.add_parser("prepare",
@@ -458,6 +460,9 @@ def main(argv: list[str] | None = None) -> int:
     sp_orph.set_defaults(func=cmd_clean_orphans)
 
     args = ap.parse_args(argv)
+    if getattr(args, "verbose", False):
+        from _verbose import setup_verbose  # type: ignore  # noqa: WPS433
+        setup_verbose("pr-task", enabled=True, argv=argv)
     return args.func(args)
 
 

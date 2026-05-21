@@ -806,6 +806,8 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="adk pr-queue",
                                  description="Inspect / manage the PR review queue.")
     ap.add_argument("--queue", default=str(DEFAULT_QUEUE_PATH))
+    ap.add_argument("-v", "--verbose", action="store_true",
+                    help="write a structured DEBUG log to ~/.agents-devkit/logs/")
     sub = ap.add_subparsers(dest="cmd", required=True)
 
     sp_list = sub.add_parser("list", help="list queue entries")
@@ -894,6 +896,9 @@ def main(argv: list[str] | None = None) -> int:
     sp_rem.set_defaults(func=lambda args: _cmd_remind(args))
 
     args = ap.parse_args(argv)
+    if getattr(args, "verbose", False):
+        from _verbose import setup_verbose  # type: ignore  # noqa: WPS433
+        setup_verbose("pr-queue", enabled=True, argv=argv)
     return args.func(args)
 
 
