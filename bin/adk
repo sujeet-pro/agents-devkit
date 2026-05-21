@@ -78,6 +78,9 @@ Usage:
   adk repo rebuild-index <name> [--branch X]  rebuild a branch's index from scratch (when its dir was deleted by hand)
   adk repo migrate [<name>]                   migrate legacy v3 layout to v4 (idempotent)
   adk repo list [--names-only]                list repos under ~/.agents-devkit/repos/
+  adk auto [--max-reviews N] [--parallel N] [--agent X] [--exclude URL] [--no-sync] [--dry-run]
+                                              headless review: pr-sync + spawn agents on every eligible PR.
+                                              Scheduler-friendly (cron, launchd). NEVER merges (constitution §I.3).
   adk doctor [--tui] [--strict]               validate env, deps, MCPs, ollama, tokens
   adk completion bash|zsh|fish                emit a shell-completion script
 
@@ -112,6 +115,9 @@ def main(argv: list[str]) -> int:
         return f(rest)
     if cmd == "completion":
         from completion import main as f  # type: ignore[import-not-found]
+        return f(rest)
+    if cmd == "auto":
+        from auto_run import main as f  # type: ignore[import-not-found]
         return f(rest)
     sys.stderr.write(f"adk: unknown subcommand `{cmd}`.\n\n{USAGE}")
     return 2
