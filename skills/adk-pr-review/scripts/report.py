@@ -417,7 +417,68 @@ def main() -> int:
     if _CLI_AVAILABLE:
         _release_and_print_tail(task_dir, pr, findings_blob, log)
 
+    # Final clickable Links block — printed LAST so it stays on screen after
+    # the rest of the tail. Each URL is on its own line so terminals that
+    # auto-linkify URL-only lines highlight them cleanly.
+    _print_links_tail(task_dir, pr)
+
     return 0
+
+
+def _print_links_tail(task_dir: Path, pr: dict) -> None:
+    """Print the human-clickable Links block at the end of every review.
+
+    Always shows:
+      - PR URL (host-canonical form)
+      - Local artifacts (findings.md + report.md + task dir) as file:// URLs
+    Conditionally shows (when present):
+      - Slack thread permalink (the source message the queue row was scanned from)
+
+    The block is plain text — no ANSI colours, no markdown — so it works in
+    every terminal + scrollback / log file. URLs on their own line are
+    auto-linkified by iTerm2 / Terminal.app / VS Code / Cursor.
+    """
+    pr_url = pr.get("url") or ""
+    # Pull slack info from queue-context.json — same source the queue release
+    # path used.
+    slack_url = None
+    try:
+        ctx_path = task_dir / "queue-context.json"
+        if ctx_path.exists():
+            import json as _json
+            ctx = _json.loads(ctx_path.read_text(encoding="utf-8"))
+            slack_info = ctx.get("slack") or {}
+            slack_url = slack_info.get("permalink") or _derive_slack_permalink(slack_info)
+    except Exception:
+        # Best-effort — never block the report tail on a missing slack URL.
+        pass
+
+    print()
+    print("── Links " + "─" * 70)
+    print(f"PR:        {pr_url}")
+    if slack_url:
+        print(f"Slack:     {slack_url}")
+    findings_md = task_dir / "findings.md"
+    report_md = task_dir / "report.md"
+    if findings_md.exists():
+        print(f"Findings:  file://{findings_md.resolve()}")
+    if report_md.exists():
+        print(f"Report:    file://{report_md.resolve()}")
+    print(f"Task dir:  file://{task_dir.resolve()}")
+    print("─" * 79)
+
+
+def _derive_slack_permalink(slack_info: dict) -> str | None:
+    """Reconstruct a Slack permalink from slack_info when 'permalink' isn't set.
+
+    Falls back to the canonical Slack URL pattern:
+      https://<workspace>.slack.com/archives/<channel_id>/p<ts_no_dot>
+    The workspace name isn't in slack_info (only the channel_id is), so this
+    returns None unless the caller's permalink is already present. This stub
+    exists so the call site is uniform; future enrichment (workspace name
+    lookup) can extend it.
+    """
+    return None
 
 
 def _release_and_print_tail(task_dir: Path, pr: dict, findings_blob: dict, log) -> None:

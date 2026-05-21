@@ -147,14 +147,36 @@ def _write_report(run_dir: Path, results: list[dict], started: str, ended: str,
         status = r.get("status", "?")
         ec = r.get("exit_code", "?")
         elapsed = r.get("elapsed_s", "?")
-        line = f"- `{url}` — status: **{status}** · exit_code: {ec}"
+        line = f"- [{url}]({url}) — status: **{status}** · exit_code: {ec}"
         if elapsed != "?":
             line += f" · elapsed: {elapsed}s"
         if r.get("error"):
             line += f" · error: {r['error']}"
         lines.append(line)
+        # Per-PR log link (file://) so the user can click through to the
+        # spawned agent's output.
+        if r.get("log"):
+            lines.append(f"  - log: <file://{Path(r['log']).resolve()}>")
     md.write_text("\n".join(lines) + "\n", encoding="utf-8")
     return md
+
+
+def _print_run_tail(run_dir: Path, results: list[dict], report_path: Path) -> None:
+    """Print a Links block at the end of every adk auto run.
+
+    Matches the report.py tail: each URL on its own line so terminals
+    auto-linkify. Reader sees the PR URLs first, then the local artifacts.
+    """
+    print()
+    print("── Links " + "─" * 70)
+    for r in results:
+        url = r.get("pr_url", "?")
+        status = r.get("status", "?")
+        glyph = "OK " if status == "ok" else "FAIL"
+        print(f"{glyph}  {url}")
+    print(f"\nReport:    file://{report_path.resolve()}")
+    print(f"Run dir:   file://{run_dir.resolve()}")
+    print("─" * 79)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -248,6 +270,7 @@ def main(argv: list[str] | None = None) -> int:
         "failed": n_fail,
     }
     print(json.dumps(summary, indent=2))
+    _print_run_tail(run_dir, results, report_path)
     return 1 if n_fail else 0
 
 
