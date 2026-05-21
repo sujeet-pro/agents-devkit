@@ -11,10 +11,10 @@ prepare <pr-url>     Create or refresh the task folder for one PR. Runs the
                      chunks + ollama embeddings + (optional) SCIP, precis.md.
                      Does NOT claim the queue's `taken_at` lock and does NOT
                      run a review. Idempotent: re-running on an unchanged
-                     head_oid short-circuits the index step.
+                     head_sha short-circuits the index step.
 
 info <pr-url>        JSON view of a task folder's current state: paths,
-                     head_oid, last_indexed_head, whether findings.json
+                     head_sha, last_indexed_head, whether findings.json
                      exists. Used by the skill (and by humans) to decide
                      whether the folder is ready for an interactive review.
 
@@ -70,7 +70,7 @@ VALIDATE_FINDINGS = ADK_PR_REVIEW_SCRIPTS / "validate_findings.py"
 
 
 def _queued_task_dirs(queue_path: Path) -> dict[str, Path]:
-    """Map of `pr_link → task_dir` for every non-merged row in the queue.
+    """Map of `pr_url → task_dir` for every non-merged row in the queue.
 
     Used by `prepare --all` (iterate eligible rows) and `clean-orphans`
     (decide which folders on disk no longer have a backing queue row).
@@ -78,7 +78,7 @@ def _queued_task_dirs(queue_path: Path) -> dict[str, Path]:
     out: dict[str, Path] = {}
     queue = read_queue(queue_path)
     for e in queue.get("prs", []) or []:
-        link = e.get("pr_link")
+        link = e.get("pr_url")
         if not link:
             continue
         # Skip rows that have reached a terminal state (merged or declined).
@@ -315,15 +315,15 @@ def cmd_info(args) -> int:
             "has_precis": precis.exists(),
             "has_findings": findings.exists(),
         })
-        # head_oid + last index head come from state.json (phase markers).
+        # head_sha + last index head come from state.json (phase markers).
         state = read_state(task_dir) or {}
         phases = state.get("phases") or {}
         fetch_phase = phases.get("2a_fetch_pr") or {}
         index_phase = phases.get("3_index") or {}
-        if fetch_phase.get("head_oid"):
-            info["head_oid"] = fetch_phase["head_oid"]
-        if index_phase.get("head_oid_at_index"):
-            info["last_indexed_head"] = index_phase["head_oid_at_index"]
+        if fetch_phase.get("head_sha"):
+            info["head_sha"] = fetch_phase["head_sha"]
+        if index_phase.get("head_sha_at_index"):
+            info["last_indexed_head"] = index_phase["head_sha_at_index"]
         if pr_json.exists():
             try:
                 pr = json.loads(pr_json.read_text(encoding="utf-8"))
@@ -360,8 +360,8 @@ def cmd_list(args) -> int:
     for f in folders:
         state = read_state(f) or {}
         phases = state.get("phases") or {}
-        head = (phases.get("2a_fetch_pr") or {}).get("head_oid") or "-"
-        idx_head = (phases.get("3_index") or {}).get("head_oid_at_index") or "-"
+        head = (phases.get("2a_fetch_pr") or {}).get("head_sha") or "-"
+        idx_head = (phases.get("3_index") or {}).get("head_sha_at_index") or "-"
         has_findings = (f / "findings.json").exists()
         rows.append((f.name, head[:12], idx_head[:12], "✓" if has_findings else "-"))
     w_name = max(len(r[0]) for r in rows + [("task", "", "", "")])
@@ -391,7 +391,7 @@ def main(argv: list[str] | None = None) -> int:
                               "continues past per-row failures and exits 1 if any failed")
     sp_prep.add_argument("--queue", default=str(DEFAULT_QUEUE_PATH))
     sp_prep.add_argument("--rebuild", action="store_true",
-                         help="force a full index rebuild even if head_oid is unchanged")
+                         help="force a full index rebuild even if head_sha is unchanged")
     sp_prep.add_argument("--detailed", action="store_true",
                          help="use the detailed embed model (bge-m3) for higher recall")
     sp_prep.add_argument("--embed-model", default=None,

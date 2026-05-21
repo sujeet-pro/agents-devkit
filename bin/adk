@@ -42,17 +42,18 @@ adk — agents-devkit CLI
 
 Usage:
   adk pr-sync [--no-scan] [--no-clean-orphans] [--no-remind] [--no-prepare] [--dry-run]
-                                              one-stop sync: scan → refresh → drop merged/declined →
+                                              one-stop sync: scan → refresh → drop merged/closed →
                                               clean orphans → remind stale reviews → prepare task folders
                                               (destructive steps are actual-by-default; --dry-run to preview)
   adk pr-scan [--channels c1,c2] [--since-hours N] [--dry-run] [-y]
                                               scan Slack for PR links → upsert into the queue
   adk pr-queue list [--status <s>] [--urls-only]   list queue entries
   adk pr-queue show <pr-url>                  show one entry as JSON
-  adk pr-queue add <slack-url-or-pr-url>      single-shot upsert (slack permalink OR PR URL)
-  adk pr-queue update <pr-url>                refresh row metadata (head_oid + merged/declined state)
+  adk pr-queue add <slack-url|pr-url|number>  single-shot upsert (slack permalink, PR URL, or
+                                              bare PR number using core.yaml defaults.repo)
+  adk pr-queue update <pr-url>                refresh row metadata (head_sha + merged/closed state)
   adk pr-queue update --all                   refresh every non-terminal row (metadata only)
-  adk pr-queue clean [--all] [-y]             drop merged + declined rows (or everything with --all -y)
+  adk pr-queue clean [--all] [-y]             drop merged + closed rows (or everything with --all -y)
   adk pr-queue ready-to-merge                 approved PRs grouped by open-comment state
   adk pr-queue release <pr-url>               clear `taken_at` (release a stuck lock)
   adk pr-queue get-next [--no-validate]       claim + return the next eligible row (validates via origin API)

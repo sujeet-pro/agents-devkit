@@ -2,8 +2,8 @@
 
 A row qualifies for a reminder when ALL of:
   - the row has Slack thread metadata (channel_id + thread_ts),
-  - a review has completed (`last_reviewed_at` and `last_reviewed_head_oid` set),
-  - the head_oid hasn't moved since that review (no new commits to re-review),
+  - a review has completed (`last_reviewed_at` and `last_reviewed_head_sha` set),
+  - the head_sha hasn't moved since that review (no new commits to re-review),
   - >= 24h has elapsed since the review,
   - we haven't reminded in the last 24h (no spam),
   - the row is NOT in a terminal state (merged/declined).
@@ -44,8 +44,8 @@ def _is_stale_review(entry: dict, *, now: datetime, threshold_hours: float) -> b
     last_reviewed_at = _parse_iso(entry.get("last_reviewed_at"))
     if last_reviewed_at is None:
         return False
-    head = entry.get("head_oid")
-    last_reviewed_head = entry.get("last_reviewed_head_oid")
+    head = entry.get("head_sha")
+    last_reviewed_head = entry.get("last_reviewed_head_sha")
     if not head or not last_reviewed_head or head != last_reviewed_head:
         return False  # new commits since review → author already acted
     if (now - last_reviewed_at) < timedelta(hours=threshold_hours):
@@ -62,12 +62,12 @@ def _is_stale_review(entry: dict, *, now: datetime, threshold_hours: float) -> b
 
 def _reminder_text(entry: dict, *, now: datetime) -> str:
     """The actual message body. Reader-first: who, what's pending, since when."""
-    pr_link = entry.get("pr_link", "the PR")
+    pr_url = entry.get("pr_url", "the PR")
     last_reviewed_at = _parse_iso(entry.get("last_reviewed_at"))
     hours = "?"
     if last_reviewed_at is not None:
         hours = f"{(now - last_reviewed_at).total_seconds() / 3600:.0f}"
-    return (f":alarm_clock: Friendly reminder: {pr_link} was reviewed {hours}h ago "
+    return (f":alarm_clock: Friendly reminder: {pr_url} was reviewed {hours}h ago "
             "and has no new commits since. Please address comments or merge.")
 
 
@@ -98,7 +98,7 @@ def send_reminders(queue_path: Path, *, threshold_hours: float = DEFAULT_THRESHO
 
     if dry_run:
         return {"sent": [], "skipped": 0, "failed": [],
-                "would_remind": [e.get("pr_link") for e in qualifying],
+                "would_remind": [e.get("pr_url") for e in qualifying],
                 "count": len(qualifying),
                 "dry_run": True}
 
@@ -119,7 +119,7 @@ def send_reminders(queue_path: Path, *, threshold_hours: float = DEFAULT_THRESHO
     sent: list[dict] = []
     failed: list[dict] = []
     for entry in qualifying:
-        pr_url = entry.get("pr_link")
+        pr_url = entry.get("pr_url")
         slack = entry.get("slack") or {}
         channel_id = slack.get("channel_id")
         thread_ts = slack.get("thread_ts")
@@ -127,15 +127,15 @@ def send_reminders(queue_path: Path, *, threshold_hours: float = DEFAULT_THRESHO
         try:
             reply_ts = client.post_thread_reply(channel_id, thread_ts, text)
         except Exception as e:
-            failed.append({"pr_link": pr_url, "error": str(e)})
+            failed.append({"pr_url": pr_url, "error": str(e)})
             continue
         if reply_ts is None:
-            failed.append({"pr_link": pr_url, "error": "post_thread_reply returned None"})
+            failed.append({"pr_url": pr_url, "error": "post_thread_reply returned None"})
             continue
         update_pr_entry(queue_path, pr_url,
                         {"last_reminded_at": _now_iso(),
                          "last_checked_at": _now_iso()})
-        sent.append({"pr_link": pr_url, "reply_ts": reply_ts})
+        sent.append({"pr_url": pr_url, "reply_ts": reply_ts})
 
     return {"sent": sent, "failed": failed, "count": len(qualifying)}
 

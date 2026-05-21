@@ -4,14 +4,14 @@ Composes the smaller subcommands into a deterministic 6-step pipeline so the
 user doesn't have to remember the order:
 
   1. pr-scan                 walk configured Slack channels for new PR links
-  2. pr-queue update --all   refresh each row's metadata (head_oid + merged +
+  2. pr-queue update --all   refresh each row's metadata (head_sha + merged +
                              declined) — origin API is the source of truth
   3. pr-queue clean          drop merged + declined rows + their on-disk task folders
   4. pr-task clean-orphans   drop on-disk task folders with no queue row
   5. pr-queue remind         Slack-reply reminder for any PR reviewed >=24h
                              ago with no new commits since
   6. pr-task prepare --all   create/refresh task folders for remaining rows
-                             (Phase 3 short-circuits when head_oid unchanged)
+                             (Phase 3 short-circuits when head_sha unchanged)
 
 Every step is opt-out (--no-scan, --no-prepare, --no-remind). Per-step
 failures are surfaced but do not abort the rest of the pipeline. The final
@@ -83,7 +83,7 @@ def _audit_base_indexes(queue_path: str, *, mode: str, embed_model: str | None,
     groups: dict[tuple[str, str], list[str]] = {}
     skipped_no_target = 0
     for r in rows:
-        link = r.get("pr_link")
+        link = r.get("pr_url")
         if not link:
             continue
         if (r.get("status") or "pending") in TERMINAL_STATUSES:

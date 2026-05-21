@@ -52,15 +52,22 @@ def _load_defaults() -> dict:
     retained — every other top-level key is discarded so we never bring
     unrelated config (which may contain tokens, paths, or other state)
     into call sites. Per constitution §VII.
+
+    Resolves $ADK_HOME / $HOME freshly on every call so tests that
+    monkeypatch the env see the new path. Don't go through
+    `config_io.load_core` here — its CORE_YAML constant is bound at
+    import time and won't pick up a later HOME override.
     """
+    import os
     try:
-        # Make scripts/ importable so we can use load_core (consistent path
-        # resolution + yaml.safe_load).
-        SCRIPTS_ROOT = THIS_DIR.parent.parent.parent / "scripts"
-        if str(SCRIPTS_ROOT) not in sys.path:
-            sys.path.insert(0, str(SCRIPTS_ROOT))
-        from config_io import load_core  # noqa: WPS433
-        cfg = load_core() or {}
+        home = Path(os.environ.get("ADK_HOME") or (Path.home() / ".agents-devkit"))
+        if os.environ.get("ADK_HOME") is None and os.environ.get("HOME"):
+            home = Path(os.environ["HOME"]) / ".agents-devkit"
+        core = home / "config" / "core.yaml"
+        if not core.exists():
+            return {}
+        import yaml  # noqa: WPS433 — lazy
+        cfg = yaml.safe_load(core.read_text(encoding="utf-8")) or {}
     except Exception:
         return {}
     defaults = cfg.get("defaults")
@@ -471,7 +478,7 @@ def _add_from_slack_permalink(url: str, slack_info: dict, queue_path: Path, args
         rep_permalink = client.get_message_permalink(cid, rep_ts)
         for pr_url in rep_prs:
             candidates.append({
-                "pr_link": pr_url,
+                "pr_url": pr_url,
                 "supporting_docs": supporting,
                 "slack": _slack_for(
                     pr_url, channel_id=cid, message_ts=rep_ts, thread_ts=thread_ts,
@@ -502,7 +509,7 @@ def _add_from_slack_permalink(url: str, slack_info: dict, queue_path: Path, args
 # ----- update (cheap meta refresh on one row) ------------------------------
 
 def _refresh_one(pr_url: str, entry: dict, *, queue_path: Path, log) -> dict:
-    """Refresh one PR's metadata only (head_oid + merged/declined state).
+    """Refresh one PR's metadata only (head_sha + merged/closed state).
 
     Strict single-purpose: this verb does NOT touch the worktree or the
     index. If you also want to pre-warm the task folder, run
@@ -521,9 +528,9 @@ def _refresh_one(pr_url: str, entry: dict, *, queue_path: Path, log) -> dict:
         return {"pr_url": pr_url, "status": "failed", "stage": "meta", "reason": meta["error"]}
 
     updates = {"last_checked_at": _now_iso()}
-    new_head = meta.get("head_oid")
+    new_head = meta.get("head_sha") or meta.get("head_sha")
     if new_head:
-        updates["head_oid"] = new_head
+        updates["head_sha"] = new_head
     # Capture target_branch (baseRefName / destination.branch.name). Skills
     # downstream — pr-sync's base-index audit, /adk-pr-review's seed-picker —
     # rely on this to map a PR to its base index.
@@ -536,17 +543,17 @@ def _refresh_one(pr_url: str, entry: dict, *, queue_path: Path, log) -> dict:
     verdict = classify_pr_state(meta)
     if verdict == "merged":
         updates["status"] = STATUS_MERGED
-    elif verdict == "declined":
-        updates["status"] = STATUS_DECLINED
+    elif verdict == "closed":
+        updates["status"] = STATUS_CLOSED
     update_pr_entry(queue_path, pr_url, updates)
-    prev_head = entry.get("head_oid")
+    prev_head = entry.get("head_sha")
     head_unchanged = (prev_head == new_head) if prev_head else None
     return {
         "pr_url": pr_url,
-        "head_oid": new_head,
+        "head_sha": new_head,
         "verdict": verdict,
         "merged": verdict == "merged",
-        "declined": verdict == "declined",
+        "closed": verdict == "closed",
         "status": updates.get("status", entry.get("status")),
         "head_unchanged": head_unchanged,
         "refreshed": "meta",
@@ -566,14 +573,14 @@ def cmd_update(args) -> int:
                       if (e.get("status") or STATUS_PENDING) not in TERMINAL_STATUSES]
         if not candidates:
             print(json.dumps({"updated": [],
-                              "reason": "no rows to refresh (all merged or declined)"},
+                              "reason": "no rows to refresh (all merged or closed)"},
                              indent=2))
             return 0
         log.info("refreshing %d row(s) (metadata only)", len(candidates))
         results: list[dict] = []
         had_failure = False
         for e in candidates:
-            url = e.get("pr_link")
+            url = e.get("pr_url")
             if not url:
                 continue
             r = _refresh_one(url, e, queue_path=queue_path, log=log)
@@ -597,33 +604,33 @@ def cmd_update(args) -> int:
 
 # ----- get-next ------------------------------------------------------------
 
-def _drop_terminal_row(queue_path: Path, pr_link: str, status: str, log) -> None:
-    """Remove a row whose origin-API check says it's merged or declined.
+def _drop_terminal_row(queue_path: Path, pr_url: str, status: str, log) -> None:
+    """Remove a row whose origin-API check says it's merged or closed.
 
     Idempotent: re-running on an already-removed row is a no-op. Also cleans
     the row's on-disk task folder so `pr-task list` stays in sync.
     """
     queue = read_queue(queue_path)
     prs = queue.get("prs", []) or []
-    kept = [e for e in prs if e.get("pr_link") != pr_link]
+    kept = [e for e in prs if e.get("pr_url") != pr_url]
     if len(kept) == len(prs):
         return
     queue["prs"] = kept
     write_queue(queue_path, queue)
 
-    td = _task_dir_for_link(pr_link)
+    td = _task_dir_for_link(pr_url)
     if td and td.exists():
         try:
             shutil.rmtree(td)
         except OSError as e:
             log.warning("failed to remove task folder %s: %s", td, e)
-    log.info("auto-dropped %s row %s + task folder", status, pr_link)
+    log.info("auto-dropped %s row %s + task folder", status, pr_url)
 
 
 def get_next_eligible(queue_path: Path, *, validate: bool = True,
                       max_attempts: int = 10, log=None) -> dict | None:
     """Atomically claim the next eligible row, validating against the origin
-    API. Rows that turn out to be merged or declined since the last sync are
+    API. Rows that turn out to be merged or closed since the last sync are
     dropped from the queue (along with their on-disk task folder) and the
     picker tries the next candidate. Returns the claimed row, or None.
 
@@ -645,23 +652,23 @@ def get_next_eligible(queue_path: Path, *, validate: bool = True,
         if not validate:
             return candidate
 
-        pr_url = candidate.get("pr_link")
+        pr_url = candidate.get("pr_url")
         if not pr_url:
             return candidate
         meta = cheap_pr_meta(pr_url, log)
         verdict = classify_pr_state(meta)
-        if verdict in {"merged", "declined"}:
+        if verdict in {"merged", "closed"}:
             # Release the claim we just took, then drop the row entirely.
             update_pr_entry(queue_path, pr_url, {"taken_at": None})
             _drop_terminal_row(queue_path, pr_url, verdict, log)
             continue
-        # Refresh head_oid so the row reflects the API's current view, then
+        # Refresh head_sha so the row reflects the API's current view, then
         # return the (still-claimed) candidate.
-        new_head = meta.get("head_oid") if not meta.get("error") else None
-        if new_head and new_head != candidate.get("head_oid"):
+        new_head = meta.get("head_sha") or meta.get("head_sha") if not meta.get("error") else None
+        if new_head and new_head != candidate.get("head_sha"):
             update_pr_entry(queue_path, pr_url,
-                            {"head_oid": new_head, "last_checked_at": _now_iso()})
-            candidate["head_oid"] = new_head
+                            {"head_sha": new_head, "last_checked_at": _now_iso()})
+            candidate["head_sha"] = new_head
         return candidate
     log.warning("get_next_eligible: exhausted %d attempts; queue may be all-terminal",
                 max_attempts)
@@ -693,8 +700,8 @@ def cmd_get_next(args) -> int:
         return 0
     out = {
         "action": "claimed",
-        "pr_link": row.get("pr_link"),
-        "head_oid": row.get("head_oid"),
+        "pr_url": row.get("pr_url"),
+        "head_sha": row.get("head_sha"),
         "status": row.get("status"),
         "slack": row.get("slack"),
         "supporting_docs": row.get("supporting_docs") or [],
@@ -724,7 +731,7 @@ def main(argv: list[str] | None = None) -> int:
     sub = ap.add_subparsers(dest="cmd", required=True)
 
     sp_list = sub.add_parser("list", help="list queue entries")
-    sp_list.add_argument("--status", help="filter by status (pending|in_review|reviewed|comments|approved|merged|error|reminded)")
+    sp_list.add_argument("--status", help="filter by status (pending|in_review|reviewed|comments|approved|merged|closed|error|reminded)")
     sp_list.add_argument("--urls-only", action="store_true",
                           help="emit one PR URL per line (for shell completion)")
     sp_list.set_defaults(func=cmd_list)
@@ -733,14 +740,14 @@ def main(argv: list[str] | None = None) -> int:
     sp_show.add_argument("pr_url")
     sp_show.set_defaults(func=cmd_show)
 
-    sp_add = sub.add_parser("add", help="add a PR by URL or by Slack permalink")
+    sp_add = sub.add_parser("add", help="add a PR by URL, Slack permalink, or bare PR number (uses core.yaml defaults.repo)")
     sp_add.add_argument("url")
     sp_add.add_argument("-y", "--yes", action="store_true",
                         help="non-interactive; refresh in place if already present")
     sp_add.set_defaults(func=cmd_add)
 
     sp_upd = sub.add_parser("update",
-                            help="refresh row metadata (head_oid + merged/declined "
+                            help="refresh row metadata (head_sha + merged/closed "
                                  "state via origin API). Single-purpose: does NOT "
                                  "touch the worktree or index — for that, run "
                                  "`adk pr-task prepare` or `adk pr-sync`.")

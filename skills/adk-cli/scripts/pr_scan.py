@@ -1,7 +1,7 @@
 """pr_scan.py — `adk pr-scan` subcommand.
 
 Scans configured Slack channels for PR links, fetches cheap PR meta (merged?
-head_oid?), and merges the results into ~/.agents-devkit/config/pr-queue.json5.
+head_sha?), and merges the results into ~/.agents-devkit/config/pr-queue.json5.
 
 Difference vs the legacy scan_slack.py this replaces: each PR link gets ITS OWN
 queue row, even when multiple PRs live in the same thread. Specifically:
@@ -74,7 +74,7 @@ DEFAULT_SLACK_CONFIG = Path.home() / ".agents-devkit" / "config" / "connectors" 
 # ----- PR meta (cheap, no clone) -------------------------------------------
 
 def cheap_pr_meta(pr_url: str, log) -> dict:
-    """Return {host, owner, repo, pr_number, head_oid, merged_at|None, state,
+    """Return {host, owner, repo, pr_number, head_sha, merged_at|None, state,
     author, url, target_branch}. Errors → {error: str}.
     """
     try:
@@ -91,7 +91,7 @@ def cheap_pr_meta(pr_url: str, log) -> dict:
             d = json.loads(cp.stdout)
             return {
                 "host": host, "owner": p["owner"], "repo": p["repo"], "pr_number": p["pr_number"],
-                "head_oid": d.get("headRefOid"),
+                "head_sha": d.get("headRefOid"),
                 "target_branch": d.get("baseRefName"),
                 "merged_at": d.get("mergedAt"),
                 "state": d.get("state"),
@@ -114,7 +114,7 @@ def cheap_pr_meta(pr_url: str, log) -> dict:
         merged_at = d.get("updated_on") if state == "MERGED" else None
         return {
             "host": host, "owner": p["owner"], "repo": p["repo"], "pr_number": p["pr_number"],
-            "head_oid": (d.get("source") or {}).get("commit", {}).get("hash"),
+            "head_sha": (d.get("source") or {}).get("commit", {}).get("hash"),
             "target_branch": (d.get("destination") or {}).get("branch", {}).get("name"),
             "merged_at": merged_at,
             "state": state,
@@ -252,7 +252,7 @@ def scan(slack_cfg: dict, oldest_ts: str, log) -> tuple[list[dict], dict]:
 
             for pr_url in main_prs:
                 candidates.append({
-                    "pr_link": pr_url,
+                    "pr_url": pr_url,
                     "supporting_docs": supporting,
                     "slack": _slack_for(
                         pr_url,
@@ -272,7 +272,7 @@ def scan(slack_cfg: dict, oldest_ts: str, log) -> tuple[list[dict], dict]:
                 rep_permalink = client.get_message_permalink(cid, rep_ts)
                 for pr_url in rep_prs:
                     candidates.append({
-                        "pr_link": pr_url,
+                        "pr_url": pr_url,
                         "supporting_docs": supporting,
                         "slack": _slack_for(
                             pr_url,
@@ -297,10 +297,10 @@ def post_process(candidates: list[dict], slack_cfg: dict, dry_run: bool, log) ->
     client: SlackClient | None = None
 
     for c in candidates:
-        meta = cheap_pr_meta(c["pr_link"], log)
+        meta = cheap_pr_meta(c["pr_url"], log)
         if "error" in meta:
             stats["errors"] += 1
-            log.warning("meta-fetch %s → %s", c["pr_link"], meta["error"])
+            log.warning("meta-fetch %s → %s", c["pr_url"], meta["error"])
             continue
         if meta.get("merged_at"):
             stats["merged_skipped"] += 1
