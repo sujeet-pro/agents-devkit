@@ -7,9 +7,10 @@ class FooterBar(Static):
     def __init__(self) -> None:
         super().__init__("", markup=False)
 
-    def update_status(self, filter_mode: str, sort_mode: str) -> None:
+    def update_status(self, filter_mode: str, sort_mode: str, *, sync_running: bool = False) -> None:
+        sync_label = "[s] sync (running…)" if sync_running else "[s] sync"
         text = (
             f"[?] help  [f] filter:{filter_mode}  [S] sort:{sort_mode}"
-            f"  [j/k] nav  [q] quit  ·  [s] sync (disabled)  [r] run (disabled)"
+            f"  [j/k] nav  [q] quit  ·  {sync_label}  [r] run (disabled)"
         )
         self.update(text)

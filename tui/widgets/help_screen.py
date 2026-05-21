@@ -16,6 +16,7 @@ _HELP_TEXT = """adk TUI · keys
   k / up         move cursor up
   g / home       jump to first row
   G / end        jump to last row
+  s              start `adk pr-sync` (streams into log pane)
   enter          (read-only — no action yet)
   escape         close this help
 """

@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import argparse
+import asyncio
+import os
+import shlex
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -12,10 +15,13 @@ from tui.widgets.detail_pane import DetailPane
 from tui.widgets.footer_bar import FooterBar
 from tui.widgets.header_bar import HeaderBar
 from tui.widgets.help_screen import HelpScreen
+from tui.widgets.log_pane import LogPane
 from tui.widgets.queue_table import QueueTable
+from tui.widgets.sync_plan_pane import SyncPlanPane
 
 if TYPE_CHECKING:
     from tui.model.queue_model import FilterMode, QueueModel, QueueRow, SortMode
+    from tui.model.sync_plan_model import SyncPlanModel
 
 
 _FILTER_CYCLE: tuple[FilterMode, ...] = ("all", "open", "ready", "reviewed", "terminal")
@@ -31,6 +37,7 @@ class AdkApp(App):
         Binding("question_mark", "help", "help"),
         Binding("f", "cycle_filter", "filter"),
         Binding("S", "cycle_sort", "sort"),
+        Binding("s", "sync", "sync"),
         Binding("j", "cursor_down", show=False),
         Binding("k", "cursor_up", show=False),
         Binding("g", "cursor_home", show=False),
@@ -44,29 +51,41 @@ class AdkApp(App):
         queue_path: Path | None = None,
         ascii_only: bool = False,
         poll_interval: float = 2.0,
+        plan_path: Path | None = None,
+        adk_bin: Path | None = None,
     ) -> None:
         super().__init__()
         self._queue_path = queue_path
         self._ascii_only = ascii_only
         self.poll_interval = poll_interval
+        self._plan_path = plan_path
+        self._adk_bin = adk_bin
         self._filter_mode: FilterMode = "all"
         self._sort_mode: SortMode = "fifo"
         self._model: QueueModel | None = None
+        self._plan_model: SyncPlanModel | None = None
         self._rows_by_url: dict[str, QueueRow] = {}
+        self._sync_proc: asyncio.subprocess.Process | None = None
+        self._sync_task: asyncio.Task | None = None
 
     def compose(self) -> ComposeResult:
         yield HeaderBar()
         with Horizontal(id="main"):
             yield QueueTable()
             yield DetailPane()
+        yield SyncPlanPane()
+        yield LogPane()
         yield FooterBar()
 
     async def on_mount(self) -> None:
         from tui.model.queue_model import QueueModel
+        from tui.model.sync_plan_model import SyncPlanModel
 
         self._model = QueueModel(queue_path=self._queue_path)
-        self.query_one(FooterBar).update_status(self._filter_mode, self._sort_mode)
+        self._plan_model = SyncPlanModel(plan_path=self._plan_path)
+        self.query_one(FooterBar).update_status(self._filter_mode, self._sort_mode, sync_running=False)
         self._reload(force=True)
+        self._reload_plan(force=True)
         self.set_interval(self.poll_interval, self._maybe_reload)
 
     def _reload(self, *, force: bool = False) -> None:
@@ -84,11 +103,18 @@ class AdkApp(App):
         self.query_one(FooterBar).update_status(self._filter_mode, self._sort_mode)
         self._refresh_detail()
 
-    def _maybe_reload(self) -> None:
-        if self._model is None:
+    def _reload_plan(self, *, force: bool = False) -> None:
+        if self._plan_model is None:
             return
-        if self._model.has_changed():
+        if not force and not self._plan_model.has_changed():
+            return
+        snapshot = self._plan_model.snapshot()
+        self.query_one(SyncPlanPane).update_snapshot(snapshot, ascii_only=self._ascii_only)
+
+    def _maybe_reload(self) -> None:
+        if self._model is not None and self._model.has_changed():
             self._reload(force=True)
+        self._reload_plan()
 
     def _refresh_detail(self) -> None:
         table = self.query_one(QueueTable)
@@ -134,6 +160,88 @@ class AdkApp(App):
 
     def action_escape(self) -> None:
         return None
+
+    def action_sync(self) -> None:
+        if self._sync_proc is not None and self._sync_proc.returncode is None:
+            self.query_one(LogPane).announce("(sync already running — wait or quit and restart)")
+            return
+        self._sync_task = asyncio.create_task(self._run_sync())
+        self._sync_task.add_done_callback(self._on_sync_task_done)
+
+    def _on_sync_task_done(self, task: asyncio.Task) -> None:
+        # Surface unhandled exceptions to the LogPane so a quiet hang never
+        # leaves the footer stuck on "(running…)".
+        try:
+            exc = task.exception()
+        except (asyncio.CancelledError, asyncio.InvalidStateError):
+            return
+        if exc is not None:
+            try:
+                self.query_one(LogPane).announce(f"(sync crashed: {exc!r})")
+                self.query_one(FooterBar).update_status(
+                    self._filter_mode, self._sort_mode, sync_running=False,
+                )
+            except Exception:
+                pass
+            self._sync_proc = None
+
+    async def _run_sync(self) -> None:
+        log_pane = self.query_one(LogPane)
+        queue_arg: list[str] = []
+        if self._queue_path is not None:
+            queue_arg = ["--queue", str(self._queue_path)]
+        adk = self._resolve_adk_bin()
+        cmd = [str(adk), "pr-sync", *queue_arg]
+        log_pane.announce(f"$ {' '.join(shlex.quote(c) for c in cmd)}")
+        self.query_one(FooterBar).update_status(self._filter_mode, self._sort_mode, sync_running=True)
+        env = dict(os.environ)
+        if self._plan_path is not None:
+            env["ADK_TUI_PLAN_PATH"] = str(self._plan_path)
+        try:
+            self._sync_proc = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.STDOUT,
+                env=env,
+            )
+        except (FileNotFoundError, PermissionError, OSError) as exc:
+            log_pane.announce(f"(error: {exc})")
+            self._sync_proc = None
+            self.query_one(FooterBar).update_status(self._filter_mode, self._sort_mode, sync_running=False)
+            return
+        assert self._sync_proc.stdout is not None
+        while True:
+            line = await self._sync_proc.stdout.readline()
+            if not line:
+                break
+            log_pane.write(line.decode(errors="replace").rstrip("\n"))
+        rc = await self._sync_proc.wait()
+        log_pane.announce(f"(pr-sync exited rc={rc})")
+        self._sync_proc = None
+        self.query_one(FooterBar).update_status(self._filter_mode, self._sort_mode, sync_running=False)
+        self._reload_plan(force=True)
+        if self._model is not None:
+            self._reload(force=True)
+
+    def _resolve_adk_bin(self) -> Path:
+        if self._adk_bin is not None:
+            return self._adk_bin
+        repo_root = Path(__file__).resolve().parent.parent
+        candidate = repo_root / "bin" / "adk"
+        if candidate.exists():
+            return candidate
+        return Path("adk")  # last-resort PATH lookup
+
+    async def on_unmount(self) -> None:
+        if self._sync_proc is not None and self._sync_proc.returncode is None:
+            try:
+                self._sync_proc.terminate()
+                try:
+                    await asyncio.wait_for(self._sync_proc.wait(), timeout=2.0)
+                except asyncio.TimeoutError:
+                    self._sync_proc.kill()
+            except ProcessLookupError:
+                pass
 
 
 def main(argv: list[str] | None = None) -> int:

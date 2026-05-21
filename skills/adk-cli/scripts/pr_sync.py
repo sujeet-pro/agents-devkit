@@ -44,6 +44,18 @@ sys.path.insert(0, str(CODE_INDEX_LIB))
 
 from _common import get_logger, parse_pr_url  # noqa: E402
 from queue_io import DEFAULT_QUEUE_PATH, TERMINAL_STATUSES, read_queue  # noqa: E402
+from tui_plan import SyncPlanWriter  # noqa: E402
+
+_PR_SYNC_STEPS = [
+    "pr-scan",
+    "pr-queue update --all",
+    "pr-queue clean (merged)",
+    "pr-task clean-orphans",
+    "pr-queue remind",
+    "base-index audit",
+    "auto-base cleanup",
+    "pr-task prepare --all",
+]
 
 
 # Internal audit-mode states:
@@ -312,18 +324,29 @@ def _audit_base_indexes(queue_path: str, *, mode: str, embed_model: str | None,
             "mode": mode}
 
 
-def _run_step(name: str, fn, log) -> dict:
+def _run_step(name: str, fn, log, *, plan: SyncPlanWriter | None = None,
+              plan_name: str | None = None) -> dict:
     """Run one pipeline step. Capture rc + a short status; never raise."""
     log.info("=== step: %s ===", name)
+    pname = plan_name or name
+    if plan is not None:
+        plan.step_start(pname)
     try:
         rc = fn()
-        return {"step": name, "rc": rc, "status": "ok" if rc == 0 else "warn"}
+        status = "ok" if rc == 0 else "warn"
+        if plan is not None:
+            plan.step_done(pname, status=status, rc=rc)
+        return {"step": name, "rc": rc, "status": status}
     except SystemExit as e:
         # die() raises SystemExit; treat as a step-level failure, keep going.
         log.warning("%s: %s", name, e)
+        if plan is not None:
+            plan.step_done(pname, status="failed", rc=1)
         return {"step": name, "rc": 1, "status": "failed", "reason": str(e)}
     except Exception as e:
         log.warning("%s: unexpected %s", name, e)
+        if plan is not None:
+            plan.step_done(pname, status="failed", rc=1)
         return {"step": name, "rc": 1, "status": "failed", "reason": str(e)}
 
 
@@ -394,6 +417,8 @@ def main(argv: list[str] | None = None) -> int:
     log = get_logger("pr-sync")
     queue = args.queue
     results: list[dict] = []
+    plan_writer = SyncPlanWriter(queue=queue, argv=list(argv or []),
+                                 step_names=_PR_SYNC_STEPS)
 
     # 1. pr-scan
     if not args.no_scan:
@@ -405,8 +430,10 @@ def main(argv: list[str] | None = None) -> int:
             scan_argv += ["--since-days", str(args.since_days)]
         if args.channels:
             scan_argv += ["--channels", args.channels]
-        results.append(_run_step("pr-scan", lambda: scan_main(scan_argv), log))
+        results.append(_run_step("pr-scan", lambda: scan_main(scan_argv), log,
+                                 plan=plan_writer))
     else:
+        plan_writer.step_done("pr-scan", status="skipped")
         results.append({"step": "pr-scan", "status": "skipped"})
 
     # 2. pr-queue update --all (metadata refresh; no --full — that happens in step 5)
@@ -415,6 +442,7 @@ def main(argv: list[str] | None = None) -> int:
         "pr-queue update --all",
         lambda: queue_main(["--queue", queue, "update", "--all"]),
         log,
+        plan=plan_writer,
     ))
 
     # 3. pr-queue clean (drop merged + their task folders; no --yes needed for
@@ -423,6 +451,7 @@ def main(argv: list[str] | None = None) -> int:
         "pr-queue clean (merged)",
         lambda: queue_main(["--queue", queue, "clean"]),
         log,
+        plan=plan_writer,
     ))
 
     # 4. pr-task clean-orphans (drop on-disk folders with no queue row)
@@ -437,8 +466,11 @@ def main(argv: list[str] | None = None) -> int:
             "pr-task clean-orphans" + (" (dry-run)" if args.dry_run else ""),
             lambda: task_main(orphan_argv),
             log,
+            plan=plan_writer,
+            plan_name="pr-task clean-orphans",
         ))
     else:
+        plan_writer.step_done("pr-task clean-orphans", status="skipped")
         results.append({"step": "pr-task clean-orphans", "status": "skipped"})
 
     # 5. pr-queue remind (Slack pings for stale reviews)
@@ -451,8 +483,11 @@ def main(argv: list[str] | None = None) -> int:
             "pr-queue remind" + (" (dry-run)" if args.dry_run else ""),
             lambda: queue_main(remind_argv),
             log,
+            plan=plan_writer,
+            plan_name="pr-queue remind",
         ))
     else:
+        plan_writer.step_done("pr-queue remind", status="skipped")
         results.append({"step": "pr-queue remind", "status": "skipped"})
 
     # 5.5. base-index audit (per-(repo, target_branch) coverage).
@@ -514,13 +549,17 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         # Don't go through _run_step here — we want the audit summary inline
         # in the step record, not a single rc.
+        plan_writer.step_start("base-index audit")
         try:
             _do_audit()
+            plan_writer.step_done("base-index audit", status="ok", rc=0)
         except Exception as e:
             log.warning("base-index audit: unexpected %s", e)
+            plan_writer.step_done("base-index audit", status="failed", rc=1)
             results.append({"step": "base-index audit",
                             "status": "failed", "reason": str(e)})
     else:
+        plan_writer.step_done("base-index audit", status="skipped")
         results.append({"step": "base-index audit", "status": "skipped"})
 
     # 5.6. auto-base cleanup (demote auto-added bases whose queue users are
@@ -537,6 +576,7 @@ def main(argv: list[str] | None = None) -> int:
             force=False, name=None, branch=None,
         )
         log.info("=== step: auto-base cleanup ===")
+        plan_writer.step_start("auto-base cleanup")
         buf = io.StringIO()
         try:
             with contextlib.redirect_stdout(buf):
@@ -548,21 +588,26 @@ def main(argv: list[str] | None = None) -> int:
                     detail = json.loads(captured)
                 except Exception:
                     detail = {"raw": captured}
+            status = "ok" if (rc or 0) == 0 else "warn"
+            plan_writer.step_done("auto-base cleanup", status=status, rc=rc or 0)
             results.append({
                 "step": "auto-base cleanup",
                 "rc": rc or 0,
-                "status": "ok" if (rc or 0) == 0 else "warn",
+                "status": status,
                 "detail": detail,
             })
         except SystemExit as e:
             log.warning("auto-base cleanup: SystemExit %s", e)
+            plan_writer.step_done("auto-base cleanup", status="failed", rc=1)
             results.append({"step": "auto-base cleanup", "rc": 1,
                             "status": "failed", "reason": str(e)})
         except Exception as e:
             log.warning("auto-base cleanup: unexpected %s", e)
+            plan_writer.step_done("auto-base cleanup", status="failed", rc=1)
             results.append({"step": "auto-base cleanup", "rc": 1,
                             "status": "failed", "reason": str(e)})
     else:
+        plan_writer.step_done("auto-base cleanup", status="skipped")
         results.append({"step": "auto-base cleanup", "status": "skipped"})
 
     # 6. pr-task prepare --all
@@ -576,8 +621,10 @@ def main(argv: list[str] | None = None) -> int:
             "pr-task prepare --all",
             lambda: task_main(prep_argv),
             log,
+            plan=plan_writer,
         ))
     else:
+        plan_writer.step_done("pr-task prepare --all", status="skipped")
         results.append({"step": "pr-task prepare --all", "status": "skipped"})
 
     summary = {
@@ -586,7 +633,9 @@ def main(argv: list[str] | None = None) -> int:
         "failed": [r for r in results if r.get("status") == "failed"],
     }
     print(json.dumps(summary, indent=2, default=str))
-    return 1 if summary["failed"] else 0
+    rc_out = 1 if summary["failed"] else 0
+    plan_writer.finish(rc_out)
+    return rc_out
 
 
 if __name__ == "__main__":
