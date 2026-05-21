@@ -55,7 +55,10 @@ Usage:
   adk pr-queue update --all                   refresh every non-terminal row (metadata only)
   adk pr-queue clean [--all] [-y]             drop merged + closed rows (or everything with --all -y)
   adk pr-queue ready-to-merge                 approved PRs grouped by open-comment state
-  adk pr-queue release <pr-url>               clear `taken_at` (release a stuck lock)
+  adk pr-queue release <pr-url> [--status s]  clear `taken_at`; optionally set terminal status
+  adk pr-queue claim <pr-url> [--force]       atomically set taken_at + status=in_review (v4 §6.v)
+  adk pr-queue heartbeat <pr-url>             bump taken_at to now (call every ~5 min during long review)
+  adk pr-queue set-status <pr-url> <status>   change status without releasing the lock
   adk pr-queue get-next [--no-validate]       claim + return the next eligible row (validates via origin API)
   adk pr-queue remind [--threshold-hours N] [--dry-run]
                                               Slack-thread reminders for stale reviews

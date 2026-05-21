@@ -711,14 +711,92 @@ def cmd_get_next(args) -> int:
     return 0
 
 
+# ----- claim / heartbeat / release / set-status (v4 §6.v lock handling) ----
+
+def cmd_claim(args) -> int:
+    """v4 §6.v: atomically set taken_at + status=in_review for one PR.
+
+    Fails (rc=2) if the row is already locked AND --force is not set.
+    Returns the claimed row as JSON on success.
+    """
+    queue_path = Path(args.queue).expanduser()
+    log = get_logger("pr-queue-claim")
+    entry = find_row(queue_path, args.pr_url)
+    if entry is None:
+        die(f"no entry found for {args.pr_url} in {queue_path}")
+    from datetime import datetime, timezone
+    now = datetime.now(tz=timezone.utc)
+    # Check lock — only --force bypasses an ACTIVE lock (§6.u rule 2 still
+    # protects from breaking an active reviewer).
+    from queue_io import _is_locked, _now_iso, STATUS_IN_REVIEW
+    if _is_locked(entry, now) and not args.force:
+        die(f"row is locked (taken_at={entry.get('taken_at')!r}); "
+            f"another reviewer holds it. Re-run with --force only if you're sure.")
+    # Even with --force, never break a TRULY fresh lock (within the last minute).
+    if _is_locked(entry, now) and args.force:
+        log.warning("--force overriding active lock on %s", args.pr_url)
+    updates = {"taken_at": _now_iso()}
+    # Don't downgrade status if it's already in_review / past it.
+    cur = entry.get("status") or ""
+    if cur in {"pending", "reviewed", "comments", "reminded", "error", ""}:
+        updates["status"] = STATUS_IN_REVIEW
+    update_pr_entry(queue_path, args.pr_url, updates)
+    refreshed = find_row(queue_path, args.pr_url)
+    print(json.dumps({"action": "claimed", "pr_url": args.pr_url,
+                      "taken_at": refreshed.get("taken_at"),
+                      "status": refreshed.get("status")}, indent=2))
+    return 0
+
+
+def cmd_heartbeat(args) -> int:
+    """v4 §6.v: bump taken_at to now. Called by the agent every ~5 min during
+    a long review so the lock doesn't expire mid-work.
+    """
+    queue_path = Path(args.queue).expanduser()
+    from queue_io import _now_iso
+    entry = find_row(queue_path, args.pr_url)
+    if entry is None:
+        die(f"no entry found for {args.pr_url} in {queue_path}")
+    if entry.get("taken_at") is None:
+        die(f"row {args.pr_url} is not locked; cannot heartbeat. "
+            f"Run `adk pr-queue claim` first.")
+    update_pr_entry(queue_path, args.pr_url, {"taken_at": _now_iso()})
+    print(json.dumps({"action": "heartbeat", "pr_url": args.pr_url,
+                      "taken_at": _now_iso()}, indent=2))
+    return 0
+
+
+def cmd_set_status(args) -> int:
+    """v4 §6.v: change the row's status without releasing the lock.
+
+    Useful for mid-review transitions (e.g. → 'reviewed' after Phase 5 posts
+    comments but before Phase 6 finalises). Doesn't touch taken_at.
+    """
+    queue_path = Path(args.queue).expanduser()
+    ok = update_pr_entry(queue_path, args.pr_url, {"status": args.status})
+    if not ok:
+        die(f"no entry found for {args.pr_url} in {queue_path}")
+    print(json.dumps({"action": "set_status", "pr_url": args.pr_url,
+                      "status": args.status}, indent=2))
+    return 0
+
+
 # ----- release -------------------------------------------------------------
 
 def cmd_release(args) -> int:
+    """v4 §6.v: clear taken_at. Optionally set a terminal status with --status."""
     queue_path = Path(args.queue).expanduser()
-    ok = update_pr_entry(queue_path, args.pr_url, {"taken_at": None})
+    updates = {"taken_at": None}
+    status = getattr(args, "status", None)
+    if status:
+        updates["status"] = status
+    ok = update_pr_entry(queue_path, args.pr_url, updates)
     if not ok:
         die(f"no entry found for {args.pr_url} in {queue_path}")
-    print(f"released: {args.pr_url}")
+    msg = f"released: {args.pr_url}"
+    if status:
+        msg += f" (status={status})"
+    print(msg)
     return 0
 
 
@@ -780,9 +858,32 @@ def main(argv: list[str] | None = None) -> int:
                         help="skip origin-API validation; in-memory pick only")
     sp_get.set_defaults(func=cmd_get_next)
 
-    sp_rel = sub.add_parser("release", help="clear `taken_at` on a row")
+    sp_rel = sub.add_parser("release",
+                            help="clear `taken_at` (optionally set a terminal status)")
     sp_rel.add_argument("pr_url")
+    sp_rel.add_argument("--status", default=None,
+                        help="optionally set the row's status while releasing "
+                             "(e.g. 'reviewed', 'approved', 'comments')")
     sp_rel.set_defaults(func=cmd_release)
+
+    sp_claim = sub.add_parser("claim",
+                              help="v4 §6.v: atomically set taken_at + status=in_review")
+    sp_claim.add_argument("pr_url")
+    sp_claim.add_argument("--force", action="store_true",
+                          help="override an active lock (use only if you're sure)")
+    sp_claim.set_defaults(func=cmd_claim)
+
+    sp_hb = sub.add_parser("heartbeat",
+                           help="v4 §6.v: bump taken_at to now (call every ~5 min during a long review)")
+    sp_hb.add_argument("pr_url")
+    sp_hb.set_defaults(func=cmd_heartbeat)
+
+    sp_ss = sub.add_parser("set-status",
+                           help="v4 §6.v: change the row's status without releasing the lock")
+    sp_ss.add_argument("pr_url")
+    sp_ss.add_argument("status",
+                       help="new status (pending|in_review|reviewed|comments|approved|merged|closed|error|reminded)")
+    sp_ss.set_defaults(func=cmd_set_status)
 
     sp_rem = sub.add_parser("remind",
                             help="Slack-reply reminder for any PR reviewed "
