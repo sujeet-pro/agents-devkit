@@ -163,7 +163,7 @@ class AdkApp(App):
 
     def action_sync(self) -> None:
         if self._sync_proc is not None and self._sync_proc.returncode is None:
-            self.query_one(LogPane).announce("(sync already running — wait or quit and restart)")
+            self.query_one(LogPane).write("(sync already running — wait or quit and restart)")
             return
         self._sync_task = asyncio.create_task(self._run_sync())
         self._sync_task.add_done_callback(self._on_sync_task_done)
@@ -177,7 +177,7 @@ class AdkApp(App):
             return
         if exc is not None:
             try:
-                self.query_one(LogPane).announce(f"(sync crashed: {exc!r})")
+                self.query_one(LogPane).write(f"(sync crashed: {exc!r})")
                 self.query_one(FooterBar).update_status(
                     self._filter_mode, self._sort_mode, sync_running=False,
                 )
@@ -192,7 +192,7 @@ class AdkApp(App):
             queue_arg = ["--queue", str(self._queue_path)]
         adk = self._resolve_adk_bin()
         cmd = [str(adk), "pr-sync", *queue_arg]
-        log_pane.announce(f"$ {' '.join(shlex.quote(c) for c in cmd)}")
+        log_pane.write(f"$ {' '.join(shlex.quote(c) for c in cmd)}")
         self.query_one(FooterBar).update_status(self._filter_mode, self._sort_mode, sync_running=True)
         env = dict(os.environ)
         if self._plan_path is not None:
@@ -205,7 +205,7 @@ class AdkApp(App):
                 env=env,
             )
         except (FileNotFoundError, PermissionError, OSError) as exc:
-            log_pane.announce(f"(error: {exc})")
+            log_pane.write(f"(error: {exc})")
             self._sync_proc = None
             self.query_one(FooterBar).update_status(self._filter_mode, self._sort_mode, sync_running=False)
             return
@@ -216,7 +216,7 @@ class AdkApp(App):
                 break
             log_pane.write(line.decode(errors="replace").rstrip("\n"))
         rc = await self._sync_proc.wait()
-        log_pane.announce(f"(pr-sync exited rc={rc})")
+        log_pane.write(f"(pr-sync exited rc={rc})")
         self._sync_proc = None
         self.query_one(FooterBar).update_status(self._filter_mode, self._sort_mode, sync_running=False)
         self._reload_plan(force=True)

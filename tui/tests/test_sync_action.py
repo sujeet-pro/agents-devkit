@@ -17,8 +17,10 @@ def _log_text(app: AdkApp) -> str:
     """Concatenate every visible line in the RichLog."""
     pane = app.query_one(LogPane)
     # RichLog exposes its accumulated lines via .lines (a list of Strip).
+    # Strip has a .text property in Textual 8.x; fall back to str() for
+    # forward-compat.
     lines = getattr(pane, "lines", [])
-    return "\n".join(str(line) for line in lines)
+    return "\n".join(getattr(line, "text", None) or str(line) for line in lines)
 
 
 def _footer_text(app: AdkApp) -> str:

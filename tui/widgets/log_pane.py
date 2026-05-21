@@ -4,10 +4,9 @@ from textual.widgets import RichLog
 
 
 class LogPane(RichLog):
-    """Streaming output pane for `adk pr-sync` stdout."""
+    """Streaming output pane for `adk pr-sync` stdout. Use `.write(line)`
+    directly; convention is `$ ` prefix for shell commands, `(...)` for
+    meta-lines like exit/error/already-running."""
 
     def __init__(self) -> None:
         super().__init__(highlight=False, markup=False, wrap=False, auto_scroll=True)
-
-    def announce(self, msg: str) -> None:
-        self.write(msg)
