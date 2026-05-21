@@ -71,6 +71,62 @@ def pr_lock_for(repo: str, pr_number: int) -> Path:
     return task_dir_for(repo, pr_number) / ".adk-pr-lock"
 
 
+# v4 P4: PR-review-specific files live in a `pr-review/` subfolder of the
+# task dir, alongside `code/`, `code-index/`, `scip/`, `docs/`. This mirrors
+# the shape of a branch dir under repos/<name>/branch-<NAME>/ — a clean
+# separation of shared-with-other-skills folders from skill-specific ones.
+
+# The set of file names that belong in the pr-review/ subfolder (everything
+# the /adk-pr-review skill writes during a review).
+PR_REVIEW_FILES = frozenset({
+    "pr.json", "pr-comments.json", "diff.patch", "precis.md",
+    "findings.json", "validated-findings.json", "initial-findings.json",
+    "findings-final.json", "validation-report.json",
+    "triage.json", "triage-state.json",
+    "posting-plan.json", "post-result.json", "comment-actions.json",
+    "findings.md", "report.md",
+    "state.json", "queue-context.json",
+    "review.log",
+})
+
+
+def pr_review_dir(task_dir: Path) -> Path:
+    """Return the per-PR `pr-review/` subfolder, creating it on demand.
+
+    v4 layout (§3 architecture):
+      <task_dir>/
+        code/          (worktree at PR head)
+        code-index/    (chunks + LanceDB)
+        scip/          (optional)
+        docs/          (supporting docs)
+        pr-review/     ← THIS — review-specific files (pr.json, findings.json, ...)
+    """
+    d = task_dir / "pr-review"
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
+def pr_review_file(task_dir: Path, name: str) -> Path:
+    """Resolve a PR-review-specific file path with back-compat.
+
+    Returns the v4 location (`task_dir/pr-review/<name>`) UNLESS the legacy
+    location (`task_dir/<name>`) exists AND the v4 location doesn't.
+    Once P7's migration moves the existing files into pr-review/, the
+    legacy fallback stops kicking in.
+
+    Use for READS where you need to find an existing file.
+    For WRITES, prefer `pr_review_dir(task_dir) / name` so new files
+    always land in the v4 location.
+    """
+    new = task_dir / "pr-review" / name
+    if new.exists():
+        return new
+    legacy = task_dir / name
+    if legacy.exists():
+        return legacy
+    return new  # default: write to v4 location
+
+
 def ensure_dirs() -> None:
     for p in (REPOS_ROOT, PR_REVIEW_ROOT):
         p.mkdir(parents=True, exist_ok=True)
