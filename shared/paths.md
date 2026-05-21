@@ -39,15 +39,17 @@ A skill writes its artifacts to **exactly one** of two roots:
 │   ├── repos.md                 # frontmatter: repo defs. body: per-repo notes
 │   ├── links.json5              # cross-connector entity graph (see below)
 │   ├── settings.json5           # session-level settings
+│   ├── adk-cli.json5            # CLI behaviour knobs (pr_sync / pr_scan / pr_review_all)
 │   ├── pr-queue.json5           # PR review queue — curated by `adk pr-scan`, drained by /adk-pr-review
+│   ├── pr-queue.json5.lock      # fcntl sidecar for atomic queue writes
 │   ├── connectors/              # one .md per data source — frontmatter is config, body is notes
 │   │   ├── datadog.md mixpanel.md statsig.md snowflake.md
 │   │   ├── slack.md             # absorbs pr_reviews: section (was pr-reviews-slack.json5)
 │   │   └── atlassian.md github.md bitbucket.md
 │   └── .legacy/                 # archived v3 files (overrides.yaml, *.md) — kept for rollback
 ├── improve/                     # data the /adk-improve skill reads/writes
-│   ├── learning/{decisions.jsonl, sessions/, archive/, proposals/}
-│   └── metadata/<source>.json   # MCP introspection cache
+│   ├── learning/{decisions.jsonl, sessions/, archive/, proposals/, summary.md}
+│   └── metadata/{archive/<ts>/, <source>.json}   # MCP introspection cache + archive
 ├── repos/<repo-name>/           # one folder per tracked repo
 │   ├── .clone-lock              # per-repo lock used during fetch/worktree-add
 │   ├── original-clone/          # bare clone (.git/ only) — source for every worktree
@@ -61,12 +63,32 @@ A skill writes its artifacts to **exactly one** of two roots:
 │                                # by /adk-implement, /adk-investigate, /adk-document
 │                                # via scripts/lib/code_index/query.py
 ├── skill-pr-review/
-│   └── <repo>_pr-<n>/{code/, pr.json, diff.patch, docs/, code-index/, findings.{json,md}, report.md, state.json, queue-context.json}
+│   └── <repo>_pr-<n>/           # one folder per PR being reviewed
+│       ├── code/                # PR-head worktree (git worktree add from repos/<n>/original-clone)
+│       ├── code-index/          # per-PR seed-and-overlay index over the worktree
+│       ├── docs/                # supporting docs pulled from queue-context.json (lazy)
+│       ├── state.json           # {phases, task_dir}
+│       ├── review.log           # streaming log of the review run
+│       ├── .adk-pr-lock         # per-PR fcntl lock (held during a live review)
+│       └── pr-review/           # per-run artifacts (separates "review output" from "code + index + state")
+│           ├── pr.json          # PR metadata (host, head_sha, title, body, …)
+│           ├── diff.patch       # unified diff (head vs base)
+│           ├── precis.md        # short LLM précis of the diff (Phase-1 input)
+│           ├── queue-context.json  # slack permalink + supporting_docs from the queue row
+│           ├── findings.json    # structured findings (machine-readable)
+│           ├── findings.md      # human-readable findings rendering
+│           ├── pr-comments.json # prior PR comments fetched for resolve-comments
+│           ├── posting-plan.json # what we plan to post (pre-confirmation)
+│           └── report.md        # final review report
 # The queue itself lives under config/ (see above): config/pr-queue.json5.
 ├── skill-investigate/<task>/
 ├── skill-review/<task>/         # lightweight /adk-review on remote PRs
 ├── skill-sync/<task>/synced/
-├── skill-setup/<ts>/  skill-explain/<ts>/  skill-improve/<ts>/  skill-document/<ts>/  skill-implement/<ts>/
+├── skill-setup/                 # /adk-setup outputs
+│   └── auto-runs/<ts>/          # one folder per --check or --init run
+├── skill-explain/<ts>/  skill-improve/<ts>/  skill-document/<ts>/  skill-implement/<ts>/
+└── logs/                        # CLI log output — `adk pr-sync`, `adk pr-queue`, etc.
+                                 # One file per command invocation. Rotated by hand for now.
 ```
 
 **Why this layout.** `memory/` and `improve/` are top-level because their lifecycle is independent of config (memory is per-session, improve is auto-managed by `/adk-improve`). `config/` is user-owned, with `connectors/<source>.md` as the canonical per-source config — the YAML frontmatter is what scripts read; the markdown body is the human-authored cheatsheet the agent reads as context.

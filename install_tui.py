@@ -21,18 +21,29 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parent
 
-SUPPORTED = ["claude", "cursor", "codex", "junie"]
+
+def _load_install(repo_root: Path):
+    sys.path.insert(0, str(repo_root))
+    try:
+        import install as _install  # type: ignore
+        return _install
+    except ImportError as e:
+        sys.stderr.write(f"could not import install.py from {repo_root}: {e}\n")
+        return None
+
+
+def supported_targets(repo_root: Path) -> list[str]:
+    """Single source of truth lives in install.py — read it from there."""
+    inst = _load_install(repo_root)
+    return list(inst.SUPPORTED) if inst else []
 
 
 def detect(repo_root: Path) -> dict[str, bool]:
     """Import install.py's detectors without running it. Returns {target: detected}."""
-    sys.path.insert(0, str(repo_root))
-    try:
-        import install as _install  # type: ignore
-    except ImportError as e:
-        sys.stderr.write(f"could not import install.py from {repo_root}: {e}\n")
-        return {t: False for t in SUPPORTED}
-    return {t: _install.DETECTORS[t]() for t in SUPPORTED}
+    inst = _load_install(repo_root)
+    if inst is None:
+        return {}
+    return {t: inst.DETECTORS[t]() for t in inst.SUPPORTED}
 
 
 def run_install(repo_root: Path, targets: list[str], dry_run: bool, uninstall: bool) -> int:
@@ -56,12 +67,13 @@ def _tui_available() -> bool:
 
 def _fallback_prompt(repo_root: Path) -> int:
     """Plain numbered-menu prompt. Works without textual."""
+    supported = supported_targets(repo_root)
     detected = detect(repo_root)
     print()
     print("adk install — interactive (textual not installed; using plain prompt)")
     print("──────────────────────────────────────────────────────────────────────")
-    for i, t in enumerate(SUPPORTED, 1):
-        mark = "✓ detected" if detected[t] else "  not detected"
+    for i, t in enumerate(supported, 1):
+        mark = "✓ detected" if detected.get(t) else "  not detected"
         print(f"  [{i}] {t:<8}  {mark}")
     print()
     print("Enter comma-separated targets (e.g. 1,2) or `all` for everything,")
@@ -82,11 +94,11 @@ def _fallback_prompt(repo_root: Path) -> int:
             print("no agents detected; pass `all` to force install for everything.")
             return 1
     elif sel == "all":
-        targets = list(SUPPORTED)
+        targets = list(supported)
     else:
         try:
             idxs = [int(x) for x in sel.split(",")]
-            targets = [SUPPORTED[i - 1] for i in idxs if 1 <= i <= len(SUPPORTED)]
+            targets = [supported[i - 1] for i in idxs if 1 <= i <= len(supported)]
         except (ValueError, IndexError):
             print(f"could not parse selection: {sel!r}")
             return 2
@@ -99,6 +111,7 @@ def _run_textual(repo_root: Path) -> int:
     from textual.containers import Vertical, Horizontal
     from textual.widgets import Checkbox, Footer, Header, Label, RichLog, Button
 
+    supported = supported_targets(repo_root)
     detected = detect(repo_root)
 
     class InstallApp(App):
@@ -117,9 +130,9 @@ def _run_textual(repo_root: Path) -> int:
             yield Header(show_clock=False)
             with Vertical(id="agents"):
                 yield Label("Targets — check to include in this run:")
-                for t in SUPPORTED:
-                    mark = " (detected)" if detected[t] else ""
-                    yield Checkbox(f"{t}{mark}", value=detected[t], id=f"cb_{t}")
+                for t in supported:
+                    mark = " (detected)" if detected.get(t) else ""
+                    yield Checkbox(f"{t}{mark}", value=detected.get(t, False), id=f"cb_{t}")
             with Horizontal(id="buttons"):
                 yield Button("Dry-run", id="btn_dryrun", variant="primary")
                 yield Button("Install", id="btn_install", variant="success")
@@ -133,7 +146,7 @@ def _run_textual(repo_root: Path) -> int:
             self.sub_title = "select agents → click action"
 
         def _selected_targets(self) -> list[str]:
-            return [t for t in SUPPORTED if self.query_one(f"#cb_{t}", Checkbox).value]
+            return [t for t in supported if self.query_one(f"#cb_{t}", Checkbox).value]
 
         def _exec(self, dry_run: bool, uninstall: bool) -> None:
             targets = self._selected_targets()
