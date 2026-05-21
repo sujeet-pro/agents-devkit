@@ -116,15 +116,16 @@ def test_max_cost_passes_when_estimate_below(tmp_path, monkeypatch):
 
 
 def test_quiet_hours_aborts_inside_window(tmp_path, monkeypatch):
-    """Pin local clock inside 00-23 (covers any real-world hour) → abort."""
+    """Force the window to be 'in effect' → main() aborts with rc=2."""
     qp = tmp_path / "q.json5"
     qp.write_text(json.dumps({"prs": [{"pr_url": "u1", "status": "pending"}]}))
     monkeypatch.setattr(auto_run, "AUTO_RUNS_ROOT", tmp_path / "auto-runs")
+    monkeypatch.setattr(auto_run, "_in_quiet_hours", lambda spec, now=None: True)
     captured = io.StringIO()
     monkeypatch.setattr(sys, "stdout", captured)
     rc = auto_run.main([
         "--queue", str(qp), "--no-sync",
-        "--quiet-hours", "0-23",  # near-universal window
+        "--quiet-hours", "00-08",
     ])
     monkeypatch.undo()
     assert rc == 2
