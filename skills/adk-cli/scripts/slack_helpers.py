@@ -333,6 +333,194 @@ class SlackClient:
             self.log.error("post_thread_reply failed: %s", e)
             return None
 
+
+# ----- Review reply (§6.y.1) ----------------------------------------------
+
+VERDICT_EMOJI = {
+    "approved": "✅",
+    "approve": "✅",
+    "comments": "⚠",
+    "comment_only": "⚠",
+    "reviewed": "🚫",
+    "request_changes": "🚫",
+    "merged": "🔒",
+    "closed": "🔒",
+}
+
+VERDICT_WORD = {
+    "approved": "Approved",
+    "approve": "Approved",
+    "comments": "Comments",
+    "comment_only": "Comments",
+    "reviewed": "Changes requested",
+    "request_changes": "Changes requested",
+    "merged": "Merged",
+    "closed": "Closed",
+}
+
+
+def _lookup_slack_user_id(host: str, login: str | None) -> str | None:
+    """Resolve a GitHub/Bitbucket login to a Slack user ID via core.yaml's
+    user_mappings block. Returns None when no mapping exists.
+
+    core.yaml schema:
+      user_mappings:
+        github_to_slack:
+          sujeet-pro: U123ABC
+        bitbucket_to_slack:
+          some-nickname: U456DEF
+    """
+    if not login:
+        return None
+    try:
+        import os
+        import yaml  # type: ignore
+        home = (os.environ.get("ADK_HOME")
+                or str(Path.home() / ".agents-devkit"))
+        core = Path(home) / "config" / "core.yaml"
+        if not core.exists():
+            return None
+        cfg = yaml.safe_load(core.read_text(encoding="utf-8")) or {}
+        block_key = "github_to_slack" if host == "github" else "bitbucket_to_slack"
+        mapping = ((cfg.get("user_mappings") or {}).get(block_key) or {})
+        sid = mapping.get(login)
+        if sid and isinstance(sid, str):
+            return sid
+    except Exception:
+        pass
+    return None
+
+
+def render_review_reply(
+    *,
+    host: str,
+    owner: str,
+    repo: str,
+    pr_number: int,
+    pr_url: str,
+    head_sha: str | None,
+    author_login: str | None,
+    status: str,
+    summary_tldr: str,
+    bullets: list[str],
+) -> str:
+    """Compose the 3-section v4 §6.y.1 Slack reply.
+
+    Line 1: <emoji> *<verdict>* — <tldr>
+    Line 2: 📌 `<owner-or-ws>/<repo>#<n>` · status `<status>` · head `<sha[:12]>` · author <@U…> | @login
+    Lines 3..: bullet summary
+
+    Hard rules:
+      - Line 1 truncated to ~100 chars.
+      - PR identifier backticked, never folded into URL anchor.
+      - Bullets ≤ 80 chars each, 4-6 bullets max.
+      - URL bullet always present.
+    """
+    emoji = VERDICT_EMOJI.get(status, "ℹ")
+    word = VERDICT_WORD.get(status, status.title())
+    line1 = f"{emoji} *{word}* — {summary_tldr.strip()}"
+    if len(line1) > 100:
+        line1 = line1[:97] + "…"
+
+    # Author mention.
+    slack_uid = _lookup_slack_user_id(host, author_login)
+    if slack_uid:
+        author_part = f"<@{slack_uid}>"
+    elif author_login:
+        author_part = f"@{author_login}"
+    else:
+        author_part = "(author unknown)"
+
+    head_part = f" · head `{head_sha[:12]}`" if head_sha else ""
+    line2 = (f"📌 `{owner}/{repo}#{pr_number}` · status `{status}`"
+             f"{head_part} · author {author_part}")
+
+    # Bullets — cap at 6, truncate each at 80.
+    capped = []
+    for b in (bullets or [])[:6]:
+        b = b.strip().rstrip(".")
+        if len(b) > 80:
+            b = b[:77] + "…"
+        capped.append(f"• {b}")
+    # Always include the URL bullet, prefixed 🔗.
+    if not any(pr_url in c for c in capped):
+        capped.append(f"• 🔗 {pr_url}")
+
+    return "\n".join([line1, line2, *capped])
+
+
+def post_review_slack_reply(
+    client: "SlackClient",
+    *,
+    channel_id: str,
+    thread_ts: str,
+    text: str,
+    log=None,
+) -> str | None:
+    """Post the rendered review reply into the queue row's Slack thread.
+
+    Returns the new message's ts on success, None on failure (with log).
+    Idempotency check is the caller's job — see `post-result.json:slack_reply_ts`.
+    """
+    ts = client.post_thread_reply(channel_id, thread_ts, text)
+    if log:
+        if ts:
+            log.info("slack: posted review reply ts=%s in channel=%s thread=%s",
+                     ts, channel_id, thread_ts)
+        else:
+            log.warning("slack: post_review_slack_reply returned None — see prior errors")
+    return ts
+
+
+# ----- Auto-approve gate (§6.z) -------------------------------------------
+
+# Severities that block auto-approve. Question / appreciation / nitpick /
+# may-have DO NOT count as defects per §6.z.
+APPROVE_BLOCKING_SEVERITIES = frozenset({"blocker", "critical", "should-have"})
+
+
+def compute_approve_ready(
+    findings: list[dict],
+    existing_comment_actions: list[dict] | None = None,
+    *,
+    pr_state: str | None = None,
+    no_approve_flag: bool = False,
+) -> tuple[bool, str | None]:
+    """v4 §6.z auto-approve gate. Returns (approve_ready, reason_if_no).
+
+    approve_ready=True iff ALL of:
+      1. findings[] contains zero entries with severity in APPROVE_BLOCKING.
+      2. existing_comment_actions[] contains zero entries where the bot
+         decided to reopen a prior thread because of a FRESH finding (the
+         reopen is the bot's call, not an offline-alignment passthrough).
+      3. PR is in a non-terminal state (not MERGED / CLOSED / DECLINED /
+         closed / merged).
+      4. --no-approve flag is NOT set.
+
+    Returns the reason as a short, user-readable string when not approving
+    (suitable for inclusion in the Slack reply).
+    """
+    if no_approve_flag:
+        return False, "auto-approve disabled (--no-approve)"
+
+    if pr_state and pr_state.upper() in {"MERGED", "CLOSED", "DECLINED",
+                                          "SUPERSEDED"}:
+        return False, f"PR is in terminal state ({pr_state})"
+
+    blocking = [f for f in (findings or [])
+                if (f.get("severity") or "") in APPROVE_BLOCKING_SEVERITIES]
+    if blocking:
+        return False, (f"{len(blocking)} blocking finding(s) "
+                       f"({', '.join(b.get('severity', '?') for b in blocking[:3])})")
+
+    fresh_reopens = [a for a in (existing_comment_actions or [])
+                     if a.get("decision") == "reopen"
+                     and not (a.get("offline_alignment_detected") is True)]
+    if fresh_reopens:
+        return False, f"{len(fresh_reopens)} prior thread(s) reopened by bot review"
+
+    return True, None
+
     # ----- low-level -----
 
     def _call(self, method_dot: str, params: dict) -> dict:
