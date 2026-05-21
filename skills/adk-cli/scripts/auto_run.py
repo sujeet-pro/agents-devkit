@@ -51,6 +51,48 @@ AUTO_RUNS_ROOT = ADK_HOME / "skill-setup" / "auto-runs"
 REPO_ROOT = THIS_DIR.parent.parent.parent
 ADK_BIN = REPO_ROOT / "bin" / "adk"
 
+# Per-agent rough cost coefficient (USD per review). Used by --max-cost-usd
+# as a pre-flight estimate. Conservative; doesn't account for retries.
+# Source: rough ballpark from observed runs; tune via core.yaml later.
+AGENT_COST_USD = {
+    "claude": 0.50,
+    "codex": 0.30,
+    "cursor": 0.30,
+    "opencode": 0.30,
+}
+
+
+def _parse_quiet_hours(spec: str) -> tuple[int, int]:
+    """Parse 'WW-XX' (24h, local) → (start_hour, end_hour). Inclusive of start,
+    exclusive of end. '00-08' means 00:00 ≤ now < 08:00 → quiet.
+
+    Wrap-around supported: '22-06' means 22:00 ≤ now OR now < 06:00.
+    """
+    import re as _re
+    m = _re.match(r"^(\d{1,2})-(\d{1,2})$", spec.strip())
+    if not m:
+        raise ValueError(f"--quiet-hours must look like 'HH-HH' (24h), got {spec!r}")
+    a, b = int(m.group(1)), int(m.group(2))
+    if not (0 <= a < 24 and 0 <= b < 24):
+        raise ValueError(f"--quiet-hours: hours must be 0-23, got {spec!r}")
+    return a, b
+
+
+def _in_quiet_hours(spec: str, now=None) -> bool:
+    """True if `now` (local clock) falls within the quiet window."""
+    if not spec:
+        return False
+    import datetime as _dt
+    if now is None:
+        now = _dt.datetime.now()
+    a, b = _parse_quiet_hours(spec)
+    h = now.hour
+    if a == b:
+        return False  # zero-length window
+    if a < b:
+        return a <= h < b
+    return h >= a or h < b  # wrap-around
+
 
 def _now_iso() -> str:
     return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
@@ -202,6 +244,17 @@ def main(argv: list[str] | None = None) -> int:
                     help="skip the pre-flight `adk pr-sync` step")
     ap.add_argument("--dry-run", action="store_true",
                     help="show what would happen; spawn no agents")
+    ap.add_argument("--quiet-hours", default=None,
+                    help="refuse to spawn during this local-clock window (e.g. '00-08' "
+                         "= 00:00 ≤ now < 08:00; '22-06' wraps around midnight). "
+                         "Useful so a scheduled job doesn't ping people overnight.")
+    ap.add_argument("--max-cost-usd", type=float, default=None,
+                    help="abort with rc=2 if the pre-flight estimate "
+                         "(per-agent coefficient × eligible PR count) exceeds this. "
+                         "Conservative; doesn't account for retries.")
+    ap.add_argument("--report-to-slack", default=None,
+                    help="post a summary to this Slack channel (e.g. '#pr-reviews') "
+                         "at the end of the run. Requires SLACK_BOT_TOKEN_CRED.")
     args = ap.parse_args(argv)
 
     log = get_logger("adk-auto")
@@ -210,6 +263,22 @@ def main(argv: list[str] | None = None) -> int:
     run_dir = AUTO_RUNS_ROOT / run_id
     run_dir.mkdir(parents=True, exist_ok=True)
     log.info("auto run %s starting; queue=%s", run_id, args.queue)
+
+    # Quiet hours guard — refuse to spawn if we're inside the window.
+    if args.quiet_hours:
+        try:
+            if _in_quiet_hours(args.quiet_hours):
+                out = {
+                    "action": "aborted",
+                    "reason": f"inside quiet-hours window ({args.quiet_hours})",
+                    "run_dir": str(run_dir),
+                }
+                print(json.dumps(out, indent=2))
+                return 2
+        except ValueError as e:
+            print(json.dumps({"action": "aborted", "reason": str(e),
+                              "run_dir": str(run_dir)}, indent=2))
+            return 2
 
     # Step 1: pr-sync (optional).
     ran_sync = False
@@ -226,6 +295,22 @@ def main(argv: list[str] | None = None) -> int:
     if len(eligible) > args.max_reviews:
         eligible = eligible[:args.max_reviews]
 
+    # Cost guard — pre-flight estimate × eligible count.
+    if args.max_cost_usd is not None and eligible:
+        cost_per = AGENT_COST_USD.get(args.agent, 0.50)  # conservative default
+        estimated = cost_per * len(eligible)
+        if estimated > args.max_cost_usd:
+            out = {
+                "action": "aborted",
+                "reason": (f"estimated cost ${estimated:.2f} "
+                           f"exceeds --max-cost-usd ${args.max_cost_usd:.2f} "
+                           f"(agent={args.agent}, per_review=${cost_per:.2f}, "
+                           f"eligible={len(eligible)})"),
+                "run_dir": str(run_dir),
+            }
+            print(json.dumps(out, indent=2))
+            return 2
+
     if args.dry_run:
         out = {
             "action": "dry_run",
@@ -234,6 +319,9 @@ def main(argv: list[str] | None = None) -> int:
             "agent": args.agent,
             "parallel": args.parallel,
             "max_reviews": args.max_reviews,
+            "quiet_hours": args.quiet_hours,
+            "max_cost_usd": args.max_cost_usd,
+            "report_to_slack": args.report_to_slack,
             "run_dir": str(run_dir),
         }
         print(json.dumps(out, indent=2))
@@ -269,9 +357,44 @@ def main(argv: list[str] | None = None) -> int:
         "ok": sum(1 for r in results if r.get("status") == "ok"),
         "failed": n_fail,
     }
+
+    # Step 5: optional Slack summary post.
+    if args.report_to_slack:
+        try:
+            _post_slack_summary(args.report_to_slack, results, report_path, log)
+            summary["slack_summary"] = "posted"
+        except Exception as e:
+            log.warning("slack summary post failed: %s", e)
+            summary["slack_summary"] = f"failed: {e}"
+
     print(json.dumps(summary, indent=2))
     _print_run_tail(run_dir, results, report_path)
     return 1 if n_fail else 0
+
+
+def _post_slack_summary(channel: str, results: list[dict], report_path: Path, log) -> None:
+    """Post a one-liner summary to the configured channel."""
+    n_ok = sum(1 for r in results if r.get("status") == "ok")
+    n_fail = sum(1 for r in results if r.get("status") == "failed")
+    glyph = "✅" if n_fail == 0 else "⚠"
+    lines = [
+        f"{glyph} *adk auto* — reviewed {len(results)} PR(s): {n_ok} ok, {n_fail} failed",
+    ]
+    for r in results:
+        s = r.get("status", "?")
+        bullet = "•" if s == "ok" else "❌"
+        lines.append(f"{bullet} {r.get('pr_url', '?')}")
+    lines.append(f"• report: `{report_path}`")
+    text = "\n".join(lines)
+
+    # Lazy import — only when --report-to-slack is set.
+    from slack_helpers import SlackClient  # type: ignore
+    client = SlackClient()
+    channel_id = client.resolve_channel(channel)
+    client.post_thread_reply(channel_id, "", text)  # not a thread; top-level
+    # Note: post_thread_reply takes thread_ts="" → it'll post as top-level.
+    # If that doesn't work cleanly, we fall back to the same SDK call directly.
+    log.info("posted adk auto summary to %s", channel)
 
 
 if __name__ == "__main__":

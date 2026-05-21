@@ -81,9 +81,13 @@ Usage:
   adk repo rebuild-index <name> [--branch X]  rebuild a branch's index from scratch (when its dir was deleted by hand)
   adk repo migrate [<name>]                   migrate legacy v3 layout to v4 (idempotent)
   adk repo list [--names-only]                list repos under ~/.agents-devkit/repos/
-  adk auto [--max-reviews N] [--parallel N] [--agent X] [--exclude URL] [--no-sync] [--dry-run]
+  adk auto [--max-reviews N] [--parallel N] [--agent X] [--exclude URL] [--no-sync]
+           [--dry-run] [--quiet-hours WW-XX] [--max-cost-usd N] [--report-to-slack #ch]
                                               headless review: pr-sync + spawn agents on every eligible PR.
                                               Scheduler-friendly (cron, launchd). NEVER merges (constitution §I.3).
+                                              --quiet-hours WW-XX refuses to spawn during the local-clock window.
+                                              --max-cost-usd aborts when the per-agent estimate × eligible count exceeds.
+                                              --report-to-slack posts a one-liner to the channel at the end.
   adk doctor [--tui] [--strict]               validate env, deps, MCPs, ollama, tokens
   adk completion bash|zsh|fish                emit a shell-completion script
 
