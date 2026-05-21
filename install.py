@@ -57,7 +57,7 @@ ADK_USER_DIR = Path.home() / ".agents-devkit" / "config"
 # Skill directories under skills/ that are NOT slash-invokable agent skills:
 # they hold shared python modules / CLI subcommands and should not be symlinked
 # into ~/.claude/skills/, ~/.junie/skills/, etc.
-NON_SLASH_SKILLS: set[str] = {"adk-cli", "adk-pr-reviews"}
+NON_SLASH_SKILLS: set[str] = {"adk-cli"}
 
 # Where the `adk` CLI binary lives (symlinked at install time).
 ADK_BIN_TARGET = Path.home() / ".local" / "bin" / "adk"

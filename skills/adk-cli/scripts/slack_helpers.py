@@ -1,8 +1,8 @@
 """slack_helpers.py — Slack Web-API helpers used by the `adk` CLI.
 
-Originally lived under `skills/adk-pr-reviews/scripts/`; moved here because the
-CLI is the canonical consumer (the `/adk-pr-review` skill also imports from
-here when it needs to react/reply on the Slack thread that referenced a PR).
+The `adk` CLI is the canonical consumer (the `/adk-pr-review` skill also
+imports from here when it needs to react/reply on the Slack thread that
+referenced a PR).
 
 All credential reading honours constitution §VII — the token value is never
 echoed; only its presence is asserted.
