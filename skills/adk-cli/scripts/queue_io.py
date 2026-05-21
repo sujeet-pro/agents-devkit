@@ -82,8 +82,60 @@ STATUS_ALIASES = {
 
 # Auto-expire for queue-row `taken_at` locks. After this, the row is considered
 # free again so another terminal can pick it up (the prior reviewer presumably
-# died / crashed).
-TAKEN_LOCK_MAX_AGE_SECONDS = 30 * 60
+# died / crashed). v4 §6.v raises the default from 30 min to 2 h to cover
+# long-running reviews; the heartbeat verb (P6) keeps active reviews fresh.
+TAKEN_LOCK_MAX_AGE_SECONDS = 2 * 60 * 60
+
+
+# v4 §4 prep_status state machine:
+#   pending → preparing → ready
+#                 ↘ failed (with reason)
+#                 ↘ skipped (e.g. merged before prep finished)
+#   ready → preparing  (when head_sha moves)
+PREP_PENDING = "pending"
+PREP_PREPARING = "preparing"
+PREP_READY = "ready"
+PREP_FAILED = "failed"
+PREP_SKIPPED = "skipped"
+PREP_WAITING_FOR_BASE = "waiting_for_base"  # tier-1 in §5 DAG; base index is building
+
+
+def ready_for_review(entry: dict, *, now=None) -> bool:
+    """v4 §6.u eligibility predicate — single source of truth.
+
+    A PR can be reviewed iff EVERY condition holds:
+      1. status not in TERMINAL_STATUSES (merged, closed).
+      2. taken_at is null OR older than TAKEN_LOCK_MAX_AGE_SECONDS.
+      3. prep_status == "ready".
+      4. prep_head_sha == head_sha (prep is for the current commit).
+      5. head_sha != last_reviewed_head_sha (this commit not yet reviewed).
+
+    Used by `adk pr-queue get-next`, `adk pr-queue claim`, and (later) the TUI.
+    """
+    if now is None:
+        now = datetime.now(tz=timezone.utc)
+    # 1. terminal
+    if (entry.get("status") or "") in TERMINAL_STATUSES:
+        return False
+    # 2. lock
+    if _is_locked(entry, now):
+        return False
+    # 3. prep_status — back-compat: rows without a prep_status field were
+    # created before P5 landed; treat them as "ready" so the predicate stays
+    # backward-compatible until the next sync writes prep_status explicitly.
+    prep_status = entry.get("prep_status")
+    if prep_status is not None and prep_status != PREP_READY:
+        return False
+    # 4. prep_head_sha matches head_sha — same back-compat: skip if absent.
+    head = entry.get("head_sha") or entry.get("head_oid")
+    prep_head = entry.get("prep_head_sha")
+    if prep_head is not None and head and prep_head != head:
+        return False
+    # 5. not already reviewed at this head.
+    last_reviewed = entry.get("last_reviewed_head_sha") or entry.get("last_reviewed_head_oid")
+    if head and last_reviewed and head == last_reviewed:
+        return False
+    return True
 
 
 # Canonical queue location + legacy fallback for one-time migration.

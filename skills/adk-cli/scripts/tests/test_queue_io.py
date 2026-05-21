@@ -71,7 +71,9 @@ def test_acquire_next_row_skips_locked_rows(tmp_path):
 
 def test_acquire_next_row_treats_expired_lock_as_free(tmp_path):
     qp = tmp_path / "pr-queue.json5"
-    expired = _iso(datetime.now(tz=timezone.utc) - timedelta(minutes=45))  # > 30 min
+    # v4 §6.v raised TAKEN_LOCK_MAX_AGE_SECONDS from 30 min to 2 h to cover
+    # long-running reviews; the test now uses a 3-hour-old lock.
+    expired = _iso(datetime.now(tz=timezone.utc) - timedelta(hours=3))  # > 2 h
     _write_queue(qp, [
         {"pr_url": "https://github.com/acme/foo/pull/1", "status": "pending",
          "last_checked_at": None, "taken_at": expired},

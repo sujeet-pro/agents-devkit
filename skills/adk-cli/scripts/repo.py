@@ -59,6 +59,7 @@ import shutil
 import subprocess
 import sys
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 
 THIS_DIR = Path(__file__).resolve().parent
@@ -686,6 +687,169 @@ def cmd_branch_list(args) -> int:
     return 0
 
 
+def _list_auto_bases() -> list[dict]:
+    """v4 §5.4: enumerate every branch dir with branch-meta.created_by == 'auto'.
+
+    Returns one dict per (repo, branch) auto-base, with the meta fields the
+    cleanup pass needs: name, branch, slug, created_at, last_used_at,
+    auto_reason.
+    """
+    out: list[dict] = []
+    if not REPO_INDICES_ROOT.exists():
+        return out
+    for repo_dir in sorted(REPO_INDICES_ROOT.iterdir()):
+        if not repo_dir.is_dir() or repo_dir.name.startswith("."):
+            continue
+        name = repo_dir.name
+        branches_dir = repo_dir / "branches"
+        if not branches_dir.exists():
+            continue
+        for slug_dir in sorted(branches_dir.iterdir()):
+            if not slug_dir.is_dir():
+                continue
+            bm = _read_branch_meta(name, slug_dir.name)
+            if (bm.get("created_by") or "user") != "auto":
+                continue
+            out.append({
+                "name": name,
+                "branch": bm.get("branch") or slug_dir.name,
+                "slug": slug_dir.name,
+                "created_at": bm.get("created_at"),
+                "last_used_at": bm.get("last_used_at"),
+                "auto_reason": bm.get("auto_reason"),
+                "path": str(slug_dir),
+            })
+    return out
+
+
+def _auto_base_in_use(name: str, branch: str, queue_path: Path) -> bool:
+    """Check whether any non-terminal queue row references this auto-base
+    (as target_branch OR as prep_used_base.branch). Used by cleanup to
+    avoid deleting a base that just gained a user.
+    """
+    sys.path.insert(0, str(THIS_DIR))
+    from queue_io import read_queue, TERMINAL_STATUSES  # local import to avoid cycle
+    queue = read_queue(queue_path)
+    prs = queue.get("prs", []) or []
+    for e in prs:
+        if (e.get("status") or "") in TERMINAL_STATUSES:
+            continue
+        if e.get("target_branch") == branch:
+            return True
+        used = e.get("prep_used_base") or {}
+        if isinstance(used, dict) and used.get("branch") == branch:
+            return True
+    return False
+
+
+def cmd_auto_bases_list(args) -> int:
+    """List every auto-created branch index."""
+    bases = _list_auto_bases()
+    if not bases:
+        print(json.dumps({"auto_bases": [], "count": 0}, indent=2))
+        return 0
+    print(json.dumps({"auto_bases": bases, "count": len(bases)}, indent=2))
+    return 0
+
+
+def cmd_auto_bases_clean(args) -> int:
+    """Delete auto-bases with 0 active users + >= auto_base_ttl_hours of age.
+
+    A base is considered in use if any non-terminal queue row has the
+    same target_branch or prep_used_base.branch.
+
+    --force <repo> --branch X clears ONE specific base unconditionally.
+    --dry-run shows what would be deleted; no action.
+    -y / --yes confirms the bulk clean.
+    """
+    log = get_logger("repo-auto-bases-clean")
+    queue_path = Path(args.queue).expanduser() if getattr(args, "queue", None) \
+        else Path.home() / ".agents-devkit" / "config" / "pr-queue.json5"
+
+    # --force one specific base.
+    if getattr(args, "force", False):
+        if not (args.name and args.branch):
+            die("--force requires both <name> and --branch X")
+        slug = slugify_branch(args.branch)
+        branch_dir = _branch_dir(args.name, slug)
+        if not branch_dir.exists():
+            print(json.dumps({"action": "noop", "reason": "not found",
+                              "name": args.name, "branch": args.branch}, indent=2))
+            return 0
+        bm = _read_branch_meta(args.name, slug)
+        if (bm.get("created_by") or "user") != "auto":
+            die(f"refusing to force-clean a user-created base "
+                f"({args.name}:{args.branch}); user bases are never auto-cleaned. "
+                f"Use `adk repo branch remove` instead.")
+        if args.dry_run:
+            print(json.dumps({"action": "would_force_delete",
+                              "name": args.name, "branch": args.branch,
+                              "path": str(branch_dir)}, indent=2))
+            return 0
+        shutil.rmtree(branch_dir)
+        _rewrite_repo_catalog(args.name, log)
+        print(json.dumps({"action": "force_deleted",
+                          "name": args.name, "branch": args.branch}, indent=2))
+        return 0
+
+    # Bulk clean.
+    import os
+    ttl_hours = float(os.environ.get("ADK_AUTO_BASE_TTL_HOURS", "24"))
+    now_dt = datetime.now(tz=timezone.utc)
+    eligible: list[dict] = []
+    for ab in _list_auto_bases():
+        created = _parse_iso(ab.get("created_at"))
+        if created is None:
+            log.warning("auto-base %s:%s has no created_at; skipping",
+                        ab["name"], ab["branch"])
+            continue
+        age_h = (now_dt - created).total_seconds() / 3600.0
+        if age_h < ttl_hours:
+            continue
+        if _auto_base_in_use(ab["name"], ab["branch"], queue_path):
+            continue
+        eligible.append(ab)
+
+    if args.dry_run:
+        print(json.dumps({"action": "dry_run", "would_delete": eligible,
+                          "count": len(eligible)}, indent=2))
+        return 0
+    if not args.yes:
+        if not eligible:
+            print(json.dumps({"action": "noop", "count": 0,
+                              "reason": "no eligible auto-bases"}, indent=2))
+            return 0
+        print(f"Would delete {len(eligible)} auto-base(s). Re-run with --yes.")
+        return 2
+
+    deleted: list[dict] = []
+    for ab in eligible:
+        slug = slugify_branch(ab["branch"])
+        branch_dir = _branch_dir(ab["name"], slug)
+        try:
+            shutil.rmtree(branch_dir)
+            deleted.append({"name": ab["name"], "branch": ab["branch"]})
+            _rewrite_repo_catalog(ab["name"], log)
+        except OSError as e:
+            log.warning("failed to clean %s:%s: %s", ab["name"], ab["branch"], e)
+    print(json.dumps({"action": "deleted", "deleted": deleted,
+                      "count": len(deleted)}, indent=2))
+    return 0
+
+
+def _parse_iso(ts: str | None):
+    """Local helper for ISO-8601 parsing (mirror of queue_io._parse_iso)."""
+    if not ts:
+        return None
+    try:
+        from datetime import datetime
+        if ts.endswith("Z"):
+            ts = ts[:-1] + "+00:00"
+        return datetime.fromisoformat(ts)
+    except ValueError:
+        return None
+
+
 def cmd_migrate(args) -> int:
     log = get_logger("repo-migrate")
     names = [args.name] if args.name else _known_repo_names()
@@ -860,6 +1024,23 @@ def main(argv: list[str] | None = None) -> int:
     sp_bl.add_argument("name")
     sp_bl.add_argument("-y", "--yes", action="store_true")
     sp_bl.set_defaults(func=cmd_branch_list)
+
+    sp_ab = sub.add_parser("auto-bases",
+                           help="v4 §5.4: manage auto-created branch indices")
+    ab_sub = sp_ab.add_subparsers(dest="ab_cmd", required=True)
+    sp_abl = ab_sub.add_parser("list", help="list every auto-created branch index")
+    sp_abl.set_defaults(func=cmd_auto_bases_list)
+    sp_abc = ab_sub.add_parser("clean",
+                               help="delete auto-bases with 0 active users + >= 24h old")
+    sp_abc.add_argument("--queue", default=None,
+                        help="path to pr-queue.json5 (default: ~/.agents-devkit/config/pr-queue.json5)")
+    sp_abc.add_argument("--dry-run", action="store_true")
+    sp_abc.add_argument("-y", "--yes", action="store_true")
+    sp_abc.add_argument("--force", action="store_true",
+                        help="force-clean one specific auto-base (requires --name + --branch)")
+    sp_abc.add_argument("--name", default=None, help="repo name (with --force)")
+    sp_abc.add_argument("--branch", default=None, help="branch name (with --force)")
+    sp_abc.set_defaults(func=cmd_auto_bases_clean)
 
     sp_mig = sub.add_parser("migrate",
                             help="move legacy <repo>/code-index/ → "
