@@ -18,7 +18,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
-from _common import which, write_json, emit_json, die, get_logger, run  # noqa: E402
+from _common import which, write_json, emit_json, die, get_logger, run, pr_review_file  # noqa: E402
 
 try:
     import requests
@@ -49,7 +49,7 @@ def fetch_github(owner: str, repo: str, n: int, task_dir: Path, log) -> dict:
     pr["pr_number"] = n
     pr["head_sha"] = pr.get("headRefOid")
     pr["base_oid"] = pr.get("baseRefOid")
-    write_json(task_dir / "pr.json", pr)
+    write_json(pr_review_file(task_dir, "pr.json"), pr)
 
     log.info("gh api repos/%s/%s/pulls/%d/comments", owner, repo, n)
     cp = run(["gh", "api", f"repos/{owner}/{repo}/pulls/{n}/comments", "--paginate"])
@@ -57,14 +57,14 @@ def fetch_github(owner: str, repo: str, n: int, task_dir: Path, log) -> dict:
     # Also issue comments on the PR (not file-anchored), useful for "agreed offline" markers.
     cp2 = run(["gh", "api", f"repos/{owner}/{repo}/issues/{n}/comments", "--paginate"])
     issue_comments = json.loads(cp2.stdout)
-    write_json(task_dir / "pr-comments.json", {
+    write_json(pr_review_file(task_dir, "pr-comments.json"), {
         "review_comments": comments,
         "issue_comments": issue_comments,
     })
 
     log.info("gh pr diff (writing diff.patch)")
     cp = run(["gh", "pr", "diff", str(n), "--repo", f"{owner}/{repo}", "--patch"])
-    (task_dir / "diff.patch").write_text(cp.stdout, encoding="utf-8")
+    (pr_review_file(task_dir, "diff.patch")).write_text(cp.stdout, encoding="utf-8")
 
     return pr
 
@@ -136,11 +136,11 @@ def fetch_bitbucket(workspace: str, repo: str, n: int, task_dir: Path, log) -> d
         "url": pr.get("links", {}).get("html", {}).get("href"),
         "raw": pr,
     }
-    write_json(task_dir / "pr.json", out)
+    write_json(pr_review_file(task_dir, "pr.json"), out)
 
     log.info("bb GET comments (paginated)")
     comments = _bb_paginate(s, f"{BB_BASE}/repositories/{workspace}/{repo}/pullrequests/{n}/comments?pagelen=100")
-    write_json(task_dir / "pr-comments.json", {"comments": comments})
+    write_json(pr_review_file(task_dir, "pr-comments.json"), {"comments": comments})
 
     log.info("bb GET diff")
     r = s.get(
@@ -148,7 +148,7 @@ def fetch_bitbucket(workspace: str, repo: str, n: int, task_dir: Path, log) -> d
         timeout=120,
     )
     r.raise_for_status()
-    (task_dir / "diff.patch").write_text(r.text, encoding="utf-8")
+    (pr_review_file(task_dir, "diff.patch")).write_text(r.text, encoding="utf-8")
 
     return out
 
@@ -174,12 +174,12 @@ def main() -> int:
     else:
         pr = fetch_bitbucket(args.owner, args.repo, args.pr_number, task_dir, log)
 
-    diff_bytes = (task_dir / "diff.patch").stat().st_size
+    diff_bytes = (pr_review_file(task_dir, "diff.patch")).stat().st_size
     result = {
         "task_dir": str(task_dir),
-        "pr_json": str(task_dir / "pr.json"),
-        "pr_comments_json": str(task_dir / "pr-comments.json"),
-        "diff_patch": str(task_dir / "diff.patch"),
+        "pr_json": str(pr_review_file(task_dir, "pr.json")),
+        "pr_comments_json": str(pr_review_file(task_dir, "pr-comments.json")),
+        "diff_patch": str(pr_review_file(task_dir, "diff.patch")),
         "diff_bytes": diff_bytes,
         "head_sha": pr.get("head_sha"),
         "base_oid": pr.get("base_oid"),

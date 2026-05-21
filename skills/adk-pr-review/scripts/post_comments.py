@@ -29,7 +29,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
-from _common import read_json, write_json, emit_json, get_logger, die  # noqa: E402
+from _common import read_json, write_json, emit_json, get_logger, die, pr_review_file  # noqa: E402
 
 try:
     import requests
@@ -457,12 +457,12 @@ def main() -> int:
     task_dir = Path(args.task_dir)
     log = get_logger("post_comments", task_dir)
 
-    pr = read_json(task_dir / "pr.json")
+    pr = read_json(pr_review_file(task_dir, "pr.json"))
     # Triage-aware: prefer findings-final.json (only accepted findings + edits applied).
     # Fall back to findings.json when triage hasn't run (back-compat with task dirs
     # from before phase 5 or runs where the user explicitly skipped triage).
-    final_path = task_dir / "findings-final.json"
-    legacy_path = task_dir / "findings.json"
+    final_path = pr_review_file(task_dir, "findings-final.json")
+    legacy_path = pr_review_file(task_dir, "findings.json")
     if final_path.exists():
         findings_path = final_path
         log.info("reading findings-final.json (triage applied)")
@@ -471,7 +471,7 @@ def main() -> int:
         log.info("reading findings.json (no triage; posting all findings as-is)")
     else:
         die(f"missing {final_path} (preferred) and {legacy_path} (fallback)")
-    actions_path = task_dir / "comment-actions.json"
+    actions_path = pr_review_file(task_dir, "comment-actions.json")
     findings = read_json(findings_path)
     actions = read_json(actions_path).get("actions", []) if actions_path.exists() else []
 
@@ -506,7 +506,7 @@ def main() -> int:
     # Pick up the queue's slack thread (populated by `adk pr-scan` + merged in
     # by prepare_task.py when the PR appears in the queue). Absent for URL-only
     # reviews — the Slack step then emits a "skipped" marker.
-    queue_ctx_path = task_dir / "queue-context.json"
+    queue_ctx_path = pr_review_file(task_dir, "queue-context.json")
     queue_ctx = read_json(queue_ctx_path) if queue_ctx_path.exists() else None
     plan = build_posting_plan(
         pr=pr,
@@ -517,14 +517,14 @@ def main() -> int:
         slack_summary_enabled=not args.no_slack_summary,
         queue_ctx=queue_ctx,
     )
-    write_json(task_dir / "posting-plan.json", plan)
+    write_json(pr_review_file(task_dir, "posting-plan.json"), plan)
     log.info("posting-plan.json: %d step(s) — %s",
              len(plan.get("steps", [])),
              ", ".join(s.get("kind", "?") for s in plan.get("steps", [])) or "<empty>")
 
     if args.confirmed != "yes":
         result = plan_only(task_dir, findings, actions)
-        result["posting_plan"] = str(task_dir / "posting-plan.json")
+        result["posting_plan"] = str(pr_review_file(task_dir, "posting-plan.json"))
         result["plan_steps"] = len(plan.get("steps", []))
         return emit_json(result) if args.json else (print(json.dumps(result, indent=2)) or 0)
 
@@ -537,11 +537,11 @@ def main() -> int:
         out = {
             "task_dir": str(task_dir),
             "mode": "mcp-plan",
-            "posting_plan": str(task_dir / "posting-plan.json"),
+            "posting_plan": str(pr_review_file(task_dir, "posting-plan.json")),
             "n_steps": len(plan.get("steps", [])),
             "note": "Host agent dispatches each step via the named mcp__adk-mcp-{github,bitbucket}__* tool. NEVER merge — that's a human action.",
         }
-        write_json(task_dir / "post-result.json", out)
+        write_json(pr_review_file(task_dir, "post-result.json"), out)
         return emit_json(out) if args.json else (print(json.dumps(out, indent=2)) or 0)
 
     host = pr.get("host")
@@ -609,7 +609,7 @@ def main() -> int:
     else:
         die(f"unsupported host: {host}")
 
-    write_json(task_dir / "post-result.json", out)
+    write_json(pr_review_file(task_dir, "post-result.json"), out)
     return emit_json(out) if args.json else 0
 
 
@@ -619,7 +619,7 @@ def _comment_actions_approve_ready(task_dir: Path) -> bool:
     Defaults to False when absent — we don't approve a PR whose existing
     threads haven't been classified at all.
     """
-    p = task_dir / "comment-actions.json"
+    p = pr_review_file(task_dir, "comment-actions.json")
     if not p.exists():
         return False
     try:

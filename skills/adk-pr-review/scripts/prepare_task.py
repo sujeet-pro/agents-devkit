@@ -62,7 +62,7 @@ from _common import (  # noqa: E402
     parse_pr_url, ensure_dirs, task_dir_for, repo_clone_for,
     pr_lock_for, try_file_lock, LockHeldError,
     read_state, mark_phase, write_state, write_json, read_json,
-    get_logger, die, run, which, get_cfg,
+    get_logger, die, run, which, get_cfg, pr_review_file,
 )
 
 # CLI helpers live under skills/adk-cli/scripts/. Add to sys.path so we can
@@ -337,7 +337,7 @@ def main() -> int:
                  len(queue_row.get("supporting_docs") or []))
         # Write queue-context.json so report.py can pick up slack-info + queue_path
         # without re-parsing the queue at the end.
-        write_json(task_dir / "queue-context.json", {
+        write_json(pr_review_file(task_dir, "queue-context.json"), {
             "queue_path": str(queue_path),
             "pr_url": queue_row.get("pr_url"),
             "slack": queue_row.get("slack"),
@@ -407,7 +407,7 @@ def _main_inner(args, parsed, task_dir, log) -> int:
     step([PY, str(THIS_DIR / "fetch_pr.py"),
           "--host", host, "--owner", owner, "--repo", repo,
           "--pr-number", str(n), "--task-dir", str(task_dir), "--json"], log)
-    pr = read_json(task_dir / "pr.json")
+    pr = read_json(pr_review_file(task_dir, "pr.json"))
     head_sha = pr.get("head_sha")
     if not head_sha:
         die("fetch_pr.py did not populate head_sha")
@@ -618,7 +618,7 @@ def _main_inner(args, parsed, task_dir, log) -> int:
     # ---------- Phase 4a: precis ----------
     log.info("--- Phase 4a: build precis.md ---")
     precis = build_precis(task_dir, args.top_k_context, args.scope)
-    (task_dir / "precis.md").write_text(precis, encoding="utf-8")
+    (pr_review_file(task_dir, "precis.md")).write_text(precis, encoding="utf-8")
 
     # ---------- Prepare-only exit (no agent handoff) ----------
     if args.prepare_only:
@@ -629,7 +629,7 @@ def _main_inner(args, parsed, task_dir, log) -> int:
             "task_dir": str(task_dir),
             "head_sha": head_sha,
             "worktree": str(task_dir / "code"),
-            "precis": str(task_dir / "precis.md"),
+            "precis": str(pr_review_file(task_dir, "precis.md")),
         }, indent=2))
         return 0
 
@@ -648,7 +648,7 @@ def _main_inner(args, parsed, task_dir, log) -> int:
     }
     next_steps = [
         f"agent: walk {task_dir / 'docs' / 'index.json'} — for each pending_mcp entry, fetch via the right MCP and write to its `path`.",
-        f"agent: read {task_dir / 'precis.md'} + SKILL.md + finding.template.json; produce findings.json (multi-dimension). [Phase 2]",
+        f"agent: read {pr_review_file(task_dir, 'precis.md')} + SKILL.md + finding.template.json; produce findings.json (multi-dimension). [Phase 2]",
         f"python3 scripts/validate_findings.py --task-dir {task_dir} --json   # Phase 3: drop drifted anchors + no-fix findings",
     ]
     if retrieval_flags["rerank_enabled"]:
@@ -687,7 +687,7 @@ def _main_inner(args, parsed, task_dir, log) -> int:
     ]
     if args.use_mcp:
         next_steps.append(
-            f"agent: read {task_dir / 'posting-plan.json'} — for each step, "
+            f"agent: read {pr_review_file(task_dir, 'posting-plan.json')} — for each step, "
             "invoke its mcp_tool with mcp_args. NEVER call merge_pull_request / "
             "mergePullRequest. See references/platform-mcp.md."
         )
@@ -699,7 +699,7 @@ def _main_inner(args, parsed, task_dir, log) -> int:
         "host": host, "owner": owner, "repo": repo, "pr_number": n,
         "head_sha": head_sha,
         "worktree": str(task_dir / "code"),
-        "precis": str(task_dir / "precis.md"),
+        "precis": str(pr_review_file(task_dir, "precis.md")),
         "finding_template": str(THIS_DIR.parent / "finding.template.json"),
         "skill_md": str(THIS_DIR.parent / "SKILL.md"),
         "docs_index": str(task_dir / "docs" / "index.json"),
@@ -733,11 +733,11 @@ def _languages_for(files: list[str]) -> set[str]:
 
 def build_precis(task_dir: Path, top_k: int, scope: str) -> str:
     """Build a markdown precis the model reads. Has changed-files + index-context preloaded."""
-    pr = read_json(task_dir / "pr.json")
-    diff_path = task_dir / "diff.patch"
+    pr = read_json(pr_review_file(task_dir, "pr.json"))
+    diff_path = pr_review_file(task_dir, "diff.patch")
     diff_text = diff_path.read_text(encoding="utf-8", errors="replace") if diff_path.exists() else ""
 
-    comments_blob = read_json(task_dir / "pr-comments.json") if (task_dir / "pr-comments.json").exists() else {}
+    comments_blob = read_json(pr_review_file(task_dir, "pr-comments.json")) if (pr_review_file(task_dir, "pr-comments.json")).exists() else {}
 
     meta_path = task_dir / "code-index" / "meta.json"
     meta = read_json(meta_path) if meta_path.exists() else {}

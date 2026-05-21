@@ -23,7 +23,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
-from _common import read_json, get_logger, die  # noqa: E402
+from _common import read_json, get_logger, die, pr_review_file  # noqa: E402
 
 # CLI helpers (queue release + ready-to-merge tail) live under adk-cli.
 ADK_CLI_SCRIPTS = Path(__file__).resolve().parent.parent.parent / "adk-cli" / "scripts"
@@ -280,12 +280,12 @@ def main() -> int:
     args = ap.parse_args()
 
     task_dir = Path(args.task_dir)
-    pr_path = task_dir / "pr.json"
+    pr_path = pr_review_file(task_dir, "pr.json")
     # Prefer the post-triage source of truth so the report matches what
     # actually gets posted. Falls back to the pre-triage file for back-compat
     # with task dirs from before triage shipped.
-    final_path = task_dir / "findings-final.json"
-    legacy_path = task_dir / "findings.json"
+    final_path = pr_review_file(task_dir, "findings-final.json")
+    legacy_path = pr_review_file(task_dir, "findings.json")
     if final_path.exists():
         f_path = final_path
     elif legacy_path.exists():
@@ -308,10 +308,10 @@ def main() -> int:
         log.info("post-triage recommendation: %s (n_findings=%d, approved_host=%s)",
                  findings_blob["recommendation"], len(findings), approved_host)
     actions = []
-    actions_path = task_dir / "comment-actions.json"
+    actions_path = pr_review_file(task_dir, "comment-actions.json")
     if actions_path.exists():
         actions = read_json(actions_path).get("actions", [])
-    post_result = read_json(task_dir / "post-result.json") if (task_dir / "post-result.json").exists() else None
+    post_result = read_json(pr_review_file(task_dir, "post-result.json")) if (pr_review_file(task_dir, "post-result.json")).exists() else None
 
     # findings.md — the rich human-facing artifact. This is what you read
     # months later when re-reading what was found on the PR. The JSON is
@@ -322,7 +322,7 @@ def main() -> int:
     issues = [f for f in findings if f.get("severity") != APPRECIATION_SEV]
     f_md = render_findings_md(task_dir=task_dir, pr=pr, findings_blob=findings_blob,
                               appreciations=appreciations, issues=issues, actions=actions)
-    (task_dir / "findings.md").write_text(f_md, encoding="utf-8")
+    (pr_review_file(task_dir, "findings.md")).write_text(f_md, encoding="utf-8")
 
     # report.md (1-pager)
     n_by_sev = {s: 0 for s in SEV_ORDER}
@@ -387,15 +387,15 @@ def main() -> int:
         "",
         "## Artifacts",
         f"- task dir: `{task_dir}`",
-        f"- findings.json: `{task_dir / 'findings.json'}`",
-        f"- validated-findings.json: `{task_dir / 'validated-findings.json'}`",
-        f"- initial-findings.json: `{task_dir / 'initial-findings.json'}`",
-        f"- findings.md: `{task_dir / 'findings.md'}`",
-        f"- diff.patch: `{task_dir / 'diff.patch'}`",
+        f"- findings.json: `{pr_review_file(task_dir, 'findings.json')}`",
+        f"- validated-findings.json: `{pr_review_file(task_dir, 'validated-findings.json')}`",
+        f"- initial-findings.json: `{pr_review_file(task_dir, 'initial-findings.json')}`",
+        f"- findings.md: `{pr_review_file(task_dir, 'findings.md')}`",
+        f"- diff.patch: `{pr_review_file(task_dir, 'diff.patch')}`",
         f"- code worktree: `{task_dir / 'code'}`",
         f"- code-index: `{task_dir / 'code-index'}`",
     ]
-    (task_dir / "report.md").write_text("\n".join(rp), encoding="utf-8")
+    (pr_review_file(task_dir, "report.md")).write_text("\n".join(rp), encoding="utf-8")
     if mergeable_line:
         # Also surface on stdout so the human notices in the terminal tail.
         print(mergeable_line)
@@ -443,7 +443,7 @@ def _print_links_tail(task_dir: Path, pr: dict) -> None:
     # path used.
     slack_url = None
     try:
-        ctx_path = task_dir / "queue-context.json"
+        ctx_path = pr_review_file(task_dir, "queue-context.json")
         if ctx_path.exists():
             import json as _json
             ctx = _json.loads(ctx_path.read_text(encoding="utf-8"))
@@ -458,8 +458,8 @@ def _print_links_tail(task_dir: Path, pr: dict) -> None:
     print(f"PR:        {pr_url}")
     if slack_url:
         print(f"Slack:     {slack_url}")
-    findings_md = task_dir / "findings.md"
-    report_md = task_dir / "report.md"
+    findings_md = pr_review_file(task_dir, "findings.md")
+    report_md = pr_review_file(task_dir, "report.md")
     if findings_md.exists():
         print(f"Findings:  file://{findings_md.resolve()}")
     if report_md.exists():
@@ -487,7 +487,7 @@ def _release_and_print_tail(task_dir: Path, pr: dict, findings_blob: dict, log) 
     Idempotent: if no queue-context.json was written, we still print the tail
     so the user sees the latest state; we just skip the row update.
     """
-    queue_ctx_path = task_dir / "queue-context.json"
+    queue_ctx_path = pr_review_file(task_dir, "queue-context.json")
     queue_path = DEFAULT_QUEUE_PATH
     slack_info = None
     pr_url = pr.get("url")

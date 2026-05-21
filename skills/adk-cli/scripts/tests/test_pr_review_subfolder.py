@@ -68,3 +68,36 @@ def test_pr_review_files_set_covers_known_files():
         "review.log",
     }
     assert expected <= PR_REVIEW_FILES
+
+
+def test_preserve_location_rule_legacy_task_folder(tmp_path):
+    """A new write into a legacy-shape task folder (no pr-review/ subdir,
+    other PR files at the top level) lands at the top level — don't
+    half-migrate."""
+    task = tmp_path / "legacy_pr-5"
+    task.mkdir()
+    # Seed with a legacy-shape file.
+    (task / "pr.json").write_text("{}")
+    # Ask for a new artifact — should land at top level, not pr-review/.
+    p = pr_review_file(task, "findings.json")
+    assert p == task / "findings.json"
+    assert not (task / "pr-review").exists()
+
+
+def test_preserve_location_rule_v4_task_folder(tmp_path):
+    """A new write into a v4-shape task folder (pr-review/ subdir exists)
+    lands inside pr-review/."""
+    task = tmp_path / "v4_pr-6"
+    (task / "pr-review").mkdir(parents=True)
+    p = pr_review_file(task, "findings.json")
+    assert p == task / "pr-review" / "findings.json"
+
+
+def test_brand_new_task_uses_v4_layout(tmp_path):
+    """A task folder with no existing PR files uses the v4 layout."""
+    task = tmp_path / "fresh_pr-7"
+    task.mkdir()
+    p = pr_review_file(task, "pr.json")
+    assert p == task / "pr-review" / "pr.json"
+    # Parent directory created on demand.
+    assert (task / "pr-review").exists()

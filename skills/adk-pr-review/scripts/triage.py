@@ -42,7 +42,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
-from _common import die, get_logger, read_json, write_json  # noqa: E402
+from _common import die, get_logger, read_json, write_json, pr_review_file  # noqa: E402
 
 
 VALID_STATES = ("accept", "reject", "edit", "pending")
@@ -50,21 +50,21 @@ EDITABLE_FIELDS = ("title", "body", "suggestion", "impact_if_unfixed")
 
 
 def _state_path(task_dir: Path) -> Path:
-    return task_dir / "triage-state.json"
+    return pr_review_file(task_dir, "triage-state.json")
 
 
 def _findings_path(task_dir: Path) -> Path:
     """Prefer the post-validation finding set (Phase 3 output) when it exists;
     fall back to the agent's raw findings.json for back-compat with task dirs
     that pre-date the validation phase."""
-    initial = task_dir / "initial-findings.json"
+    initial = pr_review_file(task_dir, "initial-findings.json")
     if initial.exists():
         return initial
-    return task_dir / "findings.json"
+    return pr_review_file(task_dir, "findings.json")
 
 
 def _final_path(task_dir: Path) -> Path:
-    return task_dir / "findings-final.json"
+    return pr_review_file(task_dir, "findings-final.json")
 
 
 def _now() -> str:

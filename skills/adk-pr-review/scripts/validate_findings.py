@@ -43,7 +43,7 @@ from pathlib import Path
 THIS_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(THIS_DIR))
 
-from _common import die, get_logger  # noqa: E402
+from _common import die, get_logger, pr_review_file  # noqa: E402
 
 
 MIN_SUGGESTION_LEN = 8   # below this, "fix" is not actionable
@@ -87,7 +87,7 @@ def _validate_suggestion(finding: dict) -> tuple[bool, str]:
 def validate_findings(task_dir: Path, *, log) -> dict:
     """Run the gate. Returns the summary dict that's also persisted to
     validation-report.json. Never raises for per-finding errors."""
-    findings_path = task_dir / "findings.json"
+    findings_path = pr_review_file(task_dir, "findings.json")
     if not findings_path.exists():
         die(f"no findings.json under {task_dir} — has the agent finished Phase 2?")
     worktree = task_dir / "code"
@@ -133,13 +133,13 @@ def validate_findings(task_dir: Path, *, log) -> dict:
     # validated-findings.json: full audit trail (everything, with `posted: bool`).
     out_full = dict(blob)
     out_full["findings"] = validated
-    (task_dir / "validated-findings.json").write_text(
+    (pr_review_file(task_dir, "validated-findings.json")).write_text(
         json.dumps(out_full, indent=2, sort_keys=True), encoding="utf-8")
 
     # initial-findings.json: the subset triage will walk + post.
     out_initial = dict(blob)
     out_initial["findings"] = posted
-    (task_dir / "initial-findings.json").write_text(
+    (pr_review_file(task_dir, "initial-findings.json")).write_text(
         json.dumps(out_initial, indent=2, sort_keys=True), encoding="utf-8")
 
     summary = {
@@ -151,7 +151,7 @@ def validate_findings(task_dir: Path, *, log) -> dict:
         "dropped_anchor_ids": [f.get("id") for f in dropped_anchor],
         "dropped_no_fix_ids": [f.get("id") for f in dropped_no_fix],
     }
-    (task_dir / "validation-report.json").write_text(
+    (pr_review_file(task_dir, "validation-report.json")).write_text(
         json.dumps(summary, indent=2), encoding="utf-8")
     log.info("validate: %d in → %d posted (%d dropped anchor, %d dropped no-fix)",
              summary["n_input"], summary["n_posted"],

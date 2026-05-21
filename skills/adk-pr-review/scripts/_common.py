@@ -109,14 +109,25 @@ def pr_review_dir(task_dir: Path) -> Path:
 def pr_review_file(task_dir: Path, name: str) -> Path:
     """Resolve a PR-review-specific file path with back-compat.
 
-    Returns the v4 location (`task_dir/pr-review/<name>`) UNLESS the legacy
-    location (`task_dir/<name>`) exists AND the v4 location doesn't.
-    Once P7's migration moves the existing files into pr-review/, the
-    legacy fallback stops kicking in.
+    Resolution order:
+      1. If the v4 path (`task_dir/pr-review/<name>`) exists, return it.
+      2. If the legacy path (`task_dir/<name>`) exists, return it.
+      3. Otherwise — for a brand-new file — write to wherever the rest of
+         this task folder already lives. Specifically:
+           - if `task_dir/pr-review/` exists OR no other legacy PR-review
+             files exist at the top level → return the v4 path (mkdir
+             parent on demand).
+           - else (legacy-shape task folder, no v4 subdir yet) → return
+             the legacy path so new files land next to the existing ones.
+             P7's migration script moves the whole bundle into pr-review/
+             in a single MOVE.
 
-    Use for READS where you need to find an existing file.
-    For WRITES, prefer `pr_review_dir(task_dir) / name` so new files
-    always land in the v4 location.
+    This is the "preserve location" rule: don't half-migrate a task
+    folder by mixing v4 + legacy paths.
+
+    Safe for both reads AND writes — the parent directory is created on
+    demand so `open(pr_review_file(td, "foo.json"), "w")` works without
+    a separate mkdir.
     """
     new = task_dir / "pr-review" / name
     if new.exists():
@@ -124,7 +135,16 @@ def pr_review_file(task_dir: Path, name: str) -> Path:
     legacy = task_dir / name
     if legacy.exists():
         return legacy
-    return new  # default: write to v4 location
+    pr_review_subdir = task_dir / "pr-review"
+    if pr_review_subdir.exists():
+        return new
+    if task_dir.exists() and any((task_dir / fname).exists()
+                                  for fname in PR_REVIEW_FILES):
+        # Legacy-shape task folder — write alongside the existing files.
+        return legacy
+    # Brand-new task folder → v4 layout.
+    new.parent.mkdir(parents=True, exist_ok=True)
+    return new
 
 
 def ensure_dirs() -> None:

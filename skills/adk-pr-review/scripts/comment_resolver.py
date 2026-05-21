@@ -30,7 +30,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
-from _common import read_json, write_json, emit_json, get_logger, die  # noqa: E402
+from _common import read_json, write_json, emit_json, get_logger, die, pr_review_file  # noqa: E402
 
 
 OFFLINE_PATTERNS = [
@@ -317,10 +317,10 @@ def main() -> int:
 
     task_dir = Path(args.task_dir)
     log = get_logger("comment_resolver", task_dir)
-    pr_json = task_dir / "pr.json"
-    cm_json = task_dir / "pr-comments.json"
-    findings = task_dir / "findings.json"
-    diff = task_dir / "diff.patch"
+    pr_json = pr_review_file(task_dir, "pr.json")
+    cm_json = pr_review_file(task_dir, "pr-comments.json")
+    findings = pr_review_file(task_dir, "findings.json")
+    diff = pr_review_file(task_dir, "diff.patch")
 
     if not pr_json.exists():
         die(f"missing {pr_json}")
@@ -381,7 +381,7 @@ def main() -> int:
         ),
         "actions": verified,
     }
-    write_json(task_dir / "comment-actions.json", out)
+    write_json(pr_review_file(task_dir, "comment-actions.json"), out)
     if args.json:
         return emit_json(out)
     log.info("verified %d/%d actions (%d auto-classified) · approve_ready=%s",
