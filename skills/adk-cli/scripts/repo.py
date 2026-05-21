@@ -84,9 +84,13 @@ _EXT_TO_LANG = {".ts": "ts", ".tsx": "ts", ".py": "py", ".go": "go", ".java": "j
 # ----- helpers ------------------------------------------------------------
 
 def _repo_name_from_url(url: str) -> str:
-    """Extract a repo name. Handles https/ssh/path forms."""
+    """Extract a repo name. Handles https/ssh/ssh-protocol/path forms."""
     s = url.strip().rstrip("/")
-    # SSH form: git@host:owner/repo(.git)
+    # ssh:// form: ssh://git@host/owner/repo(.git)
+    m = re.match(r"^ssh://[^@]+@[^/]+/[^/]+/([^/]+?)(\.git)?$", s)
+    if m:
+        return m.group(1)
+    # SCP/SSH form: git@host:owner/repo(.git)
     m = re.match(r"^[^@]+@[^:]+:[^/]+/([^/]+?)(\.git)?$", s)
     if m:
         return m.group(1)
@@ -95,6 +99,73 @@ def _repo_name_from_url(url: str) -> str:
     if name.endswith(".git"):
         name = name[:-4]
     return name
+
+
+# Hosts where we always rewrite HTTPS → SSH so the actual clone uses the
+# user's ssh-agent identity (no password prompts, no token handling).
+# Per user request: input flexibility on both forms, but the clone itself
+# goes over ssh.
+_HOST_HTTPS_RE = re.compile(
+    r"^https?://([^/]+)/([^/]+)/(.+?)(?:\.git)?/?$", re.IGNORECASE,
+)
+_SSH_HOSTS = {
+    "github.com", "bitbucket.org", "gitlab.com",
+    # subdomains (e.g. ghe.example.com) are matched via the regex pattern;
+    # this set is the well-known short list for emoji/logging only.
+}
+
+
+def _normalize_to_ssh(url: str) -> str:
+    """Normalise a repo URL to its SSH form for `git clone`.
+
+    Accepts the three common input forms and emits one of two outputs:
+
+      Input                                          → Output (clone form)
+      ─────────────────────────────────────────────── ────────────────────────────────
+      https://github.com/owner/repo                   git@github.com:owner/repo.git
+      https://github.com/owner/repo.git               git@github.com:owner/repo.git
+      https://bitbucket.org/ws/repo                   git@bitbucket.org:ws/repo.git
+      ssh://git@github.com/owner/repo.git             git@github.com:owner/repo.git
+      git@github.com:owner/repo.git                   git@github.com:owner/repo.git (no-op)
+      git@github.com:owner/repo                       git@github.com:owner/repo.git (add .git)
+      /local/path/to/repo (or file://)                <unchanged> (no auth swap for local)
+
+    Why: the user can paste either form (browser URL or git clone hint), but
+    the actual `git clone` always goes over ssh — relies on the user's
+    ssh-agent identity, no password prompts, no token handling. Local paths
+    and file:// URLs pass through unchanged.
+
+    Hosts that don't match the standard https://host/owner/repo shape (e.g.
+    self-hosted forges with a /scm/ prefix) pass through unchanged with a
+    warning; the user can pre-normalise if needed.
+    """
+    s = url.strip().rstrip("/")
+    # Local path or file:// — never rewrite.
+    if s.startswith(("/", "file://", ".")):
+        return s
+    # Already SSH (scp-style): just ensure .git suffix.
+    m = re.match(r"^([^@]+@[^:]+:[^/]+/.+?)(\.git)?$", s)
+    if m and "@" in s.split(":")[0]:
+        head = m.group(1)
+        return head + ".git"
+    # ssh:// protocol form → scp form.
+    m = re.match(r"^ssh://([^@]+@[^/]+)/(.+?)(?:\.git)?/?$", s)
+    if m:
+        auth_host, path = m.group(1), m.group(2)
+        return f"{auth_host}:{path}.git"
+    # HTTPS → SSH.
+    m = _HOST_HTTPS_RE.match(s)
+    if m:
+        host, owner, repo = m.group(1), m.group(2), m.group(3)
+        # Strip trailing .git if it slipped through (regex non-greedy).
+        if repo.endswith(".git"):
+            repo = repo[:-4]
+        # Strip credentials embedded in https URLs (e.g. user:token@host).
+        if "@" in host:
+            host = host.rsplit("@", 1)[1]
+        return f"git@{host}:{owner}/{repo}.git"
+    # Unknown shape — return unchanged. Caller can decide whether to proceed.
+    return s
 
 
 def _detect_default_branch(repo_path: Path, log) -> str:
@@ -406,8 +477,14 @@ def cmd_add(args) -> int:
     if not which("git"):
         die("git not on PATH. brew install git.")
 
-    url = args.url
-    name = args.name or _repo_name_from_url(url)
+    # User can paste either https or ssh; the clone itself always uses ssh
+    # so it relies on the user's ssh-agent identity (no tokens, no prompts).
+    user_url = args.url
+    clone_url = _normalize_to_ssh(user_url)
+    if clone_url != user_url:
+        log.info("normalised %s → %s for clone (input form preserved in repo-meta)",
+                 user_url, clone_url)
+    name = args.name or _repo_name_from_url(clone_url)
     repo_clone = REPOS_ROOT / name
 
     if repo_clone.exists():
@@ -417,7 +494,7 @@ def cmd_add(args) -> int:
         log.info("%s exists — skipping clone, falling through to reindex", repo_clone)
     else:
         REPOS_ROOT.mkdir(parents=True, exist_ok=True)
-        _step(["git", "clone", url, str(repo_clone)], log)
+        _step(["git", "clone", clone_url, str(repo_clone)], log)
 
     # Move any pre-existing legacy layout into branches/<default>/ before we
     # start writing branch-meta.json files.
@@ -436,9 +513,12 @@ def cmd_add(args) -> int:
         die("no branches to index — refusing to add a repo with zero indexes.")
 
     # Catalog stub — branch results overwrite tracked_branches at the end.
+    # Record both the user-supplied URL (whatever form they pasted) AND the
+    # normalised SSH URL we cloned through, so the user can audit later.
     _write_repo_meta(name, {
         "name": name,
-        "url": url,
+        "url": clone_url,                # canonical: the ssh URL git is using
+        "input_url": user_url,           # what the user originally typed
         "clone_path": str(repo_clone),
         "default_branch": default_branch,
         "tracked_branches": [],

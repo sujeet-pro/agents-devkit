@@ -68,7 +68,10 @@ Usage:
   adk pr-task info <pr-url>                   task-folder state as JSON
   adk pr-task list [--names-only|--paths]     every task folder under ~/.agents-devkit/pr-reviews/
   adk pr-task clean-orphans [--dry-run] [-y]  drop on-disk folders with no queue row
-  adk repo add <git-url> [--name <n>] [-y]    clone + index a repo's default branch
+  adk repo add <git-url|https-url> [--name <n>] [-y]
+                                              clone + index a repo's default branch. Accepts ssh
+                                              (git@host:owner/repo) OR https (https://host/owner/repo)
+                                              input — the actual clone always uses ssh.
   adk repo update <name> [--rebuild] [-y]     fetch + fast-forward + incremental reindex (skip if HEAD unchanged)
   adk repo update --all [--rebuild] [-y]      update every indexed repo (continues on failure)
   adk repo branch add <name> --branch X [--auto] [--auto-reason "..."]
