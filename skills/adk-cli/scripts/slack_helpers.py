@@ -390,6 +390,11 @@ def _lookup_slack_user_id(host: str, login: str | None) -> str | None:
         bitbucket_to_slack:
           some-nickname: U456DEF
     """
+    # NOTE: we deliberately re-resolve the core.yaml path at call time rather
+    # than via config_io.load_core(), because config_io binds ADK_HOME / paths
+    # at import time and tests that monkeypatch ADK_HOME after first import
+    # would silently miss the override. See pr_queue.py:_load_defaults for the
+    # parallel rationale. Tiny duplication; load-bearing for test isolation.
     if not login:
         return None
     try:

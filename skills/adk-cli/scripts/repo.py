@@ -52,7 +52,6 @@ import re
 import shutil
 import subprocess
 import sys
-import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -67,6 +66,7 @@ sys.path.insert(0, str(CODE_INDEX_LIB))
 
 from _common import die, get_logger, which, ADK_HOME, REPOS_ROOT  # noqa: E402
 from base_index import slugify_branch  # noqa: E402
+from queue_io import _now_iso, _parse_iso  # noqa: E402
 
 PY = sys.executable
 
@@ -242,10 +242,6 @@ def _branch_worktree(name: str, slug: str) -> Path:
 
 def _branch_meta_path(name: str, slug: str) -> Path:
     return _branch_dir(name, slug) / "branch-meta.json"
-
-
-def _now_iso() -> str:
-    return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
 
 
 def _read_repo_meta(name: str) -> dict:
@@ -899,19 +895,6 @@ def cmd_auto_bases_clean(args) -> int:
     print(json.dumps({"action": "deleted", "deleted": deleted,
                       "count": len(deleted)}, indent=2))
     return 0
-
-
-def _parse_iso(ts: str | None):
-    """Local helper for ISO-8601 parsing (mirror of queue_io._parse_iso)."""
-    if not ts:
-        return None
-    try:
-        from datetime import datetime
-        if ts.endswith("Z"):
-            ts = ts[:-1] + "+00:00"
-        return datetime.fromisoformat(ts)
-    except ValueError:
-        return None
 
 
 def cmd_list(args) -> int:
