@@ -17,10 +17,8 @@ import pr_task
 
 @pytest.fixture
 def fake_pr_reviews(tmp_path, monkeypatch):
-    """Point PR_REVIEWS_ROOT at a clean tmp dir."""
+    """Point PR_REVIEW_ROOT at a clean tmp dir."""
     monkeypatch.setattr(pr_task, "PR_REVIEW_ROOT", tmp_path)
-    monkeypatch.setattr(pr_task, "PR_REVIEWS_ROOT", tmp_path)
-    monkeypatch.setattr(pr_task, "LEGACY_PR_REVIEW_ROOT", tmp_path / "legacy-unused")
     return tmp_path
 
 
@@ -78,7 +76,7 @@ def test_info_reads_state_and_pr_json(tmp_path, monkeypatch, capsys):
     state = {
         "phases": {
             "2a_fetch_pr": {"head_sha": "deadbeefcafe1234"},
-            "3_index":     {"head_oid_at_index": "deadbeefcafe1234"},
+            "3_index":     {"head_sha_at_index": "deadbeefcafe1234"},
         }
     }
     (task / "state.json").write_text(json.dumps(state), encoding="utf-8")
@@ -307,20 +305,25 @@ def test_default_prepare_jobs_falls_back_to_one(monkeypatch):
     assert pr_task._default_prepare_jobs() == 1
 
 
-def test_default_prepare_jobs_reads_core_yaml(monkeypatch):
-    """When core.yaml has pr_sync.prepare_jobs: N, that becomes the default."""
-    fake_module = SimpleNamespace(
-        load_core=lambda: {"pr_sync": {"prepare_jobs": 4}}
-    )
+def test_default_prepare_jobs_reads_adk_cli_json5(monkeypatch):
+    """When adk-cli.json5 has pr_sync.prepare_jobs: N (or the legacy
+    core.yaml block still has it), that becomes the default."""
+    def fake_get(*path, default=None):
+        if path == ("pr_sync", "prepare_jobs"):
+            return 4
+        return default
+    fake_module = SimpleNamespace(get_adk_cli=fake_get)
     monkeypatch.setitem(sys.modules, "config_io", fake_module)
     assert pr_task._default_prepare_jobs() == 4
 
 
 def test_default_prepare_jobs_clamps_to_minimum_one(monkeypatch):
     """A zero/negative config value must not disable preparing entirely."""
-    fake_module = SimpleNamespace(
-        load_core=lambda: {"pr_sync": {"prepare_jobs": 0}}
-    )
+    def fake_get(*path, default=None):
+        if path == ("pr_sync", "prepare_jobs"):
+            return 0
+        return default
+    fake_module = SimpleNamespace(get_adk_cli=fake_get)
     monkeypatch.setitem(sys.modules, "config_io", fake_module)
     assert pr_task._default_prepare_jobs() == 1
 

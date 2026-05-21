@@ -25,8 +25,6 @@ def _write_queue(path: Path, prs: list[dict]) -> Path:
 @pytest.fixture
 def fake_pr_reviews(tmp_path, monkeypatch):
     monkeypatch.setattr(pr_task, "PR_REVIEW_ROOT", tmp_path / "skill-pr-review")
-    monkeypatch.setattr(pr_task, "PR_REVIEWS_ROOT", tmp_path / "skill-pr-review")
-    monkeypatch.setattr(pr_task, "LEGACY_PR_REVIEW_ROOT", tmp_path / "pr-reviews-legacy-unused")
     (tmp_path / "skill-pr-review").mkdir()
     return tmp_path
 

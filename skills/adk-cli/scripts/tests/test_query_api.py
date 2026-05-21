@@ -44,16 +44,21 @@ def _write_base(tmp_path: Path, repo: str, *,
                 model: str = "nomic-embed-text",
                 rows: int = 1000,
                 dim: int = 768,
-                age_days: int = 0) -> Path:
-    base = tmp_path / ".indices" / repo
-    code_index = base / "code-index"
+                age_days: int = 0,
+                branch: str = "main") -> Path:
+    base = tmp_path / repo
+    branch_dir = base / f"branch-{branch}"
+    code_index = branch_dir / "code-index"
     code_index.mkdir(parents=True, exist_ok=True)
     indexed_at = (datetime.now(timezone.utc) - timedelta(days=age_days)).strftime("%Y-%m-%dT%H:%M:%SZ")
     (base / "repo-meta.json").write_text(json.dumps({
         "name": repo,
-        "default_branch": "main",
-        "last_indexed_oid": indexed_sha,
-        "last_indexed_at": indexed_at,
+        "default_branch": branch,
+    }), encoding="utf-8")
+    (branch_dir / "branch-meta.json").write_text(json.dumps({
+        "name": repo, "branch": branch, "slug": branch,
+        "last_indexed_oid": indexed_sha, "last_indexed_at": indexed_at,
+        "embed_model": model,
     }), encoding="utf-8")
     (code_index / "meta.json").write_text(json.dumps({
         "table": "chunks", "model": model, "dim": dim, "rows": rows,
@@ -64,7 +69,7 @@ def _write_base(tmp_path: Path, repo: str, *,
 
 
 def test_open_index_not_built(tmp_path, monkeypatch, query_mod, base_index_mod):
-    monkeypatch.setattr(base_index_mod, "REPO_INDICES_ROOT", tmp_path / ".indices")
+    monkeypatch.setattr(base_index_mod, "REPOS_ROOT", tmp_path)
     with pytest.raises(query_mod.IndexNotBuilt) as ei:
         query_mod.open_index("does-not-exist", _log=False)
     assert ei.value.target == "does-not-exist"
@@ -72,7 +77,7 @@ def test_open_index_not_built(tmp_path, monkeypatch, query_mod, base_index_mod):
 
 def test_open_index_repo_returns_populated(tmp_path, monkeypatch, query_mod, base_index_mod):
     _write_base(tmp_path, "myrepo", rows=42)
-    monkeypatch.setattr(base_index_mod, "REPO_INDICES_ROOT", tmp_path / ".indices")
+    monkeypatch.setattr(base_index_mod, "REPOS_ROOT", tmp_path)
     idx = query_mod.open_index("myrepo", _log=False)
     assert idx.repo == "myrepo"
     assert idx.kind == "repo"
@@ -84,7 +89,7 @@ def test_open_index_repo_returns_populated(tmp_path, monkeypatch, query_mod, bas
 
 def test_open_index_stale_raises_when_require_fresh(tmp_path, monkeypatch, query_mod, base_index_mod):
     _write_base(tmp_path, "myrepo", age_days=30)
-    monkeypatch.setattr(base_index_mod, "REPO_INDICES_ROOT", tmp_path / ".indices")
+    monkeypatch.setattr(base_index_mod, "REPOS_ROOT", tmp_path)
     with pytest.raises(query_mod.IndexStale) as ei:
         query_mod.open_index("myrepo", require_fresh=True, max_staleness_days=7, _log=False)
     assert ei.value.age_days > 7
@@ -95,14 +100,14 @@ def test_open_index_stale_warns_not_fails_by_default(tmp_path, monkeypatch, quer
     """The whole point of `require_fresh=False` (default) is to surface staleness
     via Index.age_days without failing — callers decide whether to skip / warn."""
     _write_base(tmp_path, "myrepo", age_days=30)
-    monkeypatch.setattr(base_index_mod, "REPO_INDICES_ROOT", tmp_path / ".indices")
+    monkeypatch.setattr(base_index_mod, "REPOS_ROOT", tmp_path)
     idx = query_mod.open_index("myrepo", _log=False)  # default require_fresh=False
     assert idx.age_days > 20
 
 
 def test_open_index_model_mismatch(tmp_path, monkeypatch, query_mod, base_index_mod):
     _write_base(tmp_path, "myrepo", model="nomic-embed-text")
-    monkeypatch.setattr(base_index_mod, "REPO_INDICES_ROOT", tmp_path / ".indices")
+    monkeypatch.setattr(base_index_mod, "REPOS_ROOT", tmp_path)
     with pytest.raises(query_mod.ModelMismatch) as ei:
         query_mod.open_index("myrepo", require_model="bge-m3", _log=False)
     assert ei.value.expected == "bge-m3"
@@ -134,9 +139,9 @@ def test_open_index_branch_selects_specific_branch(tmp_path, monkeypatch, query_
     default-branch one. Falls back to default if the branch isn't indexed
     (pick_base_index's contract)."""
     # Build two branch indexes for the same repo. master is default.
-    branches_root = tmp_path / ".indices" / "ecomm-ssr" / "branches"
+    repo_root = tmp_path / "ecomm-ssr"
     for br, sha in (("master", "m" * 40), ("develop", "d" * 40)):
-        bdir = branches_root / br
+        bdir = repo_root / f"branch-{br}"
         (bdir / "code-index").mkdir(parents=True, exist_ok=True)
         (bdir / "branch-meta.json").write_text(json.dumps({
             "name": "ecomm-ssr", "branch": br, "slug": br,
@@ -149,11 +154,11 @@ def test_open_index_branch_selects_specific_branch(tmp_path, monkeypatch, query_
             "table_path": str(bdir / "code-index" / "chunks.lance"),
         }), encoding="utf-8")
         (bdir / "code-index" / "chunks.lance").mkdir(parents=True, exist_ok=True)
-    (tmp_path / ".indices" / "ecomm-ssr" / "repo-meta.json").write_text(json.dumps({
+    (repo_root / "repo-meta.json").write_text(json.dumps({
         "name": "ecomm-ssr", "default_branch": "master", "tracked_branches": [],
     }), encoding="utf-8")
 
-    monkeypatch.setattr(base_index_mod, "REPO_INDICES_ROOT", tmp_path / ".indices")
+    monkeypatch.setattr(base_index_mod, "REPOS_ROOT", tmp_path)
 
     # Asking for develop returns develop's index, not master's.
     idx = query_mod.open_index("ecomm-ssr", branch="develop", _log=False)
@@ -183,7 +188,7 @@ def test_hit_dataclass_fields_stable(query_mod):
 
 def test_similar_empty_query_returns_empty(tmp_path, monkeypatch, query_mod, base_index_mod):
     _write_base(tmp_path, "myrepo")
-    monkeypatch.setattr(base_index_mod, "REPO_INDICES_ROOT", tmp_path / ".indices")
+    monkeypatch.setattr(base_index_mod, "REPOS_ROOT", tmp_path)
     idx = query_mod.open_index("myrepo", _log=False)
     assert query_mod.similar(idx, "") == []
     assert query_mod.similar(idx, "   ") == []
@@ -191,7 +196,7 @@ def test_similar_empty_query_returns_empty(tmp_path, monkeypatch, query_mod, bas
 
 def test_callers_returns_empty_when_no_worktree(tmp_path, monkeypatch, query_mod, base_index_mod):
     _write_base(tmp_path, "myrepo")
-    monkeypatch.setattr(base_index_mod, "REPO_INDICES_ROOT", tmp_path / ".indices")
+    monkeypatch.setattr(base_index_mod, "REPOS_ROOT", tmp_path)
     idx = query_mod.open_index("myrepo", _log=False)
     # No worktree on disk → callers must short-circuit.
     assert query_mod.callers(idx, "fn") == []

@@ -1,9 +1,15 @@
 #!/usr/bin/env python3
-"""ensure_repo_clone.py — ensure ~/.agents-devkit/repos/<repo>/ exists and is at remote HEAD.
+"""ensure_repo_clone.py — ensure the bare clone at
+~/.agents-devkit/repos/<repo>/original-clone/ exists and is at the latest
+remote refs.
 
-If absent: clone via `gh repo clone` (GitHub) or `git clone <ssh-url>` (Bitbucket).
-If present: `git fetch --all --prune`, then check we're on the default branch at remote HEAD with no local changes.
-Refuses to overwrite if the clone has unexpected local commits (not from this script's lineage).
+If absent: clone via `gh repo clone --bare` (GitHub) or
+`git clone --bare <ssh-url>` (Bitbucket).
+If present: `git fetch --all --prune`.
+
+The clone is bare (`.git` only, no working tree). Worktrees are created
+from it as needed — `branch-<slug>/code/` per tracked branch, and
+`skill-pr-review/<repo>_pr-<n>/code/` per PR review.
 
 Usage:
   python3 ensure_repo_clone.py --host github --owner acme --repo foo [--json]
@@ -25,51 +31,39 @@ from _common import (  # noqa: E402
 def clone_github(owner: str, repo: str, dest: Path, log) -> None:
     if not which("gh"):
         die("gh CLI not on PATH (needed for GitHub clones). Install: brew install gh")
-    log.info("cloning github:%s/%s → %s", owner, repo, dest)
-    run(["gh", "repo", "clone", f"{owner}/{repo}", str(dest)], cwd=dest.parent)
+    log.info("bare-cloning github:%s/%s → %s", owner, repo, dest)
+    run(["gh", "repo", "clone", f"{owner}/{repo}", str(dest), "--", "--bare"],
+        cwd=dest.parent)
 
 
 def clone_bitbucket(workspace: str, repo: str, dest: Path, log) -> None:
     ssh = f"git@bitbucket.org:{workspace}/{repo}.git"
-    log.info("cloning bitbucket:%s/%s (%s) → %s", workspace, repo, ssh, dest)
-    run(["git", "clone", ssh, str(dest)], cwd=dest.parent)
+    log.info("bare-cloning bitbucket:%s/%s (%s) → %s", workspace, repo, ssh, dest)
+    run(["git", "clone", "--bare", ssh, str(dest)], cwd=dest.parent)
 
 
-def default_branch(repo_path: Path) -> str:
-    # Origin's default branch.
+def default_branch(bare_path: Path) -> str:
+    # HEAD on a bare clone is a symref to the default branch (e.g. refs/heads/master).
     try:
-        cp = run(["git", "symbolic-ref", "refs/remotes/origin/HEAD"], cwd=repo_path)
+        cp = run(["git", "symbolic-ref", "HEAD"], cwd=bare_path)
         ref = cp.stdout.strip()
-        if ref.startswith("refs/remotes/origin/"):
-            return ref.removeprefix("refs/remotes/origin/")
+        if ref.startswith("refs/heads/"):
+            return ref.removeprefix("refs/heads/")
     except Exception:
         pass
     # Fallback heuristic.
     for cand in ("main", "master", "develop"):
-        if run_ok(["git", "show-ref", "--verify", "--quiet", f"refs/remotes/origin/{cand}"], cwd=repo_path):
+        if run_ok(["git", "show-ref", "--verify", "--quiet", f"refs/heads/{cand}"],
+                  cwd=bare_path):
             return cand
-    raise RuntimeError(f"could not determine default branch in {repo_path}")
+    raise RuntimeError(f"could not determine default branch in {bare_path}")
 
 
-def reset_to_remote_default(repo_path: Path, log) -> str:
-    # Refuse if there are uncommitted changes.
-    cp = run(["git", "status", "--porcelain"], cwd=repo_path)
-    if cp.stdout.strip():
-        raise RuntimeError(
-            f"adk-owned clone {repo_path} has uncommitted changes — inspect manually, do not let adk overwrite"
-        )
+def refresh_bare(bare_path: Path, log) -> str:
+    """Fetch all remotes into the bare clone. Returns the default branch name."""
     log.info("fetching origin")
-    run(["git", "fetch", "--all", "--prune"], cwd=repo_path)
-    branch = default_branch(repo_path)
-    # Are we currently on a worktree? `git -C clone branch --show-current` returns empty in detached state.
-    cp = run(["git", "branch", "--show-current"], cwd=repo_path, check=False)
-    cur = cp.stdout.strip()
-    if cur != branch:
-        log.info("checking out default branch %s", branch)
-        run(["git", "checkout", branch], cwd=repo_path)
-    log.info("reset --hard origin/%s", branch)
-    run(["git", "reset", "--hard", f"origin/{branch}"], cwd=repo_path)
-    return branch
+    run(["git", "fetch", "--all", "--prune"], cwd=bare_path)
+    return default_branch(bare_path)
 
 
 def main() -> int:
@@ -91,9 +85,10 @@ def main() -> int:
     with file_lock(lock_path, timeout_s=300.0):
         log.info("clone-lock acquired (%s)", lock_path)
         if dest.exists():
-            if not (dest / ".git").exists():
-                die(f"{dest} exists but is not a git repo. Inspect and remove manually.")
-            branch = reset_to_remote_default(dest, log)
+            # Bare clones have HEAD at the top level (no .git/ subdir).
+            if not (dest / "HEAD").exists():
+                die(f"{dest} exists but is not a bare git clone. Inspect and remove manually.")
+            branch = refresh_bare(dest, log)
             status = "updated"
         else:
             dest.parent.mkdir(parents=True, exist_ok=True)
@@ -101,7 +96,7 @@ def main() -> int:
                 clone_github(args.owner, args.repo, dest, log)
             else:
                 clone_bitbucket(args.owner, args.repo, dest, log)
-            branch = reset_to_remote_default(dest, log)
+            branch = refresh_bare(dest, log)
             status = "cloned"
 
     result = {"status": status, "repo_path": str(dest), "branch": branch}

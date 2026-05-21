@@ -85,14 +85,6 @@ def test_already_reviewed_at_head_is_not_ready():
     assert ready_for_review(e) is False
 
 
-def test_already_reviewed_back_compat_oid_field():
-    """back-compat: if the row uses last_reviewed_head_oid (pre-P1), still detect."""
-    e = {"pr_url": "x", "status": STATUS_PENDING, "head_oid": "abc",
-         "prep_status": PREP_READY, "prep_head_sha": "abc",
-         "last_reviewed_head_oid": "abc"}
-    assert ready_for_review(e) is False
-
-
 def test_new_commits_after_review_make_row_ready_again():
     e = {"pr_url": "x", "status": STATUS_PENDING, "head_sha": "new",
          "prep_status": PREP_READY, "prep_head_sha": "new",

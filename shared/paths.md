@@ -48,11 +48,16 @@ A skill writes its artifacts to **exactly one** of two roots:
 ├── improve/                     # data the /adk-improve skill reads/writes
 │   ├── learning/{decisions.jsonl, sessions/, archive/, proposals/}
 │   └── metadata/<source>.json   # MCP introspection cache
-├── repos/<repo-name>/.git/      # checkouts; the base for PR-review worktrees
-├── repos/.indices/<repo>/       # repo-level code index (built by `adk repo add|update`)
-│   ├── repo-meta.json           # indexed_oid, indexed_at, default_branch
-│   └── code-index/              # chunks.jsonl + chunks.lance/ + scip/ + meta.json
-│                                # consumed by /adk-pr-review (seed-and-overlay), and
+├── repos/<repo-name>/           # one folder per tracked repo
+│   ├── .clone-lock              # per-repo lock used during fetch/worktree-add
+│   ├── original-clone/          # bare clone (.git/ only) — source for every worktree
+│   ├── docs/                    # supporting docs (lazy, optional)
+│   ├── repo-meta.json           # url, default_branch, tracked_branches[]
+│   └── branch-<slug>/           # one per tracked branch (default + extras)
+│       ├── branch-meta.json     # branch, slug, last_indexed_oid, embed_model
+│       ├── code/                # `git worktree add` from original-clone
+│       └── code-index/          # chunks.jsonl + chunks.lance/ + scip/ + meta.json
+│                                # consumed by /adk-pr-review (seed-and-overlay) and
 │                                # by /adk-implement, /adk-investigate, /adk-document
 │                                # via scripts/lib/code_index/query.py
 ├── skill-pr-review/

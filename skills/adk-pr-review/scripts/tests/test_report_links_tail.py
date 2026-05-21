@@ -19,10 +19,11 @@ import report
 
 def test_links_tail_with_slack_permalink(tmp_path, capsys):
     task_dir = tmp_path / "fake_pr-1"
-    task_dir.mkdir()
-    (task_dir / "findings.md").write_text("# findings\n")
-    (task_dir / "report.md").write_text("# report\n")
-    (task_dir / "queue-context.json").write_text(json.dumps({
+    pr_review = task_dir / "pr-review"
+    pr_review.mkdir(parents=True)
+    (pr_review / "findings.md").write_text("# findings\n")
+    (pr_review / "report.md").write_text("# report\n")
+    (pr_review / "queue-context.json").write_text(json.dumps({
         "slack": {
             "permalink": "https://example.slack.com/archives/C123/p1779267308866179",
             "channel_id": "C123",
@@ -36,15 +37,15 @@ def test_links_tail_with_slack_permalink(tmp_path, capsys):
     assert "https://github.com/acme/foo/pull/42" in out
     assert "https://example.slack.com/archives/C123/p1779267308866179" in out
     assert f"file://{task_dir.resolve()}" in out
-    assert f"file://{(task_dir / 'findings.md').resolve()}" in out
-    assert f"file://{(task_dir / 'report.md').resolve()}" in out
+    assert f"file://{(pr_review / 'findings.md').resolve()}" in out
+    assert f"file://{(pr_review / 'report.md').resolve()}" in out
 
 
 def test_links_tail_no_slack_when_unavailable(tmp_path, capsys):
     """When queue-context.json is missing, the Slack line is omitted."""
     task_dir = tmp_path / "fake_pr-2"
-    task_dir.mkdir()
-    (task_dir / "findings.md").write_text("# findings\n")
+    (task_dir / "pr-review").mkdir(parents=True)
+    (task_dir / "pr-review" / "findings.md").write_text("# findings\n")
     pr = {"url": "https://bitbucket.org/ws/repo/pull-requests/100"}
 
     report._print_links_tail(task_dir, pr)

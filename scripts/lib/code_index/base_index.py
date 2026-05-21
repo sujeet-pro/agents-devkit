@@ -3,12 +3,16 @@ base indexes.
 
 Storage layout (owned by `adk repo {add,update,branch}`):
 
-    ~/.agents-devkit/repos/.indices/<repo>/
-      repo-meta.json                            { name, url, clone_path,
-                                                  default_branch, tracked_branches: [...] }
-      branches/<slug>/
+    ~/.agents-devkit/repos/<repo>/
+      .clone-lock
+      original-clone/                           bare clone (.git/ only)
+      docs/                                     supporting docs (lazy)
+      repo-meta.json                            { name, url, default_branch,
+                                                  tracked_branches: [...] }
+      branch-<slug>/
         branch-meta.json                        { branch, slug, last_indexed_oid,
                                                   last_indexed_at, embed_model }
+        code/                                   worktree of <branch>
         code-index/
           chunks.jsonl
           chunks.lance/                         LanceDB table dir
@@ -18,16 +22,6 @@ Storage layout (owned by `adk repo {add,update,branch}`):
 `<slug>` is the branch name passed through `slugify_branch` (lowercase, `/` →
 `__`, FS-unsafe chars stripped). The canonical branch name is stored in
 `branch-meta.json.branch`; the slug is only the directory key.
-
-Legacy layout (pre-multi-branch, still readable):
-
-    ~/.agents-devkit/repos/.indices/<repo>/
-      repo-meta.json                            (carries last_indexed_oid + last_indexed_at)
-      code-index/                               (the default-branch index)
-
-Readers treat the legacy layout as a single index pinned to `default_branch`.
-Migration moves it under `branches/<slug(default_branch)>/`; see
-`skills/adk-cli/scripts/repo.py`.
 
 `/adk-pr-review` consults this directory before indexing a PR. When a base is
 present, fresh, and its embedding model matches the run, the skill copies it
@@ -47,23 +41,19 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from _lib_common import REPO_INDICES_ROOT, get_cfg, get_logger
+from _lib_common import REPOS_ROOT, get_cfg, get_logger
 
 
 # ---------------------------------------------------------------- types ----
 
 @dataclass(frozen=True)
 class BranchIndex:
-    """One (repo, branch) base index. Returned by every discovery helper.
-
-    `BaseIndex` is kept as an alias so legacy callers keep compiling; new
-    code should reference `BranchIndex` directly.
-    """
+    """One (repo, branch) base index. Returned by every discovery helper."""
     repo: str
     branch: str                   # canonical branch name (e.g. "develop")
     slug: str                     # filesystem slug
-    repo_dir: Path                # .indices/<repo>/
-    branch_dir: Path              # .indices/<repo>/branches/<slug>/  (or repo_dir for legacy)
+    repo_dir: Path                # repos/<repo>/
+    branch_dir: Path              # repos/<repo>/branch-<slug>/
     code_index_dir: Path          # branch_dir/code-index/
     indexed_sha: str
     last_refreshed: datetime
@@ -71,23 +61,11 @@ class BranchIndex:
     dim: int
     rows: int
     default_branch: str = ""      # the REPO's default branch (from repo-meta.json)
-    legacy_layout: bool = False   # True when read from the pre-multi-branch layout
 
     @property
     def age_days(self) -> float:
         delta = datetime.now(timezone.utc) - self.last_refreshed
         return delta.total_seconds() / 86400.0
-
-    @property
-    def task_dir(self) -> Path:
-        """Back-compat alias for `repo_dir`. query.py derives the clone path
-        as `idx.task_dir.parent.parent / repo`; that arithmetic still holds."""
-        return self.repo_dir
-
-
-# Alias retained so existing imports of `BaseIndex` keep working until the
-# next deprecation pass removes them.
-BaseIndex = BranchIndex
 
 
 # -------------------------------------------------------------- helpers ----
@@ -135,18 +113,13 @@ def _read_default_branch(repo_dir: Path) -> str:
         return ""
 
 
-def _read_one(repo: str, branch_dir: Path, repo_dir: Path,
-              *, legacy: bool) -> BranchIndex | None:
+def _read_one(repo: str, branch_dir: Path, repo_dir: Path) -> BranchIndex | None:
     """Build a BranchIndex from disk. Returns None if any required piece is
     missing or malformed — callers decide whether to fall back to another
     branch or to a cold reindex."""
     code_index = branch_dir / "code-index"
     embed_meta_path = code_index / "meta.json"
-    if legacy:
-        # Legacy: per-branch fields live in repo-meta.json.
-        bm_path = repo_dir / "repo-meta.json"
-    else:
-        bm_path = branch_dir / "branch-meta.json"
+    bm_path = branch_dir / "branch-meta.json"
     if not bm_path.exists() or not embed_meta_path.exists():
         return None
     try:
@@ -164,7 +137,8 @@ def _read_one(repo: str, branch_dir: Path, repo_dir: Path,
 
     default_branch = _read_default_branch(repo_dir)
     branch_name = bm.get("branch") or default_branch
-    slug = bm.get("slug") or (slugify_branch(branch_name) if legacy else branch_dir.name)
+    # branch_dir.name is "branch-<slug>"; strip the "branch-" prefix.
+    slug = bm.get("slug") or branch_dir.name.removeprefix("branch-")
 
     return BranchIndex(
         repo=repo,
@@ -179,39 +153,24 @@ def _read_one(repo: str, branch_dir: Path, repo_dir: Path,
         dim=int(embed_meta.get("dim") or 0),
         rows=int(embed_meta.get("rows") or 0),
         default_branch=default_branch,
-        legacy_layout=legacy,
     )
 
 
 # ----------------------------------------------------------- discovery ----
 
 def list_branch_indexes(repo: str) -> list[BranchIndex]:
-    """Every branch index discovered under .indices/<repo>/.
-
-    Discovery order:
-      1. New layout: `.indices/<repo>/branches/<slug>/`.
-      2. Legacy layout: `.indices/<repo>/code-index/`. Only surfaced when no
-         new-layout indexes exist (so a partial migration doesn't double-list
-         the default branch).
-    """
-    repo_dir = REPO_INDICES_ROOT / repo
+    """Every branch index discovered under repos/<repo>/branch-<slug>/."""
+    repo_dir = REPOS_ROOT / repo
     if not repo_dir.exists():
         return []
 
     out: list[BranchIndex] = []
-    branches_dir = repo_dir / "branches"
-    if branches_dir.exists():
-        for d in sorted(branches_dir.iterdir()):
-            if not d.is_dir() or d.name.startswith("."):
-                continue
-            idx = _read_one(repo, d, repo_dir, legacy=False)
-            if idx is not None:
-                out.append(idx)
-
-    if not out:
-        legacy = _read_one(repo, repo_dir, repo_dir, legacy=True)
-        if legacy is not None:
-            out.append(legacy)
+    for d in sorted(repo_dir.iterdir()):
+        if not d.is_dir() or not d.name.startswith("branch-"):
+            continue
+        idx = _read_one(repo, d, repo_dir)
+        if idx is not None:
+            out.append(idx)
     return out
 
 
@@ -233,7 +192,7 @@ def get_branch_index(repo: str, branch: str) -> BranchIndex | None:
 
 def get_default_branch_index(repo: str) -> BranchIndex | None:
     """Return the BranchIndex for the repo's default branch, or None."""
-    default = _read_default_branch(REPO_INDICES_ROOT / repo)
+    default = _read_default_branch(REPOS_ROOT / repo)
     if not default:
         return None
     return get_branch_index(repo, default)
@@ -241,7 +200,7 @@ def get_default_branch_index(repo: str) -> BranchIndex | None:
 
 def get_default_branch(repo: str) -> str:
     """Repo's default branch name from `repo-meta.json` (empty if unknown)."""
-    return _read_default_branch(REPO_INDICES_ROOT / repo)
+    return _read_default_branch(REPOS_ROOT / repo)
 
 
 # ---------------------------------------------------------- selection ----
@@ -281,15 +240,6 @@ def pick_base_index(
             continue
         return c
     return None
-
-
-# ---------------------------------------------------------- back-compat ----
-
-def get_base_index(repo: str) -> BranchIndex | None:
-    """Deprecated: use `pick_base_index(repo, target_branch=…)` or
-    `get_default_branch_index(repo)`. Retained so callers that still ask for
-    "the repo's base" keep working through one release."""
-    return get_default_branch_index(repo)
 
 
 # -------------------------------------------------------- freshness ----

@@ -54,13 +54,8 @@ def _state_path(task_dir: Path) -> Path:
 
 
 def _findings_path(task_dir: Path) -> Path:
-    """Prefer the post-validation finding set (Phase 3 output) when it exists;
-    fall back to the agent's raw findings.json for back-compat with task dirs
-    that pre-date the validation phase."""
-    initial = pr_review_file(task_dir, "initial-findings.json")
-    if initial.exists():
-        return initial
-    return pr_review_file(task_dir, "findings.json")
+    """Path to the post-validation finding set (Phase 3 output)."""
+    return pr_review_file(task_dir, "initial-findings.json")
 
 
 def _final_path(task_dir: Path) -> Path:

@@ -22,12 +22,11 @@ from typing import Any
 
 ADK_HOME = Path(os.environ.get("ADK_HOME", Path.home() / ".agents-devkit"))
 REPOS_ROOT = ADK_HOME / "repos"
-REPO_INDICES_ROOT = REPOS_ROOT / ".indices"
 
 
-def repo_index_dir(repo: str) -> Path:
-    """Per-repo base index location (default branch). Owned by `adk repo {add,update}`."""
-    return REPO_INDICES_ROOT / repo
+def repo_dir_for(repo: str) -> Path:
+    """Per-repo root: holds original-clone/, branch-*/, docs/, repo-meta.json."""
+    return REPOS_ROOT / repo
 
 
 # ----- logging --------------------------------------------------------------
@@ -108,14 +107,6 @@ LIB_DIR = Path(__file__).resolve().parent
 LIB_DEFAULTS_YAML = LIB_DIR / "defaults.yaml"
 USER_OVERRIDE_YAML = ADK_HOME / "config" / "code-index.yaml"
 
-# Back-compat: the skill's defaults still ship the same indexer keys.
-# When LIB_DEFAULTS_YAML exists we ignore this path; only consulted as a
-# last-resort fallback for upgrade scenarios where the skill ships values
-# the lib doesn't yet ship.
-_SKILL_DEFAULTS_FALLBACK = (
-    LIB_DIR.parent.parent.parent / "skills" / "adk-pr-review" / "defaults.yaml"
-)
-
 
 def _deep_merge(base: dict, over: dict) -> dict:
     out = dict(base)
@@ -134,11 +125,6 @@ def load_config() -> dict[str, Any]:
     cfg: dict[str, Any] = {}
     if LIB_DEFAULTS_YAML.exists():
         cfg = yaml.safe_load(LIB_DEFAULTS_YAML.read_text(encoding="utf-8")) or {}
-    elif _SKILL_DEFAULTS_FALLBACK.exists():
-        # Upgrade fallback — skills/adk-pr-review/defaults.yaml is the legacy
-        # location for these keys. Once Phase 2 lands everywhere, the skill's
-        # defaults.yaml stops carrying indexer keys.
-        cfg = yaml.safe_load(_SKILL_DEFAULTS_FALLBACK.read_text(encoding="utf-8")) or {}
     if USER_OVERRIDE_YAML.exists():
         try:
             user = yaml.safe_load(USER_OVERRIDE_YAML.read_text(encoding="utf-8")) or {}

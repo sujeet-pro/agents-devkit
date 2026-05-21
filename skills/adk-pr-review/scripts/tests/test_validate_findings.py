@@ -37,7 +37,9 @@ def _mk_task_dir(tmp_path: Path, findings: list[dict],
         p = task_dir / "code" / rel
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_text(content, encoding="utf-8")
-    (task_dir / "findings.json").write_text(
+    findings_path = task_dir / "pr-review" / "findings.json"
+    findings_path.parent.mkdir(parents=True, exist_ok=True)
+    findings_path.write_text(
         json.dumps({
             "findings": findings,
             "existing_comment_actions": [],
@@ -84,7 +86,7 @@ def test_eligible_finding_keeps_anchor_and_fix(tmp_path):
     assert summary["n_posted"] == 1
     assert summary["n_dropped_anchor"] == 0
     assert summary["n_dropped_no_fix"] == 0
-    initial = json.loads((task / "initial-findings.json").read_text())
+    initial = json.loads((task / "pr-review" / "initial-findings.json").read_text())
     assert len(initial["findings"]) == 1
     assert initial["findings"][0]["posted"] is True
 
@@ -100,7 +102,7 @@ def test_missing_file_drops_finding(tmp_path):
     summary = vf.validate_findings(task, log=_log())
     assert summary["n_posted"] == 0
     assert summary["n_dropped_anchor"] == 1
-    audit = json.loads((task / "validated-findings.json").read_text())["findings"]
+    audit = json.loads((task / "pr-review" / "validated-findings.json").read_text())["findings"]
     assert audit[0]["validation"]["anchor_ok"] is False
     assert "file missing" in audit[0]["validation"]["anchor_reason"]
 
@@ -139,7 +141,7 @@ def test_missing_suggestion_drops_from_posted(tmp_path):
     assert summary["n_posted"] == 0
     assert summary["n_dropped_no_fix"] == 1
     # Kept in the audit trail with posted=False.
-    audit = json.loads((task / "validated-findings.json").read_text())["findings"]
+    audit = json.loads((task / "pr-review" / "validated-findings.json").read_text())["findings"]
     assert len(audit) == 1
     assert audit[0]["posted"] is False
     assert audit[0]["validation"]["fix_ok"] is False
@@ -209,8 +211,8 @@ def test_initial_and_validated_diverge_on_drops(tmp_path):
         {"src/main.ts": "a\nb\nc\nd\n"},
     )
     vf.validate_findings(task, log=_log())
-    validated = json.loads((task / "validated-findings.json").read_text())["findings"]
-    initial = json.loads((task / "initial-findings.json").read_text())["findings"]
+    validated = json.loads((task / "pr-review" / "validated-findings.json").read_text())["findings"]
+    initial = json.loads((task / "pr-review" / "initial-findings.json").read_text())["findings"]
     assert len(validated) == 2
     assert len(initial) == 1
     assert initial[0]["id"] == "f-001"
@@ -226,8 +228,9 @@ def test_missing_findings_json_exits_clean(tmp_path):
 
 def test_missing_worktree_exits_clean(tmp_path):
     task_dir = tmp_path / "task"
-    task_dir.mkdir()
-    (task_dir / "findings.json").write_text(json.dumps({
+    findings_path = task_dir / "pr-review" / "findings.json"
+    findings_path.parent.mkdir(parents=True)
+    findings_path.write_text(json.dumps({
         "findings": [], "existing_comment_actions": [],
         "recommendation": "comment_only", "summary": "", "finding_set_hash": "0" * 64,
     }), encoding="utf-8")

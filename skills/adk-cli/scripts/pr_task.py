@@ -50,40 +50,20 @@ from queue_io import (  # noqa: E402
 
 
 def _default_prepare_jobs() -> int:
-    """Read `pr_sync.prepare_jobs` from `~/.agents-devkit/config/core.yaml`.
-    Returns 1 if the file or key is absent (today's behavior). The bound is
-    enforced at the cmd_prepare seam — this helper just resolves the default.
+    """Read `pr_sync.prepare_jobs` from adk-cli.json5 (with legacy core.yaml
+    fallback). Returns 1 when the file/key is absent. The bound is enforced
+    at the cmd_prepare seam — this helper just resolves the default.
     """
     try:
-        from config_io import load_core  # noqa: WPS433
-        cfg = load_core() or {}
-        val = (cfg.get("pr_sync") or {}).get("prepare_jobs")
+        from config_io import get_adk_cli  # noqa: WPS433
+        val = get_adk_cli("pr_sync", "prepare_jobs", default=None)
         if val is None:
             return 1
         return max(1, int(val))
     except Exception:
         return 1
 
-# v4: per-skill task root is skill-pr-review/ (was pr-reviews/ pre-v4).
-# Falls back to the legacy path when only it exists on disk, so the user's
-# in-flight task folders survive between P2 landing and P7 migrating.
 PR_REVIEW_ROOT = ADK_HOME / "skill-pr-review"
-LEGACY_PR_REVIEW_ROOT = ADK_HOME / "pr-reviews"
-
-
-def _resolve_pr_review_root() -> Path:
-    """Return the live task root. Prefer skill-pr-review/; fall back to the
-    legacy pr-reviews/ ONLY if the new one is absent and the legacy one
-    exists. Once P7 migrates, the legacy path goes away.
-    """
-    if PR_REVIEW_ROOT.exists():
-        return PR_REVIEW_ROOT
-    if LEGACY_PR_REVIEW_ROOT.exists():
-        return LEGACY_PR_REVIEW_ROOT
-    return PR_REVIEW_ROOT
-
-
-PR_REVIEWS_ROOT = PR_REVIEW_ROOT  # legacy import name; new code uses _resolve_pr_review_root().
 PREPARE_TASK = ADK_PR_REVIEW_SCRIPTS / "prepare_task.py"
 VALIDATE_FINDINGS = ADK_PR_REVIEW_SCRIPTS / "validate_findings.py"
 
@@ -268,7 +248,7 @@ def cmd_clean_orphans(args) -> int:
     """Drop task folders under ~/.agents-devkit/skill-pr-review/ that no longer
     have a matching queue row (or whose row is merged). Idempotent."""
     log = get_logger("pr-task-clean-orphans")
-    root = _resolve_pr_review_root()
+    root = PR_REVIEW_ROOT
     if not root.exists():
         print(json.dumps({"removed": [], "reason": "no task folders"}, indent=2))
         return 0
@@ -358,7 +338,7 @@ def cmd_info(args) -> int:
 # ----- list ----------------------------------------------------------------
 
 def cmd_list(args) -> int:
-    root = _resolve_pr_review_root()
+    root = PR_REVIEW_ROOT
     if not root.exists():
         if args.names_only or args.paths:
             return 0

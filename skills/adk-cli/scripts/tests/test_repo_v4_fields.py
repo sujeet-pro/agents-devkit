@@ -23,8 +23,8 @@ def test_branch_meta_includes_v4_fields(tmp_path, monkeypatch):
     """When _index_one_branch writes a branch-meta.json, it includes
     created_by, created_at, last_used_at, last_indexed_sha (the v4 fields
     expected by P5's auto-base lifecycle)."""
-    # Point REPO_INDICES_ROOT at tmp.
-    monkeypatch.setattr(repo, "REPO_INDICES_ROOT", tmp_path / ".indices")
+    # Point REPOS_ROOT at tmp.
+    monkeypatch.setattr(repo, "REPOS_ROOT", tmp_path)
     name = "fake-repo"
 
     # Build a minimal branch-meta by directly calling _write_branch_meta
@@ -55,7 +55,7 @@ def test_branch_meta_preserves_created_by_on_reindex(tmp_path, monkeypatch):
     """When _index_one_branch is called on an existing branch-meta whose
     created_by='auto', the re-index keeps it as 'auto' (doesn't downgrade
     to 'user'). Tests the prior_created_by preservation logic."""
-    monkeypatch.setattr(repo, "REPO_INDICES_ROOT", tmp_path / ".indices")
+    monkeypatch.setattr(repo, "REPOS_ROOT", tmp_path)
     name = "fake-repo"
 
     repo._write_branch_meta(name, "main", {

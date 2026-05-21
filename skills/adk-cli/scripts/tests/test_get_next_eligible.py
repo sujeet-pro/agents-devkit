@@ -15,7 +15,7 @@ import pytest
 
 import pr_queue
 from queue_io import (
-    STATUS_PENDING, STATUS_MERGED, STATUS_DECLINED,
+    STATUS_PENDING, STATUS_MERGED, STATUS_CLOSED,
     read_queue,
 )
 
@@ -113,7 +113,7 @@ def test_get_next_returns_none_when_all_terminal(tmp_path, monkeypatch):
     assert read_queue(q)["prs"] == []
 
 
-def test_get_next_refreshes_head_oid_on_eligible(tmp_path, monkeypatch):
+def test_get_next_refreshes_head_sha_on_eligible(tmp_path, monkeypatch):
     """When API reports a newer head_sha than the cached one, the row is
     updated before being returned — so the downstream skill can index the
     actual head, not a stale snapshot."""

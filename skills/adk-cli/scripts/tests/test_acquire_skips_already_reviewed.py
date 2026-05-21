@@ -41,7 +41,7 @@ def test_is_already_reviewed_at_head_false_when_never_reviewed():
     }) is False
 
 
-def test_is_already_reviewed_at_head_false_when_no_head_oid():
+def test_is_already_reviewed_at_head_false_when_no_head_sha():
     """Defensive: missing head_sha → never skip."""
     assert _is_already_reviewed_at_head({"last_reviewed_head_sha": "xx"}) is False
 

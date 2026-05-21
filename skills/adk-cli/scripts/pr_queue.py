@@ -528,7 +528,7 @@ def _refresh_one(pr_url: str, entry: dict, *, queue_path: Path, log) -> dict:
         return {"pr_url": pr_url, "status": "failed", "stage": "meta", "reason": meta["error"]}
 
     updates = {"last_checked_at": _now_iso()}
-    new_head = meta.get("head_sha") or meta.get("head_oid")
+    new_head = meta.get("head_sha")
     if new_head:
         updates["head_sha"] = new_head
     # Capture target_branch (baseRefName / destination.branch.name). Skills
@@ -634,7 +634,7 @@ def get_next_eligible(queue_path: Path, *, validate: bool = True,
     dropped from the queue (along with their on-disk task folder) and the
     picker tries the next candidate. Returns the claimed row, or None.
 
-    `validate=False` is the legacy in-memory path — used by tests and by
+    `validate=False` skips the origin-API check — used by tests and by
     callers who already validated separately. The CLI front-end
     (`adk pr-queue get-next`) and `prepare_task.py` queue mode use
     `validate=True`.
@@ -664,7 +664,7 @@ def get_next_eligible(queue_path: Path, *, validate: bool = True,
             continue
         # Refresh head_sha so the row reflects the API's current view, then
         # return the (still-claimed) candidate.
-        new_head = meta.get("head_sha") or meta.get("head_oid") if not meta.get("error") else None
+        new_head = meta.get("head_sha") if not meta.get("error") else None
         if new_head and new_head != candidate.get("head_sha"):
             update_pr_entry(queue_path, pr_url,
                             {"head_sha": new_head, "last_checked_at": _now_iso()})

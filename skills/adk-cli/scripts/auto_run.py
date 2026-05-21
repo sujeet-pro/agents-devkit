@@ -221,40 +221,61 @@ def _print_run_tail(run_dir: Path, results: list[dict], report_path: Path) -> No
     print("─" * 79)
 
 
+def _cfg(key: str, default):
+    """Read `pr_review_all.<key>` from adk-cli.json5; fall back to `default`."""
+    try:
+        from config_io import get_adk_cli  # noqa: WPS433
+        return get_adk_cli("pr_review_all", key, default=default)
+    except Exception:
+        return default
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(
-        prog="adk auto",
+        prog="adk pr-review-all",
         description="Headless review orchestrator. Runs pr-sync + spawns "
                     "agents to review eligible PRs. No interactive input. "
                     "Scheduler-friendly. Constitution §I.3: never merges.",
     )
     ap.add_argument("--queue", default=str(DEFAULT_QUEUE_PATH),
                     help="path to pr-queue.json5")
-    ap.add_argument("--max-reviews", type=int, default=20,
-                    help="cap on number of PRs reviewed in this run (default: 20)")
-    ap.add_argument("--parallel", type=int, default=1,
-                    help="number of concurrent agent subprocesses (default: 1; "
-                         "1 = serial)")
-    ap.add_argument("--agent", default="claude",
-                    help="agent binary to spawn for each PR (default: claude). "
+    ap.add_argument("--max-reviews", type=int,
+                    default=int(_cfg("max_reviews", 20)),
+                    help="cap on number of PRs reviewed in this run "
+                         "(default: pr_review_all.max_reviews, fallback 20)")
+    ap.add_argument("--parallel", type=int,
+                    default=int(_cfg("parallel", 1)),
+                    help="number of concurrent agent subprocesses "
+                         "(default: pr_review_all.parallel, fallback 1)")
+    ap.add_argument("--agent", default=_cfg("agent", "claude"),
+                    help="agent binary to spawn for each PR "
+                         "(default: pr_review_all.agent, fallback 'claude'). "
                          "Receives '-p /adk-pr-review <url>'")
     ap.add_argument("--exclude", action="append", default=[],
                     help="PR URL to skip (repeat for several)")
+    ap.add_argument("--pr", default=None,
+                    help="review only this PR URL (skips queue eligibility "
+                         "scan). The URL must already exist in the queue.")
     ap.add_argument("--no-sync", action="store_true",
                     help="skip the pre-flight `adk pr-sync` step")
     ap.add_argument("--dry-run", action="store_true",
                     help="show what would happen; spawn no agents")
-    ap.add_argument("--quiet-hours", default=None,
+    ap.add_argument("--quiet-hours", default=_cfg("quiet_hours", None),
                     help="refuse to spawn during this local-clock window (e.g. '00-08' "
                          "= 00:00 ≤ now < 08:00; '22-06' wraps around midnight). "
-                         "Useful so a scheduled job doesn't ping people overnight.")
-    ap.add_argument("--max-cost-usd", type=float, default=None,
+                         "Useful so a scheduled job doesn't ping people overnight. "
+                         "(default: pr_review_all.quiet_hours, fallback none)")
+    ap.add_argument("--max-cost-usd", type=float,
+                    default=_cfg("max_cost_usd", None),
                     help="abort with rc=2 if the pre-flight estimate "
                          "(per-agent coefficient × eligible PR count) exceeds this. "
-                         "Conservative; doesn't account for retries.")
-    ap.add_argument("--report-to-slack", default=None,
+                         "Conservative; doesn't account for retries. "
+                         "(default: pr_review_all.max_cost_usd, fallback none)")
+    ap.add_argument("--report-to-slack",
+                    default=_cfg("report_to_slack", None),
                     help="post a summary to this Slack channel (e.g. '#pr-reviews') "
-                         "at the end of the run. Requires SLACK_BOT_TOKEN_CRED.")
+                         "at the end of the run. Requires SLACK_BOT_TOKEN_CRED. "
+                         "(default: pr_review_all.report_to_slack, fallback none)")
     ap.add_argument("-v", "--verbose", action="store_true",
                     help="write a structured DEBUG log to ~/.agents-devkit/logs/")
     args = ap.parse_args(argv)
@@ -296,9 +317,27 @@ def main(argv: list[str] | None = None) -> int:
 
     # Step 2: enumerate eligible rows.
     queue_path = Path(args.queue).expanduser()
-    eligible = _eligible_rows(queue_path, exclude=set(args.exclude))
-    if len(eligible) > args.max_reviews:
-        eligible = eligible[:args.max_reviews]
+    if args.pr:
+        # Target one named PR — bypass the eligibility scan but still require
+        # the URL to be a known queue row, so we never review something the
+        # queue hasn't seen (and so the post-review write-back finds a home).
+        from queue_io import read_queue  # noqa: WPS433
+        queue = read_queue(queue_path)
+        match = next((r for r in (queue.get("prs") or [])
+                      if r.get("pr_url") == args.pr), None)
+        if match is None:
+            print(json.dumps({
+                "action": "aborted",
+                "reason": f"--pr URL not found in queue: {args.pr}. "
+                          f"Run `adk pr-queue add {args.pr}` first, then retry.",
+                "run_dir": str(run_dir),
+            }, indent=2))
+            return 2
+        eligible = [match]
+    else:
+        eligible = _eligible_rows(queue_path, exclude=set(args.exclude))
+        if len(eligible) > args.max_reviews:
+            eligible = eligible[:args.max_reviews]
 
     # Cost guard — pre-flight estimate × eligible count.
     if args.max_cost_usd is not None and eligible:

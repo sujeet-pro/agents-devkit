@@ -2,7 +2,7 @@
 """post_comments.py — post new inline findings + resolve/reopen existing threads.
 
 Constitution §I.4: posting is gated on per-invocation user confirmation. This script
-posts ONLY when invoked with `--confirmed yes`. Without that, it prints the plan and exits.
+posts by default; pass `--plan-only` to print the plan and exit without transmitting.
 
 GitHub:
   - Inline comments via REST `POST /repos/{owner}/{repo}/pulls/{n}/comments`. We attempt
@@ -17,7 +17,7 @@ Bitbucket:
   - Resolve / reopen via the BB resolution endpoints.
 
 Usage:
-  python3 post_comments.py --task-dir <path> [--confirmed yes] [--no-resolve-existing] [--json]
+  python3 post_comments.py --task-dir <path> [--plan-only] [--no-resolve-existing] [--json]
 """
 from __future__ import annotations
 
@@ -425,22 +425,18 @@ def plan_only(task_dir: Path, findings: dict, actions: list[dict]) -> dict:
         "n_resolve": sum(1 for a in actions if a.get("decision") == "resolve" and a.get("verified")),
         "n_reopen": sum(1 for a in actions if a.get("decision") == "reopen" and a.get("verified")),
         "n_leave": sum(1 for a in actions if a.get("decision") == "leave-as-is"),
-        "note": "Plan-only — pass --post (or --confirmed yes) to transmit.",
+        "note": "Plan-only — re-run without --plan-only to transmit.",
     }
 
 
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--task-dir", required=True)
-    # Default behavior is to POST. /adk-pr-review's task explicitly calls for
-    # posting (constitution §I.4 names PR review posting as a task-required
-    # action). Use --plan-only / --confirmed no to inhibit transmission. The
-    # old --confirmed yes/no flag is kept for back-compat; the new --plan-only
-    # is the idiomatic switch for "rehearse without posting".
-    ap.add_argument("--confirmed", choices=("yes", "no"), default="yes",
-                    help="back-compat. yes=post (default), no=plan-only.")
+    # Default behavior is to POST (/adk-pr-review's task explicitly calls for
+    # posting; constitution §I.4 names PR review posting as task-required).
+    # Use --plan-only to rehearse posting without transmitting.
     ap.add_argument("--plan-only", action="store_true",
-                    help="rehearse posting without transmitting (overrides --confirmed yes).")
+                    help="rehearse posting without transmitting.")
     ap.add_argument("--no-resolve-existing", action="store_true")
     ap.add_argument("--use-mcp", action="store_true",
                     help="emit posting-plan.json for the host agent to dispatch via MCP; "
@@ -451,26 +447,15 @@ def main() -> int:
                          "thread the queue row's `slack` metadata names).")
     ap.add_argument("--json", action="store_true")
     args = ap.parse_args()
-    if args.plan_only:
-        args.confirmed = "no"
 
     task_dir = Path(args.task_dir)
     log = get_logger("post_comments", task_dir)
 
     pr = read_json(pr_review_file(task_dir, "pr.json"))
-    # Triage-aware: prefer findings-final.json (only accepted findings + edits applied).
-    # Fall back to findings.json when triage hasn't run (back-compat with task dirs
-    # from before phase 5 or runs where the user explicitly skipped triage).
-    final_path = pr_review_file(task_dir, "findings-final.json")
-    legacy_path = pr_review_file(task_dir, "findings.json")
-    if final_path.exists():
-        findings_path = final_path
-        log.info("reading findings-final.json (triage applied)")
-    elif legacy_path.exists():
-        findings_path = legacy_path
-        log.info("reading findings.json (no triage; posting all findings as-is)")
-    else:
-        die(f"missing {final_path} (preferred) and {legacy_path} (fallback)")
+    findings_path = pr_review_file(task_dir, "findings-final.json")
+    if not findings_path.exists():
+        die(f"missing {findings_path} — run triage first.")
+    log.info("reading findings-final.json (triage applied)")
     actions_path = pr_review_file(task_dir, "comment-actions.json")
     findings = read_json(findings_path)
     actions = read_json(actions_path).get("actions", []) if actions_path.exists() else []
@@ -522,7 +507,7 @@ def main() -> int:
              len(plan.get("steps", [])),
              ", ".join(s.get("kind", "?") for s in plan.get("steps", [])) or "<empty>")
 
-    if args.confirmed != "yes":
+    if args.plan_only:
         result = plan_only(task_dir, findings, actions)
         result["posting_plan"] = str(pr_review_file(task_dir, "posting-plan.json"))
         result["plan_steps"] = len(plan.get("steps", []))

@@ -13,7 +13,7 @@ from pathlib import Path
 import pytest
 
 import pr_reminders
-from queue_io import STATUS_PENDING, STATUS_MERGED, STATUS_DECLINED
+from queue_io import STATUS_PENDING, STATUS_MERGED, STATUS_CLOSED
 
 
 NOW = datetime(2026, 5, 21, 12, 0, 0, tzinfo=timezone.utc)
@@ -54,8 +54,8 @@ def test_new_commits_disqualify():
     assert pr_reminders._is_stale_review(row, now=NOW, threshold_hours=24) is False
 
 
-def test_merged_or_declined_row_skipped():
-    for status in (STATUS_MERGED, STATUS_DECLINED):
+def test_merged_or_closed_row_skipped():
+    for status in (STATUS_MERGED, STATUS_CLOSED):
         row = _row(status=status)
         assert pr_reminders._is_stale_review(row, now=NOW, threshold_hours=24) is False
 

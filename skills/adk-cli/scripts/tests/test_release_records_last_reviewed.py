@@ -19,7 +19,7 @@ def _write(tmp_path: Path, prs: list[dict]) -> Path:
     return p
 
 
-def test_release_writes_last_reviewed_head_oid(tmp_path):
+def test_release_writes_last_reviewed_head_sha(tmp_path):
     p = _write(tmp_path, [{
         "pr_url": "https://github.com/acme/foo/pull/1",
         "status": "pending",
@@ -43,7 +43,7 @@ def test_release_writes_last_reviewed_head_oid(tmp_path):
     assert row["status"] == STATUS_APPROVED
 
 
-def test_release_without_head_oid_still_sets_timestamp(tmp_path):
+def test_release_without_head_sha_still_sets_timestamp(tmp_path):
     """If the orchestrator somehow lost head_sha, we still record the
     review timestamp so the queue knows a pass happened."""
     p = _write(tmp_path, [{

@@ -59,7 +59,7 @@ def test_never_merge_is_always_true(pc_mod):
     assert all("mergePullRequest" not in str(s.get("mcp_tool", "")) for s in plan["steps"])
 
 
-def test_plan_carries_pr_link(pc_mod):
+def test_plan_carries_pr_url(pc_mod):
     plan = pc_mod.build_posting_plan(
         pr=_bb_pr(),
         findings_blob={"findings": [], "recommendation": "comment_only"},

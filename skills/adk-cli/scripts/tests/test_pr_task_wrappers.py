@@ -20,14 +20,11 @@ import pr_task
 
 @pytest.fixture
 def fake_task(tmp_path, monkeypatch):
-    """Create a fake task folder + point pr_task at it via the v4 read-shim."""
+    """Create a fake task folder + point pr_task at it."""
     monkeypatch.setattr(pr_task, "PR_REVIEW_ROOT", tmp_path / "skill-pr-review")
-    monkeypatch.setattr(pr_task, "PR_REVIEWS_ROOT", tmp_path / "skill-pr-review")
-    monkeypatch.setattr(pr_task, "LEGACY_PR_REVIEW_ROOT", tmp_path / "pr-reviews-legacy-unused")
     # Wire the shared _common.task_dir_for to the same fake root.
     import _common
     monkeypatch.setattr(_common, "PR_REVIEW_ROOT", tmp_path / "skill-pr-review")
-    monkeypatch.setattr(_common, "LEGACY_PR_REVIEW_ROOT", tmp_path / "pr-reviews-legacy-unused")
     task_dir = tmp_path / "skill-pr-review" / "foo_pr-42"
     task_dir.mkdir(parents=True)
     return task_dir

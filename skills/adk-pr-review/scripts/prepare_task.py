@@ -671,8 +671,7 @@ def _main_inner(args, parsed, task_dir, log) -> int:
         )
     # Default behavior is to POST in auto mode and to post-after-triage in
     # interactive mode. Pass --no-post on the orchestrator to inhibit (rehearsal
-    # only). The post_comments.py default is now `--confirmed yes` so we don't
-    # need to pass any flag in the happy path; --plan-only flips it off.
+    # only); that translates to --plan-only on post_comments.py.
     #
     # `--use-mcp` makes post_comments.py emit posting-plan.json and exit
     # without touching the direct API — the host agent then dispatches each

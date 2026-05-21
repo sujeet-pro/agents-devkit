@@ -333,6 +333,26 @@ class SlackClient:
             self.log.error("post_thread_reply failed: %s", e)
             return None
 
+    # ----- low-level -----
+
+    def _call(self, method_dot: str, params: dict) -> dict:
+        method_name = method_dot
+        for attempt in range(3):
+            try:
+                fn = getattr(self._client, method_name)
+                resp = fn(**params)
+                if resp.get("ok") is False:
+                    raise self.SlackApiError("slack error", response=resp)
+                return resp.data if hasattr(resp, "data") else dict(resp)
+            except self.SlackApiError as e:
+                err = (getattr(e, "response", {}) or {}).get("error", "")
+                if err == "ratelimited":
+                    retry = int((getattr(e, "response", {}) or {}).get("headers", {}).get("Retry-After", "2"))
+                    time.sleep(retry + 1)
+                    continue
+                raise
+        raise RuntimeError(f"slack call {method_dot} failed after retries")
+
 
 # ----- Review reply (§6.y.1) ----------------------------------------------
 
@@ -520,23 +540,3 @@ def compute_approve_ready(
         return False, f"{len(fresh_reopens)} prior thread(s) reopened by bot review"
 
     return True, None
-
-    # ----- low-level -----
-
-    def _call(self, method_dot: str, params: dict) -> dict:
-        method_name = method_dot
-        for attempt in range(3):
-            try:
-                fn = getattr(self._client, method_name)
-                resp = fn(**params)
-                if resp.get("ok") is False:
-                    raise self.SlackApiError("slack error", response=resp)
-                return resp.data if hasattr(resp, "data") else dict(resp)
-            except self.SlackApiError as e:
-                err = (getattr(e, "response", {}) or {}).get("error", "")
-                if err == "ratelimited":
-                    retry = int((getattr(e, "response", {}) or {}).get("headers", {}).get("Retry-After", "2"))
-                    time.sleep(retry + 1)
-                    continue
-                raise
-        raise RuntimeError(f"slack call {method_dot} failed after retries")

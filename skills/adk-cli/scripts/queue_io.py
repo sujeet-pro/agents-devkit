@@ -58,11 +58,9 @@ STATUS_PENDING = "pending"
 STATUS_IN_REVIEW = "in_review"
 STATUS_REVIEWED = "reviewed"
 STATUS_COMMENTS = "comments"          # has open review comments / findings
-STATUS_NEEDS_FIX = STATUS_COMMENTS     # back-compat alias (was `needs_fix`)
 STATUS_APPROVED = "approved"          # PR approved on host or by adk-pr-review
 STATUS_MERGED = "merged"
-STATUS_CLOSED = "closed"              # adk-canonical name (replaces "declined" in v4)
-STATUS_DECLINED = STATUS_CLOSED        # deprecated alias — kept for one release per plan §8 P1
+STATUS_CLOSED = "closed"
 STATUS_ERROR = "error"
 STATUS_REMINDED = "reminded"
 
@@ -74,11 +72,6 @@ TERMINAL_STATUSES = {STATUS_MERGED, STATUS_CLOSED}
 # in case a prior reaction wasn't tracked in `last_reaction_status`). The new
 # status's emoji is the only one left.
 TERMINAL_OR_POSITIVE = {STATUS_APPROVED, STATUS_MERGED}
-
-# Statuses that may share the same emoji across the codebase (alias resolution).
-STATUS_ALIASES = {
-    "needs_fix": STATUS_COMMENTS,  # legacy → canonical
-}
 
 # Auto-expire for queue-row `taken_at` locks. After this, the row is considered
 # free again so another terminal can pick it up (the prior reviewer presumably
@@ -120,27 +113,23 @@ def ready_for_review(entry: dict, *, now=None) -> bool:
     # 2. lock
     if _is_locked(entry, now):
         return False
-    # 3. prep_status — back-compat: rows without a prep_status field were
-    # created before P5 landed; treat them as "ready" so the predicate stays
-    # backward-compatible until the next sync writes prep_status explicitly.
+    # 3. prep_status — rows without the field are treated as ready
+    # (newly-synced rows don't carry it until pr-sync stamps them).
     prep_status = entry.get("prep_status")
     if prep_status is not None and prep_status != PREP_READY:
         return False
-    # 4. prep_head_sha matches head_sha — same back-compat: skip if absent.
-    head = entry.get("head_sha") or entry.get("head_oid")
+    # 4. prep_head_sha matches head_sha when both are present.
+    head = entry.get("head_sha")
     prep_head = entry.get("prep_head_sha")
     if prep_head is not None and head and prep_head != head:
         return False
     # 5. not already reviewed at this head.
-    last_reviewed = entry.get("last_reviewed_head_sha") or entry.get("last_reviewed_head_oid")
-    if head and last_reviewed and head == last_reviewed:
+    if head and entry.get("last_reviewed_head_sha") == head:
         return False
     return True
 
 
-# Canonical queue location + legacy fallback for one-time migration.
 DEFAULT_QUEUE_PATH = Path.home() / ".agents-devkit" / "config" / "pr-queue.json5"
-LEGACY_QUEUE_PATH = Path.home() / ".agents-devkit" / "pr-reviews" / "queue.json5"
 
 
 def classify_pr_state(meta: dict) -> str:
@@ -164,11 +153,6 @@ def classify_pr_state(meta: dict) -> str:
     if state in {"MERGED"}:  # belt + suspenders; cheap_pr_meta should have set merged_at
         return "merged"
     return "open"
-
-
-def canonical_status(s: str) -> str:
-    """Map legacy/alias status names to their canonical form."""
-    return STATUS_ALIASES.get(s, s)
 
 
 def _lock_path(path: Path) -> Path:
@@ -215,33 +199,23 @@ def _load_json5_or_json(path: Path) -> dict:
 
 
 def load_slack_config(path: Path | None = None) -> dict:
-    """Load slack config for pr-reviews.
+    """Load slack config for pr-reviews from `connectors/slack.md`.
 
-    Lookup order (first hit wins):
-      1. `path` if given AND exists. May be:
-         a. a .json5 file (legacy `pr-reviews-slack.json5` shape) — returned verbatim
-         b. a .md file (new `connectors/slack.md`) — returns the `pr_reviews:` section
-            of its YAML frontmatter
-      2. `~/.agents-devkit/config/connectors/slack.md` `pr_reviews:` section (preferred)
-      3. `~/.agents-devkit/config/pr-reviews-slack.json5` (legacy fallback)
+    Lookup order:
+      1. `path` if given AND exists (a .md connector file).
+      2. `~/.agents-devkit/config/connectors/slack.md` `pr_reviews:` section.
     """
     home_cfg = Path.home() / ".agents-devkit" / "config"
     candidates: list[Path] = []
     if path:
         candidates.append(Path(path).expanduser())
     candidates.append(home_cfg / "connectors" / "slack.md")
-    candidates.append(home_cfg / "pr-reviews-slack.json5")
 
     for c in candidates:
-        if not c.exists():
-            continue
-        if c.suffix == ".md":
+        if c.exists():
             return _load_slack_from_connector_md(c)
-        return _load_json5_or_json(c)
     raise FileNotFoundError(
-        "No slack config found. Expected one of:\n"
-        f"  {home_cfg / 'connectors' / 'slack.md'} (preferred)\n"
-        f"  {home_cfg / 'pr-reviews-slack.json5'} (legacy)"
+        f"No slack config found. Expected: {home_cfg / 'connectors' / 'slack.md'}"
     )
 
 
@@ -265,80 +239,11 @@ def _load_slack_from_connector_md(path: Path) -> dict:
     return pr
 
 
-def _migrate_legacy_queue(path: Path) -> None:
-    """One-time copy of ~/.agents-devkit/pr-reviews/queue.json5 →
-    ~/.agents-devkit/config/pr-queue.json5 if the new path is missing.
-    Never writes back to the legacy path; never overwrites the new path.
-    """
-    if path != DEFAULT_QUEUE_PATH:
-        return
-    if path.exists():
-        return
-    if not LEGACY_QUEUE_PATH.exists():
-        return
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_bytes(LEGACY_QUEUE_PATH.read_bytes())
-    sys.stderr.write(
-        f"adk: migrated queue {LEGACY_QUEUE_PATH} → {path}. "
-        "Edits should target the new path; the legacy file is left untouched.\n"
-    )
-
-
-_LEGACY_FIELD_RENAMES = (
-    ("pr_link", "pr_url"),
-    ("head_oid", "head_sha"),
-    ("last_reviewed_head_oid", "last_reviewed_head_sha"),
-)
-
-
-def _normalise_legacy_fields(queue: dict) -> bool:
-    """Rename legacy row fields + map legacy status values in place. Idempotent.
-
-    Renames: pr_link → pr_url, head_oid → head_sha,
-             last_reviewed_head_oid → last_reviewed_head_sha.
-    Maps:    status "declined" → "closed".
-
-    Returns True if any row was changed (caller may persist the rewrite).
-    """
-    changed = False
-    for entry in queue.get("prs", []) or []:
-        if not isinstance(entry, dict):
-            continue
-        for legacy, canonical in _LEGACY_FIELD_RENAMES:
-            if legacy in entry and canonical not in entry:
-                entry[canonical] = entry.pop(legacy)
-                changed = True
-            elif legacy in entry:
-                # Both present — drop the legacy key; canonical wins.
-                entry.pop(legacy)
-                changed = True
-        if entry.get("status") == "declined":
-            entry["status"] = STATUS_CLOSED
-            changed = True
-    return changed
-
-
 def read_queue(path: Path) -> dict:
-    """Load the queue. If the file is missing, return an empty queue skeleton.
-    Performs a one-shot migration from the legacy path on first read, then
-    normalises any legacy row field names / status values (best-effort
-    self-healing rewrite).
-    """
-    _migrate_legacy_queue(path)
+    """Load the queue. If the file is missing, return an empty queue skeleton."""
     if not path.exists():
         return {"filters": None, "prs": []}
-    q = _load_json5_or_json(path)
-    changed = _normalise_legacy_fields(q)
-    if changed:
-        # Best-effort rewrite OUTSIDE any caller-held lock. The lock helper in
-        # _common uses fcntl LOCK_EX which is NOT reentrant — so if a caller
-        # (e.g. update_pr_entry) is already holding the lock, we must not try
-        # to re-acquire it here. Skip on OSError and let the next read retry.
-        try:
-            path.write_text(_dump_json5(q), encoding="utf-8")
-        except OSError:
-            pass
-    return q
+    return _load_json5_or_json(path)
 
 
 # ----- writing --------------------------------------------------------------

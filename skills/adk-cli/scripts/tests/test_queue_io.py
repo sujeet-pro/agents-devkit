@@ -176,23 +176,6 @@ def test_release_row_cannot_downgrade_merged(tmp_path):
     assert persisted["status"] == "merged"
 
 
-def test_read_queue_migrates_legacy_path(tmp_path, monkeypatch):
-    legacy_path = tmp_path / "legacy" / "queue.json5"
-    new_path = tmp_path / "new" / "pr-queue.json5"
-    legacy_path.parent.mkdir(parents=True)
-    legacy_path.write_text(json.dumps({"filters": None, "prs": [
-        {"pr_url": "https://github.com/acme/foo/pull/1", "status": "pending"}
-    ]}), encoding="utf-8")
-    monkeypatch.setattr(queue_io, "DEFAULT_QUEUE_PATH", new_path)
-    monkeypatch.setattr(queue_io, "LEGACY_QUEUE_PATH", legacy_path)
-
-    q = queue_io.read_queue(new_path)
-    assert q["prs"][0]["pr_url"].endswith("/pull/1")
-    # New path should now exist; legacy stays put.
-    assert new_path.exists()
-    assert legacy_path.exists()
-
-
 def test_two_consecutive_acquires_get_different_rows(tmp_path):
     """Simulates two terminals back-to-back: each gets a distinct PR."""
     qp = tmp_path / "pr-queue.json5"

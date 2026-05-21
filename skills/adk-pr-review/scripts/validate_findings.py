@@ -30,8 +30,7 @@ Outputs (written next to findings.json under <task_dir>/):
                               downstream pipeline reads from a stable name)
   - validation-report.json    counts + per-finding reasons
 
-The triage step now reads `initial-findings.json` (with a back-compat
-fallback to `findings.json` for runs that pre-date this phase).
+The triage step reads `initial-findings.json`.
 """
 from __future__ import annotations
 

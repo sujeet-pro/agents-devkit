@@ -48,18 +48,13 @@ SLUG_STOPWORDS = {"https", "http", "www", "com", "io", "the", "a", "an", "for", 
 
 # Per shared/paths.md
 ALWAYS_REPO_BOUND = {"implement", "document"}
-ALWAYS_GLOBAL = {"pr-review", "pr-reviews", "investigate", "setup", "improve", "explain"}
+ALWAYS_GLOBAL = {"pr-review", "investigate", "setup", "improve", "explain"}
 HYBRID = {"review", "sync"}
 
-# Area name under ~/.agents-devkit/ for global skills. v4: every skill has a
-# `skill-<stem>/` task-root. The pre-v4 layout (pr-reviews, investigations,
-# reviews, sync, setup, improve, explain) is the legacy path; resolve_path()
-# falls back to the legacy name when the new dir doesn't exist on disk but
-# the legacy one does (preserves the user's in-flight work until P7
-# migrates).
+# Area name under ~/.agents-devkit/ for global skills. Every skill has a
+# `skill-<stem>/` task-root per shared/paths.md.
 GLOBAL_AREA = {
     "pr-review": "skill-pr-review",
-    "pr-reviews": "skill-pr-review",   # batch shares the per-PR root; the batch state is the CSV.
     "investigate": "skill-investigate",
     "review": "skill-review",
     "sync": "skill-sync",
@@ -68,17 +63,6 @@ GLOBAL_AREA = {
     "explain": "skill-explain",
     "document": "skill-document",
     "implement": "skill-implement",
-}
-
-# Legacy v3 area names (kept for read-shim fallback only; never written to).
-LEGACY_GLOBAL_AREA = {
-    "skill-pr-review": "pr-reviews",
-    "skill-investigate": "investigations",
-    "skill-review": "reviews",
-    "skill-sync": "sync",
-    "skill-setup": "setup",
-    "skill-improve": "improve",
-    "skill-explain": "explain",
 }
 
 GLOBAL_ROOT = Path.home() / ".agents-devkit"
@@ -178,17 +162,8 @@ def base_dir_for(skill_stem: str, scope: str, cwd: Path) -> Path:
                 f"adk_task_slug: scope=repo but cwd {cwd} is not inside a git repo"
             )
         return repo / ".temp" / "adk" / skill_stem
-    # global — prefer the v4 path; fall back to the legacy v3 path ONLY if
-    # the new one is absent AND the legacy one exists on disk (preserves the
-    # user's in-flight task folders until P7 migrates the data).
     area = GLOBAL_AREA.get(skill_stem, skill_stem)
-    new = GLOBAL_ROOT / area
-    legacy_area = LEGACY_GLOBAL_AREA.get(area)
-    if not new.exists() and legacy_area:
-        legacy = GLOBAL_ROOT / legacy_area
-        if legacy.exists():
-            return legacy
-    return new
+    return GLOBAL_ROOT / area
 
 
 def dedup(slug: str, parent: Path) -> str:

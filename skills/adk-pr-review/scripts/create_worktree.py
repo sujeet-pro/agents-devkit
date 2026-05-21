@@ -9,6 +9,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import shutil
 import sys
 from pathlib import Path
 
@@ -50,9 +51,9 @@ def main() -> int:
     args = ap.parse_args()
 
     log = get_logger("create_worktree")
-    repo_path = repo_clone_for(args.repo)
-    if not (repo_path / ".git").exists():
-        die(f"clone {repo_path} not present — run ensure_repo_clone.py first")
+    repo_path = repo_clone_for(args.repo)  # bare clone (HEAD lives at top level)
+    if not (repo_path / "HEAD").exists():
+        die(f"bare clone {repo_path} not present — run ensure_repo_clone.py first")
 
     task_dir = task_dir_for(args.repo, args.pr_number)
     target = task_dir / "code"
@@ -73,6 +74,16 @@ def main() -> int:
         if worktree_exists_at(repo_path, target) and args.rebuild:
             log.info("removing existing worktree at %s", target)
             run(["git", "worktree", "remove", "--force", str(target)], cwd=repo_path)
+
+        # Stale-leftover guard: directory exists on disk but git has no record
+        # of it (typical when a previous run crashed mid-`worktree add`, or the
+        # admin ran `git worktree prune` without removing the dir). `git
+        # worktree add` would refuse with rc=128 ("already exists"), so clear it
+        # under the same lock before the add path runs.
+        if target.exists() and not worktree_exists_at(repo_path, target):
+            log.info("removing stale (unregistered) worktree dir at %s", target)
+            shutil.rmtree(target)
+            run(["git", "worktree", "prune"], cwd=repo_path)
 
         if not worktree_exists_at(repo_path, target):
             log.info("git worktree add --detach %s %s", target, args.head_sha)

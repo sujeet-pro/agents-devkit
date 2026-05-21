@@ -1,8 +1,6 @@
-"""P4 exit-criterion tests: pr_review_dir() and pr_review_file() helpers.
+"""Tests for pr_review_dir() and pr_review_file() helpers.
 
-v4 §3: PR-review-specific files live in `<task_dir>/pr-review/`.
-P7's data migration moves existing files in; until then, pr_review_file()
-falls back to the legacy top-level path for reads.
+PR-review-specific files live in `<task_dir>/pr-review/`.
 """
 from __future__ import annotations
 
@@ -34,26 +32,15 @@ def test_pr_review_file_prefers_v4_location(tmp_path):
     assert p.exists()
 
 
-def test_pr_review_file_falls_back_to_legacy_when_v4_absent(tmp_path):
-    """When only the legacy top-level file exists, pr_review_file returns the
-    legacy path. This is the read-shim that preserves the user's in-flight
-    task folders until P7's migration moves them."""
-    task_dir = tmp_path / "fake_pr-3"
-    task_dir.mkdir()
-    (task_dir / "pr.json").write_text('{"id": 2}', encoding="utf-8")
-    p = pr_review_file(task_dir, "pr.json")
-    assert p == task_dir / "pr.json"
-    assert p.exists()
-
-
-def test_pr_review_file_defaults_to_v4_when_neither_exists(tmp_path):
-    """When the file doesn't exist anywhere, pr_review_file returns the v4
-    location (where a new write would land)."""
+def test_pr_review_file_returns_v4_path_for_brand_new_file(tmp_path):
+    """When the file doesn't yet exist, pr_review_file returns the v4 path
+    (and mkdir's its parent on demand)."""
     task_dir = tmp_path / "fake_pr-4"
     task_dir.mkdir()
     p = pr_review_file(task_dir, "findings.json")
     assert p == task_dir / "pr-review" / "findings.json"
     assert not p.exists()
+    assert p.parent.exists()
 
 
 def test_pr_review_files_set_covers_known_files():
@@ -68,29 +55,6 @@ def test_pr_review_files_set_covers_known_files():
         "review.log",
     }
     assert expected <= PR_REVIEW_FILES
-
-
-def test_preserve_location_rule_legacy_task_folder(tmp_path):
-    """A new write into a legacy-shape task folder (no pr-review/ subdir,
-    other PR files at the top level) lands at the top level — don't
-    half-migrate."""
-    task = tmp_path / "legacy_pr-5"
-    task.mkdir()
-    # Seed with a legacy-shape file.
-    (task / "pr.json").write_text("{}")
-    # Ask for a new artifact — should land at top level, not pr-review/.
-    p = pr_review_file(task, "findings.json")
-    assert p == task / "findings.json"
-    assert not (task / "pr-review").exists()
-
-
-def test_preserve_location_rule_v4_task_folder(tmp_path):
-    """A new write into a v4-shape task folder (pr-review/ subdir exists)
-    lands inside pr-review/."""
-    task = tmp_path / "v4_pr-6"
-    (task / "pr-review").mkdir(parents=True)
-    p = pr_review_file(task, "findings.json")
-    assert p == task / "pr-review" / "findings.json"
 
 
 def test_brand_new_task_uses_v4_layout(tmp_path):

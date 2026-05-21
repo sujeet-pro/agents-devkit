@@ -208,12 +208,14 @@ def test_triage_init_auto_accepts_appreciations(tmp_path, triage_mod):
         ],
         "recommendation": "request_changes",
     }
-    (tmp_path / "findings.json").write_text(json.dumps(findings_blob), encoding="utf-8")
+    pr_review = tmp_path / "pr-review"
+    pr_review.mkdir(parents=True, exist_ok=True)
+    (pr_review / "initial-findings.json").write_text(json.dumps(findings_blob), encoding="utf-8")
     import logging
     log = logging.getLogger("test")
     result = triage_mod.cmd_init(tmp_path, "pending", log)
     assert result["n_auto_accepted_appreciations"] == 2
-    state = json.loads((tmp_path / "triage-state.json").read_text(encoding="utf-8"))
+    state = json.loads((tmp_path / "pr-review" / "triage-state.json").read_text(encoding="utf-8"))
     assert state["findings"]["f-001"]["state"] == "pending"
     assert state["findings"]["f-010"]["state"] == "accept"
     assert state["findings"]["f-010"]["auto_accepted"] is True
@@ -229,12 +231,14 @@ def test_triage_init_auto_mode_works_unchanged(tmp_path, triage_mod):
         ],
         "recommendation": "request_changes",
     }
-    (tmp_path / "findings.json").write_text(json.dumps(findings_blob), encoding="utf-8")
+    pr_review = tmp_path / "pr-review"
+    pr_review.mkdir(parents=True, exist_ok=True)
+    (pr_review / "initial-findings.json").write_text(json.dumps(findings_blob), encoding="utf-8")
     import logging
     log = logging.getLogger("test")
     result = triage_mod.cmd_init(tmp_path, "accept", log)
     assert result["n_auto_accepted_appreciations"] == 1
-    state = json.loads((tmp_path / "triage-state.json").read_text(encoding="utf-8"))
+    state = json.loads((tmp_path / "pr-review" / "triage-state.json").read_text(encoding="utf-8"))
     assert state["findings"]["f-001"]["state"] == "accept"
     assert state["findings"]["f-010"]["state"] == "accept"
 

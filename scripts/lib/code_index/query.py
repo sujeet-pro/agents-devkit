@@ -31,16 +31,15 @@ from typing import Any, Iterable, Literal, Sequence
 
 # In-tree imports — query.py lives beside _common.py + base_index.py.
 from _lib_common import (
-    REPO_INDICES_ROOT,
+    REPOS_ROOT,
     get_cfg,
     get_logger,
     which,
 )
 from base_index import (
-    BaseIndex,
     BranchIndex,
     default_max_staleness_days,
-    get_base_index,
+    get_default_branch_index,
     pick_base_index,
 )
 
@@ -132,9 +131,9 @@ class Index:
     # Worktree associated with the index. For kind="task" this is the PR
     # checkout; for kind="repo" this is ~/.agents-devkit/repos/<name>/.
     worktree: Path | None = None
-    # The branch this index was built against (empty for legacy/seedless
-    # cases). For kind="task" indexes that were seeded from a base, this is
-    # the source branch — visible to consumers via `meta.json.seeded_from_branch`.
+    # The branch this index was built against (empty when seedless). For
+    # kind="task" indexes that were seeded from a base, this is the source
+    # branch — visible to consumers via `meta.json.seeded_from_branch`.
     branch: str = ""
     branch_slug: str = ""
 
@@ -207,17 +206,17 @@ def open_index(target: str | Path,
     """
     if kind == "repo":
         repo = str(target)
-        # Pass-through: when `branch` is set, we use pick_base_index so a
-        # caller asking for "develop" gets it (or falls back to default).
-        # When `branch` is None, the back-compat shim returns the default
-        # branch — exactly today's behavior.
+        # When `branch` is set, pick_base_index honors the request (or falls
+        # back to default). When `branch` is None, return the default branch.
         base: BranchIndex | None = (
             pick_base_index(repo, target_branch=branch)
             if branch is not None
-            else get_base_index(repo)
+            else get_default_branch_index(repo)
         )
         if base is None:
             raise IndexNotBuilt(repo)
+        # Per-branch worktree lives under repos/<repo>/branch-<slug>/code/.
+        worktree_path = base.branch_dir / "code"
         idx = Index(
             repo=repo,
             code_index_dir=base.code_index_dir,
@@ -227,8 +226,7 @@ def open_index(target: str | Path,
             indexed_sha=base.indexed_sha,
             last_refreshed=base.last_refreshed,
             kind="repo",
-            worktree=base.task_dir.parent.parent / repo  # ~/.agents-devkit/repos/<name>/
-                if (base.task_dir.parent.parent / repo).exists() else None,
+            worktree=worktree_path if worktree_path.exists() else None,
             branch=base.branch,
             branch_slug=base.slug,
         )

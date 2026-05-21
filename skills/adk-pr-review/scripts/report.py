@@ -281,17 +281,9 @@ def main() -> int:
 
     task_dir = Path(args.task_dir)
     pr_path = pr_review_file(task_dir, "pr.json")
-    # Prefer the post-triage source of truth so the report matches what
-    # actually gets posted. Falls back to the pre-triage file for back-compat
-    # with task dirs from before triage shipped.
-    final_path = pr_review_file(task_dir, "findings-final.json")
-    legacy_path = pr_review_file(task_dir, "findings.json")
-    if final_path.exists():
-        f_path = final_path
-    elif legacy_path.exists():
-        f_path = legacy_path
-    else:
-        die(f"missing {final_path} (preferred) and {legacy_path} (fallback)")
+    f_path = pr_review_file(task_dir, "findings-final.json")
+    if not f_path.exists():
+        die(f"missing {f_path} — run triage first.")
     if not pr_path.exists():
         die(f"missing {pr_path}")
 
@@ -498,12 +490,8 @@ def _release_and_print_tail(task_dir: Path, pr: dict, findings_blob: dict, log) 
             if qp:
                 queue_path = Path(qp)
             slack_info = ctx.get("slack")
-            # Prefer the canonical key; fall back to the legacy field for any
-            # queue-context.json written before v4.
             if ctx.get("pr_url"):
                 pr_url = ctx["pr_url"]
-            elif ctx.get("pr_link"):
-                pr_url = ctx["pr_link"]
         except Exception as e:
             log.warning("queue-context.json unreadable: %s", e)
 
