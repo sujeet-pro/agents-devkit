@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""create_worktree.py — serialized worktree creation at a PR's head OID.
+"""create_worktree.py — serialized worktree creation at a PR's head SHA.
 
 Acquires ~/.agents-devkit/repos/.worktree-lock before `git worktree add`, releases after.
 
 Usage:
-  python3 create_worktree.py --repo foo --pr-number 42 --head-oid abc123 [--json]
+  python3 create_worktree.py --repo foo --pr-number 42 --head-sha abc123 [--json]
 """
 from __future__ import annotations
 
@@ -19,20 +19,20 @@ from _common import (  # noqa: E402
 )
 
 
-def fetch_oid(repo_path: Path, oid: str, log) -> None:
-    # Make sure the OID is reachable. If not, fetch it.
-    if run_ok(["git", "cat-file", "-e", oid], cwd=repo_path):
+def fetch_sha(repo_path: Path, sha: str, log) -> None:
+    # Make sure the SHA is reachable. If not, fetch it.
+    if run_ok(["git", "cat-file", "-e", sha], cwd=repo_path):
         return
-    log.info("oid %s not present locally; fetching", oid)
+    log.info("sha %s not present locally; fetching", sha)
     # `git fetch origin <sha>` requires server-side allowReachableSHA1InWant or
     # uploadpack.allowAnySHA1InWant; otherwise we have to fetch refs and re-check.
-    if run_ok(["git", "fetch", "origin", oid], cwd=repo_path):
+    if run_ok(["git", "fetch", "origin", sha], cwd=repo_path):
         return
     # Fallback: fetch all refs (slower).
     log.info("direct sha fetch failed; doing full fetch")
     run(["git", "fetch", "--all", "--prune"], cwd=repo_path)
-    if not run_ok(["git", "cat-file", "-e", oid], cwd=repo_path):
-        raise RuntimeError(f"oid {oid} not reachable from origin after full fetch")
+    if not run_ok(["git", "cat-file", "-e", sha], cwd=repo_path):
+        raise RuntimeError(f"sha {sha} not reachable from origin after full fetch")
 
 
 def worktree_exists_at(repo_path: Path, target: Path) -> bool:
@@ -44,7 +44,7 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--repo", required=True)
     ap.add_argument("--pr-number", required=True, type=int)
-    ap.add_argument("--head-oid", required=True)
+    ap.add_argument("--head-sha", required=True)
     ap.add_argument("--rebuild", action="store_true", help="remove existing worktree before recreating")
     ap.add_argument("--json", action="store_true")
     args = ap.parse_args()
@@ -68,27 +68,27 @@ def main() -> int:
     lock_path = clone_lock_for(args.repo)
     with file_lock(lock_path, timeout_s=300.0):
         log.info("clone-lock acquired (%s)", lock_path)
-        fetch_oid(repo_path, args.head_oid, log)
+        fetch_sha(repo_path, args.head_sha, log)
 
         if worktree_exists_at(repo_path, target) and args.rebuild:
             log.info("removing existing worktree at %s", target)
             run(["git", "worktree", "remove", "--force", str(target)], cwd=repo_path)
 
         if not worktree_exists_at(repo_path, target):
-            log.info("git worktree add --detach %s %s", target, args.head_oid)
-            run(["git", "worktree", "add", "--detach", str(target), args.head_oid], cwd=repo_path)
+            log.info("git worktree add --detach %s %s", target, args.head_sha)
+            run(["git", "worktree", "add", "--detach", str(target), args.head_sha], cwd=repo_path)
         else:
-            # Update the existing worktree to the new OID.
-            log.info("worktree exists; checking out %s", args.head_oid)
-            run(["git", "checkout", "--detach", args.head_oid], cwd=target)
+            # Update the existing worktree to the new SHA.
+            log.info("worktree exists; checking out %s", args.head_sha)
+            run(["git", "checkout", "--detach", args.head_sha], cwd=target)
 
     head = run(["git", "rev-parse", "HEAD"], cwd=target).stdout.strip()
-    if not head.startswith(args.head_oid):
-        die(f"worktree HEAD {head} != requested {args.head_oid}")
+    if not head.startswith(args.head_sha):
+        die(f"worktree HEAD {head} != requested {args.head_sha}")
 
     result = {
         "worktree_path": str(target),
-        "head_oid": head,
+        "head_sha": head,
         "repo_clone": str(repo_path),
     }
     if args.json:

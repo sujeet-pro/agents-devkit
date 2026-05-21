@@ -47,7 +47,7 @@ def fetch_github(owner: str, repo: str, n: int, task_dir: Path, log) -> dict:
     pr["owner"] = owner
     pr["repo"] = repo
     pr["pr_number"] = n
-    pr["head_oid"] = pr.get("headRefOid")
+    pr["head_sha"] = pr.get("headRefOid")
     pr["base_oid"] = pr.get("baseRefOid")
     write_json(task_dir / "pr.json", pr)
 
@@ -131,7 +131,7 @@ def fetch_bitbucket(workspace: str, repo: str, n: int, task_dir: Path, log) -> d
         "author": pr.get("author"),
         "headRefName": pr.get("source", {}).get("branch", {}).get("name"),
         "baseRefName": pr.get("destination", {}).get("branch", {}).get("name"),
-        "head_oid": head,
+        "head_sha": head,
         "base_oid": base,
         "url": pr.get("links", {}).get("html", {}).get("href"),
         "raw": pr,
@@ -181,7 +181,7 @@ def main() -> int:
         "pr_comments_json": str(task_dir / "pr-comments.json"),
         "diff_patch": str(task_dir / "diff.patch"),
         "diff_bytes": diff_bytes,
-        "head_oid": pr.get("head_oid"),
+        "head_sha": pr.get("head_sha"),
         "base_oid": pr.get("base_oid"),
         "title": pr.get("title"),
         "url": pr.get("url"),

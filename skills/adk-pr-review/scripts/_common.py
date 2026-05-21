@@ -80,11 +80,65 @@ def get_logger(name: str, task_dir: Path | None = None) -> logging.Logger:
 
 # ----- state file -----------------------------------------------------------
 
+_STATE_LEGACY_RENAMES = (
+    ("pr_link", "pr_url"),
+    ("head_oid", "head_sha"),
+    ("last_reviewed_head_oid", "last_reviewed_head_sha"),
+)
+
+
+def normalise_state_legacy(state: dict[str, Any]) -> bool:
+    """Idempotent rename of legacy fields in state.json on load.
+
+    Renames at the top level AND inside each phases.<phase> entry, so a
+    state file written before v4 (with `head_oid_at_index` and friends)
+    surfaces the new spelling to readers. Returns True if any change was
+    made; callers may persist the rewrite.
+
+    Re-running on an already-normalised state is a no-op (returns False).
+    """
+    changed = False
+
+    def _rename_in(d: dict[str, Any]) -> None:
+        nonlocal changed
+        for legacy, canonical in _STATE_LEGACY_RENAMES:
+            if legacy in d and canonical not in d:
+                d[canonical] = d.pop(legacy)
+                changed = True
+            elif legacy in d:
+                # Both present — drop the legacy key; canonical wins.
+                d.pop(legacy)
+                changed = True
+        # `head_oid_at_index` inside a phase entry → `head_sha_at_index`.
+        if "head_oid_at_index" in d and "head_sha_at_index" not in d:
+            d["head_sha_at_index"] = d.pop("head_oid_at_index")
+            changed = True
+        elif "head_oid_at_index" in d:
+            d.pop("head_oid_at_index")
+            changed = True
+
+    _rename_in(state)
+    phases = state.get("phases")
+    if isinstance(phases, dict):
+        for entry in phases.values():
+            if isinstance(entry, dict):
+                _rename_in(entry)
+    return changed
+
+
 def read_state(task_dir: Path) -> dict[str, Any]:
     p = task_dir / "state.json"
     if not p.exists():
         return {"task_dir": str(task_dir), "phases": {}}
-    return json.loads(p.read_text(encoding="utf-8"))
+    state = json.loads(p.read_text(encoding="utf-8"))
+    if normalise_state_legacy(state):
+        # Persist the normalised shape so subsequent reads are cheap and the
+        # on-disk file matches what callers see.
+        try:
+            p.write_text(json.dumps(state, indent=2, sort_keys=True), encoding="utf-8")
+        except OSError:
+            pass
+    return state
 
 
 def write_state(task_dir: Path, state: dict[str, Any]) -> None:

@@ -62,9 +62,9 @@ Owned by the consuming skill's task dir.
    otherwise the embedder mutates the shared base).
 4. `embedder.py --mode incremental --replaced-files <diff>` overlays only
    the files that changed between the base's `indexed_sha` and the PR's
-   `head_oid`. That diff naturally includes commits on the target branch
+   `head_sha`. That diff naturally includes commits on the target branch
    since the base was built PLUS the PR's own commits — `git diff
-   base_sha..pr_head_oid` returns the union in one call.
+   base_sha..pr_head_sha` returns the union in one call.
 
 Cold path on 20k chunks: ~9 min. Warm seeded path on a 12-file PR: ~30 s.
 Picking the *closest* base (target-branch instead of default) keeps the

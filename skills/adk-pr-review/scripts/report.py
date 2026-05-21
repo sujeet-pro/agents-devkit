@@ -429,7 +429,7 @@ def _release_and_print_tail(task_dir: Path, pr: dict, findings_blob: dict, log) 
     queue_ctx_path = task_dir / "queue-context.json"
     queue_path = DEFAULT_QUEUE_PATH
     slack_info = None
-    pr_link = pr.get("url")
+    pr_url = pr.get("url")
     if queue_ctx_path.exists():
         try:
             ctx = read_json(queue_ctx_path)
@@ -437,8 +437,12 @@ def _release_and_print_tail(task_dir: Path, pr: dict, findings_blob: dict, log) 
             if qp:
                 queue_path = Path(qp)
             slack_info = ctx.get("slack")
-            if ctx.get("pr_link"):
-                pr_link = ctx["pr_link"]
+            # Prefer the canonical key; fall back to the legacy field for any
+            # queue-context.json written before v4.
+            if ctx.get("pr_url"):
+                pr_url = ctx["pr_url"]
+            elif ctx.get("pr_link"):
+                pr_url = ctx["pr_link"]
         except Exception as e:
             log.warning("queue-context.json unreadable: %s", e)
 
@@ -459,8 +463,8 @@ def _release_and_print_tail(task_dir: Path, pr: dict, findings_blob: dict, log) 
     try:
         new_status = release_after_review(
             queue_path=queue_path,
-            pr_link=pr_link,
-            head_oid=pr.get("head_oid") or pr.get("headRefOid"),
+            pr_url=pr_url,
+            head_sha=pr.get("head_sha") or pr.get("headRefOid"),
             n_findings=n_findings,
             approved_host=approved_host,
             recommendation=recommendation,
@@ -472,7 +476,7 @@ def _release_and_print_tail(task_dir: Path, pr: dict, findings_blob: dict, log) 
         log.warning("queue release failed: %s", e)
         new_status = None
     if new_status is not None:
-        print(f"\nqueue: {pr_link} → {new_status}")
+        print(f"\nqueue: {pr_url} → {new_status}")
 
     # Always show the cumulative merge-ready summary at the tail.
     try:

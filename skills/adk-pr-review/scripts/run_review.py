@@ -20,18 +20,18 @@ Behavior on EVERY invocation (whether first run or N-th):
 
   Phase 0 (prereq)     — always runs.
   Phase 2a (fetch PR)  — always runs. Pulls fresh PR metadata + diff. Records the
-                         new head_oid.
+                         new head_sha.
   Phase 1 (worktree)   — always runs. `git fetch --all --prune` in the clone,
-                         then `git worktree add --detach <task>/code <head_oid>`
-                         (or `git checkout --detach <head_oid>` if the worktree
+                         then `git worktree add --detach <task>/code <head_sha>`
+                         (or `git checkout --detach <head_sha>` if the worktree
                          already exists). Serialized via the global lock.
   Phase 2b (docs)      — always runs. Re-scans PR body + comments for doc URLs;
                          writes docs/index.json with pending-MCP markers so the
                          agent can fetch Confluence / Jira / GDoc via MCPs.
-  Phase 3 (index)      — runs if head_oid changed OR --rebuild. When head_oid
+  Phase 3 (index)      — runs if head_sha changed OR --rebuild. When head_sha
                          changed AND prior state exists: INCREMENTAL re-index
                          (only the files that differ between old and new
-                         head_oid). When no prior state OR --rebuild: full
+                         head_sha). When no prior state OR --rebuild: full
                          re-index.
   Phase 4a (precis)    — always runs (regenerates the precis the agent reads).
 
@@ -268,7 +268,7 @@ def main() -> int:
         if args.prepare_only:
             die("--prepare-only requires an explicit URL (no queue-claim semantics).")
         # Queue mode: route through `get_next_eligible` so we validate the
-        # candidate against the origin API and auto-drop merged/declined rows
+        # candidate against the origin API and auto-drop merged/closed rows
         # before they can be claimed for review.
         try:
             from pr_queue import get_next_eligible  # type: ignore[import-not-found]
@@ -284,7 +284,7 @@ def main() -> int:
                 "message": "no eligible rows in the queue. Run `adk pr-scan` to refresh, or pass a PR URL.",
             }, indent=2))
             return 0
-        args.url = queue_row["pr_link"]
+        args.url = queue_row["pr_url"]
     else:
         # URL mode — check the queue for a matching row and claim it (so a
         # parallel queue-mode terminal won't pick the same PR while we review).
@@ -331,15 +331,15 @@ def main() -> int:
     log = get_logger("orchestrator", task_dir)
     log.info("=== /adk-pr-review %s ===", args.url)
     if queue_row is not None:
-        log.info("queue context: pr_link=%s, slack=%s, supporting_docs=%d",
-                 queue_row.get("pr_link"),
+        log.info("queue context: pr_url=%s, slack=%s, supporting_docs=%d",
+                 queue_row.get("pr_url"),
                  bool(queue_row.get("slack")),
                  len(queue_row.get("supporting_docs") or []))
         # Write queue-context.json so report.py can pick up slack-info + queue_path
         # without re-parsing the queue at the end.
         write_json(task_dir / "queue-context.json", {
             "queue_path": str(queue_path),
-            "pr_link": queue_row.get("pr_link"),
+            "pr_url": queue_row.get("pr_url"),
             "slack": queue_row.get("slack"),
             "supporting_docs": queue_row.get("supporting_docs") or [],
         })
@@ -379,7 +379,7 @@ def main() -> int:
 def _main_inner(args, parsed, task_dir, log) -> int:
     host, owner, repo, n = parsed["host"], parsed["owner"], parsed["repo"], parsed["pr_number"]
     state = read_state(task_dir)
-    prior_index_head = state.get("phases", {}).get("3_index", {}).get("head_oid_at_index")
+    prior_index_head = state.get("phases", {}).get("3_index", {}).get("head_sha_at_index")
     if args.rebuild:
         log.info("--rebuild: prior index will be discarded")
         prior_index_head = None
@@ -402,33 +402,33 @@ def _main_inner(args, parsed, task_dir, log) -> int:
         repo=repo, task_slug=f"{repo}_pr-{n}",
     )
 
-    # ---------- Phase 2a: fetch PR (always — gets fresh head_oid) ----------
-    log.info("--- Phase 2a: fetch PR (always; gets fresh head_oid) ---")
+    # ---------- Phase 2a: fetch PR (always — gets fresh head_sha) ----------
+    log.info("--- Phase 2a: fetch PR (always; gets fresh head_sha) ---")
     step([PY, str(THIS_DIR / "fetch_pr.py"),
           "--host", host, "--owner", owner, "--repo", repo,
           "--pr-number", str(n), "--task-dir", str(task_dir), "--json"], log)
     pr = read_json(task_dir / "pr.json")
-    head_oid = pr.get("head_oid")
-    if not head_oid:
-        die("fetch_pr.py did not populate head_oid")
-    log.info("PR head_oid: %s (prior indexed: %s)", head_oid[:12], (prior_index_head or "<none>")[:12])
+    head_sha = pr.get("head_sha")
+    if not head_sha:
+        die("fetch_pr.py did not populate head_sha")
+    log.info("PR head_sha: %s (prior indexed: %s)", head_sha[:12], (prior_index_head or "<none>")[:12])
 
     # ---------- Phase 1: clone + worktree (ALWAYS — pulls latest) ----------
     log.info("--- Phase 1a: ensure repo clone (always fetch --all --prune) ---")
     step([PY, str(THIS_DIR / "ensure_repo_clone.py"),
           "--host", host, "--owner", owner, "--repo", repo, "--json"], log)
-    log.info("--- Phase 1b: create/update worktree at %s (serialized) ---", head_oid[:12])
+    log.info("--- Phase 1b: create/update worktree at %s (serialized) ---", head_sha[:12])
     step([PY, str(THIS_DIR / "create_worktree.py"),
-          "--repo", repo, "--pr-number", str(n), "--head-oid", head_oid,
+          "--repo", repo, "--pr-number", str(n), "--head-sha", head_sha,
           "--json"] + (["--rebuild"] if args.rebuild else []), log)
     mark_phase(task_dir, "1_worktree", "done",
-               worktree_path=str(task_dir / "code"), head_oid=head_oid)
+               worktree_path=str(task_dir / "code"), head_sha=head_sha)
 
     # ---------- Phase 2b: supporting docs scan (always) ----------
     log.info("--- Phase 2b: scan supporting docs ---")
     step([PY, str(THIS_DIR / "fetch_supporting_docs.py"),
           "--task-dir", str(task_dir), "--json"], log)
-    mark_phase(task_dir, "2_fetch", "done", head_oid=head_oid)
+    mark_phase(task_dir, "2_fetch", "done", head_sha=head_sha)
 
     # ---------- Phase 3: index (full or incremental) ----------
     code_index_dir = task_dir / "code-index"
@@ -436,17 +436,17 @@ def _main_inner(args, parsed, task_dir, log) -> int:
     has_prior_index = (code_index_dir / "meta.json").exists() and prior_index_head is not None
     changed_files: list[str] = []
     seed_info: dict | None = None
-    if has_prior_index and prior_index_head != head_oid:
+    if has_prior_index and prior_index_head != head_sha:
         repo_clone = repo_clone_for(repo)
-        changed_files = diff_changed_files(repo_clone, prior_index_head, head_oid, log)
+        changed_files = diff_changed_files(repo_clone, prior_index_head, head_sha, log)
         log.info("incremental re-index: %d files changed between %s..%s",
-                 len(changed_files), prior_index_head[:12], head_oid[:12])
+                 len(changed_files), prior_index_head[:12], head_sha[:12])
 
     # NEW: when there's no prior PR-task-local index, consider seeding from a
     # repo-level base index (built by `adk repo add|update`). This converts
     # the cold 9-minute full reindex into a warm overlay: copy the base table
     # dir, then run the embedder in incremental mode for the files that
-    # changed between the base's indexed SHA and the PR's head_oid.
+    # changed between the base's indexed SHA and the PR's head_sha.
     #
     # Branch selection: the PR's target branch (`baseRefName` from pr.json) is
     # preferred — if `develop` is indexed and the PR targets `develop`, the
@@ -488,11 +488,11 @@ def _main_inner(args, parsed, task_dir, log) -> int:
 
     if seed_info is not None:
         # We seeded the base; overlay only the files that differ between
-        # base.indexed_sha and the PR's head_oid.
+        # base.indexed_sha and the PR's head_sha.
         repo_clone = repo_clone_for(repo)
-        overlay_files = diff_changed_files(repo_clone, seed_info["seeded_from_sha"], head_oid, log)
+        overlay_files = diff_changed_files(repo_clone, seed_info["seeded_from_sha"], head_sha, log)
         log.info("--- Phase 3: SEEDED from base @ %s; overlaying %d files vs head %s ---",
-                 seed_info["seeded_from_sha"][:12], len(overlay_files), head_oid[:12])
+                 seed_info["seeded_from_sha"][:12], len(overlay_files), head_sha[:12])
         if overlay_files:
             files_list = code_index_dir / "overlay-files.txt"
             files_list.write_text("\n".join(overlay_files), encoding="utf-8")
@@ -522,7 +522,7 @@ def _main_inner(args, parsed, task_dir, log) -> int:
         # failure doesn't orphan a usable index. Improvement #9 / #11.
         _base_now = pick_base_index(repo, target_branch=seed_info.get("seeded_from_branch"))
         mark_phase(task_dir, "3_index", "done",
-                   head_oid_at_index=head_oid,
+                   head_sha_at_index=head_sha,
                    incremental=True,
                    seeded_from_base=True,
                    base_oid=seed_info["seeded_from_sha"],
@@ -559,11 +559,11 @@ def _main_inner(args, parsed, task_dir, log) -> int:
               "--task-dir", str(task_dir),
               "--worktree", str(task_dir / "code"), "--json"], log)
         mark_phase(task_dir, "3_index", "done",
-                   head_oid_at_index=head_oid, incremental=False, seeded_from_base=False)
-    elif prior_index_head == head_oid:
-        log.info("--- Phase 3: prior index matches head_oid; skipping reindex ---")
+                   head_sha_at_index=head_sha, incremental=False, seeded_from_base=False)
+    elif prior_index_head == head_sha:
+        log.info("--- Phase 3: prior index matches head_sha; skipping reindex ---")
         mark_phase(task_dir, "3_index", "done",
-                   head_oid_at_index=head_oid, incremental=False, skipped=True)
+                   head_sha_at_index=head_sha, incremental=False, skipped=True)
     elif changed_files:
         log.info("--- Phase 3: INCREMENTAL re-index (%d files) ---", len(changed_files))
         files_list = code_index_dir / "changed-files.txt"
@@ -589,10 +589,10 @@ def _main_inner(args, parsed, task_dir, log) -> int:
         else:
             log.info("no SCIP-supported languages in the changed-files set; skipping SCIP")
         mark_phase(task_dir, "3_index", "done",
-                   head_oid_at_index=head_oid, incremental=True,
+                   head_sha_at_index=head_sha, incremental=True,
                    files_changed=len(changed_files), seeded_from_base=False)
     else:
-        log.info("--- Phase 3: head_oid changed but no resolvable file delta — full re-index ---")
+        log.info("--- Phase 3: head_sha changed but no resolvable file delta — full re-index ---")
         chunks_path.parent.mkdir(parents=True, exist_ok=True)
         step([PY, str(CODE_INDEX_LIB / "chunker.py"),
               "--worktree", str(task_dir / "code"),
@@ -606,8 +606,8 @@ def _main_inner(args, parsed, task_dir, log) -> int:
               "--task-dir", str(task_dir),
               "--worktree", str(task_dir / "code"), "--json"], log)
         mark_phase(task_dir, "3_index", "done",
-                   head_oid_at_index=head_oid, incremental=False,
-                   seeded_from_base=False, reason="head_oid moved but no resolvable diff")
+                   head_sha_at_index=head_sha, incremental=False,
+                   seeded_from_base=False, reason="head_sha moved but no resolvable diff")
 
     # Health check AFTER state write — a transient health-check failure no
     # longer orphans the index. The earlier mark_phase call captured what
@@ -627,7 +627,7 @@ def _main_inner(args, parsed, task_dir, log) -> int:
             "action": "prepared",
             "pr_url": args.url,
             "task_dir": str(task_dir),
-            "head_oid": head_oid,
+            "head_sha": head_sha,
             "worktree": str(task_dir / "code"),
             "precis": str(task_dir / "precis.md"),
         }, indent=2))
@@ -697,7 +697,7 @@ def _main_inner(args, parsed, task_dir, log) -> int:
         "task_dir": str(task_dir),
         "pr_url": args.url,
         "host": host, "owner": owner, "repo": repo, "pr_number": n,
-        "head_oid": head_oid,
+        "head_sha": head_sha,
         "worktree": str(task_dir / "code"),
         "precis": str(task_dir / "precis.md"),
         "finding_template": str(THIS_DIR.parent / "finding.template.json"),
@@ -803,7 +803,7 @@ def build_precis(task_dir: Path, top_k: int, scope: str) -> str:
         "## PR",
         f"- title: {pr.get('title')}",
         f"- url: {pr.get('url')}",
-        f"- head: {pr.get('head_oid')}  base: {pr.get('base_oid')}",
+        f"- head: {pr.get('head_sha')}  base: {pr.get('base_oid')}",
         f"- changed files: {len(changed_files)}",
         f"- scope: {scope}",
         "",

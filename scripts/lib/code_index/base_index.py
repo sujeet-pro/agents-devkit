@@ -31,7 +31,7 @@ Migration moves it under `branches/<slug(default_branch)>/`; see
 
 `/adk-pr-review` consults this directory before indexing a PR. When a base is
 present, fresh, and its embedding model matches the run, the skill copies it
-into the per-PR task dir and overlays only the (base_sha → pr_head_oid) diff
+into the per-PR task dir and overlays only the (base_sha → pr_head_sha) diff
 via `embedder.py --mode incremental`. Picking the branch index that matches
 the PR's target branch (instead of always the default) keeps the overlay
 small even when default and target have diverged.

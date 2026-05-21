@@ -567,7 +567,7 @@ def main() -> int:
 
     if host == "github":
         if post_review:
-            res = gh_post_review(pr["owner"], pr["repo"], pr["pr_number"], pr["head_oid"],
+            res = gh_post_review(pr["owner"], pr["repo"], pr["pr_number"], pr["head_sha"],
                                  issues_only, findings.get("summary", ""),
                                  recommendation, findings, log)
             out["posted"].append(res)
@@ -698,7 +698,7 @@ def build_posting_plan(*, pr: dict, findings_blob: dict, actions: list[dict],
     owner = pr.get("owner")
     repo = pr.get("repo")
     n = pr.get("pr_number")
-    head = pr.get("head_oid") or pr.get("headRefOid")
+    head = pr.get("head_sha") or pr.get("headRefOid")
     findings = findings_blob.get("findings", []) or []
     recommendation = findings_blob.get("recommendation", "comment_only")
     # Appreciations get their own treatment: PR-level GENERAL comments on
@@ -890,7 +890,7 @@ def build_posting_plan(*, pr: dict, findings_blob: dict, actions: list[dict],
 
     return {
         "host": host,
-        "pr_link": pr.get("url"),
+        "pr_url": pr.get("url"),
         "recommendation": recommendation,
         "approve_ready": approve_ready,
         "post_review": post_review,
