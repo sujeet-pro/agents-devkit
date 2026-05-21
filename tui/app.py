@@ -397,23 +397,34 @@ class AdkApp(App):
             self.query_one(LogPane).write("(no rows selected — press `space` on rows to select)")
             return
         ready: list[str] = []
+        skipped: list[str] = []
         log_pane = self.query_one(LogPane)
         for url in list(self._selection_order):
             row = self._rows_by_url.get(url)
             if row is None or not row.ready_for_review:
                 log_pane.write(f"(skipping {url} — not ready)")
+                skipped.append(url)
                 continue
             ready.append(url)
         if not ready:
             log_pane.write("(no eligible rows in selection)")
             return
         log_pane.write(f"(batch start — {len(ready)} rows, parallel={self._parallel_n})")
-        self._batch_task = asyncio.create_task(self._run_batch(ready))
+        self._batch_task = asyncio.create_task(self._run_batch(ready, skipped))
         self._batch_task.add_done_callback(self._on_batch_task_done)
 
-    async def _run_batch(self, urls: list[str]) -> None:
+    async def _run_batch(self, urls: list[str], skipped: list[str] | None = None) -> None:
+        skipped = list(skipped or [])
+        outcomes: list[dict] = []
+        # Seed outcomes with skipped rows so the recap surfaces them too.
+        for url in skipped:
+            outcomes.append({
+                "pr_url": url, "rc": None,
+                "last_line": "not ready", "outcome": "skipped",
+            })
+
         queue: list[str] = list(urls)
-        inflight: set[asyncio.Task] = set()
+        inflight: dict[asyncio.Task, str] = {}
 
         def _start_next() -> None:
             while queue and len(inflight) < self._parallel_n:
@@ -421,13 +432,25 @@ class AdkApp(App):
                 t = asyncio.create_task(self._run_review(url))
                 self._review_tasks[url] = t
                 t.add_done_callback(self._on_review_task_done)
-                inflight.add(t)
+                inflight[t] = url
 
         _start_next()
         while inflight:
-            done, _pending = await asyncio.wait(inflight, return_when=asyncio.FIRST_COMPLETED)
+            done, _pending = await asyncio.wait(
+                set(inflight.keys()), return_when=asyncio.FIRST_COMPLETED,
+            )
             for t in done:
-                inflight.discard(t)
+                url = inflight.pop(t)
+                try:
+                    result = t.result()
+                except BaseException as exc:  # CancelledError or anything else
+                    result = {"pr_url": url, "rc": None,
+                              "last_line": repr(exc), "outcome": "crashed"}
+                if isinstance(result, dict):
+                    outcomes.append(result)
+                else:
+                    outcomes.append({"pr_url": url, "rc": None,
+                                     "last_line": "unknown", "outcome": "crashed"})
             _start_next()
 
         log_pane = self.query_one(LogPane)
@@ -441,6 +464,12 @@ class AdkApp(App):
             agent=self._current_agent,
         )
         self._reload(force=True)
+
+        # Push the recap modal so the user sees per-row outcomes without
+        # having to scroll the LogPane. Dismissable via escape/enter/q.
+        if outcomes:
+            from tui.screens.recap_screen import RecapScreen
+            self.push_screen(RecapScreen(outcomes=outcomes, ascii_only=self._ascii_only))
 
     def _on_batch_task_done(self, task: asyncio.Task) -> None:
         try:
@@ -578,7 +607,11 @@ class AdkApp(App):
             return self._worker_script
         return Path(__file__).resolve().parent / "worker.py"
 
-    async def _run_review(self, pr_url: str) -> None:
+    async def _run_review(self, pr_url: str) -> dict:
+        """Run one worker. Returns an outcome dict the batch driver collects
+        for the end-of-run recap: `{pr_url, rc, last_line, outcome}` where
+        outcome is `"ok"` (rc=0), `"failed"` (rc!=0), or `"spawn-error"` (the
+        subprocess never started)."""
         log_pane = self.query_one(LogPane)
         worker = self._resolve_worker_script()
         cmd: list[str] = [sys.executable, str(worker), pr_url]
@@ -609,7 +642,9 @@ class AdkApp(App):
                 parallel_n=self._parallel_n,
                 agent=self._current_agent,
             )
-            return
+            return {"pr_url": pr_url, "rc": None,
+                    "last_line": f"spawn error: {exc}",
+                    "outcome": "spawn-error"}
         self._review_workers[pr_url] = proc
         self.query_one(FooterBar).update_status(
             self._filter_mode, self._sort_mode,
@@ -619,15 +654,21 @@ class AdkApp(App):
             parallel_n=self._parallel_n,
             agent=self._current_agent,
         )
+        last_line = ""
         try:
             assert proc.stdout is not None
             while True:
                 line = await proc.stdout.readline()
                 if not line:
                     break
-                log_pane.write(line.decode(errors="replace").rstrip("\n"))
+                text = line.decode(errors="replace").rstrip("\n")
+                log_pane.write(text)
+                if text:
+                    last_line = text
             rc = await proc.wait()
             log_pane.write(f"(worker exited rc={rc})")
+            return {"pr_url": pr_url, "rc": rc, "last_line": last_line,
+                    "outcome": "ok" if rc == 0 else "failed"}
         finally:
             self._review_workers.pop(pr_url, None)
             self.query_one(FooterBar).update_status(
