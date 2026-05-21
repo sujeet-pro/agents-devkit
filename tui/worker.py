@@ -41,10 +41,13 @@ def _parse_phase_marker(text: str) -> str | None:
 
 THIS_DIR = Path(__file__).resolve().parent
 REPO_ROOT = THIS_DIR.parent
+sys.path.insert(0, str(REPO_ROOT))
 sys.path.insert(0, str(REPO_ROOT / "skills" / "adk-pr-review" / "scripts"))
 sys.path.insert(0, str(REPO_ROOT / "skills" / "adk-cli" / "scripts"))
 
 from _common import parse_pr_url  # noqa: E402
+
+from tui.agent_registry import default_agent, get_agent, list_agents  # noqa: E402
 
 try:
     from queue_io import DEFAULT_QUEUE_PATH  # noqa: E402
@@ -150,7 +153,23 @@ async def _drive(args: argparse.Namespace) -> int:
         return 2
 
     adk_bin = str(args.adk_bin) if args.adk_bin else str(_resolve_adk_bin())
-    agent_bin = str(args.agent_bin) if args.agent_bin else "claude"
+    if args.agent_bin:
+        agent_bin = str(args.agent_bin)
+        agent_name = "custom"
+    elif args.agent:
+        spec = get_agent(args.agent)
+        if spec is None:
+            _emit(
+                f"(error: unknown agent {args.agent!r}; available: "
+                f"{', '.join(s.name for s in list_agents())})"
+            )
+            return 2
+        agent_bin = spec.bin
+        agent_name = spec.name
+    else:
+        spec = default_agent()
+        agent_bin = spec.bin
+        agent_name = spec.name
     queue = str(args.queue) if args.queue else str(DEFAULT_QUEUE_PATH)
 
     agent_proc: asyncio.subprocess.Process | None = None
@@ -194,7 +213,7 @@ async def _drive(args: argparse.Namespace) -> int:
     started = _now_iso()
     payload = {
         "pid": os.getpid(), "pr_url": args.pr_url, "task_type": "review",
-        "agent": "claude", "queue": queue,
+        "agent": agent_name, "queue": queue,
         "started_at": started, "last_heartbeat": started,
         "current_phase": "phase 0", "rc": None,
     }
@@ -209,16 +228,22 @@ async def _drive(args: argparse.Namespace) -> int:
     agent_rc = 1
 
     try:
-        agent_proc = await asyncio.create_subprocess_exec(
-            *agent_cmd,
-            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT,
-            env=os.environ.copy(),
-        )
-        await _stream_proc(agent_proc, payload)
-        agent_rc = await agent_proc.wait()
-    except FileNotFoundError as exc:
-        _emit(f"(error: agent not found: {exc})")
-        agent_rc = 1
+        if agent_bin == "__headless__":
+            _emit(f"[headless] no agent spawned for {args.pr_url}")
+            await asyncio.sleep(0.5)
+            agent_rc = 0
+        else:
+            try:
+                agent_proc = await asyncio.create_subprocess_exec(
+                    *agent_cmd,
+                    stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT,
+                    env=os.environ.copy(),
+                )
+                await _stream_proc(agent_proc, payload)
+                agent_rc = await agent_proc.wait()
+            except FileNotFoundError as exc:
+                _emit(f"(error: agent not found: {exc})")
+                agent_rc = 1
     finally:
         if sig_received and agent_proc is not None:
             try:
@@ -262,6 +287,12 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     ap.add_argument("pr_url")
     ap.add_argument("--queue", default=None)
     ap.add_argument("--agent-bin", default=None)
+    ap.add_argument(
+        "--agent",
+        default=None,
+        help="agent name in the registry (e.g. 'claude'); "
+             "ignored if --agent-bin is also set",
+    )
     ap.add_argument("--adk-bin", default=None)
     ap.add_argument("--no-prepare", action="store_true")
     ap.add_argument("--heartbeat-bump-interval-s", type=float, default=300.0)

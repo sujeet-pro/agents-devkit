@@ -47,6 +47,7 @@ class AdkApp(App):
         Binding("R", "run_selected", "run-selected"),
         Binding("space", "toggle_select", "select"),
         Binding("p", "cycle_parallel", "parallel"),
+        Binding("a", "pick_agent", "agent"),
         Binding("plus", "add_pr", "add-pr"),
         Binding("b", "repos", "repos"),
         Binding("j", "cursor_down", show=False),
@@ -68,6 +69,7 @@ class AdkApp(App):
         heartbeat_dir: Path | None = None,
         worker_script: Path | None = None,
         repos_dir: Path | None = None,
+        agent: str = "claude",
     ) -> None:
         super().__init__()
         self._queue_path = queue_path
@@ -79,6 +81,7 @@ class AdkApp(App):
         self._heartbeat_dir = heartbeat_dir
         self._worker_script = worker_script
         self._repos_dir: Path | None = repos_dir
+        self._current_agent: str = agent
         self._filter_mode: FilterMode = "all"
         self._sort_mode: SortMode = "fifo"
         self._model: QueueModel | None = None
@@ -119,6 +122,7 @@ class AdkApp(App):
             review_running=False,
             selected_count=len(self._selection_order),
             parallel_n=self._parallel_n,
+            agent=self._current_agent,
         )
         self._reload(force=True)
         self._reload_plan(force=True)
@@ -149,6 +153,7 @@ class AdkApp(App):
             review_running=bool(self._review_workers),
             selected_count=len(self._selection_order),
             parallel_n=self._parallel_n,
+            agent=self._current_agent,
         )
         self._refresh_detail()
 
@@ -221,6 +226,26 @@ class AdkApp(App):
 
     def action_escape(self) -> None:
         return None
+
+    @work
+    async def action_pick_agent(self) -> None:
+        from tui.screens.agent_picker_screen import AgentPickerScreen
+        if any(isinstance(s, AgentPickerScreen) for s in self.screen_stack):
+            return
+        picked = await self.push_screen_wait(
+            AgentPickerScreen(current=self._current_agent)
+        )
+        if not picked:
+            return
+        self._current_agent = picked
+        self.query_one(FooterBar).update_status(
+            self._filter_mode, self._sort_mode,
+            sync_running=(self._sync_proc is not None and self._sync_proc.returncode is None),
+            review_running=bool(self._review_workers),
+            selected_count=len(self._selection_order),
+            parallel_n=self._parallel_n,
+            agent=self._current_agent,
+        )
 
     @work
     async def action_add_pr(self) -> None:
@@ -360,6 +385,7 @@ class AdkApp(App):
             review_running=bool(self._review_workers),
             selected_count=len(self._selection_order),
             parallel_n=self._parallel_n,
+            agent=self._current_agent,
         )
 
     def action_run_selected(self) -> None:
@@ -412,6 +438,7 @@ class AdkApp(App):
             review_running=False,
             selected_count=len(self._selection_order),
             parallel_n=self._parallel_n,
+            agent=self._current_agent,
         )
         self._reload(force=True)
 
@@ -449,6 +476,7 @@ class AdkApp(App):
                     review_running=bool(self._review_workers),
                     selected_count=len(self._selection_order),
                     parallel_n=self._parallel_n,
+                    agent=self._current_agent,
                 )
             except Exception:
                 pass
@@ -471,6 +499,7 @@ class AdkApp(App):
                     review_running=bool(self._review_workers),
                     selected_count=len(self._selection_order),
                     parallel_n=self._parallel_n,
+                    agent=self._current_agent,
                 )
             except Exception:
                 pass
@@ -490,6 +519,7 @@ class AdkApp(App):
             review_running=bool(self._review_workers),
             selected_count=len(self._selection_order),
             parallel_n=self._parallel_n,
+            agent=self._current_agent,
         )
         env = dict(os.environ)
         if self._plan_path is not None:
@@ -510,6 +540,7 @@ class AdkApp(App):
                 review_running=bool(self._review_workers),
                 selected_count=len(self._selection_order),
                 parallel_n=self._parallel_n,
+                agent=self._current_agent,
             )
             return
         assert self._sync_proc.stdout is not None
@@ -527,6 +558,7 @@ class AdkApp(App):
             review_running=bool(self._review_workers),
             selected_count=len(self._selection_order),
             parallel_n=self._parallel_n,
+            agent=self._current_agent,
         )
         self._reload_plan(force=True)
         if self._model is not None:
@@ -556,6 +588,8 @@ class AdkApp(App):
             cmd += ["--adk-bin", str(self._adk_bin)]
         if self._agent_bin is not None:
             cmd += ["--agent-bin", str(self._agent_bin)]
+        else:
+            cmd += ["--agent", self._current_agent]
         if self._heartbeat_dir is not None:
             cmd += ["--heartbeat-dir", str(self._heartbeat_dir)]
         log_pane.write(f"$ {' '.join(shlex.quote(c) for c in cmd)}")
@@ -573,6 +607,7 @@ class AdkApp(App):
                 review_running=bool(self._review_workers),
                 selected_count=len(self._selection_order),
                 parallel_n=self._parallel_n,
+                agent=self._current_agent,
             )
             return
         self._review_workers[pr_url] = proc
@@ -582,6 +617,7 @@ class AdkApp(App):
             review_running=bool(self._review_workers),
             selected_count=len(self._selection_order),
             parallel_n=self._parallel_n,
+            agent=self._current_agent,
         )
         try:
             assert proc.stdout is not None
@@ -600,6 +636,7 @@ class AdkApp(App):
                 review_running=bool(self._review_workers),
                 selected_count=len(self._selection_order),
                 parallel_n=self._parallel_n,
+                agent=self._current_agent,
             )
             self._reload(force=True)
 

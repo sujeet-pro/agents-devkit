@@ -16,15 +16,20 @@ class FooterBar(Static):
         review_running: bool = False,
         selected_count: int = 0,
         parallel_n: int = 4,
+        agent: str | None = None,
     ) -> None:
         sync_label = "[s] sync (running…)" if sync_running else "[s] sync"
         review_label = "[r] review (running…)" if review_running else "[r] review"
         sel_label = f"sel:{selected_count}" if selected_count else "sel:0"
         par_label = f"par:{parallel_n}"
+        agent_label = f"agent:{agent}" if agent else ""
+        extras = f"  ·  {sel_label}  {par_label}"
+        if agent_label:
+            extras += f"  {agent_label}"
         text = (
             f"[?] help  [f] filter:{filter_mode}  [S] sort:{sort_mode}"
             f"  [j/k] nav  [q] quit"
-            f"  ·  {sync_label}  {review_label}  [R] run-sel  [space] sel  [p] par"
-            f"  ·  {sel_label}  {par_label}"
+            f"  ·  {sync_label}  {review_label}  [R] run-sel  [space] sel  [p] par  [a] agent"
+            f"{extras}"
         )
         self.update(text)
