@@ -165,7 +165,7 @@ def main(argv: list[str] | None = None) -> int:
         description="Phase 3: anchor + suggestion-presence gate on the agent's findings.",
     )
     ap.add_argument("--task-dir", required=True,
-                    help="path to ~/.agents-devkit/pr-reviews/<repo>_pr-<n>/")
+                    help="path to ~/.agents-devkit/skill-pr-review/<repo>_pr-<n>/")
     ap.add_argument("--json", action="store_true",
                     help="emit a JSON summary on stdout")
     args = ap.parse_args(argv)

@@ -19,13 +19,13 @@ A skill writes its artifacts to **exactly one** of two roots:
 |---|---|---|---|
 | `/adk-implement` | repo-bound | `<repo>/.temp/adk/implement/<task>/` | Writes code into the cwd repo. Always repo-bound. |
 | `/adk-document` | repo-bound | `<repo>/.temp/adk/document/<task>/` | Draft path. `--write-to <path>` overrides to a canonical repo path (e.g. `docs/adr/...`). |
-| `/adk-review` | hybrid | `<repo>/.temp/adk/review/<task>/` for `.` / local-changes / `--audit`; `~/.agents-devkit/reviews/<task>/` for a PR URL where the cwd is unrelated | Light review. No worktree, no embeddings. |
-| `/adk-pr-review` | **global, always** | `~/.agents-devkit/pr-reviews/<repo>_pr-<n>/` | Heavy review. Owns a worktree in `~/.agents-devkit/repos/<repo>/`. Never touches cwd. |
-| `/adk-investigate` | global | `~/.agents-devkit/investigations/<task>/` | Queries DD / Slack / Statsig / Mixpanel / Snowflake / Looker. No repo. |
-| `/adk-sync` | hybrid | `<repo>/.temp/adk/sync/<task>/` when invoked from a repo and the synced doc belongs to that repo; `~/.agents-devkit/sync/<task>/` otherwise | Bridge for 3P docs. |
-| `/adk-setup` | global | `~/.agents-devkit/setup/<ts>/` | Configures `~/.agents-devkit/config/`. |
-| `/adk-improve` | global | `~/.agents-devkit/improve/<ts>/` | Reads decision logs. |
-| `/adk-explain` | global | `~/.agents-devkit/explain/<ts>/` (only if an artifact is produced; usually ephemeral) | Advisor, mostly transient. |
+| `/adk-review` | hybrid | `<repo>/.temp/adk/review/<task>/` for `.` / local-changes / `--audit`; `~/.agents-devkit/skill-review/<task>/` for a PR URL where the cwd is unrelated | Light review. No worktree, no embeddings. |
+| `/adk-pr-review` | **global, always** | `~/.agents-devkit/skill-pr-review/<repo>_pr-<n>/` | Heavy review. Owns a worktree in `~/.agents-devkit/repos/<repo>/`. Never touches cwd. |
+| `/adk-investigate` | global | `~/.agents-devkit/skill-investigate/<task>/` | Queries DD / Slack / Statsig / Mixpanel / Snowflake / Looker. No repo. |
+| `/adk-sync` | hybrid | `<repo>/.temp/adk/sync/<task>/` when invoked from a repo and the synced doc belongs to that repo; `~/.agents-devkit/skill-sync/<task>/` otherwise | Bridge for 3P docs. |
+| `/adk-setup` | global | `~/.agents-devkit/skill-setup/<ts>/` | Configures `~/.agents-devkit/config/`. |
+| `/adk-improve` | global | `~/.agents-devkit/skill-improve/<ts>/` (top-level `improve/` keeps the shared learning data) | Reads decision logs. |
+| `/adk-explain` | global | `~/.agents-devkit/skill-explain/<ts>/` (only if an artifact is produced; usually ephemeral) | Advisor, mostly transient. |
 
 `<skill-stem>` = the skill name with the leading `adk-` stripped. `<task>` = the task discriminator (Jira key, PR number, slug from the prompt). `<ts>` = a UTC timestamp `YYYYMMDDTHHMMSSZ` when no natural discriminator exists.
 
@@ -55,13 +55,13 @@ A skill writes its artifacts to **exactly one** of two roots:
 │                                # consumed by /adk-pr-review (seed-and-overlay), and
 │                                # by /adk-implement, /adk-investigate, /adk-document
 │                                # via scripts/lib/code_index/query.py
-├── pr-reviews/
+├── skill-pr-review/
 │   └── <repo>_pr-<n>/{code/, pr.json, diff.patch, docs/, code-index/, findings.{json,md}, report.md, state.json, queue-context.json}
 # The queue itself lives under config/ (see above): config/pr-queue.json5.
-├── investigations/<task>/
-├── reviews/<task>/              # lightweight /adk-review on remote PRs
-├── sync/<task>/synced/
-├── setup/<ts>/  explain/<ts>/
+├── skill-investigate/<task>/
+├── skill-review/<task>/         # lightweight /adk-review on remote PRs
+├── skill-sync/<task>/synced/
+├── skill-setup/<ts>/  skill-explain/<ts>/  skill-improve/<ts>/  skill-document/<ts>/  skill-implement/<ts>/
 ```
 
 **Why this layout.** `memory/` and `improve/` are top-level because their lifecycle is independent of config (memory is per-session, improve is auto-managed by `/adk-improve`). `config/` is user-owned, with `connectors/<source>.md` as the canonical per-source config — the YAML frontmatter is what scripts read; the markdown body is the human-authored cheatsheet the agent reads as context.
@@ -150,10 +150,10 @@ python3 scripts/adk_task_slug.py --skill implement --input "SF-1234"
 # repo-bound  → /Users/sujeet/code/storefront-bff/.temp/adk/implement/SF-1234/
 
 python3 scripts/adk_task_slug.py --skill pr-review --input https://github.com/acme/foo/pull/42
-# global      → /Users/sujeet/.agents-devkit/pr-reviews/foo_pr-42/
+# global      → /Users/sujeet/.agents-devkit/skill-pr-review/foo_pr-42/
 
 python3 scripts/adk_task_slug.py --skill investigate --input "checkout 500s"
-# global      → /Users/sujeet/.agents-devkit/investigations/checkout-500s/
+# global      → /Users/sujeet/.agents-devkit/skill-investigate/checkout-500s/
 ```
 
 Pass `--create` to mkdir the resolved path; `--json` for structured output.

@@ -81,7 +81,7 @@ adk pr-task prepare --all                   # 6. create/refresh task folders for
 |---|---|---|
 | 1 | `pr-scan` walks configured Slack channels; new PR links → new queue rows (status=pending) | Re-scans dedupe by PR URL |
 | 2 | `pr-queue update --all` fetches cheap metadata per row via the origin API (GitHub `gh pr view` / Bitbucket REST). The `state` field is interpreted uniformly: `merged_at` set → status=merged; GitHub `CLOSED`-without-merge or Bitbucket `DECLINED` / `SUPERSEDED` → status=closed; otherwise open. | Re-runs are cheap; one call per row |
-| 3 | `pr-queue clean` drops every row in a terminal state (merged or closed) AND its `~/.agents-devkit/pr-reviews/<repo>_pr-<n>/` task folder | No-op when nothing is terminal |
+| 3 | `pr-queue clean` drops every row in a terminal state (merged or closed) AND its `~/.agents-devkit/skill-pr-review/<repo>_pr-<n>/` task folder | No-op when nothing is terminal |
 | 4 | `pr-task clean-orphans` removes any task folder whose PR isn't in the queue (or whose row is in a terminal state) | Always dry-run unless `-y`; safe to repeat |
 | 5 | `pr-queue remind` posts a Slack reply in the original thread for every row that: was reviewed >=24h ago, has no new commits since (`head_sha == last_reviewed_head_sha`), isn't terminal, hasn't been reminded in the last 24h, and has `slack.{channel_id,thread_ts}` populated. Stamps `last_reminded_at` so the next pass doesn't re-fire | One reminder per 24h window per row |
 | 6 | `pr-task prepare --all` runs Phase 0-4a for every remaining row: fetch PR, sync clone, materialise worktree at the PR head, chunk + embed + SCIP, build precis | Triple-incremental: (a) when `head_sha == last_indexed_head`, Phase 3 skips entirely; (b) when head moved but file delta is computable, only changed files are re-indexed; (c) embed-model is read from the existing `code-index/meta.json` so a re-run without `--detailed` keeps the prior model. Pass `--rebuild` to override and re-index from scratch. |
@@ -212,7 +212,7 @@ adk pr-queue add <slack-permalink>       # single-shot upsert (accepts a PR URL 
 adk pr-queue update <pr-url>             # metadata only — origin API → head_sha + merged/closed
 adk pr-queue update --all                # bulk metadata refresh on every non-terminal row
 adk pr-queue ready-to-merge              # approved PRs, grouped by open-comment state
-adk pr-queue clean                       # drop merged + closed rows + their pr-reviews/ folders
+adk pr-queue clean                       # drop merged + closed rows + their skill-pr-review/ folders
 adk pr-queue clean --all -y              # nuke everything (queue + per-PR scratch dirs)
 adk pr-queue release <pr-url>            # clear a stuck `taken_at` lock
 adk pr-queue get-next                    # Phase 0: claim next eligible row (origin-API validated)
@@ -227,7 +227,7 @@ adk pr-queue remind [--threshold-hours N] [--dry-run]   # Slack reminders for st
 
 ### `adk pr-task` — manage per-PR task folders
 
-The stable CLI surface for the per-PR scratch dir at `~/.agents-devkit/pr-reviews/<repo>_pr-<n>/`. `/adk-pr-review` calls these internally so it doesn't depend on script paths.
+The stable CLI surface for the per-PR scratch dir at `~/.agents-devkit/skill-pr-review/<repo>_pr-<n>/`. `/adk-pr-review` calls these internally so it doesn't depend on script paths.
 
 ```bash
 adk pr-task prepare <pr-url>             # create or refresh the task folder (phase 0-4a)
@@ -235,7 +235,7 @@ adk pr-task prepare <pr-url>             # create or refresh the task folder (ph
 adk pr-task prepare <pr-url> --rebuild   # force a full index rebuild
 adk pr-task prepare <pr-url> --detailed  # use the bge-m3 embedder (higher recall, slower)
 adk pr-task info <pr-url>                # JSON: task_dir, head_sha, last_indexed_head, has-findings
-adk pr-task list                         # every task folder under ~/.agents-devkit/pr-reviews/
+adk pr-task list                         # every task folder under ~/.agents-devkit/skill-pr-review/
 adk pr-task list --names-only            # one folder name per line (used by completion)
 adk pr-task list --paths                 # one absolute path per line
 ```
@@ -276,7 +276,7 @@ Refuses single-pass on diffs > 5000 LOC — for those, use `/adk-pr-review`.
 
 The default for any real PR review. Builds the full pipeline:
 
-1. **Clone + worktree** at the PR head under `~/.agents-devkit/pr-reviews/<repo>_pr-<n>/code/` (uses `~/.agents-devkit/repos/<name>/` as the base if `adk repo add` was run).
+1. **Clone + worktree** at the PR head under `~/.agents-devkit/skill-pr-review/<repo>_pr-<n>/code/` (uses `~/.agents-devkit/repos/<name>/` as the base if `adk repo add` was run).
 2. **Tree-sitter chunker** → **ollama embed** (`nomic-embed-text` default; `bge-m3` with `--detailed`) → **LanceDB** with FTS index. Hybrid retrieval (vector + BM25) at query time.
 3. **SCIP cross-file symbols** when `scip-typescript` / `scip-python` / `scip-go` / `scip-java` is on `PATH`. Missing → grep + chunker `parent_symbol` fallback (lower confidence; surfaced in the report).
 4. **Feature-flow tracing** through Statsig flags, experiments, and dynamic configs the diff touches.
@@ -294,7 +294,7 @@ The default for any real PR review. Builds the full pipeline:
 
 **Parallel review**: run `/adk-pr-review` (no arg) in N terminals and each claims a different row via a 30-min auto-expiring `taken_at` lock. Use `adk pr-queue release <url>` to free a stuck lock.
 
-**Isolation**: this skill is global. It never touches your cwd. All scratch state lives under `~/.agents-devkit/pr-reviews/<repo>_pr-<n>/` (see `shared/paths.md`).
+**Isolation**: this skill is global. It never touches your cwd. All scratch state lives under `~/.agents-devkit/skill-pr-review/<repo>_pr-<n>/` (see `shared/paths.md`).
 
 ## All skills
 

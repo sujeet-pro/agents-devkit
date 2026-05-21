@@ -24,15 +24,17 @@ def _write_queue(path: Path, prs: list[dict]) -> Path:
 
 @pytest.fixture
 def fake_pr_reviews(tmp_path, monkeypatch):
-    monkeypatch.setattr(pr_task, "PR_REVIEWS_ROOT", tmp_path / "pr-reviews")
-    (tmp_path / "pr-reviews").mkdir()
+    monkeypatch.setattr(pr_task, "PR_REVIEW_ROOT", tmp_path / "skill-pr-review")
+    monkeypatch.setattr(pr_task, "PR_REVIEWS_ROOT", tmp_path / "skill-pr-review")
+    monkeypatch.setattr(pr_task, "LEGACY_PR_REVIEW_ROOT", tmp_path / "pr-reviews-legacy-unused")
+    (tmp_path / "skill-pr-review").mkdir()
     return tmp_path
 
 
 def test_clean_orphans_keeps_queued_folders(fake_pr_reviews, capsys):
     """Two folders on disk; one PR in the queue → only the unqueued folder
     is reported as an orphan."""
-    reviews = pr_task.PR_REVIEWS_ROOT
+    reviews = pr_task.PR_REVIEW_ROOT
     (reviews / "foo_pr-1").mkdir()
     (reviews / "bar_pr-2").mkdir()  # this one stays in the queue
 
@@ -52,7 +54,7 @@ def test_clean_orphans_keeps_queued_folders(fake_pr_reviews, capsys):
 
 
 def test_clean_orphans_removes_when_yes(fake_pr_reviews, capsys):
-    reviews = pr_task.PR_REVIEWS_ROOT
+    reviews = pr_task.PR_REVIEW_ROOT
     (reviews / "foo_pr-1").mkdir()
     (reviews / "bar_pr-2").mkdir()
 
@@ -72,7 +74,7 @@ def test_clean_orphans_removes_when_yes(fake_pr_reviews, capsys):
 def test_clean_orphans_requires_yes_or_dry_run(fake_pr_reviews, capsys):
     """Default invocation (no --yes, no --dry-run) refuses to delete and
     asks for confirmation. Prevents accidental rm of an unrecognized folder."""
-    reviews = pr_task.PR_REVIEWS_ROOT
+    reviews = pr_task.PR_REVIEW_ROOT
     (reviews / "foo_pr-1").mkdir()
     queue = _write_queue(fake_pr_reviews, [])
     args = SimpleNamespace(queue=str(queue), dry_run=False, yes=False)
@@ -87,7 +89,7 @@ def test_merged_row_folder_treated_as_orphan(fake_pr_reviews, capsys):
     """Merged PRs are excluded from `_queued_task_dirs`, so their on-disk
     folders count as orphans during clean-orphans. This is how `pr-sync`
     catches anything `pr-queue clean` may have missed."""
-    reviews = pr_task.PR_REVIEWS_ROOT
+    reviews = pr_task.PR_REVIEW_ROOT
     (reviews / "foo_pr-1").mkdir()
 
     queue = _write_queue(fake_pr_reviews, [
@@ -101,7 +103,7 @@ def test_merged_row_folder_treated_as_orphan(fake_pr_reviews, capsys):
 
 
 def test_clean_orphans_no_op_when_all_queued(fake_pr_reviews, capsys):
-    reviews = pr_task.PR_REVIEWS_ROOT
+    reviews = pr_task.PR_REVIEW_ROOT
     (reviews / "foo_pr-1").mkdir()
     queue = _write_queue(fake_pr_reviews, [
         {"pr_url": "https://github.com/acme/foo/pull/1",

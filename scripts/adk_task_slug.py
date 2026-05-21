@@ -51,16 +51,34 @@ ALWAYS_REPO_BOUND = {"implement", "document"}
 ALWAYS_GLOBAL = {"pr-review", "pr-reviews", "investigate", "setup", "improve", "explain"}
 HYBRID = {"review", "sync"}
 
-# Area name under ~/.agents-devkit/ for global skills.
+# Area name under ~/.agents-devkit/ for global skills. v4: every skill has a
+# `skill-<stem>/` task-root. The pre-v4 layout (pr-reviews, investigations,
+# reviews, sync, setup, improve, explain) is the legacy path; resolve_path()
+# falls back to the legacy name when the new dir doesn't exist on disk but
+# the legacy one does (preserves the user's in-flight work until P7
+# migrates).
 GLOBAL_AREA = {
-    "pr-review": "pr-reviews",
-    "pr-reviews": "pr-reviews",   # batch shares the per-PR root; the batch state is the CSV.
-    "investigate": "investigations",
-    "review": "reviews",
-    "sync": "sync",
-    "setup": "setup",
-    "improve": "improve",
-    "explain": "explain",
+    "pr-review": "skill-pr-review",
+    "pr-reviews": "skill-pr-review",   # batch shares the per-PR root; the batch state is the CSV.
+    "investigate": "skill-investigate",
+    "review": "skill-review",
+    "sync": "skill-sync",
+    "setup": "skill-setup",
+    "improve": "skill-improve",
+    "explain": "skill-explain",
+    "document": "skill-document",
+    "implement": "skill-implement",
+}
+
+# Legacy v3 area names (kept for read-shim fallback only; never written to).
+LEGACY_GLOBAL_AREA = {
+    "skill-pr-review": "pr-reviews",
+    "skill-investigate": "investigations",
+    "skill-review": "reviews",
+    "skill-sync": "sync",
+    "skill-setup": "setup",
+    "skill-improve": "improve",
+    "skill-explain": "explain",
 }
 
 GLOBAL_ROOT = Path.home() / ".agents-devkit"

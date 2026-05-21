@@ -39,3 +39,4 @@ __pycache__/
 
 # Install scratch
 /install-scratch/
+.claude/worktrees/

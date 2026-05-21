@@ -1,7 +1,7 @@
 """pr_task.py — `adk pr-task` subcommands.
 
 The stable CLI surface for managing the per-PR task folder under
-~/.agents-devkit/pr-reviews/<repo>_pr-<n>/. The /adk-pr-review skill calls
+~/.agents-devkit/skill-pr-review/<repo>_pr-<n>/. The /adk-pr-review skill calls
 through this binary so it doesn't depend on internal script paths.
 
 prepare <pr-url>     Create or refresh the task folder for one PR. Runs the
@@ -19,7 +19,7 @@ info <pr-url>        JSON view of a task folder's current state: paths,
                      whether the folder is ready for an interactive review.
 
 list                 Names of every task folder under
-                     ~/.agents-devkit/pr-reviews/. Pair with `--paths` to
+                     ~/.agents-devkit/skill-pr-review/. Pair with `--paths` to
                      get the full paths instead. Powers shell completion.
 
 Internals: prepare delegates to skills/adk-pr-review/scripts/run_review.py
@@ -64,7 +64,30 @@ def _default_prepare_jobs() -> int:
     except Exception:
         return 1
 
-PR_REVIEWS_ROOT = ADK_HOME / "pr-reviews"
+# v4: per-skill task root is skill-pr-review/ (was pr-reviews/ pre-v4).
+# Falls back to the legacy path when only it exists on disk, so the user's
+# in-flight task folders survive between P2 landing and P7 migrating.
+PR_REVIEW_ROOT = ADK_HOME / "skill-pr-review"
+LEGACY_PR_REVIEW_ROOT = ADK_HOME / "pr-reviews"
+
+
+def _resolve_pr_review_root() -> Path:
+    """Return the live task root. Prefer skill-pr-review/; fall back to the
+    legacy pr-reviews/ ONLY if the new one is absent and the legacy one
+    exists. Once P7 migrates, the legacy path goes away.
+    """
+    if PR_REVIEW_ROOT.exists():
+        return PR_REVIEW_ROOT
+    if LEGACY_PR_REVIEW_ROOT.exists():
+        return LEGACY_PR_REVIEW_ROOT
+    return PR_REVIEW_ROOT
+
+
+# Back-compat constant — many callers use this name. Now resolves lazily via
+# a Path-typed property would be cleaner, but Python module-level lazy attrs
+# are awkward; keep this as the v4 default and let callers that need the
+# live answer call _resolve_pr_review_root() directly.
+PR_REVIEWS_ROOT = PR_REVIEW_ROOT
 RUN_REVIEW = ADK_PR_REVIEW_SCRIPTS / "run_review.py"
 VALIDATE_FINDINGS = ADK_PR_REVIEW_SCRIPTS / "validate_findings.py"
 
@@ -246,10 +269,11 @@ def cmd_validate(args) -> int:
 # ----- clean-orphans -------------------------------------------------------
 
 def cmd_clean_orphans(args) -> int:
-    """Drop task folders under ~/.agents-devkit/pr-reviews/ that no longer
+    """Drop task folders under ~/.agents-devkit/skill-pr-review/ that no longer
     have a matching queue row (or whose row is merged). Idempotent."""
     log = get_logger("pr-task-clean-orphans")
-    if not PR_REVIEWS_ROOT.exists():
+    root = _resolve_pr_review_root()
+    if not root.exists():
         print(json.dumps({"removed": [], "reason": "no task folders"}, indent=2))
         return 0
 
@@ -257,7 +281,7 @@ def cmd_clean_orphans(args) -> int:
     queued_names = {p.name for p in queued.values()}
 
     candidates = []
-    for d in sorted(PR_REVIEWS_ROOT.iterdir()):
+    for d in sorted(root.iterdir()):
         if not d.is_dir() or d.name.startswith("."):
             continue
         if d.name in queued_names:
@@ -338,12 +362,13 @@ def cmd_info(args) -> int:
 # ----- list ----------------------------------------------------------------
 
 def cmd_list(args) -> int:
-    if not PR_REVIEWS_ROOT.exists():
+    root = _resolve_pr_review_root()
+    if not root.exists():
         if args.names_only or args.paths:
             return 0
         print("(no task folders)")
         return 0
-    folders = sorted(d for d in PR_REVIEWS_ROOT.iterdir()
+    folders = sorted(d for d in root.iterdir()
                      if d.is_dir() and not d.name.startswith("."))
     if args.names_only:
         for f in folders:
@@ -377,7 +402,7 @@ def cmd_list(args) -> int:
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="adk pr-task",
                                  description="Manage per-PR task folders "
-                                             "under ~/.agents-devkit/pr-reviews/")
+                                             "under ~/.agents-devkit/skill-pr-review/")
     sub = ap.add_subparsers(dest="cmd", required=True)
 
     sp_prep = sub.add_parser("prepare",

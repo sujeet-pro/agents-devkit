@@ -21,7 +21,16 @@ from typing import Any, Iterator
 
 ADK_HOME = Path(os.environ.get("ADK_HOME", Path.home() / ".agents-devkit"))
 REPOS_ROOT = ADK_HOME / "repos"
-PR_REVIEWS_ROOT = ADK_HOME / "pr-reviews"
+
+# v4: per-skill task root is `skill-pr-review/` (was `pr-reviews/` pre-v4).
+# A read-shim in `task_dir_for` falls back to the legacy path when the new
+# one doesn't exist on disk but the legacy one does, so the user's in-flight
+# task folders survive between P2 landing and P7 migrating.
+PR_REVIEW_ROOT = ADK_HOME / "skill-pr-review"
+LEGACY_PR_REVIEW_ROOT = ADK_HOME / "pr-reviews"
+
+# Back-compat: callers that still import the old name.
+PR_REVIEWS_ROOT = PR_REVIEW_ROOT
 
 # Deprecated — kept for back-compat with any caller that still imports it.
 # New code should use clone_lock_for(repo) or pr_lock_for(repo, pr_number).
@@ -29,7 +38,19 @@ WORKTREE_LOCK = REPOS_ROOT / ".worktree-lock"
 
 
 def task_dir_for(repo: str, pr_number: int) -> Path:
-    return PR_REVIEWS_ROOT / f"{repo}_pr-{pr_number}"
+    """Resolve the task folder for a PR. v4 path is `skill-pr-review/<repo>_pr-<n>/`;
+    if that doesn't exist on disk AND the legacy `pr-reviews/<repo>_pr-<n>/` does,
+    return the legacy path so in-flight work isn't lost. Once P7's migration
+    moves the data, the legacy path stops existing and we use the new path
+    exclusively.
+    """
+    new = PR_REVIEW_ROOT / f"{repo}_pr-{pr_number}"
+    if new.exists():
+        return new
+    legacy = LEGACY_PR_REVIEW_ROOT / f"{repo}_pr-{pr_number}"
+    if legacy.exists():
+        return legacy
+    return new  # new (will be created on next write)
 
 
 def repo_clone_for(repo: str) -> Path:
@@ -51,7 +72,7 @@ def pr_lock_for(repo: str, pr_number: int) -> Path:
 
 
 def ensure_dirs() -> None:
-    for p in (REPOS_ROOT, PR_REVIEWS_ROOT):
+    for p in (REPOS_ROOT, PR_REVIEW_ROOT):
         p.mkdir(parents=True, exist_ok=True)
 
 

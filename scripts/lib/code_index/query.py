@@ -11,7 +11,7 @@ Stable surface (skills can rely on this across minor versions):
 Two roots are supported:
 
     open_index("ecomm-ssr")                            # kind="repo"  → ~/.agents-devkit/repos/.indices/<name>/code-index/
-    open_index(Path(".../pr-reviews/foo_pr-42"), kind="task")  # → <path>/code-index/
+    open_index(Path(".../skill-pr-review/foo_pr-42"), kind="task")  # → <path>/code-index/
 
 When the index is absent, callers get `IndexNotBuilt(repo)`. When the
 index is too old, callers get `IndexStale(age_days, last_refreshed)`

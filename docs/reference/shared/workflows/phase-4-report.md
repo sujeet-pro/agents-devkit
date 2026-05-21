@@ -52,7 +52,7 @@ order: 6104
 
 ---
 artifacts: <task_dir>     # e.g. /Users/sujeet/code/storefront-bff/.temp/adk/implement/SF-1234/
-                          #  or  /Users/sujeet/.agents-devkit/pr-reviews/storefront-bff_pr-456/
+                          #  or  /Users/sujeet/.agents-devkit/skill-pr-review/storefront-bff_pr-456/
 decision log: ~/.agents-devkit/improve/learning/decisions.jsonl (12 new entries this run)
 ```
 

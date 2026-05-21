@@ -1,7 +1,7 @@
 """Tests for `adk pr-task`:
 - prepare → forwards to run_review.py --prepare-only with the right args.
 - info → reads state.json + pr.json and emits a JSON status block.
-- list → enumerates ~/.agents-devkit/pr-reviews/ and supports --names-only / --paths.
+- list → enumerates ~/.agents-devkit/skill-pr-review/ and supports --names-only / --paths.
 """
 from __future__ import annotations
 
@@ -18,7 +18,9 @@ import pr_task
 @pytest.fixture
 def fake_pr_reviews(tmp_path, monkeypatch):
     """Point PR_REVIEWS_ROOT at a clean tmp dir."""
+    monkeypatch.setattr(pr_task, "PR_REVIEW_ROOT", tmp_path)
     monkeypatch.setattr(pr_task, "PR_REVIEWS_ROOT", tmp_path)
+    monkeypatch.setattr(pr_task, "LEGACY_PR_REVIEW_ROOT", tmp_path / "legacy-unused")
     return tmp_path
 
 
