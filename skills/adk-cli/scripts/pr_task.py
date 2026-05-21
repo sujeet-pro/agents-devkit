@@ -393,6 +393,100 @@ def cmd_list(args) -> int:
     return 0
 
 
+# ----- v4 §8 P6 wrapper verbs (triage / post / report / resolve-comments) --
+
+TRIAGE_PY = ADK_PR_REVIEW_SCRIPTS / "triage.py"
+POST_PY = ADK_PR_REVIEW_SCRIPTS / "post_comments.py"
+REPORT_PY = ADK_PR_REVIEW_SCRIPTS / "report.py"
+RESOLVER_PY = ADK_PR_REVIEW_SCRIPTS / "comment_resolver.py"
+
+
+def _task_dir_or_die(pr_url: str) -> Path:
+    """Resolve <pr_url> to its task dir or die with a clear message."""
+    try:
+        p = parse_pr_url(pr_url)
+    except ValueError as e:
+        die(f"unrecognised PR URL: {pr_url} ({e})")
+    td = task_dir_for(p["repo"], p["pr_number"])
+    if not td.exists():
+        die(f"no task folder for {pr_url} at {td}. Run "
+            f"`adk pr-task prepare {pr_url}` first.")
+    return td
+
+
+def _forward(script: Path, args_list: list[str]) -> int:
+    """Spawn the underlying script + forward stdout/stderr verbatim."""
+    if not script.exists():
+        die(f"script not found at {script} — check your install")
+    return subprocess.run([sys.executable, str(script), *args_list]).returncode
+
+
+def cmd_triage(args) -> int:
+    """adk pr-task triage <url> [--init|--finalize|--mark id --state s|--list|...]"""
+    td = _task_dir_or_die(args.pr_url)
+    fwd = ["--task-dir", str(td)]
+    if args.init:
+        fwd.append("--init")
+    if args.finalize:
+        fwd.append("--finalize")
+    if args.default_state:
+        fwd += ["--default-state", args.default_state]
+    if args.mark:
+        fwd += ["--mark", args.mark]
+    if args.state:
+        fwd += ["--state", args.state]
+    if args.list:
+        fwd.append("--list")
+    if args.show:
+        fwd += ["--show", args.show]
+    if args.render:
+        fwd += ["--render", args.render]
+    if args.rewrite:
+        fwd += ["--rewrite", args.rewrite]
+    if args.fields_json:
+        fwd += ["--fields-json", args.fields_json]
+    if args.filter_state:
+        fwd += ["--filter-state", args.filter_state]
+    if args.include_content:
+        fwd.append("--include-content")
+    return _forward(TRIAGE_PY, fwd)
+
+
+def cmd_post(args) -> int:
+    """adk pr-task post <url> [--no-post|--use-mcp|--no-slack-summary|--no-approve]"""
+    td = _task_dir_or_die(args.pr_url)
+    fwd = ["--task-dir", str(td)]
+    if args.no_post:
+        fwd.append("--plan-only")
+    if args.use_mcp:
+        fwd.append("--use-mcp")
+    if args.no_resolve_existing:
+        fwd.append("--no-resolve-existing")
+    if args.no_slack_summary:
+        fwd.append("--no-slack-summary")
+    if args.no_approve:
+        # post_comments.py reads ADK_NO_APPROVE from env when the flag isn't
+        # in its own argparse (defer touching post_comments.py — pass via env).
+        import os as _os
+        _os.environ["ADK_NO_APPROVE"] = "1"
+    return _forward(POST_PY, fwd)
+
+
+def cmd_report(args) -> int:
+    """adk pr-task report <url> [--merge-if-approved]"""
+    td = _task_dir_or_die(args.pr_url)
+    fwd = ["--task-dir", str(td)]
+    if args.merge_if_approved:
+        fwd.append("--merge-if-approved")
+    return _forward(REPORT_PY, fwd)
+
+
+def cmd_resolve_comments(args) -> int:
+    """adk pr-task resolve-comments <url>"""
+    td = _task_dir_or_die(args.pr_url)
+    return _forward(RESOLVER_PY, ["--task-dir", str(td)])
+
+
 # ----- entrypoint ----------------------------------------------------------
 
 def main(argv: list[str] | None = None) -> int:
@@ -458,6 +552,55 @@ def main(argv: list[str] | None = None) -> int:
     sp_orph.add_argument("-y", "--yes", action="store_true",
                          help="confirm deletion (required unless --dry-run)")
     sp_orph.set_defaults(func=cmd_clean_orphans)
+
+    # v4 §8 P6 wrapper verbs — thin shells that resolve <pr_url> → task_dir
+    # and forward to the corresponding adk-pr-review script. Lets SKILL.md
+    # stop referencing `python3 scripts/...` paths.
+    sp_tri = sub.add_parser("triage",
+                            help="walk findings accept/reject/edit (delegates to triage.py)")
+    sp_tri.add_argument("pr_url")
+    sp_tri.add_argument("--init", action="store_true")
+    sp_tri.add_argument("--finalize", action="store_true")
+    sp_tri.add_argument("--default-state", choices=("accept", "pending"), default=None)
+    sp_tri.add_argument("--mark", help="finding_id to mark")
+    sp_tri.add_argument("--state", help="for --mark")
+    sp_tri.add_argument("--list", action="store_true")
+    sp_tri.add_argument("--show", help="finding_id to inspect")
+    sp_tri.add_argument("--render", help="finding_id to render as rich markdown")
+    sp_tri.add_argument("--rewrite", help="finding_id to rewrite")
+    sp_tri.add_argument("--fields-json", help="for --rewrite, JSON object")
+    sp_tri.add_argument("--filter-state", help="for --list")
+    sp_tri.add_argument("--include-content", action="store_true")
+    sp_tri.set_defaults(func=cmd_triage)
+
+    sp_post = sub.add_parser("post",
+                             help="post inline comments + Slack reply (delegates to post_comments.py)")
+    sp_post.add_argument("pr_url")
+    sp_post.add_argument("--no-post", action="store_true",
+                         help="plan only; don't actually call the host API")
+    sp_post.add_argument("--use-mcp", action="store_true",
+                         help="prefer MCP for posting where available")
+    sp_post.add_argument("--no-resolve-existing", action="store_true",
+                         help="skip the resolve-existing-comments step")
+    sp_post.add_argument("--no-slack-summary", action="store_true",
+                         help="suppress the Slack reply (reaction flip still happens)")
+    sp_post.add_argument("--no-approve", action="store_true",
+                         help="force approve_ready=false even when §6.z gate passes")
+    sp_post.set_defaults(func=cmd_post)
+
+    sp_rep = sub.add_parser("report",
+                            help="render findings.md + report.md + clickable links tail (delegates to report.py)")
+    sp_rep.add_argument("pr_url")
+    sp_rep.add_argument("--merge-if-approved", action="store_true",
+                        help="print 'MERGEABLE — click to merge: <url>' when "
+                             "the review recommendation is approve. Advisory; "
+                             "never calls the merge API (constitution §I.3).")
+    sp_rep.set_defaults(func=cmd_report)
+
+    sp_rc = sub.add_parser("resolve-comments",
+                           help="walk prior PR comments and decide resolve/reopen/leave (delegates to comment_resolver.py)")
+    sp_rc.add_argument("pr_url")
+    sp_rc.set_defaults(func=cmd_resolve_comments)
 
     args = ap.parse_args(argv)
     if getattr(args, "verbose", False):

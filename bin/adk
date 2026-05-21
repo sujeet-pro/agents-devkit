@@ -65,8 +65,15 @@ Usage:
   adk pr-task prepare <pr-url> [--rebuild]    Phase 1: create/refresh the task folder
   adk pr-task prepare --all                   Phase 1 for every non-merged queue row (short-circuits)
   adk pr-task validate <pr-url>               Phase 3: gate findings.json on anchor + suggested-fix
+  adk pr-task triage <pr-url> [--init|--finalize|--mark|--default-state]
+                                              Phase 4: walk findings accept/reject/edit
+  adk pr-task post <pr-url> [--no-post|--use-mcp|--no-slack-summary|--no-approve]
+                                              Phase 5: post inline comments + Slack reply
+  adk pr-task report <pr-url> [--merge-if-approved]
+                                              Phase 6: render findings.md + report.md + clickable links
+  adk pr-task resolve-comments <pr-url>       walk prior PR comments → resolve/reopen/leave
   adk pr-task info <pr-url>                   task-folder state as JSON
-  adk pr-task list [--names-only|--paths]     every task folder under ~/.agents-devkit/pr-reviews/
+  adk pr-task list [--names-only|--paths]     every task folder under ~/.agents-devkit/skill-pr-review/
   adk pr-task clean-orphans [--dry-run] [-y]  drop on-disk folders with no queue row
   adk repo add <git-url|https-url> [--name <n>] [-y]
                                               clone + index a repo's default branch. Accepts ssh
