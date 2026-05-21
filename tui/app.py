@@ -4,6 +4,7 @@ import argparse
 import asyncio
 import os
 import shlex
+import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -38,6 +39,7 @@ class AdkApp(App):
         Binding("f", "cycle_filter", "filter"),
         Binding("S", "cycle_sort", "sort"),
         Binding("s", "sync", "sync"),
+        Binding("r", "review", "review"),
         Binding("j", "cursor_down", show=False),
         Binding("k", "cursor_up", show=False),
         Binding("g", "cursor_home", show=False),
@@ -53,6 +55,9 @@ class AdkApp(App):
         poll_interval: float = 2.0,
         plan_path: Path | None = None,
         adk_bin: Path | None = None,
+        agent_bin: Path | None = None,
+        heartbeat_dir: Path | None = None,
+        worker_script: Path | None = None,
     ) -> None:
         super().__init__()
         self._queue_path = queue_path
@@ -60,6 +65,9 @@ class AdkApp(App):
         self.poll_interval = poll_interval
         self._plan_path = plan_path
         self._adk_bin = adk_bin
+        self._agent_bin = agent_bin
+        self._heartbeat_dir = heartbeat_dir
+        self._worker_script = worker_script
         self._filter_mode: FilterMode = "all"
         self._sort_mode: SortMode = "fifo"
         self._model: QueueModel | None = None
@@ -67,6 +75,8 @@ class AdkApp(App):
         self._rows_by_url: dict[str, QueueRow] = {}
         self._sync_proc: asyncio.subprocess.Process | None = None
         self._sync_task: asyncio.Task | None = None
+        self._review_proc: asyncio.subprocess.Process | None = None
+        self._review_task: asyncio.Task | None = None
 
     def compose(self) -> ComposeResult:
         yield HeaderBar()
@@ -161,12 +171,63 @@ class AdkApp(App):
     def action_escape(self) -> None:
         return None
 
-    def action_sync(self) -> None:
+    def _busy(self) -> str | None:
+        """Return a short label of any running subprocess, else None."""
         if self._sync_proc is not None and self._sync_proc.returncode is None:
+            return "sync"
+        if self._review_proc is not None and self._review_proc.returncode is None:
+            return "review"
+        return None
+
+    def action_sync(self) -> None:
+        busy = self._busy()
+        if busy == "sync":
+            # Preserve legacy message for s-while-s-running (matches existing test).
             self.query_one(LogPane).write("(sync already running — wait or quit and restart)")
+            return
+        if busy is not None:
+            self.query_one(LogPane).write(f"(can't start sync — {busy} already running)")
             return
         self._sync_task = asyncio.create_task(self._run_sync())
         self._sync_task.add_done_callback(self._on_sync_task_done)
+
+    def action_review(self) -> None:
+        busy = self._busy()
+        if busy is not None:
+            self.query_one(LogPane).write(f"(can't start review — {busy} already running)")
+            return
+        table = self.query_one(QueueTable)
+        pr_url = table.selected_pr_url()
+        if not pr_url:
+            self.query_one(LogPane).write("(no row selected)")
+            return
+        row = self._rows_by_url.get(pr_url)
+        if row is None:
+            self.query_one(LogPane).write("(row not found in current snapshot)")
+            return
+        if not row.ready_for_review:
+            self.query_one(LogPane).write(
+                f"(row not ready: prep_status={row.prep_status!r}, status={row.status!r})"
+            )
+            return
+        self._review_task = asyncio.create_task(self._run_review(pr_url))
+        self._review_task.add_done_callback(self._on_review_task_done)
+
+    def _on_review_task_done(self, task: asyncio.Task) -> None:
+        try:
+            exc = task.exception()
+        except (asyncio.CancelledError, asyncio.InvalidStateError):
+            return
+        if exc is not None:
+            try:
+                self.query_one(LogPane).write(f"(review crashed: {exc!r})")
+                self.query_one(FooterBar).update_status(
+                    self._filter_mode, self._sort_mode,
+                    sync_running=False, review_running=False,
+                )
+            except Exception:
+                pass
+            self._review_proc = None
 
     def _on_sync_task_done(self, task: asyncio.Task) -> None:
         # Surface unhandled exceptions to the LogPane so a quiet hang never
@@ -232,16 +293,68 @@ class AdkApp(App):
             return candidate
         return Path("adk")  # last-resort PATH lookup
 
+    def _resolve_worker_script(self) -> Path:
+        if self._worker_script is not None:
+            return self._worker_script
+        return Path(__file__).resolve().parent / "worker.py"
+
+    async def _run_review(self, pr_url: str) -> None:
+        log_pane = self.query_one(LogPane)
+        worker = self._resolve_worker_script()
+        cmd: list[str] = [sys.executable, str(worker), pr_url]
+        if self._queue_path is not None:
+            cmd += ["--queue", str(self._queue_path)]
+        if self._adk_bin is not None:
+            cmd += ["--adk-bin", str(self._adk_bin)]
+        if self._agent_bin is not None:
+            cmd += ["--agent-bin", str(self._agent_bin)]
+        if self._heartbeat_dir is not None:
+            cmd += ["--heartbeat-dir", str(self._heartbeat_dir)]
+        log_pane.write(f"$ {' '.join(shlex.quote(c) for c in cmd)}")
+        self.query_one(FooterBar).update_status(
+            self._filter_mode, self._sort_mode,
+            sync_running=False, review_running=True,
+        )
+        try:
+            self._review_proc = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.STDOUT,
+            )
+        except (FileNotFoundError, PermissionError, OSError) as exc:
+            log_pane.write(f"(error: {exc})")
+            self._review_proc = None
+            self.query_one(FooterBar).update_status(
+                self._filter_mode, self._sort_mode,
+                sync_running=False, review_running=False,
+            )
+            return
+        assert self._review_proc.stdout is not None
+        while True:
+            line = await self._review_proc.stdout.readline()
+            if not line:
+                break
+            log_pane.write(line.decode(errors="replace").rstrip("\n"))
+        rc = await self._review_proc.wait()
+        log_pane.write(f"(worker exited rc={rc})")
+        self._review_proc = None
+        self.query_one(FooterBar).update_status(
+            self._filter_mode, self._sort_mode,
+            sync_running=False, review_running=False,
+        )
+        self._reload(force=True)
+
     async def on_unmount(self) -> None:
-        if self._sync_proc is not None and self._sync_proc.returncode is None:
-            try:
-                self._sync_proc.terminate()
+        for proc in (self._sync_proc, self._review_proc):
+            if proc is not None and proc.returncode is None:
                 try:
-                    await asyncio.wait_for(self._sync_proc.wait(), timeout=2.0)
-                except asyncio.TimeoutError:
-                    self._sync_proc.kill()
-            except ProcessLookupError:
-                pass
+                    proc.terminate()
+                    try:
+                        await asyncio.wait_for(proc.wait(), timeout=2.0)
+                    except asyncio.TimeoutError:
+                        proc.kill()
+                except ProcessLookupError:
+                    pass
 
 
 def main(argv: list[str] | None = None) -> int:

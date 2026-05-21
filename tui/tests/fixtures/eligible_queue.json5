@@ -1,0 +1,22 @@
+{
+  "filters": null,
+  "prs": [
+    {
+      "pr_url": "https://github.com/foo/bar/pull/200",
+      "status": "pending",
+      "prep_status": "ready",
+      "head_sha": "aaa2000000000000000000000000000000000020",
+      "prep_head_sha": "aaa2000000000000000000000000000000000020",
+      "last_reviewed_head_sha": "0000beef00000000000000000000000000000000",
+      "last_reviewed_at": "2026-05-19T10:00:00Z",
+      "target_branch": "main",
+      "taken_at": null,
+      "last_checked_at": "2026-05-21T17:00:00Z",
+      "title": "eligible-row",
+      "author": "alice",
+      "slack": {
+        "permalink": "https://example.slack.com/archives/C001/p2000000000000001"
+      }
+    }
+  ]
+}

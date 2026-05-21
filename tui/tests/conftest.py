@@ -100,3 +100,39 @@ def fake_adk_script(tmp_path: Path) -> Path:
     )
     p.chmod(0o755)
     return p
+
+
+@pytest.fixture
+def fake_claude_script(tmp_path: Path) -> Path:
+    """A tiny /bin/sh script that mimics `claude -p ...` for review-action tests.
+
+    Echoes 3 phase lines and exits 0. Tests that need a long-lived or failing
+    agent build their own script and pass --agent-bin directly.
+    """
+    p = tmp_path / "fake-claude"
+    p.write_text(
+        "#!/bin/sh\n"
+        "echo '[claude] phase 2: querying'\n"
+        "echo '[claude] phase 5: posting comments'\n"
+        "echo '[claude] phase 6: report'\n"
+        "exit 0\n"
+    )
+    p.chmod(0o755)
+    return p
+
+
+@pytest.fixture
+def worker_heartbeat_dir(tmp_path: Path) -> Path:
+    """tmp subdir the worker writes its heartbeat file into."""
+    d = tmp_path / "tui-workers"
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
+@pytest.fixture
+def eligible_queue_path(tmp_path: Path) -> Path:
+    """A queue file with exactly one row that's ready_for_review=True."""
+    src = _FIXTURES_DIR / "eligible_queue.json5"
+    dst = tmp_path / "eligible-queue.json5"
+    shutil.copyfile(src, dst)
+    return dst
