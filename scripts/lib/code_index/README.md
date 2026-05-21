@@ -44,7 +44,7 @@ stripped.
 
 **Task-level** (per-PR or per-investigation; short-lived):
 ```
-~/.agents-devkit/pr-reviews/<repo>_pr-<n>/code-index/
+~/.agents-devkit/skill-pr-review/<repo>_pr-<n>/code-index/
   chunks.jsonl  chunks.lance/  scip/  meta.json
 ```
 Owned by the consuming skill's task dir.

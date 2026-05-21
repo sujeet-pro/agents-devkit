@@ -8,7 +8,7 @@
 
 1. **`<repo>/.adk/overrides.yaml`** (if working inside a repo with one)
 2. **`<repo>/ai-guidelines/`** or **`<repo>/docs/`** (repo-specific conventions)
-3. **`~/.agents-devkit/config/overrides.yaml`** (user/company truth — workspaces, repos, data sources, defaults, RAG config, learning state)
+3. **`~/.agents-devkit/config/core.yaml`** (user/company truth — workspaces, defaults, RAG config, learning state) + **`~/.agents-devkit/config/repos.md`** (repos) + **`~/.agents-devkit/config/connectors/*.md`** (one per data source) + **`~/.agents-devkit/config/links.json5`** (entity graph)
 4. **`<this-repo>/shared/constitution.md`** (universal hard rules)
 5. **The triggered skill's `SKILL.md`** (loaded after step 6 routes)
 6. **`<this-repo>/shared/guidelines/*.md`** — load only the guideline files relevant to the task type identified in step 6 below
@@ -128,7 +128,7 @@ Special folders under `~/.agents-devkit/`:
 
 Project-scoped extensions (still respected):
 
-- `<dir>/.adk/overrides.yaml` extends/narrows `~/.agents-devkit/config/overrides.yaml`. Skills merge these at runtime.
+- `<dir>/.adk/overrides.yaml` extends/narrows `~/.agents-devkit/config/core.yaml` + `repos.md` + `connectors/*.md`. Skills merge these at runtime.
 - `<dir>/ai-guidelines/*.md` and `<dir>/docs/*.md` are loaded into context for the duration of the skill run if relevant to the task type.
 
 Task-slug convention: `<input-discriminator>` (no skill prefix — the skill name is now the folder above it). Examples: `SF-1234`, `pr-456`, `checkout-2026-05-18`, `rca-checkout-outage`.
@@ -163,6 +163,6 @@ The user's `--auto` flag does **not** waive these. They require a per-invocation
 - Generic guidelines (frontend, api, security, …): `shared/guidelines/*.md`
 - Skills: `skills/adk-*/SKILL.md`
 - MCP configs: `mcp/adk-mcp-*.json`
-- User overrides: `~/.agents-devkit/config/overrides.yaml`
+- User config: `~/.agents-devkit/config/` (core.yaml + repos.md + connectors/*.md + links.json5 + adk-cli.json5 + pr-queue.json5)
 - Learning state: `~/.agents-devkit/improve/learning/`
 - Metadata cache: `~/.agents-devkit/improve/metadata/`

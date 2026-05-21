@@ -25,7 +25,7 @@ This is one of your three questions only if the restatement is non-trivial. For 
 
 "Smallest version that helps you ship today?"
 
-- Asks the user to narrow scope. Defaults from `overrides.yaml.defaults.<skill>.scope` if set.
+- Asks the user to narrow scope. Defaults from `core.yaml.defaults.<skill>.scope` if set.
 - For `/adk-implement`: vertical slice vs full vs spike?
 - For `/adk-investigate`: just this incident vs incident + prior similar?
 - For `/adk-document`: one-pager vs full doc?

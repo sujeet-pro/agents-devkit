@@ -2,7 +2,7 @@
 
 ## Must do
 
-1. **Always isolated.** Operate from `~/.agents-devkit/pr-reviews/<repo>_pr-<n>/`. Never read or write the user's working repo. (Constitution §IV.1, `shared/paths.md`.)
+1. **Always isolated.** Operate from `~/.agents-devkit/skill-pr-review/<repo>_pr-<n>/`. Never read or write the user's working repo. (Constitution §IV.1, `shared/paths.md`.)
 2. **Serialize worktree creation.** `scripts/create_worktree.py` acquires `~/.agents-devkit/repos/.worktree-lock` before `git worktree add` and releases it after. No concurrent worktree adds against the same clone.
 3. **Reset the clone before worktree.** Before adding a worktree, ensure `~/.agents-devkit/repos/<repo>/` is on its default branch at the remote HEAD with no local changes. Refuse if there are unexpected local commits.
 4. **Read every existing comment before flagging.** Per the persona's anti-pattern — don't re-raise pushed-back items.

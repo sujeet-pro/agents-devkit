@@ -123,7 +123,7 @@ cd ~/code/agents-devkit
 
 The installer:
 
-1. Creates `~/.agents-devkit/config/` if missing; scaffolds `overrides.yaml` (with comments — empty workspaces table for you to fill).
+1. Creates `~/.agents-devkit/config/` if missing. The conversational scaffolding (core.yaml, repos.md, connectors/*.md, links.json5, settings.json5) is then done by `/adk-setup --init` — see §4.
 2. Symlinks skills + agents + commands into each detected agent's config dir. Junie now gets the full `skills/adk-*` set under `~/.junie/skills/` (same auto-discovery model as Claude Code).
 3. **Replaces** each agent's MCP server list with the `mcp/*.json` adk set: Claude → `~/.claude.json`, Cursor → `~/.cursor/mcp.json`, Codex → `~/.codex/config.toml` (marker block), Junie → `~/.junie/mcp/mcp.json`. Any pre-configured user MCPs are stashed under `_adkRemovedMcpServers` and put back on `--uninstall`.
 4. Merges `shared/permissions/*` into each agent's settings file so all safe / read tool calls are auto-approved and only dangerous actions prompt. See `shared/permissions/README.md`.
@@ -163,18 +163,18 @@ Division of labor:
 | Install brew, gh, jq, uv, node, python | **You.** See §1 above. | adk doesn't run brew on your machine. |
 | Export env vars in `~/.zshenv` | **You.** See §2 above. | adk doesn't modify shell rc. |
 | Symlink skills/agents/commands; merge MCP config; wire hooks | `install.sh` | Filesystem wiring. Deterministic; no AI needed. |
-| Scaffold `~/.agents-devkit/config/overrides.yaml` (workspaces, repos, data dictionary) | `/adk-setup --init` (in your agent) | Conversational walkthrough; data dictionary needs your judgment. |
-| Query MCPs and populate `enriched:` block + `~/.agents-devkit/improve/metadata/<source>.json` | `/adk-setup --enrich` | Uses the agent's MCP client to invoke stdio MCPs (uvx/npx) that `curl` can't. AI summarizes large lists. |
+| Scaffold `~/.agents-devkit/config/{core.yaml,repos.md,connectors/*.md,links.json5}` (workspaces, repos, data sources) | `/adk-setup --init` (in your agent) | Conversational walkthrough; data dictionary needs your judgment. |
+| Query MCPs and populate `~/.agents-devkit/improve/metadata/<source>.json` + propose `connectors/<name>.md` frontmatter updates | `/adk-setup --enrich` | Uses the agent's MCP client to invoke stdio MCPs (uvx/npx) that `curl` can't. AI summarizes large lists. |
 | Verify env + MCPs reachable | `/adk-setup --check` or `python3 scripts/adk_mcp_health.py --probe` | The skill version also tests stdio MCPs via real MCP-client invocation and offers conversational fix-it guidance. The script is faster for repeated checks. |
 
 ```text
-/adk-setup --init       # scaffold ~/.agents-devkit/config/overrides.yaml with comments + v2 migrate if found
+/adk-setup --init       # scaffold ~/.agents-devkit/config/{core.yaml,repos.md,connectors/*.md,links.json5}
 /adk-setup --enrich     # query every reachable MCP, populate the enriched.* block + metadata cache
 /adk-setup --check      # superset of scripts/adk_mcp_health.py (also tests stdio MCPs)
 /adk-setup --diff       # show what --enrich would change (read-only)
 ```
 
-Edit `~/.agents-devkit/config/overrides.yaml` to fill in your workspaces (work + personal + side orgs), the repos you work in, and the data dictionary for Snowflake/Looker/Mixpanel. The skills won't be useful until at least `workspaces` and one `repos` entry are filled.
+Edit `~/.agents-devkit/config/core.yaml` for your workspaces, defaults, and RAG config; `~/.agents-devkit/config/repos.md` for the repos you work in; `~/.agents-devkit/config/connectors/*.md` for each data source (Snowflake/Looker/Mixpanel/Datadog/etc — frontmatter is config, body is the human cheatsheet the agent reads as context). The skills won't be useful until at least one workspace and one repo entry are filled.
 
 ## 5. Verify
 
@@ -225,12 +225,24 @@ overrides:
 ## 7. Layout
 
 ```
-~/.agents-devkit/config/
-├── overrides.yaml          # YOU edit this
-├── env.example             # cheat-sheet
-├── metadata/               # auto: discovered dashboards, tables, etc.
-├── learning/               # auto: decision logs, summaries, proposals
-└── memory/                 # auto: resolved caches
+~/.agents-devkit/
+├── memory/                 # auto: cross-session memory
+├── config/                 # YOU edit
+│   ├── core.yaml           # workspaces, defaults, rag, learning_state, enriched
+│   ├── repos.md            # frontmatter: repo defs; body: per-repo notes
+│   ├── connectors/         # one .md per data source (frontmatter=config, body=notes)
+│   ├── links.json5         # cross-connector entity graph
+│   ├── settings.json5      # CLI behaviour knobs
+│   ├── adk-cli.json5       # adk pr-sync / pr-scan / pr-review-all config
+│   └── pr-queue.json5      # PR-review queue (curated by adk pr-scan)
+├── improve/                # auto: /adk-improve consumes
+│   ├── learning/           # decisions.jsonl + sessions/ + archive/ + proposals/
+│   └── metadata/           # one <source>.json per MCP
+├── repos/<name>/           # tracked repo clones + per-branch indices
+├── skill-pr-review/        # one folder per PR being reviewed
+├── skill-investigate/      # one folder per investigation
+├── skill-review/  skill-sync/  skill-setup/  skill-improve/  skill-document/  skill-implement/  skill-explain/
+└── logs/                   # CLI log output (pr-sync, pr-queue, …)
 ```
 
 Inside any repo you work on:
@@ -244,5 +256,5 @@ Inside any repo you work on:
 ## 8. Privacy
 
 - No skill ever uploads `~/.agents-devkit/config/*` anywhere.
-- Tokens live in `~/.zshenv` (or shell rc) only. `overrides.yaml` can reference env vars by name but **must not** contain raw token values; the installer enforces this with a regex check.
+- Tokens live in `~/.zshenv` (or shell rc) only. `core.yaml` / `connectors/*.md` frontmatter / `adk-cli.json5` can reference env vars by name but **must not** contain raw token values; a post-write hook enforces this with a regex check.
 - Decision logs are local-only; `/adk-improve` proposals stay local until you accept them.

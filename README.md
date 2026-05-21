@@ -24,7 +24,7 @@ cd ~/code/agents-devkit
 ./install.sh --uninstall      # removes by marker, leaves your overrides
 ```
 
-After install, fill in `~/.agents-devkit/config/overrides.yaml` (created by `./install.sh` if missing). See `SETUP.md` for CLI deps + env-var requirements.
+After install, run `/adk-setup --init` (from your agent) to scaffold `~/.agents-devkit/config/{core.yaml,repos.md,connectors/*.md,links.json5}`. See `SETUP.md` for CLI deps + env-var requirements.
 
 ## Quick start
 
@@ -314,10 +314,10 @@ Each skill is task-based and polymorphic on input. Every skill goes through a ma
 
 ## Key concepts
 
-- **One source of truth for user data:** `~/.agents-devkit/config/overrides.yaml` — workspaces, repos, data dictionaries (Snowflake/Looker/Mixpanel tables and columns), defaults, RAG config.
+- **One source of truth for user data:** `~/.agents-devkit/config/` — `core.yaml` (workspaces / defaults / RAG), `repos.md` (repos), `connectors/*.md` (per-source dictionaries for Snowflake/Looker/Mixpanel/etc.), `links.json5` (cross-connector entity graph).
 - **Project-scoped overrides:** `<repo>/.adk/overrides.yaml` + `<repo>/ai-guidelines/` (or `docs/`).
 - **Two task-folder roots** (see `shared/paths.md`): repo-bound skills write under `<repo>/.temp/adk/<skill>/<task>/`; global skills (pr-review, investigate, sync, …) write under `~/.agents-devkit/<area>/<task>/`. The latter root is created by `install.sh`.
-- **Self-improving:** every Q&A and override is logged; `/adk-improve` reads logs and proposes updated defaults that get applied to `~/.agents-devkit/config/overrides.yaml` after you confirm.
+- **Self-improving:** every Q&A and override is logged; `/adk-improve` reads logs and proposes updated defaults that get applied to `~/.agents-devkit/config/core.yaml` (or the right connector file) after you confirm.
 - **Metadata cache:** `~/.agents-devkit/improve/metadata/<source>.json` — built by `/adk-setup --enrich` and refreshed by `/adk-improve --metadata`. Skills consult it instead of re-introspecting on every run.
 - **RAG optional:** drop an `RAG_MCP_URL` into env, set `rag.enabled: true` in overrides, and every skill's context-gather phase pulls company knowledge alongside MCP results.
 

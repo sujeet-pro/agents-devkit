@@ -20,11 +20,11 @@ Trailing slashes, fragments (`#diff`), and query strings are stripped. Case-inse
 
 ## Task-folder naming
 
-The slug under `~/.agents-devkit/pr-reviews/` is `<repo>_pr-<n>`. If two PRs across hosts share the same `<repo>_pr-<n>` name, the second invocation gets `<repo>_pr-<n>-2`. The host is recorded in `pr.json.host` so downstream scripts pick the right fetcher.
+The slug under `~/.agents-devkit/skill-pr-review/` is `<repo>_pr-<n>`. If two PRs across hosts share the same `<repo>_pr-<n>` name, the second invocation gets `<repo>_pr-<n>-2`. The host is recorded in `pr.json.host` so downstream scripts pick the right fetcher.
 
 ## Repo-name aliasing
 
-`overrides.yaml.repos[*]` may define `path`, `host`, `workspace`, `name`. When the PR URL's `<owner>/<repo>` matches an `overrides.yaml.repos[i]` entry, the orchestrator reuses that entry's `path` if it's already on disk as a clone of the same remote; otherwise it clones into `~/.agents-devkit/repos/<repo-name>/` regardless of where the user's working copy lives. The user's working copy is never touched.
+`config/repos.md` frontmatter `repos[*]` may define `path`, `host`, `workspace`, `name`. When the PR URL's `<owner>/<repo>` matches a `repos[i]` entry, the orchestrator reuses that entry's `path` if it's already on disk as a clone of the same remote; otherwise it clones into `~/.agents-devkit/repos/<repo-name>/` regardless of where the user's working copy lives. The user's working copy is never touched.
 
 ## Out-of-scope refusal template
 

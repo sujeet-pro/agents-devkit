@@ -31,9 +31,9 @@ The AI review pass never starts before Phase 3 settles — the precis the model 
 ## Phase 0 — prerequisites + URL dispatch
 
 1. Parse the PR URL → `(host, owner, repo, pr_number)` via `scripts/parse_pr_url.py`.
-2. Probe ollama: `scripts/ensure_ollama.py` checks (a) `ollama` binary on PATH, (b) the daemon responds at `http://localhost:11434`, (c) the embedding model is pulled. Default model: `nomic-embed-text`. Override via `--embed-model` or `overrides.yaml.defaults.adk-pr-review.embed_model`. If ollama is missing, refuse and print the install command (do not try to install for the user).
+2. Probe ollama: `scripts/ensure_ollama.py` checks (a) `ollama` binary on PATH, (b) the daemon responds at `http://localhost:11434`, (c) the embedding model is pulled. Default model: `nomic-embed-text`. Override via `--embed-model` or `core.yaml.defaults.adk-pr-review.embed_model`. If ollama is missing, refuse and print the install command (do not try to install for the user).
 3. Probe MCP availability: `gh` CLI for GitHub PRs; `adk-mcp-bitbucket` for Bitbucket PRs. If neither is reachable for the host, refuse and surface the gap.
-4. Resolve the task folder: `python3 scripts/adk_task_slug.py --skill pr-review --input <url> --create --json` → `~/.agents-devkit/pr-reviews/<repo>_pr-<n>/`.
+4. Resolve the task folder: `python3 scripts/adk_task_slug.py --skill pr-review --input <url> --create --json` → `~/.agents-devkit/skill-pr-review/<repo>_pr-<n>/`.
 
 ## Phase 1 — repo + worktree (serialized)
 
@@ -68,7 +68,7 @@ Fanned out concurrently:
 1. The orchestrator prepares the user-prompt with a pre-loaded `# Index context` section: changed-files, top-k chunks per changed file, symbol matches, feature-flag references found in the diff (via `scripts/lib/code_index/query_index.py --feature-flags-in-diff`).
 2. (Hypothetical `claude -p` revival, not the current path.) Invoke `claude -p` with:
    - `--system-prompt skills/adk-pr-review/SKILL.md`
-   - `--add-dir ~/.agents-devkit/pr-reviews/<task>/code`
+   - `--add-dir ~/.agents-devkit/skill-pr-review/<task>/code`
    - `--allowedTools Read,Glob,Grep,Bash` (Bash limited to `python3 scripts/lib/code_index/query_index.py …` via permissions)
    - `--permission-mode auto`
    - `--output-format stream-json`

@@ -7,7 +7,7 @@ Five phases, all wrapped by `shared/advisor.md`. Mode-aware (`--plan` skips Phas
 - `shared/workflows/phase-0-context-gather.md`
 - Run `scripts/classify-input.py` to determine sub-flow.
 - Fan-out fetch all URLs/keys (Jira, GH, Confluence, Slack). One hop only.
-- Optional RAG enrichment if `overrides.yaml.rag.enabled` and prompt matches `rag.trigger_keywords`.
+- Optional RAG enrichment if `core.yaml.rag.enabled` and prompt matches `rag.trigger_keywords`.
 - Build `.temp/adk/implement/<task>/context.md`.
 
 ## Phase 1 — advise

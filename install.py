@@ -1473,7 +1473,7 @@ def main() -> int:
     print(f"  - targets: {targets}")
     print()
     print("next:")
-    print("  1. edit ~/.agents-devkit/config/overrides.yaml (run /adk-setup --init from your agent to scaffold).")
+    print("  1. run /adk-setup --init from your agent to scaffold ~/.agents-devkit/config/{core.yaml,repos.md,connectors/*.md,links.json5}.")
     print("  2. set env vars per SETUP.md.")
     print("  3. restart your agent so it picks up env + MCP changes.")
     print("  4. run /adk-setup --check to verify.")

@@ -7,7 +7,7 @@
 3. **State confidence with evidence count** on every non-trivial claim.
 4. **Never modify** a monitor / dashboard / gate / experiment / data table.
 5. **Lowest-blast-radius first**: rollback > flag-off > restart > investigate-PR > escalate.
-6. **Refuse PII queries** against columns listed in `overrides.yaml.data_sources.*.pii_columns`.
+6. **Refuse PII queries** against columns listed in ``connectors/<source>.md` frontmatter `pii_columns``.
 7. **Quote ≤15 words per source** verbatim; link out for the rest.
 
 ## Refusals

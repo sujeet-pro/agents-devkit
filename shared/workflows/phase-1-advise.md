@@ -42,15 +42,15 @@ out-of-scope:
 
 ## decisions log entries
 - scope=full (user-answered)
-- test_framework=jest (override-applied from overrides.yaml)
+- test_framework=jest (override-applied from core.yaml)
 - pr_strategy=single (auto-defaulted, based on 5 prior tasks in this repo)
 ```
 
 ## Recommendation logic
 
 - Read `~/.agents-devkit/improve/learning/decisions.jsonl` + `summary.md` for prior matching `fork_id`s.
-- Read `~/.agents-devkit/config/overrides.yaml.defaults.<skill>.*`.
-- Read `<repo>/.adk/overrides.yaml.defaults.<skill>.*` (override layer).
+- Read `~/.agents-devkit/config/core.yaml.defaults.<skill>.*`.
+- Read `<repo>/.adk/core.yaml.defaults.<skill>.*` (override layer).
 - Recommendation = highest-priority match.
 - If no prior data: recommendation = the most common cross-user-base default, marked `[no personal history]`.
 

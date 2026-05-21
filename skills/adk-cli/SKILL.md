@@ -53,8 +53,7 @@ Every subcommand accepts `-y` / `--yes` for headless / smart-default operation
 
 ## Queue location
 
-`~/.agents-devkit/config/pr-queue.json5`. Auto-migrated once on first read from
-the legacy `~/.agents-devkit/pr-reviews/queue.json5` if present.
+`~/.agents-devkit/config/pr-queue.json5`.
 
 ## Constitutional posture
 
