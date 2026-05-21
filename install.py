@@ -585,6 +585,23 @@ def merge_mcp_into_codex(repo_root: Path, dry_run: bool) -> dict[str, str]:
 # Per-agent install
 # ----------------------------------------------------------------------------
 
+def set_statusline_in_claude(dry_run: bool) -> dict[str, str]:
+    """Write the statusLine command into ~/.claude/settings.json.
+
+    Idempotent: re-running replaces the existing statusLine key. Does not
+    touch any other key.
+    """
+    settings_path = Path.home() / ".claude" / "settings.json"
+    current = read_json(settings_path)
+    current["statusLine"] = {
+        "type": "command",
+        "command": "bash /Users/sujeet/.claude/statusline-command.sh",
+    }
+    write_json(settings_path, current, dry_run)
+    return {"status": "ok" if not dry_run else "dry-run",
+            "script": "/Users/sujeet/.claude/statusline-command.sh"}
+
+
 def merge_hooks_into_claude(repo_root: Path, dry_run: bool) -> dict[str, Any]:
     """Merge hooks/hooks.json into ~/.claude/settings.json `hooks` block.
 
@@ -990,11 +1007,13 @@ def install_claude(repo_root: Path, dry_run: bool, results: dict[str, Any]) -> N
     hooks_result = merge_hooks_into_claude(repo_root, dry_run)
     # Permissions merge (allow-most / ask-on-dangerous)
     perms_result = merge_permissions_into_claude(repo_root, dry_run)
+    # statusLine
+    statusline_result = set_statusline_in_claude(dry_run)
     results["claude"] = {
         "skills": skill_results, "agents": agent_results, "commands": cmd_results,
         "stale_removed": {"skills": stale_skills, "agents": stale_agents, "commands": stale_cmds},
         "claude_md_append": append_result, "mcp_merge": mcp_results, "hooks": hooks_result,
-        "permissions": perms_result,
+        "permissions": perms_result, "statusline": statusline_result,
     }
 
 
@@ -1387,10 +1406,18 @@ def main() -> int:
                     help="allow upstream curl-bash installer on linux (ollama)")
     ap.add_argument("--models", default="nomic-embed-text",
                     help="comma-separated ollama models to pull (default: nomic-embed-text)")
+    ap.add_argument("--statusline", action="store_true",
+                    help="only patch the statusLine key in ~/.claude/settings.json; skip full install")
     args = ap.parse_args()
 
     repo_root: Path = args.repo_root.resolve()
     dry_run: bool = args.dry_run
+
+    # --statusline: surgical patch only — skip all other install steps.
+    if args.statusline:
+        result = set_statusline_in_claude(dry_run)
+        print(json.dumps({"statusline": result}, indent=2))
+        return 0
 
     # Resolve targets
     if args.target is None:
