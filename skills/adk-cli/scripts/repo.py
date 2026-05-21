@@ -340,15 +340,26 @@ def _ensure_branch_checked_out(repo_clone: Path, branch: str, log) -> None:
 
 def _index_one_branch(name: str, repo_clone: Path, branch: str,
                       embed_model: str, *, rebuild: bool,
-                      log) -> dict:
+                      log, created_by: str = "user",
+                      auto_reason: str | None = None) -> dict:
     """Refresh (or build from scratch) the index for one branch. Returns a
-    summary dict including {branch, slug, head_oid, indexed, files_changed}."""
+    summary dict including {branch, slug, head_sha, indexed, files_changed}.
+
+    `created_by` records whether the branch index was added explicitly by the
+    user or auto-created by pr-sync (§5.4). When the branch-meta.json already
+    exists, the existing `created_by` is preserved — a user-promoted branch
+    stays "user" even on a routine update.
+    """
     slug = slugify_branch(branch)
     if not slug:
         return {"branch": branch, "status": "failed", "reason": "empty slug"}
     branch_dir = _branch_dir(name, slug)
     bm = _read_branch_meta(name, slug)
     last_oid = bm.get("last_indexed_oid", "")
+    # Preserve created_by + created_at on re-indexes; only set on first build.
+    prior_created_by = bm.get("created_by") or created_by
+    prior_created_at = bm.get("created_at") or _now_iso()
+    prior_auto_reason = bm.get("auto_reason") or auto_reason
 
     _ensure_branch_checked_out(repo_clone, branch, log)
     new_oid = _current_oid(repo_clone)
@@ -356,7 +367,7 @@ def _index_one_branch(name: str, repo_clone: Path, branch: str,
     if new_oid == last_oid and not rebuild:
         log.info("[%s] HEAD unchanged at %s; skipping reindex (use --rebuild to force)",
                  branch, new_oid[:12])
-        return {"branch": branch, "slug": slug, "head_oid": new_oid,
+        return {"branch": branch, "slug": slug, "head_sha": new_oid,
                 "indexed": "skipped", "reason": "HEAD unchanged"}
 
     changed = _diff_files(repo_clone, last_oid, new_oid, log) if (last_oid and not rebuild) else []
@@ -367,16 +378,23 @@ def _index_one_branch(name: str, repo_clone: Path, branch: str,
     else:
         _full_index(repo_clone, branch_dir, embed_model, log)
 
-    _write_branch_meta(name, slug, {
+    meta_out = {
         "name": name,
         "branch": branch,
         "slug": slug,
         "last_indexed_oid": new_oid,
+        "last_indexed_sha": new_oid,  # v4 canonical field name (alias of last_indexed_oid)
         "last_indexed_at": _now_iso(),
         "embed_model": embed_model,
-    })
-    return {"branch": branch, "slug": slug, "head_oid": new_oid,
-            "prev_oid": last_oid or None, "indexed": indexed,
+        "created_by": prior_created_by,
+        "created_at": prior_created_at,
+        "last_used_at": _now_iso(),
+    }
+    if prior_auto_reason:
+        meta_out["auto_reason"] = prior_auto_reason
+    _write_branch_meta(name, slug, meta_out)
+    return {"branch": branch, "slug": slug, "head_sha": new_oid,
+            "prev_sha": last_oid or None, "indexed": indexed,
             "files_changed": len(changed)}
 
 
@@ -556,12 +574,62 @@ def cmd_branch_add(args) -> int:
         log.info("removing existing branch dir before re-add: %s", branch_dir)
         shutil.rmtree(branch_dir)
 
+    # v4 §5.4 auto-base support: --auto records the branch as "auto" in
+    # branch-meta.json so the cleanup pass (P5) can tell user-created bases
+    # apart from those added by pr-sync's Phase C.
+    created_by = "auto" if getattr(args, "auto", False) else "user"
+    auto_reason = getattr(args, "auto_reason", None)
     result = _index_one_branch(
         name, repo_clone, branch, args.embed_model,
         rebuild=True, log=log,
+        created_by=created_by, auto_reason=auto_reason,
     )
     _rewrite_repo_catalog(name, log)
-    print(json.dumps({"name": name, **result}, indent=2))
+    print(json.dumps({"name": name, **result, "created_by": created_by}, indent=2))
+    return 0
+
+
+def cmd_rebuild_index(args) -> int:
+    """Rebuild the index for one repo+branch from scratch. Use when the
+    branch-<slug>/code-index/ folder was deleted by hand and the catalog
+    needs to be reconstructed. Equivalent to `adk repo branch add --yes`
+    but doesn't require the branch to be untracked.
+
+    Plan §8 P3 exit: 'adk repo rebuild-index works when a folder was
+    deleted by hand.'
+    """
+    log = get_logger("repo-rebuild-index")
+    if not which("git"):
+        die("git not on PATH.")
+    name = args.name
+    repo_clone = REPOS_ROOT / name
+    if not repo_clone.exists():
+        die(f"{repo_clone} does not exist. Run `adk repo add <url>` first.")
+    _migrate_if_legacy(name, log)
+
+    # Branch — use --branch if given, else the repo's default_branch from
+    # repo-meta.json, else detect from the clone.
+    branch = getattr(args, "branch", None)
+    if not branch:
+        meta = _read_repo_meta(name)
+        branch = meta.get("default_branch") or _detect_default_branch(repo_clone, log)
+    slug = slugify_branch(branch)
+    if not slug:
+        die(f"invalid branch name {branch!r}")
+
+    branch_dir = _branch_dir(name, slug)
+    if branch_dir.exists():
+        log.info("clearing existing branch dir before rebuild: %s", branch_dir)
+        shutil.rmtree(branch_dir)
+
+    # Preserve created_by if a stale branch-meta still exists (it shouldn't
+    # at this point, since we just rmtree'd, but be defensive).
+    result = _index_one_branch(
+        name, repo_clone, branch, args.embed_model,
+        rebuild=True, log=log, created_by="user",
+    )
+    _rewrite_repo_catalog(name, log)
+    print(json.dumps({"name": name, **result, "action": "rebuilt"}, indent=2))
     return 0
 
 
@@ -763,7 +831,22 @@ def main(argv: list[str] | None = None) -> int:
     sp_ba.add_argument("--embed-model", default="nomic-embed-text")
     sp_ba.add_argument("-y", "--yes", action="store_true",
                        help="if the branch is already tracked, rebuild its index from scratch")
+    sp_ba.add_argument("--auto", action="store_true",
+                       help="v4 §5.4: mark this branch as auto-created (by pr-sync), "
+                            "so the auto-base cleanup pass can tell it from user-added bases")
+    sp_ba.add_argument("--auto-reason", default=None,
+                       help="optional human-readable reason recorded when --auto is set "
+                            "(e.g. 'shared by 3 PRs: #1234, #1235, #1240')")
     sp_ba.set_defaults(func=cmd_branch_add)
+
+    sp_rb = sub.add_parser("rebuild-index",
+                           help="rebuild the index for a branch (when its dir was deleted by hand)")
+    sp_rb.add_argument("name", help="repo name")
+    sp_rb.add_argument("--branch", default=None,
+                       help="branch to rebuild (default: the repo's default_branch)")
+    sp_rb.add_argument("--embed-model", default="nomic-embed-text")
+    sp_rb.add_argument("-y", "--yes", action="store_true")
+    sp_rb.set_defaults(func=cmd_rebuild_index)
 
     sp_br = branch_sub.add_parser("remove",
                                   help="drop the index for a branch (cannot remove the default)")

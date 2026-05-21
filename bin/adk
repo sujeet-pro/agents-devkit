@@ -68,6 +68,12 @@ Usage:
   adk repo add <git-url> [--name <n>] [-y]    clone + index a repo's default branch
   adk repo update <name> [--rebuild] [-y]     fetch + fast-forward + incremental reindex (skip if HEAD unchanged)
   adk repo update --all [--rebuild] [-y]      update every indexed repo (continues on failure)
+  adk repo branch add <name> --branch X [--auto] [--auto-reason "..."]
+                                              start tracking + index a branch
+  adk repo branch remove <name> --branch X    drop the index for a branch
+  adk repo branch list <name>                 show tracked branches + SHA + ts
+  adk repo rebuild-index <name> [--branch X]  rebuild a branch's index from scratch (when its dir was deleted by hand)
+  adk repo migrate [<name>]                   migrate legacy v3 layout to v4 (idempotent)
   adk repo list [--names-only]                list repos under ~/.agents-devkit/repos/
   adk doctor [--tui] [--strict]               validate env, deps, MCPs, ollama, tokens
   adk completion bash|zsh|fish                emit a shell-completion script
