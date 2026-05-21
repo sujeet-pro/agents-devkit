@@ -8,7 +8,7 @@ outcome (n_findings, host approval state, recommendation), it:
         n_findings > 0                   → STATUS_COMMENTS
         elif approved (host OR rec)      → STATUS_APPROVED
         else                             → STATUS_REVIEWED
-  2. Clears `taken_at` and writes status, head_oid, last_checked_at.
+  2. Clears `taken_at` and writes status, head_sha, last_checked_at.
   3. If a slack config + slack_info are present, updates the message's
      reaction emoji to reflect the new status. Transitioning into approved
      or merged also sweeps every other configured status emoji off the
@@ -101,8 +101,8 @@ def update_slack_reaction(slack_info: dict, new_status: str, slack_cfg: dict, lo
 def release_after_review(
     *,
     queue_path: Path,
-    pr_link: str,
-    head_oid: str | None,
+    pr_url: str,
+    head_sha: str | None,
     n_findings: int,
     approved_host: bool,
     recommendation: str | None,
@@ -113,7 +113,7 @@ def release_after_review(
     """Update the queue + slack reaction after a review completes. Returns
     the new status, or None if the PR wasn't in the queue.
     """
-    entry = find_row(queue_path, pr_link)
+    entry = find_row(queue_path, pr_url)
     if entry is None:
         return None
 
@@ -141,7 +141,7 @@ def release_after_review(
     # from "reviewed (commented but not approved)". Without these the bucket
     # collapses and we mislabel `status=comments` rows as "approved".
     #
-    # `last_reviewed_head_oid` + `last_reviewed_at` let `acquire_next_row`
+    # `last_reviewed_head_sha` + `last_reviewed_at` let `acquire_next_row`
     # skip rows whose head hasn't moved since the previous review — so the
     # queue-mode drain doesn't re-review the same commit twice. Explicit
     # URL invocations bypass this filter and re-review anyway.
@@ -154,10 +154,10 @@ def release_after_review(
         "recommendation": recommendation,
         "last_reviewed_at": now,
     }
-    if head_oid:
-        updates["head_oid"] = head_oid
-        updates["last_reviewed_head_oid"] = head_oid
+    if head_sha:
+        updates["head_sha"] = head_sha
+        updates["last_reviewed_head_sha"] = head_sha
     if merged_slack is not None:
         updates["slack"] = merged_slack
-    update_pr_entry(queue_path, pr_link, updates)
+    update_pr_entry(queue_path, pr_url, updates)
     return new_status

@@ -11,7 +11,7 @@ Rules:
     line-oriented patch (status fields and timestamps are mutated in place via
     string replacement); on a full rewrite (from `adk pr-scan`) we write a fresh
     file using a structured template + the user's prs[] dumped clean.
-  - Dedupe key: (host, repo, pr_number) — derived from pr_link. Different repos
+  - Dedupe key: (host, repo, pr_number) — derived from pr_url. Different repos
     sharing a pr_number don't collide.
 
 Queue-row claim/release (for `/adk-pr-review` no-arg queue mode):
@@ -20,19 +20,19 @@ Queue-row claim/release (for `/adk-pr-review` no-arg queue mode):
     It sets `taken_at = now_iso` and returns the row dict. Returns None if no
     eligible row exists. The acquire is atomic — concurrent invocations from
     multiple terminals each get a different row (or None).
-  - release_row(path, pr_link, status=..., head_oid=..., last_checked_at=...)
+  - release_row(path, pr_url, status=..., head_sha=..., last_checked_at=...)
     clears `taken_at` and applies the post-review updates.
 
 Public API:
   load_slack_config(path) → dict
   read_queue(path) → dict
   write_queue(path, queue) → None  (under lock)
-  update_pr_entry(path, pr_link, updates: dict) → bool
+  update_pr_entry(path, pr_url, updates: dict) → bool
   merge_scan_results(existing_queue, scanned_entries) → dict
-  dedupe_key(pr_link) → (host, repo, pr_number)
+  dedupe_key(pr_url) → (host, repo, pr_number)
   acquire_next_row(path) → dict | None
-  release_row(path, pr_link, **post_updates) → bool
-  find_row(path, pr_link) → dict | None
+  release_row(path, pr_url, **post_updates) → bool
+  find_row(path, pr_url) → dict | None
 """
 from __future__ import annotations
 
@@ -61,12 +61,13 @@ STATUS_COMMENTS = "comments"          # has open review comments / findings
 STATUS_NEEDS_FIX = STATUS_COMMENTS     # back-compat alias (was `needs_fix`)
 STATUS_APPROVED = "approved"          # PR approved on host or by adk-pr-review
 STATUS_MERGED = "merged"
-STATUS_DECLINED = "declined"          # bitbucket DECLINED/SUPERSEDED, or github CLOSED + not merged
+STATUS_CLOSED = "closed"              # adk-canonical name (replaces "declined" in v4)
+STATUS_DECLINED = STATUS_CLOSED        # deprecated alias — kept for one release per plan §8 P1
 STATUS_ERROR = "error"
 STATUS_REMINDED = "reminded"
 
 # Don't downgrade these once set.
-TERMINAL_STATUSES = {STATUS_MERGED, STATUS_DECLINED}
+TERMINAL_STATUSES = {STATUS_MERGED, STATUS_CLOSED}
 
 # Statuses that "close out" a review — when we transition INTO one of these,
 # we sweep ALL other configured status emojis off the message (defensive cleanup
@@ -93,7 +94,7 @@ LEGACY_QUEUE_PATH = Path.home() / ".agents-devkit" / "pr-reviews" / "queue.json5
 def classify_pr_state(meta: dict) -> str:
     """Map an origin-API meta blob (from `cheap_pr_meta`) to one of:
       - "merged"   — `merged_at` set, regardless of host
-      - "declined" — bitbucket DECLINED / SUPERSEDED, or github CLOSED with no merge
+      - "closed"   — bitbucket DECLINED/SUPERSEDED, or github CLOSED with no merge
       - "open"     — any other observed state (OPEN, DRAFT, etc.)
       - "unknown"  — meta is missing or fetch errored
 
@@ -107,7 +108,7 @@ def classify_pr_state(meta: dict) -> str:
         return "merged"
     state = (meta.get("state") or "").upper()
     if state in {"DECLINED", "SUPERSEDED", "CLOSED"}:
-        return "declined"
+        return "closed"
     if state in {"MERGED"}:  # belt + suspenders; cheap_pr_meta should have set merged_at
         return "merged"
     return "open"
@@ -231,14 +232,61 @@ def _migrate_legacy_queue(path: Path) -> None:
     )
 
 
+_LEGACY_FIELD_RENAMES = (
+    ("pr_link", "pr_url"),
+    ("head_oid", "head_sha"),
+    ("last_reviewed_head_oid", "last_reviewed_head_sha"),
+)
+
+
+def _normalise_legacy_fields(queue: dict) -> bool:
+    """Rename legacy row fields + map legacy status values in place. Idempotent.
+
+    Renames: pr_link → pr_url, head_oid → head_sha,
+             last_reviewed_head_oid → last_reviewed_head_sha.
+    Maps:    status "declined" → "closed".
+
+    Returns True if any row was changed (caller may persist the rewrite).
+    """
+    changed = False
+    for entry in queue.get("prs", []) or []:
+        if not isinstance(entry, dict):
+            continue
+        for legacy, canonical in _LEGACY_FIELD_RENAMES:
+            if legacy in entry and canonical not in entry:
+                entry[canonical] = entry.pop(legacy)
+                changed = True
+            elif legacy in entry:
+                # Both present — drop the legacy key; canonical wins.
+                entry.pop(legacy)
+                changed = True
+        if entry.get("status") == "declined":
+            entry["status"] = STATUS_CLOSED
+            changed = True
+    return changed
+
+
 def read_queue(path: Path) -> dict:
     """Load the queue. If the file is missing, return an empty queue skeleton.
-    Performs a one-shot migration from the legacy path on first read.
+    Performs a one-shot migration from the legacy path on first read, then
+    normalises any legacy row field names / status values (best-effort
+    self-healing rewrite).
     """
     _migrate_legacy_queue(path)
     if not path.exists():
         return {"filters": None, "prs": []}
-    return _load_json5_or_json(path)
+    q = _load_json5_or_json(path)
+    changed = _normalise_legacy_fields(q)
+    if changed:
+        # Best-effort rewrite OUTSIDE any caller-held lock. The lock helper in
+        # _common uses fcntl LOCK_EX which is NOT reentrant — so if a caller
+        # (e.g. update_pr_entry) is already holding the lock, we must not try
+        # to re-acquire it here. Skip on OSError and let the next read retry.
+        try:
+            path.write_text(_dump_json5(q), encoding="utf-8")
+        except OSError:
+            pass
+    return q
 
 
 # ----- writing --------------------------------------------------------------
@@ -259,15 +307,15 @@ def write_queue(path: Path, queue: dict) -> None:
         path.write_text(_dump_json5(queue), encoding="utf-8")
 
 
-def update_pr_entry(path: Path, pr_link: str, updates: dict) -> bool:
-    """Read-modify-write a single entry by pr_link. Returns True if matched."""
+def update_pr_entry(path: Path, pr_url: str, updates: dict) -> bool:
+    """Read-modify-write a single entry by pr_url. Returns True if matched."""
     path.parent.mkdir(parents=True, exist_ok=True)
     with file_lock(_lock_path(path), timeout_s=60.0):
         queue = read_queue(path)
         prs = queue.get("prs", []) or []
         hit = False
         for entry in prs:
-            if entry.get("pr_link") == pr_link:
+            if entry.get("pr_url") == pr_url:
                 _apply_updates(entry, updates)
                 hit = True
                 break
@@ -303,11 +351,11 @@ def _apply_updates(entry: dict, updates: dict) -> None:
             entry[k] = v
 
 
-def find_row(path: Path, pr_link: str) -> dict | None:
-    """Read-only lookup by pr_link. Returns the row dict or None."""
+def find_row(path: Path, pr_url: str) -> dict | None:
+    """Read-only lookup by pr_url. Returns the row dict or None."""
     queue = read_queue(path)
     for entry in queue.get("prs", []) or []:
-        if entry.get("pr_link") == pr_link:
+        if entry.get("pr_url") == pr_url:
             return entry
     return None
 
@@ -324,14 +372,14 @@ def _is_locked(entry: dict, now: datetime) -> bool:
 
 
 def _is_already_reviewed_at_head(entry: dict) -> bool:
-    """True iff a review has already completed at the current head_oid — i.e.
-    no new commits since `last_reviewed_head_oid` was written.
+    """True iff a review has already completed at the current head_sha — i.e.
+    no new commits since `last_reviewed_head_sha` was written.
 
     Excludes queue-mode acquisition; URL mode (`/adk-pr-review <pr-url>`)
     always wins because it goes through `find_row`, not `acquire_next_row`.
     """
-    head = entry.get("head_oid")
-    last_reviewed = entry.get("last_reviewed_head_oid")
+    head = entry.get("head_sha")
+    last_reviewed = entry.get("last_reviewed_head_sha")
     return bool(head) and bool(last_reviewed) and head == last_reviewed
 
 
@@ -350,12 +398,12 @@ def acquire_next_row(path: Path) -> dict | None:
     `taken_at` already set in the persisted file) or None.
 
     Eligibility:
-      - status not in TERMINAL_STATUSES                 (merged + declined)
+      - status not in TERMINAL_STATUSES                 (merged + closed)
       - taken_at is null OR older than TAKEN_LOCK_MAX_AGE_SECONDS  (not active)
-      - head_oid != last_reviewed_head_oid              (new commits since last review)
+      - head_sha != last_reviewed_head_sha              (new commits since last review)
     Order: FIFO by last_checked_at ascending; null (never reviewed) first.
 
-    `last_reviewed_head_oid` is written by `release_after_review`; explicit
+    `last_reviewed_head_sha` is written by `release_after_review`; explicit
     URL-mode review (`/adk-pr-review <pr-url>`) bypasses this filter because
     URL mode resolves via `find_row`, not the queue claim.
 
@@ -385,15 +433,15 @@ def acquire_next_row(path: Path) -> dict | None:
         return deepcopy(picked)
 
 
-def release_row(path: Path, pr_link: str, **post_updates) -> bool:
+def release_row(path: Path, pr_url: str, **post_updates) -> bool:
     """Clear `taken_at` and apply post-review updates. Returns True if matched.
 
     Typical caller:
-        release_row(queue_path, pr_link,
-                    status=STATUS_APPROVED, head_oid=..., last_checked_at=_now_iso())
+        release_row(queue_path, pr_url,
+                    status=STATUS_APPROVED, head_sha=..., last_checked_at=_now_iso())
     """
     updates = {"taken_at": None, **post_updates}
-    return update_pr_entry(path, pr_link, updates)
+    return update_pr_entry(path, pr_url, updates)
 
 
 # ----- dedupe key -----------------------------------------------------------
@@ -402,20 +450,20 @@ _GH_PR_RE = re.compile(r"github\.com/(?P<owner>[^/]+)/(?P<repo>[^/]+)/pull/(?P<n
 _BB_PR_RE = re.compile(r"bitbucket\.org/(?P<ws>[^/]+)/(?P<repo>[^/]+)/pull-requests/(?P<n>\d+)", re.I)
 
 
-def dedupe_key(pr_link: str) -> tuple[str, str, int]:
+def dedupe_key(pr_url: str) -> tuple[str, str, int]:
     """Return (host, repo, pr_number). repo is just the repo name (last path
     segment), so the same repo across mirrors / different owners de-collides
     on owner via the host check — but the spec says 'repo-name + pr-number'
     as the unique key, so we honour that and treat repo across owners as same.
     """
-    s = pr_link.strip().rstrip("/")
+    s = pr_url.strip().rstrip("/")
     m = _GH_PR_RE.search(s)
     if m:
         return ("github", m.group("repo"), int(m.group("n")))
     m = _BB_PR_RE.search(s)
     if m:
         return ("bitbucket", m.group("repo"), int(m.group("n")))
-    raise ValueError(f"unrecognised PR link: {pr_link}")
+    raise ValueError(f"unrecognised PR url: {pr_url}")
 
 
 # ----- merge ----------------------------------------------------------------
@@ -432,7 +480,7 @@ def merge_scan_results(existing: dict, scanned: list[dict]) -> dict:
             update missing fields from scanned (additive).
           - `supporting_docs`: union (preserving order, existing first).
           - `status`, `last_checked_at`, `notes`, `taken_at`: PRESERVE existing.
-          - `pr_link`: preserve existing (might be canonicalised differently).
+          - `pr_url`: preserve existing (might be canonicalised differently).
       - Terminal `merged` entries are NEVER re-added even if scanned again
         (they're effectively read-only).
     """
@@ -443,7 +491,7 @@ def merge_scan_results(existing: dict, scanned: list[dict]) -> dict:
     by_key: dict[tuple[str, str, int], dict] = {}
     for e in merged["prs"]:
         try:
-            by_key[dedupe_key(e["pr_link"])] = e
+            by_key[dedupe_key(e["pr_url"])] = e
         except (ValueError, KeyError):
             continue
 
@@ -453,14 +501,14 @@ def merge_scan_results(existing: dict, scanned: list[dict]) -> dict:
 
     for sc in scanned:
         try:
-            k = dedupe_key(sc["pr_link"])
+            k = dedupe_key(sc["pr_url"])
         except (ValueError, KeyError):
             continue
         existing_entry = by_key.get(k)
         if existing_entry is None:
             # Brand new — append with defaults.
             new_entry = {
-                "pr_link": sc["pr_link"],
+                "pr_url": sc["pr_url"],
                 "status": sc.get("status", STATUS_PENDING),
                 "last_checked_at": None,
                 "taken_at": None,
