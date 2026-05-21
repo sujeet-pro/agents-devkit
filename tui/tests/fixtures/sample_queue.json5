@@ -1,0 +1,96 @@
+{
+  "filters": null,
+  "prs": [
+    {
+      "pr_url": "https://github.com/foo/bar/pull/100",
+      "status": "pending",
+      "prep_status": "ready",
+      "head_sha": "abc1000000000000000000000000000000000001",
+      "last_reviewed_head_sha": "deadbeef00000000000000000000000000000000",
+      "last_reviewed_at": "2026-05-19T10:00:00Z",
+      "target_branch": "main",
+      "taken_at": null,
+      "last_checked_at": "2026-05-21T17:00:00Z",
+      "title": "ready-gh-1",
+      "author": "alice",
+      "slack": {
+        "permalink": "https://example.slack.com/archives/C001/p1000000000000001"
+      }
+    },
+    {
+      "pr_url": "https://github.com/foo/bar/pull/101",
+      "status": "pending",
+      "prep_status": "preparing",
+      "head_sha": "abc2000000000000000000000000000000000002",
+      "last_reviewed_head_sha": null,
+      "target_branch": "main",
+      "taken_at": null,
+      "last_checked_at": "2026-05-21T17:15:00Z",
+      "title": "preparing-gh",
+      "author": "bob",
+      "slack": {
+        "permalink": "https://example.slack.com/archives/C001/p1000000000000002"
+      }
+    },
+    {
+      "pr_url": "https://github.com/foo/bar/pull/99",
+      "status": "merged",
+      "prep_status": "ready",
+      "head_sha": "abc3000000000000000000000000000000000003",
+      "last_reviewed_head_sha": "abc3000000000000000000000000000000000003",
+      "last_reviewed_at": "2026-05-20T08:00:00Z",
+      "target_branch": "main",
+      "taken_at": null,
+      "last_checked_at": "2026-05-21T15:00:00Z",
+      "title": "merged-gh",
+      "author": "carol",
+      "slack": {
+        "permalink": "https://example.slack.com/archives/C001/p1000000000000003"
+      }
+    },
+    {
+      "pr_url": "https://bitbucket.org/baz/qux/pull-requests/5550",
+      "status": "pending",
+      "prep_status": "ready",
+      "head_sha": "bb0100000000",
+      "last_reviewed_head_sha": "feedbeef0000",
+      "last_reviewed_at": "2026-05-18T09:00:00Z",
+      "target_branch": "develop",
+      "taken_at": null,
+      "last_checked_at": "2026-05-21T16:30:00Z",
+      "title": "ready-bb",
+      "author": "dave",
+      "slack": {
+        "permalink": "https://example.slack.com/archives/C001/p1000000000000004"
+      }
+    },
+    {
+      "pr_url": "https://github.com/other/repo/pull/42",
+      "status": "pending",
+      "prep_status": "ready",
+      "head_sha": "f00100000000000000000000000000000000000a",
+      "last_reviewed_head_sha": "deadc0de00000000000000000000000000000000",
+      "target_branch": "main",
+      "taken_at": "2026-05-21T17:55:00Z",
+      "last_checked_at": "2026-05-21T17:55:00Z",
+      "title": "locked-fresh",
+      "author": "erin"
+    },
+    {
+      "pr_url": "https://bitbucket.org/baz/qux/pull-requests/5551",
+      "status": "pending",
+      "prep_status": "failed",
+      "prep_error": "git fetch returned 128",
+      "head_sha": "bb0200000000",
+      "last_reviewed_head_sha": null,
+      "target_branch": "develop",
+      "taken_at": null,
+      "last_checked_at": "2026-05-21T16:00:00Z",
+      "title": "prep-failed-bb",
+      "author": "frank",
+      "slack": {
+        "permalink": "https://example.slack.com/archives/C001/p1000000000000006"
+      }
+    }
+  ]
+}

@@ -1,0 +1,40 @@
+Screen {
+    layout: vertical;
+}
+
+HeaderBar {
+    dock: top;
+    height: 1;
+    background: $primary-background;
+    color: $text;
+    padding: 0 1;
+}
+
+FooterBar {
+    dock: bottom;
+    height: 1;
+    background: $primary-background;
+    color: $text;
+    padding: 0 1;
+}
+
+#main {
+    layout: horizontal;
+    height: 1fr;
+}
+
+QueueTable {
+    width: 2fr;
+    height: 1fr;
+}
+
+QueueTable > .datatable--header {
+    text-style: bold;
+}
+
+DetailPane {
+    width: 1fr;
+    height: 1fr;
+    padding: 1 2;
+    background: $surface;
+}

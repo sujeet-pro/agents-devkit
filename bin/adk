@@ -36,11 +36,36 @@ if not CLI_SCRIPTS.exists():
     sys.exit(2)
 sys.path.insert(0, str(CLI_SCRIPTS))
 
+_TUI_VALUE_FLAGS = ("--queue-path", "--poll-interval")
+_TUI_BOOL_FLAGS = ("--ascii",)
+
+
+def _is_tui_invocation(argv: list[str]) -> bool:
+    if not argv:
+        return True
+    if argv[0] in ("-h", "--help", "help"):
+        return False
+    i = 0
+    while i < len(argv):
+        arg = argv[i]
+        if arg in _TUI_BOOL_FLAGS:
+            i += 1
+            continue
+        if arg in _TUI_VALUE_FLAGS:
+            i += 2  # consume the value
+            continue
+        if any(arg.startswith(f"{flag}=") for flag in _TUI_VALUE_FLAGS):
+            i += 1
+            continue
+        return False
+    return True
+
 
 USAGE = """\
 adk — agents-devkit CLI
 
 Usage:
+  adk                                         launch the interactive TUI (read-only queue view)
   adk pr-sync [--no-scan] [--no-clean-orphans] [--no-remind] [--no-prepare] [--dry-run]
                                               one-stop sync: scan → refresh → drop merged/closed →
                                               clean orphans → remind stale reviews → prepare task folders
@@ -111,9 +136,19 @@ Global flag: -y / --yes — non-interactive (no prompts; smart defaults). Pass t
 
 
 def main(argv: list[str]) -> int:
-    if not argv or argv[0] in ("-h", "--help", "help"):
+    if argv and argv[0] in ("-h", "--help", "help"):
         print(USAGE)
         return 0
+    if _is_tui_invocation(argv):
+        sys.path.insert(0, str(REPO_ROOT))
+        try:
+            import tui.app as _tui_app  # noqa: WPS433
+        except ImportError:
+            sys.stderr.write(
+                "TUI requires textual. Install with: pip install 'textual>=0.86'\n"
+            )
+            return 2
+        return _tui_app.main(argv)
     cmd = argv[0]
     rest = argv[1:]
     if cmd == "pr-scan":
