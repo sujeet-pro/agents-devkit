@@ -35,15 +35,15 @@ Scaffolds `~/.agents-devkit/config/overrides.yaml` with full structure + comment
 2. Else → write fresh templates for `core.yaml`, `repos.md`, `connectors/*.md`, and `links.json5`.
 4. Walk the user through filling: workspaces (cap 3 questions), one starter repo, RAG config.
 
-Then: print "edit `~/.agents-devkit/config/overrides.yaml` to add more repos and data sources. Re-run `/adk-setup --enrich` to populate auto-discovery."
+Then: print "edit `~/.agents-devkit/config/core.yaml` (defaults / workspaces / rag) and `~/.agents-devkit/config/repos.md` (per-repo entries). Add new data sources by editing `~/.agents-devkit/config/connectors/<name>.md`. Re-run `/adk-setup --enrich` to populate auto-discovery."
 
 ### --enrich
 
-For each MCP (or `--source <name>` for one), call `scripts/enrich_overrides.py`:
+For each MCP (or `--source <name>` for one), call `scripts/enrich_metadata.py`:
 
 1. Query reachable MCPs via curl / programmatic calls.
 2. Write `~/.agents-devkit/improve/metadata/<source>.json` (overwrites; archives previous).
-3. Update the `enriched:` block in `overrides.yaml` — only ADD; never delete manually-set values.
+3. Propose updates to `~/.agents-devkit/config/connectors/<name>.md` frontmatter — only ADD; never delete manually-set values. Per-update user confirmation required.
 4. Surface MCPs that couldn't be reached (env var missing, OAuth not done, etc.) with the exact fix.
 
 ### --check
@@ -82,8 +82,8 @@ Phase 1 — advise
     --check / --diff: no questions
 
 Phase 2 — execute (mostly programmatic — script-driven)
-  - --init: write yaml file
-  - --enrich: run scripts/enrich_overrides.py
+  - --init: write core.yaml / repos.md / connectors/*.md / links.json5 templates
+  - --enrich: run scripts/enrich_metadata.py
   - --check: build verification table
   - --diff: dry-run enrich
 

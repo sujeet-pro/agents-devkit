@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""metadata_introspector.py — thin orchestrator that calls enrich_overrides.py for
+"""metadata_introspector.py — thin orchestrator that calls enrich_metadata.py for
 each configured source, writes ~/.agents-devkit/improve/metadata/<source>.json, and archives
 the previous version.
 
@@ -47,7 +47,7 @@ def main() -> int:
             print(f"archived prior metadata to {archived}", file=sys.stderr)
 
     result = subprocess.run(
-        [sys.executable, str(HERE / "enrich_overrides.py"), "--source", args.source],
+        [sys.executable, str(HERE / "enrich_metadata.py"), "--source", args.source],
         check=False,
     )
     return result.returncode

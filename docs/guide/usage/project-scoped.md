@@ -34,11 +34,7 @@ defaults:
 
 The team can choose to commit this file (so the repo has consistent adk behavior for everyone) OR keep it gitignored (per-developer).
 
-`adk-info` will report the merged result:
-
-```bash
-python3 ~/code/agents-devkit/scripts/adk_info.py --topic defaults
-```
+To inspect the effective merged config, use `python3 scripts/config_io.py show-core` (or `show-connector <name>` / `show-links`).
 
 ## `<repo>/ai-guidelines/` (or `<repo>/docs/`)
 

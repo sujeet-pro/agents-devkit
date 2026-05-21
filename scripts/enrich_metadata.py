@@ -1,47 +1,27 @@
----
-title: 'enrich_overrides.py'
-description: 'enrich_overrides.py — populate the `enriched:` block of ~/.agents-devkit/config/overrides.yaml'
-script: 'enrich_overrides.py'
-source: 'scripts/enrich_overrides.py'
-group: 'scripts'
-order: 4006
----
-# enrich_overrides.py
-
-enrich_overrides.py — populate the `enriched:` block of ~/.agents-devkit/config/overrides.yaml
-
-## Source
-
-`scripts/enrich_overrides.py`
-
-## Contents
-
-```python
 #!/usr/bin/env python3
-"""enrich_overrides.py — populate the `enriched:` block of ~/.agents-devkit/config/overrides.yaml
-by introspecting reachable MCPs.
+"""enrich_metadata.py — populate ~/.agents-devkit/improve/metadata/<source>.json
+by introspecting reachable MCPs / CLI tools.
 
 This script does the PROGRAMMATIC enrichment. The AI step in /adk-setup --enrich
-produces nice prose around the results; this just gathers raw data.
+produces nice prose around the results and decides what to lift into
+~/.agents-devkit/config/connectors/<name>.md frontmatter; this just gathers raw
+data into the metadata cache.
 
 Usage:
-  python3 scripts/enrich_overrides.py [--source datadog|statsig|mixpanel|atlassian|github|snowflake|looker|all]
-                                       [--dry-run]
-                                       [--out ~/.agents-devkit/config/overrides.yaml]
+  python3 scripts/enrich_metadata.py [--source datadog|statsig|mixpanel|atlassian|github|snowflake|looker|all]
+                                      [--dry-run]
 """
 from __future__ import annotations
 
 import argparse
 import json
 import os
-import shlex
 import shutil
 import subprocess
 import sys
 from pathlib import Path
 from typing import Any
 
-OVERRIDES = Path(os.path.expanduser("~/.agents-devkit/config/overrides.yaml"))
 METADATA_DIR = Path(os.path.expanduser("~/.agents-devkit/improve/metadata"))
 
 
@@ -241,5 +221,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
-```
