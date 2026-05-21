@@ -18,7 +18,7 @@ at install time.
 ```
 adk pr-scan       walk Slack channels → upsert PR rows into the queue
 adk pr-queue …    list / show / add / update / clean / ready-to-merge / release
-adk repo …        add / update / list — clone + index repos
+adk repo …        add / update / list / branch / migrate — clone + per-branch index
 adk doctor        validate env, deps, MCPs, ollama server, token presence
 adk completion …  emit a bash | zsh | fish completion script
 ```
@@ -35,8 +35,12 @@ Every subcommand accepts `-y` / `--yes` for headless / smart-default operation
   PR URL; cheap meta refresh on one row; lock release; merged-row cleanup; the
   ready-to-merge summary used at the tail of every review.
 - `repo.py` — `adk repo …`. Clones repos to `~/.agents-devkit/repos/<name>/`
-  and indexes them at `~/.agents-devkit/repos/.indices/<name>/code-index/`.
-  Incremental reindex on `update` when HEAD has moved (no-op otherwise).
+  and indexes each tracked branch at
+  `~/.agents-devkit/repos/.indices/<name>/branches/<slug>/code-index/`.
+  Default branch is auto-indexed by `add`; use `--branch X` (multi-arg) on
+  `add`/`update`, the `repo branch {add,remove,list}` subgroup to manage
+  branches, and `repo migrate` to lift legacy single-index repos into the
+  per-branch layout. Incremental reindex on `update` when HEAD has moved.
 - `doctor.py` — `adk doctor`. Plain-text table of pass/warn/fail per check.
   `--tui` uses textual when importable; falls back to plain text otherwise.
 - `completion.py` — `adk completion bash|zsh|fish`. Emits a static script.

@@ -20,7 +20,7 @@ You fan out the URLs and IDs in a user's prompt, fetch each, and produce a singl
 
 ## working repo
 - name: storefront-bff (from overrides.yaml)
-- workspace: quince-work
+- workspace: personal-work
 
 ## sources fetched
 

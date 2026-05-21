@@ -9,18 +9,18 @@ from pr_queue import _parse_slack_permalink, _looks_like_pr_url
 
 
 def test_parses_slack_permalink_with_thread_ts():
-    url = ("https://onequince.slack.com/archives/C123ABC/p1700000123000456"
+    url = ("https://acme.slack.com/archives/C123ABC/p1700000123000456"
            "?thread_ts=1700000000.000123&cid=C123ABC")
     parsed = _parse_slack_permalink(url)
     assert parsed is not None
     assert parsed["channel_id"] == "C123ABC"
     assert parsed["message_ts"] == "1700000123.000456"
     assert parsed["thread_ts"] == "1700000000.000123"
-    assert parsed["workspace"] == "onequince"
+    assert parsed["workspace"] == "acme"
 
 
 def test_parses_slack_permalink_without_thread_ts():
-    url = "https://onequince.slack.com/archives/G456DEF/p1700000123000456"
+    url = "https://acme.slack.com/archives/G456DEF/p1700000123000456"
     parsed = _parse_slack_permalink(url)
     assert parsed is not None
     assert parsed["channel_id"] == "G456DEF"

@@ -33,12 +33,12 @@ workspaces:
     email: sujeet@gmail.com
     github_user: sujeet-pro
     orgs: [sujeet-pro]
-  - name: quince-work
+  - name: personal-work
     type: work
     default: true                # used when no other workspace matches
-    email: sujeet@onequince.com
+    email: you@example.com
     github_user: sujeet-pro       # or a different work GH identity
-    orgs: [quince, quince-internal]
+    orgs: [acme, acme-internal]
   # add as many work / side / personal workspaces as you need
 ```
 
@@ -51,9 +51,9 @@ The "table" — one entry per repo you actively work in. The keys here are what 
 ```yaml
 repos:
   - name: storefront-bff
-    workspace: quince-work
-    path: ~/code/quince/storefront-bff
-    github: quince/storefront-bff
+    workspace: personal-work
+    path: ~/code/acme/storefront-bff
+    github: acme/storefront-bff
     base_branch: main
     primary_language: typescript
     description: "BFF for storefront — SSR + edge logic"
@@ -75,7 +75,7 @@ The data dictionary. Manual hints for Snowflake / Looker / Mixpanel that AI can 
 ```yaml
 data_sources:
   snowflake:
-    workspace: quince-work
+    workspace: personal-work
     warehouse: PROD_WH
     role: ANALYST
     databases:
@@ -92,7 +92,7 @@ data_sources:
                   - { name: EVENT_NAME, description: "event name", purpose: "filter" }
                   - { name: TS, description: "event ts", purpose: "time filter" }
   looker:
-    instance: quince.cloud.looker.com
+    instance: acme.cloud.looker.com
     dashboards:
       - { id: 42, name: "Storefront SLOs", description: "error budget" }
     explores:

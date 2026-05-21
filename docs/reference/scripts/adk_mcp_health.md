@@ -86,7 +86,7 @@ DECLARED_VARS: dict[str, str] = {
     # Bitbucket
     "BITBUCKET_URL": "default: https://api.bitbucket.org/2.0",
     "BITBUCKET_USERNAME": "your Bitbucket account email",
-    "BITBUCKET_WORKSPACE": "default workspace slug (e.g. lastbrand)",
+    "BITBUCKET_WORKSPACE": "default workspace slug (e.g. acme)",
     "BITBUCKET_TOKEN_CRED": "Atlassian API token — https://id.atlassian.com/manage-profile/security/api-tokens",
     # RAG (optional)
     "RAG_MCP_URL": "your company RAG MCP endpoint (optional)",

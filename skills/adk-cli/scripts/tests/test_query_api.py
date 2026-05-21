@@ -129,6 +129,42 @@ def test_open_index_invalid_kind(query_mod):
         query_mod.open_index("x", kind="bogus", _log=False)  # type: ignore[arg-type]
 
 
+def test_open_index_branch_selects_specific_branch(tmp_path, monkeypatch, query_mod, base_index_mod):
+    """`open_index(repo, branch="develop")` returns the develop index, not the
+    default-branch one. Falls back to default if the branch isn't indexed
+    (pick_base_index's contract)."""
+    # Build two branch indexes for the same repo. master is default.
+    branches_root = tmp_path / ".indices" / "ecomm-ssr" / "branches"
+    for br, sha in (("master", "m" * 40), ("develop", "d" * 40)):
+        bdir = branches_root / br
+        (bdir / "code-index").mkdir(parents=True, exist_ok=True)
+        (bdir / "branch-meta.json").write_text(json.dumps({
+            "name": "ecomm-ssr", "branch": br, "slug": br,
+            "last_indexed_oid": sha,
+            "last_indexed_at": (datetime.now(timezone.utc)).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "embed_model": "nomic-embed-text",
+        }), encoding="utf-8")
+        (bdir / "code-index" / "meta.json").write_text(json.dumps({
+            "table": "chunks", "model": "nomic-embed-text", "dim": 768, "rows": 1,
+            "table_path": str(bdir / "code-index" / "chunks.lance"),
+        }), encoding="utf-8")
+        (bdir / "code-index" / "chunks.lance").mkdir(parents=True, exist_ok=True)
+    (tmp_path / ".indices" / "ecomm-ssr" / "repo-meta.json").write_text(json.dumps({
+        "name": "ecomm-ssr", "default_branch": "master", "tracked_branches": [],
+    }), encoding="utf-8")
+
+    monkeypatch.setattr(base_index_mod, "REPO_INDICES_ROOT", tmp_path / ".indices")
+
+    # Asking for develop returns develop's index, not master's.
+    idx = query_mod.open_index("ecomm-ssr", branch="develop", _log=False)
+    assert idx.branch == "develop"
+    assert idx.indexed_sha.startswith("d")
+    # Default (no `branch` arg) returns the default-branch index — unchanged behavior.
+    idx_default = query_mod.open_index("ecomm-ssr", _log=False)
+    assert idx_default.branch == "master"
+    assert idx_default.indexed_sha.startswith("m")
+
+
 def test_hit_dataclass_fields_stable(query_mod):
     """Pinned field set so changes are caught here, not silently downstream."""
     h = query_mod.Hit(

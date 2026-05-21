@@ -92,7 +92,7 @@ feedback on otherwise-trivial PRs still ships.
 ```json
 {
   "host": "bitbucket",
-  "pr_link": "https://bitbucket.org/lastbrand/ecomm-ssr/pull-requests/5521",
+  "pr_link": "https://bitbucket.org/acme/ecomm-ssr/pull-requests/5521",
   "recommendation": "approve",
   "approve_ready": true,
   "post_review": false,
@@ -103,7 +103,7 @@ feedback on otherwise-trivial PRs still ships.
     {
       "kind": "resolve",
       "mcp_tool": "mcp__adk-mcp-bitbucket__resolveComment",
-      "mcp_args": { "workspace": "lastbrand", "repoSlug": "ecomm-ssr",
+      "mcp_args": { "workspace": "acme", "repoSlug": "ecomm-ssr",
                     "pullRequestId": 5521, "commentID": "799143917" },
       "fallback": "PUT /pullrequests/<n>/comments/<id>/resolution",
       "comment_id": "799143917",
@@ -112,7 +112,7 @@ feedback on otherwise-trivial PRs still ships.
     {
       "kind": "approve_pr",
       "mcp_tool": "mcp__adk-mcp-bitbucket__approvePullRequest",
-      "mcp_args": { "workspace": "lastbrand", "repoSlug": "ecomm-ssr",
+      "mcp_args": { "workspace": "acme", "repoSlug": "ecomm-ssr",
                     "pullRequestId": 5521 }
     }
   ]

@@ -92,8 +92,8 @@ Cross-connector relationships live in one file:
 
 ```json5
 [
-  { from: "repo:ecomm-ssr",  to: "datadog.apm:quince-site",  relation: "observed_by" },
-  { from: "repo:ecomm-ssr",  to: "statsig.project:quince",   relation: "uses_flags_from" },
+  { from: "repo:ecomm-ssr",  to: "datadog.apm:acme-site",    relation: "observed_by" },
+  { from: "repo:ecomm-ssr",  to: "statsig.project:acme",     relation: "uses_flags_from" },
   { from: "repo:ecomm-ssr",  to: "mixpanel.project:3292013", relation: "emits_events_to" },
 ]
 ```

@@ -6,8 +6,10 @@ into ~/.local/bin/adk by install.py; Path(__file__).resolve() follows the
 symlink back to the repo so subcommand modules are importable.
 
 Subcommands:
+  pr-sync       one-stop: scan + metadata refresh + drop merged + clean orphans + prepare
   pr-scan       scan Slack channels for PR links → upsert into the queue
   pr-queue      inspect / manage the queue (list, show, add, update, clean, …)
+  pr-task       manage per-PR task folders (prepare, info, list, clean-orphans)
   repo          clone + index a repo (`repo add`) or pull + reindex (`repo update`)
   doctor        validate env, deps, MCPs, ollama server, slack token presence
   completion    emit a shell-completion script (bash | zsh | fish)
@@ -39,18 +41,33 @@ USAGE = """\
 adk — agents-devkit CLI
 
 Usage:
+  adk pr-sync [--no-scan] [--no-clean-orphans] [--no-remind] [--no-prepare] [--dry-run]
+                                              one-stop sync: scan → refresh → drop merged/declined →
+                                              clean orphans → remind stale reviews → prepare task folders
+                                              (destructive steps are actual-by-default; --dry-run to preview)
   adk pr-scan [--channels c1,c2] [--since-hours N] [--dry-run] [-y]
                                               scan Slack for PR links → upsert into the queue
-  adk pr-queue list [--status <s>]            list queue entries
+  adk pr-queue list [--status <s>] [--urls-only]   list queue entries
   adk pr-queue show <pr-url>                  show one entry as JSON
   adk pr-queue add <slack-url-or-pr-url>      single-shot upsert (slack permalink OR PR URL)
-  adk pr-queue update <pr-url>                refresh head_oid + merged-state on one row
-  adk pr-queue clean [--all] [-y]             drop merged rows (or everything with --all -y)
+  adk pr-queue update <pr-url>                refresh row metadata (head_oid + merged/declined state)
+  adk pr-queue update --all                   refresh every non-terminal row (metadata only)
+  adk pr-queue clean [--all] [-y]             drop merged + declined rows (or everything with --all -y)
   adk pr-queue ready-to-merge                 approved PRs grouped by open-comment state
   adk pr-queue release <pr-url>               clear `taken_at` (release a stuck lock)
+  adk pr-queue get-next [--no-validate]       claim + return the next eligible row (validates via origin API)
+  adk pr-queue remind [--threshold-hours N] [--dry-run]
+                                              Slack-thread reminders for stale reviews
+  adk pr-task prepare <pr-url> [--rebuild]    Phase 1: create/refresh the task folder
+  adk pr-task prepare --all                   Phase 1 for every non-merged queue row (short-circuits)
+  adk pr-task validate <pr-url>               Phase 3: gate findings.json on anchor + suggested-fix
+  adk pr-task info <pr-url>                   task-folder state as JSON
+  adk pr-task list [--names-only|--paths]     every task folder under ~/.agents-devkit/pr-reviews/
+  adk pr-task clean-orphans [--dry-run] [-y]  drop on-disk folders with no queue row
   adk repo add <git-url> [--name <n>] [-y]    clone + index a repo's default branch
-  adk repo update <name> [-y]                 fetch + fast-forward + incremental reindex
-  adk repo list                               list repos under ~/.agents-devkit/repos/
+  adk repo update <name> [--rebuild] [-y]     fetch + fast-forward + incremental reindex (skip if HEAD unchanged)
+  adk repo update --all [--rebuild] [-y]      update every indexed repo (continues on failure)
+  adk repo list [--names-only]                list repos under ~/.agents-devkit/repos/
   adk doctor [--tui] [--strict]               validate env, deps, MCPs, ollama, tokens
   adk completion bash|zsh|fish                emit a shell-completion script
 
@@ -73,6 +90,12 @@ def main(argv: list[str]) -> int:
         return f(rest)
     if cmd == "repo":
         from repo import main as f  # type: ignore[import-not-found]
+        return f(rest)
+    if cmd == "pr-task":
+        from pr_task import main as f  # type: ignore[import-not-found]
+        return f(rest)
+    if cmd == "pr-sync":
+        from pr_sync import main as f  # type: ignore[import-not-found]
         return f(rest)
     if cmd == "doctor":
         from doctor import main as f  # type: ignore[import-not-found]

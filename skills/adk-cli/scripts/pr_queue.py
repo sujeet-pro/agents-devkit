@@ -36,8 +36,10 @@ from _common import parse_pr_url, task_dir_for, die, get_logger  # noqa: E402
 from queue_io import (  # noqa: E402
     DEFAULT_QUEUE_PATH,
     read_queue, write_queue, update_pr_entry, find_row, merge_scan_results,
-    STATUS_APPROVED, STATUS_COMMENTS, STATUS_MERGED, STATUS_PENDING, STATUS_IN_REVIEW,
-    TAKEN_LOCK_MAX_AGE_SECONDS, _now_iso,
+    classify_pr_state, acquire_next_row,
+    STATUS_APPROVED, STATUS_COMMENTS, STATUS_MERGED, STATUS_DECLINED,
+    STATUS_PENDING, STATUS_IN_REVIEW,
+    TERMINAL_STATUSES, TAKEN_LOCK_MAX_AGE_SECONDS, _now_iso,
 )
 
 
@@ -64,6 +66,12 @@ def cmd_list(args) -> int:
     prs = queue.get("prs", []) or []
     if args.status:
         prs = [e for e in prs if (e.get("status") or STATUS_PENDING) == args.status]
+    if args.urls_only:
+        for e in prs:
+            link = e.get("pr_link")
+            if link:
+                print(link)
+        return 0
     if not prs:
         print("(queue empty)" if not args.status else f"(no entries with status={args.status})")
         return 0
@@ -147,11 +155,15 @@ def cmd_clean(args) -> int:
                   f"{'y' if len(to_drop) == 1 else 'ies'} "
                   f"(last_checked_at >= {args.stale_days} days ago) + their task folders")
     else:
-        to_drop = [e for e in prs if (e.get("status") or "") == STATUS_MERGED]
+        # Default sweep: both terminal states (merged + declined). Together they
+        # cover everything the origin API has confirmed will not move again.
+        to_drop = [e for e in prs if (e.get("status") or "") in TERMINAL_STATUSES]
         if not to_drop:
-            print("(no merged entries to clean)")
+            print("(no merged or declined entries to clean)")
             return 0
-        action = f"drop {len(to_drop)} merged entr{'y' if len(to_drop) == 1 else 'ies'} + their task folders"
+        kinds = sorted({e.get("status") for e in to_drop})
+        action = (f"drop {len(to_drop)} {'/'.join(kinds)} entr"
+                  f"{'y' if len(to_drop) == 1 else 'ies'} + their task folders")
 
     if args.all and not args.yes:
         print(f"About to {action}. This is irreversible.")
@@ -417,33 +429,206 @@ def _add_from_slack_permalink(url: str, slack_info: dict, queue_path: Path, args
 
 # ----- update (cheap meta refresh on one row) ------------------------------
 
-def cmd_update(args) -> int:
-    queue_path = Path(args.queue).expanduser()
-    log = get_logger("pr-queue-update")
-    entry = find_row(queue_path, args.pr_url)
-    if entry is None:
-        die(f"no entry found for {args.pr_url} in {queue_path}")
+def _refresh_one(pr_url: str, entry: dict, *, queue_path: Path, log) -> dict:
+    """Refresh one PR's metadata only (head_oid + merged/declined state).
 
+    Strict single-purpose: this verb does NOT touch the worktree or the
+    index. If you also want to pre-warm the task folder, run
+    `adk pr-task prepare <url>` afterwards (or just `adk pr-sync`, which
+    chains both).
+
+    Never raises — failures are folded into the returned dict so the `--all`
+    caller can keep going.
+    """
     from pr_scan import cheap_pr_meta  # type: ignore[import-not-found]
-    meta = cheap_pr_meta(args.pr_url, log)
+    try:
+        meta = cheap_pr_meta(pr_url, log)
+    except Exception as e:
+        return {"pr_url": pr_url, "status": "failed", "stage": "meta", "reason": str(e)}
     if "error" in meta:
-        die(f"meta-fetch failed: {meta['error']}")
+        return {"pr_url": pr_url, "status": "failed", "stage": "meta", "reason": meta["error"]}
 
     updates = {"last_checked_at": _now_iso()}
     new_head = meta.get("head_oid")
     if new_head:
         updates["head_oid"] = new_head
-    if meta.get("merged_at"):
+    # Capture target_branch (baseRefName / destination.branch.name). Skills
+    # downstream — pr-sync's base-index audit, /adk-pr-review's seed-picker —
+    # rely on this to map a PR to its base index.
+    target_branch = meta.get("target_branch")
+    if target_branch:
+        updates["target_branch"] = target_branch
+    # Origin-API is the source of truth for terminal state. classify_pr_state
+    # interprets the host-specific quirks (GitHub CLOSED-without-merge ↔
+    # Bitbucket DECLINED / SUPERSEDED) uniformly.
+    verdict = classify_pr_state(meta)
+    if verdict == "merged":
         updates["status"] = STATUS_MERGED
-    update_pr_entry(queue_path, args.pr_url, updates)
-    out = {
-        "pr_url": args.pr_url,
+    elif verdict == "declined":
+        updates["status"] = STATUS_DECLINED
+    update_pr_entry(queue_path, pr_url, updates)
+    prev_head = entry.get("head_oid")
+    head_unchanged = (prev_head == new_head) if prev_head else None
+    return {
+        "pr_url": pr_url,
         "head_oid": new_head,
-        "merged": bool(meta.get("merged_at")),
+        "verdict": verdict,
+        "merged": verdict == "merged",
+        "declined": verdict == "declined",
         "status": updates.get("status", entry.get("status")),
-        "head_unchanged": (entry.get("head_oid") == new_head) if entry.get("head_oid") else None,
+        "head_unchanged": head_unchanged,
+        "refreshed": "meta",
     }
-    print(json.dumps(out, indent=2))
+
+
+def cmd_update(args) -> int:
+    queue_path = Path(args.queue).expanduser()
+    log = get_logger("pr-queue-update")
+
+    if args.all:
+        if args.pr_url:
+            die("pass either <pr-url> or --all, not both")
+        queue = read_queue(queue_path)
+        prs = queue.get("prs", []) or []
+        candidates = [e for e in prs
+                      if (e.get("status") or STATUS_PENDING) not in TERMINAL_STATUSES]
+        if not candidates:
+            print(json.dumps({"updated": [],
+                              "reason": "no rows to refresh (all merged or declined)"},
+                             indent=2))
+            return 0
+        log.info("refreshing %d row(s) (metadata only)", len(candidates))
+        results: list[dict] = []
+        had_failure = False
+        for e in candidates:
+            url = e.get("pr_link")
+            if not url:
+                continue
+            r = _refresh_one(url, e, queue_path=queue_path, log=log)
+            if r.get("status") == "failed":
+                had_failure = True
+            results.append(r)
+        print(json.dumps({"updated": results, "count": len(results)},
+                         indent=2, default=str))
+        return 1 if had_failure else 0
+
+    if not args.pr_url:
+        die("missing <pr-url>. Pass a URL or `--all`. "
+            "List rows with `adk pr-queue list`.")
+    entry = find_row(queue_path, args.pr_url)
+    if entry is None:
+        die(f"no entry found for {args.pr_url} in {queue_path}")
+    result = _refresh_one(args.pr_url, entry, queue_path=queue_path, log=log)
+    print(json.dumps(result, indent=2))
+    return 1 if result.get("status") == "failed" else 0
+
+
+# ----- get-next ------------------------------------------------------------
+
+def _drop_terminal_row(queue_path: Path, pr_link: str, status: str, log) -> None:
+    """Remove a row whose origin-API check says it's merged or declined.
+
+    Idempotent: re-running on an already-removed row is a no-op. Also cleans
+    the row's on-disk task folder so `pr-task list` stays in sync.
+    """
+    queue = read_queue(queue_path)
+    prs = queue.get("prs", []) or []
+    kept = [e for e in prs if e.get("pr_link") != pr_link]
+    if len(kept) == len(prs):
+        return
+    queue["prs"] = kept
+    write_queue(queue_path, queue)
+
+    td = _task_dir_for_link(pr_link)
+    if td and td.exists():
+        try:
+            shutil.rmtree(td)
+        except OSError as e:
+            log.warning("failed to remove task folder %s: %s", td, e)
+    log.info("auto-dropped %s row %s + task folder", status, pr_link)
+
+
+def get_next_eligible(queue_path: Path, *, validate: bool = True,
+                      max_attempts: int = 10, log=None) -> dict | None:
+    """Atomically claim the next eligible row, validating against the origin
+    API. Rows that turn out to be merged or declined since the last sync are
+    dropped from the queue (along with their on-disk task folder) and the
+    picker tries the next candidate. Returns the claimed row, or None.
+
+    `validate=False` is the legacy in-memory path — used by tests and by
+    callers who already validated separately. The CLI front-end
+    (`adk pr-queue get-next`) and `run_review.py` queue mode use
+    `validate=True`.
+    """
+    if log is None:
+        log = get_logger("pr-queue-get-next")
+    from pr_scan import cheap_pr_meta  # type: ignore[import-not-found]
+
+    attempts = 0
+    while attempts < max_attempts:
+        attempts += 1
+        candidate = acquire_next_row(queue_path)
+        if candidate is None:
+            return None
+        if not validate:
+            return candidate
+
+        pr_url = candidate.get("pr_link")
+        if not pr_url:
+            return candidate
+        meta = cheap_pr_meta(pr_url, log)
+        verdict = classify_pr_state(meta)
+        if verdict in {"merged", "declined"}:
+            # Release the claim we just took, then drop the row entirely.
+            update_pr_entry(queue_path, pr_url, {"taken_at": None})
+            _drop_terminal_row(queue_path, pr_url, verdict, log)
+            continue
+        # Refresh head_oid so the row reflects the API's current view, then
+        # return the (still-claimed) candidate.
+        new_head = meta.get("head_oid") if not meta.get("error") else None
+        if new_head and new_head != candidate.get("head_oid"):
+            update_pr_entry(queue_path, pr_url,
+                            {"head_oid": new_head, "last_checked_at": _now_iso()})
+            candidate["head_oid"] = new_head
+        return candidate
+    log.warning("get_next_eligible: exhausted %d attempts; queue may be all-terminal",
+                max_attempts)
+    return None
+
+
+def _cmd_remind(args) -> int:
+    """Thin wrapper so the standalone `pr_reminders.main` and the
+    `pr-queue remind` subcommand share one implementation."""
+    from pr_reminders import send_reminders  # type: ignore[import-not-found]
+    out = send_reminders(
+        Path(args.queue).expanduser(),
+        threshold_hours=args.threshold_hours,
+        dry_run=args.dry_run,
+    )
+    print(json.dumps(out, indent=2, default=str))
+    return 1 if out.get("failed") else 0
+
+
+def cmd_get_next(args) -> int:
+    queue_path = Path(args.queue).expanduser()
+    log = get_logger("pr-queue-get-next")
+    row = get_next_eligible(queue_path, validate=not args.no_validate, log=log)
+    if row is None:
+        print(json.dumps({"action": "queue_empty",
+                          "queue": str(queue_path),
+                          "message": "no eligible rows. Run `adk pr-sync` to refresh."},
+                         indent=2))
+        return 0
+    out = {
+        "action": "claimed",
+        "pr_link": row.get("pr_link"),
+        "head_oid": row.get("head_oid"),
+        "status": row.get("status"),
+        "slack": row.get("slack"),
+        "supporting_docs": row.get("supporting_docs") or [],
+        "taken_at": row.get("taken_at"),
+    }
+    print(json.dumps(out, indent=2, default=str))
     return 0
 
 
@@ -468,6 +653,8 @@ def main(argv: list[str] | None = None) -> int:
 
     sp_list = sub.add_parser("list", help="list queue entries")
     sp_list.add_argument("--status", help="filter by status (pending|in_review|reviewed|comments|approved|merged|error|reminded)")
+    sp_list.add_argument("--urls-only", action="store_true",
+                          help="emit one PR URL per line (for shell completion)")
     sp_list.set_defaults(func=cmd_list)
 
     sp_show = sub.add_parser("show", help="show one entry as JSON")
@@ -480,8 +667,16 @@ def main(argv: list[str] | None = None) -> int:
                         help="non-interactive; refresh in place if already present")
     sp_add.set_defaults(func=cmd_add)
 
-    sp_upd = sub.add_parser("update", help="refresh head_oid + merged-state on one row")
-    sp_upd.add_argument("pr_url")
+    sp_upd = sub.add_parser("update",
+                            help="refresh row metadata (head_oid + merged/declined "
+                                 "state via origin API). Single-purpose: does NOT "
+                                 "touch the worktree or index — for that, run "
+                                 "`adk pr-task prepare` or `adk pr-sync`.")
+    sp_upd.add_argument("pr_url", nargs="?", default=None,
+                        help="PR URL to refresh (omit when using --all)")
+    sp_upd.add_argument("--all", action="store_true",
+                        help="refresh every non-terminal row in the queue; "
+                             "continues past per-row failures and exits 1 if any failed")
     sp_upd.add_argument("-y", "--yes", action="store_true")
     sp_upd.set_defaults(func=cmd_update)
 
@@ -498,9 +693,25 @@ def main(argv: list[str] | None = None) -> int:
     sp_rtm = sub.add_parser("ready-to-merge", help="list approved PRs grouped by comment state")
     sp_rtm.set_defaults(func=cmd_ready_to_merge)
 
+    sp_get = sub.add_parser("get-next",
+                            help="claim the next eligible PR for review "
+                                 "(skips merged/declined/locked/already-reviewed; "
+                                 "auto-drops rows the origin API says are terminal)")
+    sp_get.add_argument("--no-validate", action="store_true",
+                        help="skip origin-API validation; in-memory pick only")
+    sp_get.set_defaults(func=cmd_get_next)
+
     sp_rel = sub.add_parser("release", help="clear `taken_at` on a row")
     sp_rel.add_argument("pr_url")
     sp_rel.set_defaults(func=cmd_release)
+
+    sp_rem = sub.add_parser("remind",
+                            help="Slack-reply reminder for any PR reviewed "
+                                 ">=24h ago with no new commits since")
+    sp_rem.add_argument("--threshold-hours", type=float, default=24.0)
+    sp_rem.add_argument("--dry-run", action="store_true")
+    sp_rem.add_argument("-y", "--yes", action="store_true")
+    sp_rem.set_defaults(func=lambda args: _cmd_remind(args))
 
     args = ap.parse_args(argv)
     return args.func(args)

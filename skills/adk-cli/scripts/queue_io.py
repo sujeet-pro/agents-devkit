@@ -61,11 +61,12 @@ STATUS_COMMENTS = "comments"          # has open review comments / findings
 STATUS_NEEDS_FIX = STATUS_COMMENTS     # back-compat alias (was `needs_fix`)
 STATUS_APPROVED = "approved"          # PR approved on host or by adk-pr-review
 STATUS_MERGED = "merged"
+STATUS_DECLINED = "declined"          # bitbucket DECLINED/SUPERSEDED, or github CLOSED + not merged
 STATUS_ERROR = "error"
 STATUS_REMINDED = "reminded"
 
 # Don't downgrade these once set.
-TERMINAL_STATUSES = {STATUS_MERGED}
+TERMINAL_STATUSES = {STATUS_MERGED, STATUS_DECLINED}
 
 # Statuses that "close out" a review — when we transition INTO one of these,
 # we sweep ALL other configured status emojis off the message (defensive cleanup
@@ -87,6 +88,29 @@ TAKEN_LOCK_MAX_AGE_SECONDS = 30 * 60
 # Canonical queue location + legacy fallback for one-time migration.
 DEFAULT_QUEUE_PATH = Path.home() / ".agents-devkit" / "config" / "pr-queue.json5"
 LEGACY_QUEUE_PATH = Path.home() / ".agents-devkit" / "pr-reviews" / "queue.json5"
+
+
+def classify_pr_state(meta: dict) -> str:
+    """Map an origin-API meta blob (from `cheap_pr_meta`) to one of:
+      - "merged"   — `merged_at` set, regardless of host
+      - "declined" — bitbucket DECLINED / SUPERSEDED, or github CLOSED with no merge
+      - "open"     — any other observed state (OPEN, DRAFT, etc.)
+      - "unknown"  — meta is missing or fetch errored
+
+    Origin-API is the source of truth; the queue's own `status` field is just
+    a cache. Use this from sync/cleanup/picker paths to detect lifecycle
+    transitions reliably.
+    """
+    if not meta or meta.get("error"):
+        return "unknown"
+    if meta.get("merged_at"):
+        return "merged"
+    state = (meta.get("state") or "").upper()
+    if state in {"DECLINED", "SUPERSEDED", "CLOSED"}:
+        return "declined"
+    if state in {"MERGED"}:  # belt + suspenders; cheap_pr_meta should have set merged_at
+        return "merged"
+    return "open"
 
 
 def canonical_status(s: str) -> str:
@@ -299,6 +323,18 @@ def _is_locked(entry: dict, now: datetime) -> bool:
     return age < TAKEN_LOCK_MAX_AGE_SECONDS
 
 
+def _is_already_reviewed_at_head(entry: dict) -> bool:
+    """True iff a review has already completed at the current head_oid — i.e.
+    no new commits since `last_reviewed_head_oid` was written.
+
+    Excludes queue-mode acquisition; URL mode (`/adk-pr-review <pr-url>`)
+    always wins because it goes through `find_row`, not `acquire_next_row`.
+    """
+    head = entry.get("head_oid")
+    last_reviewed = entry.get("last_reviewed_head_oid")
+    return bool(head) and bool(last_reviewed) and head == last_reviewed
+
+
 def _pick_order_key(entry: dict) -> tuple[int, str]:
     """Sort key for FIFO acquire: rows never reviewed (null last_checked_at) first,
     then by last_checked_at ascending (oldest first).
@@ -314,9 +350,19 @@ def acquire_next_row(path: Path) -> dict | None:
     `taken_at` already set in the persisted file) or None.
 
     Eligibility:
-      - status != STATUS_MERGED
-      - taken_at is null OR older than TAKEN_LOCK_MAX_AGE_SECONDS
+      - status not in TERMINAL_STATUSES                 (merged + declined)
+      - taken_at is null OR older than TAKEN_LOCK_MAX_AGE_SECONDS  (not active)
+      - head_oid != last_reviewed_head_oid              (new commits since last review)
     Order: FIFO by last_checked_at ascending; null (never reviewed) first.
+
+    `last_reviewed_head_oid` is written by `release_after_review`; explicit
+    URL-mode review (`/adk-pr-review <pr-url>`) bypasses this filter because
+    URL mode resolves via `find_row`, not the queue claim.
+
+    Note: this is the IN-MEMORY picker. For an API-validated pick (which
+    auto-drops PRs that have merged or been declined since the last sync),
+    callers should go through `pr_queue.get_next_eligible(path)` — invoked
+    by `adk pr-queue get-next` and by `run_review.py` in queue mode.
     """
     path.parent.mkdir(parents=True, exist_ok=True)
     with file_lock(_lock_path(path), timeout_s=60.0):
@@ -325,7 +371,9 @@ def acquire_next_row(path: Path) -> dict | None:
         now = datetime.now(tz=timezone.utc)
         eligible = [
             e for e in prs
-            if e.get("status") != STATUS_MERGED and not _is_locked(e, now)
+            if e.get("status") not in TERMINAL_STATUSES
+            and not _is_locked(e, now)
+            and not _is_already_reviewed_at_head(e)
         ]
         if not eligible:
             return None

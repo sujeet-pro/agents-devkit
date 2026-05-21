@@ -38,8 +38,10 @@ from _lib_common import (
 )
 from base_index import (
     BaseIndex,
+    BranchIndex,
     default_max_staleness_days,
     get_base_index,
+    pick_base_index,
 )
 
 OLLAMA_EMBED_URL = "http://localhost:11434/api/embed"
@@ -130,6 +132,11 @@ class Index:
     # Worktree associated with the index. For kind="task" this is the PR
     # checkout; for kind="repo" this is ~/.agents-devkit/repos/<name>/.
     worktree: Path | None = None
+    # The branch this index was built against (empty for legacy/seedless
+    # cases). For kind="task" indexes that were seeded from a base, this is
+    # the source branch — visible to consumers via `meta.json.seeded_from_branch`.
+    branch: str = ""
+    branch_slug: str = ""
 
     @property
     def age_days(self) -> float | None:
@@ -171,6 +178,7 @@ def _log_decision(skill: str, fork_id: str, **extra: Any) -> None:
 def open_index(target: str | Path,
                *,
                kind: Literal["repo", "task"] = "repo",
+               branch: str | None = None,
                max_staleness_days: int | None = None,
                require_fresh: bool = False,
                require_model: str | None = None,
@@ -181,6 +189,9 @@ def open_index(target: str | Path,
     Args:
         target: repo name (kind="repo") or task-dir path (kind="task").
         kind:   "repo" or "task" — see module docstring.
+        branch: (kind="repo" only) name of a specific branch index to open.
+                Defaults to the repo's default branch. Pass e.g. "develop" to
+                query against a non-default branch index.
         max_staleness_days: override config default (kind="repo" only).
         require_fresh: raise IndexStale if the base is older than the cap.
                        Default False — many consumers want to warn, not fail.
@@ -196,7 +207,15 @@ def open_index(target: str | Path,
     """
     if kind == "repo":
         repo = str(target)
-        base = get_base_index(repo)
+        # Pass-through: when `branch` is set, we use pick_base_index so a
+        # caller asking for "develop" gets it (or falls back to default).
+        # When `branch` is None, the back-compat shim returns the default
+        # branch — exactly today's behavior.
+        base: BranchIndex | None = (
+            pick_base_index(repo, target_branch=branch)
+            if branch is not None
+            else get_base_index(repo)
+        )
         if base is None:
             raise IndexNotBuilt(repo)
         idx = Index(
@@ -210,6 +229,8 @@ def open_index(target: str | Path,
             kind="repo",
             worktree=base.task_dir.parent.parent / repo  # ~/.agents-devkit/repos/<name>/
                 if (base.task_dir.parent.parent / repo).exists() else None,
+            branch=base.branch,
+            branch_slug=base.slug,
         )
         cap = max_staleness_days if max_staleness_days is not None else default_max_staleness_days()
         if require_fresh and idx.age_days is not None and idx.age_days > cap:
@@ -231,6 +252,8 @@ def open_index(target: str | Path,
             last_refreshed=None,
             kind="task",
             worktree=(task_dir / "code") if (task_dir / "code").exists() else None,
+            branch=meta.get("seeded_from_branch") or "",
+            branch_slug=meta.get("seeded_from_branch_slug") or "",
         )
     else:
         raise ValueError(f"unknown kind: {kind!r}")

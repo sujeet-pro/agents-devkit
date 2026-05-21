@@ -54,9 +54,9 @@ def _gh_pr() -> dict:
 
 
 def _bb_pr() -> dict:
-    return {"host": "bitbucket", "owner": "lastbrand", "repo": "ecomm-ssr",
+    return {"host": "bitbucket", "owner": "acme", "repo": "ecomm-ssr",
             "pr_number": 5521, "head_oid": "deadbeef",
-            "url": "https://bitbucket.org/lastbrand/ecomm-ssr/pull-requests/5521"}
+            "url": "https://bitbucket.org/acme/ecomm-ssr/pull-requests/5521"}
 
 
 def _appr(fid: str = "f-010", file: str = "src/auth.py",

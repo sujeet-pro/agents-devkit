@@ -28,7 +28,7 @@ order: 5603
   "user_chose": "full",
   "reason_if_given": "demo Monday",
   "repo": "storefront-bff",
-  "workspace": "quince-work",
+  "workspace": "personal-work",
   "task_slug": "implement-SF-1234",
   "evidence": null
 }

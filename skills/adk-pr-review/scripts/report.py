@@ -271,6 +271,12 @@ SEV_TO_CATEGORY = {
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--task-dir", required=True)
+    ap.add_argument("--merge-if-approved", action="store_true",
+                    help="when the review recommendation is `approve`, print "
+                         "`MERGEABLE — click to merge: <pr-url>` so the human "
+                         "can take the action. Constitution §I.3 forbids the "
+                         "script from merging itself; this flag is purely "
+                         "advisory and never calls the merge API.")
     args = ap.parse_args()
 
     task_dir = Path(args.task_dir)
@@ -370,17 +376,29 @@ def main() -> int:
             rp.append(f"- posted: {p}")
         for r in post_result.get("resolved", []):
             rp.append(f"- resolved: {r}")
+    # Phase 6 — disposition. If the user asked --merge-if-approved AND the
+    # recommendation is approve, surface a clear "click to merge" line. The
+    # script never calls the merge API (constitution §I.3): the human clicks.
+    mergeable_line = None
+    if args.merge_if_approved and findings_blob.get("recommendation") == "approve":
+        mergeable_line = f"MERGEABLE — click to merge: {pr.get('url')}"
+        rp += ["", f"**{mergeable_line}**  (constitution §I.3: human must click)"]
     rp += [
         "",
         "## Artifacts",
         f"- task dir: `{task_dir}`",
         f"- findings.json: `{task_dir / 'findings.json'}`",
+        f"- validated-findings.json: `{task_dir / 'validated-findings.json'}`",
+        f"- initial-findings.json: `{task_dir / 'initial-findings.json'}`",
         f"- findings.md: `{task_dir / 'findings.md'}`",
         f"- diff.patch: `{task_dir / 'diff.patch'}`",
         f"- code worktree: `{task_dir / 'code'}`",
         f"- code-index: `{task_dir / 'code-index'}`",
     ]
     (task_dir / "report.md").write_text("\n".join(rp), encoding="utf-8")
+    if mergeable_line:
+        # Also surface on stdout so the human notices in the terminal tail.
+        print(mergeable_line)
 
     # CLI summary (PR link + 1-liner per finding).
     print(f"\nPR: {pr.get('url')}")

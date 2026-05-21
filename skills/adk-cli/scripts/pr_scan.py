@@ -74,8 +74,8 @@ DEFAULT_SLACK_CONFIG = Path.home() / ".agents-devkit" / "config" / "connectors" 
 # ----- PR meta (cheap, no clone) -------------------------------------------
 
 def cheap_pr_meta(pr_url: str, log) -> dict:
-    """Return {host, owner, repo, pr_number, head_oid, merged_at|None, state, author, url}.
-    Errors → {error: str}.
+    """Return {host, owner, repo, pr_number, head_oid, merged_at|None, state,
+    author, url, target_branch}. Errors → {error: str}.
     """
     try:
         p = parse_pr_url(pr_url)
@@ -86,12 +86,13 @@ def cheap_pr_meta(pr_url: str, log) -> dict:
         if host == "github":
             cmd = ["gh", "pr", "view", str(p["pr_number"]),
                    "--repo", f"{p['owner']}/{p['repo']}",
-                   "--json", "number,headRefOid,mergedAt,state,author,url"]
+                   "--json", "number,headRefOid,baseRefName,mergedAt,state,author,url"]
             cp = subprocess.run(cmd, capture_output=True, text=True, check=True)
             d = json.loads(cp.stdout)
             return {
                 "host": host, "owner": p["owner"], "repo": p["repo"], "pr_number": p["pr_number"],
                 "head_oid": d.get("headRefOid"),
+                "target_branch": d.get("baseRefName"),
                 "merged_at": d.get("mergedAt"),
                 "state": d.get("state"),
                 "author": (d.get("author") or {}).get("login"),
@@ -114,6 +115,7 @@ def cheap_pr_meta(pr_url: str, log) -> dict:
         return {
             "host": host, "owner": p["owner"], "repo": p["repo"], "pr_number": p["pr_number"],
             "head_oid": (d.get("source") or {}).get("commit", {}).get("hash"),
+            "target_branch": (d.get("destination") or {}).get("branch", {}).get("name"),
             "merged_at": merged_at,
             "state": state,
             "author": (d.get("author") or {}).get("display_name") or (d.get("author") or {}).get("uuid"),

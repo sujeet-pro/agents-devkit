@@ -146,8 +146,8 @@ def test_empty_is_not_only(pc_mod):
 # ---- format_slack_summary -------------------------------------------------
 
 def _pr() -> dict:
-    return {"host": "bitbucket", "owner": "lastbrand", "repo": "ecomm-ssr",
-            "pr_number": 5521, "url": "https://bitbucket.org/lastbrand/ecomm-ssr/pull-requests/5521"}
+    return {"host": "bitbucket", "owner": "acme", "repo": "ecomm-ssr",
+            "pr_number": 5521, "url": "https://bitbucket.org/acme/ecomm-ssr/pull-requests/5521"}
 
 
 def test_slack_summary_approve(pc_mod):

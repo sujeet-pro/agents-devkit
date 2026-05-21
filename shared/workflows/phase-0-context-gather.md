@@ -29,8 +29,8 @@
 
 ## working repo
 - name: storefront-bff (from overrides.yaml.repos[0])
-- path: /Users/sujeet/code/quince/storefront-bff
-- workspace: quince-work
+- path: /Users/sujeet/code/acme/storefront-bff
+- workspace: personal-work
 
 ## sources fetched
 ### [jira] SF-1234 — coupon engine

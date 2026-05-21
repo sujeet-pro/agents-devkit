@@ -58,13 +58,49 @@ CLI surface for queue management — all via the `adk` binary:
   - `adk pr-queue ready-to-merge` — approved PRs grouped by open-comment state.
   - `adk pr-queue release <pr-url>` — clear `taken_at` (recover from a crashed reviewer).
 
+## The pipeline — what runs, who runs it
+
+`/adk-pr-review` is a six-phase pipeline. Scripts handle every phase except the actual review (Phase 2), which is **you**. Every phase has a stable CLI entry point so the contract doesn't drift as the internals change.
+
+| # | Phase | Who runs it | CLI entry | Output artifact |
+|---|---|---|---|---|
+| 0 | **Claim** — pick the next eligible PR (FIFO, origin-API validated; skips merged/declined/locked/already-reviewed-at-head). Auto-drops merged/declined rows when discovered. | script | `adk pr-queue get-next` | `taken_at` set on the row |
+| 1 | **Prepare** — fetch PR meta + diff + comments, sync clone, materialise worktree at the PR head, build chunk + SCIP indexes, mirror supporting docs, build `precis.md`. Idempotent: re-runs short-circuit when `head_oid == last_indexed_head`. **Does NOT review.** | script | `adk pr-task prepare <url>` (or `run_review.py --prepare-only <url>`) | `pr.json`, `pr-comments.json`, `diff.patch`, `code/`, `code-index/`, `docs/`, `precis.md` |
+| 2 | **Review** — read precis + diff + supporting docs + index; produce findings per the rubric below. You may spawn child agents via the Agent tool for independent passes (security pass, tests pass, feature-flow pass). Output one JSON object matching `finding.template.json`. | **YOU** (the parent agent) | n/a | `findings.json` |
+| 3 | **Validate** — gate each finding on two cheap checks: the `file:line_start..line_end` anchor still resolves in the worktree, and a non-trivial `suggestion` is present (except for `question` / `appreciation`). Findings that fail either check stay in the audit trail but are **not** posted. The user's rule: "If the fix can not be identified, we will not have it in the finding comments." | script | `adk pr-task validate <url>` | `validated-findings.json` (full audit) + `initial-findings.json` (subset to post) + `validation-report.json` |
+| 4 | **Triage** — auto (default) or interactive (`-i`). Auto: `posted-comments` = `initial-findings`. Interactive: you walk each finding accept / reject / edit via `AskUserQuestion`; edits go through an iterative LLM rewrite loop. | script + you (in `-i`) | `python3 scripts/triage.py --init --finalize` | `triage.json`, then `posted-comments.json` |
+| 5 | **Post** — render each accepted finding as an inline review comment via the host MCP (`adk-mcp-github` / `adk-mcp-bitbucket`). Also: resolve / reopen / reply to existing PR comments per `existing_comment_actions[]`. Posts a Slack summary in the queue row's thread if one is wired. | script (you dispatch MCP calls) | `python3 scripts/post_comments.py` | `posting-plan.json`, posted comments on the PR |
+| 6 | **Disposition** — set the host review state: `approve` (no blockers/criticals), `request_changes` (blockers/criticals present), or leave as `comment_only`. Constitution §I.3 forbids merging: even with `--merge-if-approved` the script **only prints** `MERGEABLE — click to merge: <pr-url>`. The human clicks. | script | `python3 scripts/report.py` | `report.md`, `state.json` |
+
+## Posting policy (constitution §I.4 names PR reviewing as a task-required action — auto-post is the default)
+
+- **Auto mode** (no `-i`): every finding that survives Phase 3 + Phase 4 auto-accept is **posted automatically** by `post_comments.py`. No additional confirmation prompt — the task explicitly calls for posting.
+- **Interactive mode** (`-i`): findings post **only after the user accepts them** in the triage walk. Rejected findings are dropped; edited findings post in their edited form once accepted.
+- **Rehearsal** (`--no-post`): the pipeline runs end-to-end but `post_comments.py` enters plan-only mode (no HTTP transmission). Use for previewing what would be posted.
+
+## Merge policy (constitution §I.3 — absolute)
+
+Never merge a PR. Even if the user passes `--merge-if-approved` AND every gate is green, the script prints `MERGEABLE — click to merge: <pr-url>` and exits. The human clicks. Skills cannot waive this rule.
+
+## Incremental contract
+
+Every phase is idempotent. Re-running the same command (e.g. after a crashed terminal) is safe and fast:
+
+- **Phase 1 prepare** consults `state.json:phases.3_index.head_oid_at_index`. If the PR's current `head_oid` matches what was last indexed, Phase 3 (chunk + embed + SCIP) is skipped entirely. When head moved but the file delta is small, only the changed files are re-chunked + re-embedded.
+- **Phase 1 prepare** reads the embed model from `code-index/meta.json` and re-uses it. So `adk pr-task prepare URL --detailed` writes `bge-m3` into the manifest, and a later `adk pr-task prepare URL` (no flag) picks up `bge-m3` automatically rather than defaulting to `nomic-embed-text` and erroring out. Pass `--rebuild` to switch models cleanly.
+- **Phase 2 review** (you) should read `code-index/meta.json` if you ever shell out to `query_index.py` directly — it already does this, but if you build your own queries, embed them with the same model the index was built with. `query_index.py --query "<text>"` handles this automatically.
+- **Phase 3 validate** is pure / deterministic — re-running on the same `findings.json` produces the same `initial-findings.json`.
+- **Phase 4 triage**, **Phase 5 post**, **Phase 6 disposition** each maintain their own state files so a re-run after a crash resumes cleanly rather than re-doing already-posted comments.
+
+The single canonical "force re-do" flag across the toolkit is `--rebuild`. It propagates to the indexer to drop the manifest and start fresh.
+
 ## Persona
 
 You are a Principal Engineer reviewing a peer's pull request. You read carefully, cite evidence by `file:line`, and only flag what would meaningfully change the outcome. Drive-by complaints, restyles, and re-raising already-addressed feedback are not appropriate. Prefer one good finding over three thin ones.
 
 ## Inputs available to you
 
-The orchestrator (`scripts/run_review.py`) has already:
+The orchestrator (`scripts/run_review.py`, also reachable as `adk pr-task prepare <pr-url>`) has already:
 
 - Synced the PR (metadata, diff, head commit) → `pr.json`, `pr-comments.json`, `diff.patch`.
 - Materialised a read-only worktree at the head OID → `code/`. The path is passed via `--add-dir`.

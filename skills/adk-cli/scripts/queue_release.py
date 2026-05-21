@@ -140,15 +140,23 @@ def release_after_review(
     # ready-to-merge summary can distinguish "approved with open comments"
     # from "reviewed (commented but not approved)". Without these the bucket
     # collapses and we mislabel `status=comments` rows as "approved".
+    #
+    # `last_reviewed_head_oid` + `last_reviewed_at` let `acquire_next_row`
+    # skip rows whose head hasn't moved since the previous review — so the
+    # queue-mode drain doesn't re-review the same commit twice. Explicit
+    # URL invocations bypass this filter and re-review anyway.
+    now = _now_iso()
     updates = {
         "status": new_status,
-        "last_checked_at": _now_iso(),
+        "last_checked_at": now,
         "taken_at": None,
         "approved_host": bool(approved_host),
         "recommendation": recommendation,
+        "last_reviewed_at": now,
     }
     if head_oid:
         updates["head_oid"] = head_oid
+        updates["last_reviewed_head_oid"] = head_oid
     if merged_slack is not None:
         updates["slack"] = merged_slack
     update_pr_entry(queue_path, pr_link, updates)

@@ -84,7 +84,11 @@ except Exception:
     def append_decision(*_a, **_kw):  # type: ignore[misc]
         pass  # fail-open: never block a review run on the log
 
-THIS_DIR = Path(__file__).parent
+# `.resolve()` follows the install-time symlink (~/.claude/skills/... or
+# ~/.cursor/rules/...) back to the real file inside the agents-devkit repo.
+# Without it, THIS_DIR.parent.parent.parent walks up the symlinked tree —
+# e.g. ~/.claude/scripts/lib/code_index/ — which does not exist.
+THIS_DIR = Path(__file__).resolve().parent
 # Phase 2: indexer scripts moved to scripts/lib/code_index/. Shims remain at
 # the old location but new callers should point at the lib directly to skip
 # the runpy hop.
@@ -95,7 +99,9 @@ PY = sys.executable
 # lookup must succeed before we import.
 sys.path.insert(0, str(CODE_INDEX_LIB))
 try:
-    from base_index import get_base_index, is_fresh, seed_copy  # noqa: E402
+    from base_index import (  # noqa: E402
+        get_default_branch, is_fresh, pick_base_index, seed_copy,
+    )
     _BASE_INDEX_AVAILABLE = True
 except Exception:
     _BASE_INDEX_AVAILABLE = False
@@ -130,6 +136,28 @@ def diff_changed_files(repo_path: Path, old_oid: str | None, new_oid: str, log) 
         log.warning("git diff failed (rc=%d); will full re-index", cp.returncode)
         return []
     return [line.strip() for line in cp.stdout.splitlines() if line.strip()]
+
+
+def _read_manifest_model(pr_url: str | None) -> str | None:
+    """Return the embed-model recorded in an existing index manifest for
+    this PR's task folder, or None if no prior index exists.
+
+    Used by the model resolver so a re-run of `adk pr-task prepare URL`
+    (no flags) doesn't drift away from the model the index was built with.
+    """
+    if not pr_url:
+        return None
+    try:
+        parsed = parse_pr_url(pr_url)
+    except Exception:
+        return None
+    manifest_path = task_dir_for(parsed["repo"], parsed["pr_number"]) / "code-index" / "meta.json"
+    if not manifest_path.exists():
+        return None
+    try:
+        return json.loads(manifest_path.read_text(encoding="utf-8")).get("model")
+    except Exception:
+        return None
 
 
 def main() -> int:
@@ -172,11 +200,28 @@ def main() -> int:
     ap.add_argument("--no-slack-summary", action="store_true",
                     help="suppress the Slack summary reply that would otherwise post to the "
                          "queue row's slack thread.")
+    ap.add_argument("--prepare-only", action="store_true",
+                    help="run phases 0-1 of the pipeline (clone + worktree + index + "
+                         "supporting-docs + precis) and exit BEFORE the agent reviews. "
+                         "Does NOT claim the queue's `taken_at` lock and does NOT invoke "
+                         "the agent. Used by `adk pr-task prepare` and "
+                         "`adk pr-queue update --full` to pre-warm cached state so a "
+                         "later interactive review skips re-indexing. This flag never "
+                         "produces a review — Phase 2 (you) is exactly that step.")
+    ap.add_argument("--merge-if-approved", action="store_true",
+                    help="Phase 6 disposition: if the final recommendation is `approve`, "
+                         "print `MERGEABLE — click to merge: <pr-url>` so the human can "
+                         "click. Constitution §I.3 forbids the script from merging "
+                         "itself, regardless of this flag.")
     args = ap.parse_args()
 
-    # Resolve the embed model: explicit --embed-model wins, else --detailed picks
-    # config.embed.detailed_model, else config.embed.default_model, else
-    # env-var, else literal "nomic-embed-text".
+    # Did the user explicitly choose a model? We need this BEFORE the manifest
+    # peek so we know whether to override an existing index's model.
+    user_chose_model = bool(args.embed_model) or bool(args.detailed)
+
+    # Stage-1 model resolution from CLI/config (the "intent" model). This is
+    # what gets used for a fresh index, OR what overrides the manifest when
+    # --rebuild + explicit flag is passed.
     if args.embed_model:
         embed_model = args.embed_model
     elif args.detailed:
@@ -186,17 +231,52 @@ def main() -> int:
             os.environ.get("ADK_PR_REVIEW_EMBED_MODEL")
             or get_cfg("embed.default_model", default="nomic-embed-text")
         )
-    args.embed_model = embed_model  # for downstream code that reads args.embed_model
 
+    # Stage-2: peek at the existing index manifest (if any). If the user
+    # didn't pass a model flag and didn't pass --rebuild, honor whatever the
+    # index was built with. This preserves the incremental contract: a re-run
+    # of `adk pr-task prepare URL` (no flags) after a previous `--detailed`
+    # run keeps using bge-m3 instead of erroring out with model-mismatch.
     ensure_dirs()
     queue_path = Path(args.queue).expanduser()
+    manifest_model = _read_manifest_model(args.url)
+    if manifest_model and not user_chose_model and not args.rebuild:
+        if embed_model != manifest_model:
+            sys.stderr.write(
+                f"[run_review] embed_model: honoring existing index manifest "
+                f"({manifest_model}). Config default was {embed_model}. "
+                f"Pass --rebuild to switch back to the default.\n"
+            )
+        embed_model = manifest_model
+    elif manifest_model and user_chose_model and not args.rebuild \
+            and manifest_model != embed_model:
+        # User wants a different model but didn't ask for a rebuild. The
+        # embedder would die anyway with a mismatch — bail early with a
+        # clearer message.
+        die(
+            f"embed_model mismatch: existing index uses {manifest_model}, "
+            f"you requested {embed_model}. Pass --rebuild to reindex from "
+            f"scratch with the new model."
+        )
+    args.embed_model = embed_model  # downstream code reads args.embed_model
 
     # Resolve URL: either explicit (URL mode) or by claiming the next eligible
     # queue row (queue mode). In both cases queue_row may be None — when the
     # PR isn't tracked in the queue OR the queue is empty in queue mode.
     queue_row: dict | None = None
     if args.url is None:
-        queue_row = acquire_next_row(queue_path)
+        if args.prepare_only:
+            die("--prepare-only requires an explicit URL (no queue-claim semantics).")
+        # Queue mode: route through `get_next_eligible` so we validate the
+        # candidate against the origin API and auto-drop merged/declined rows
+        # before they can be claimed for review.
+        try:
+            from pr_queue import get_next_eligible  # type: ignore[import-not-found]
+            queue_row = get_next_eligible(queue_path, validate=True)
+        except Exception:
+            # If the CLI module can't be imported for any reason, fall back
+            # to the in-memory primitive so the skill still functions.
+            queue_row = acquire_next_row(queue_path)
         if queue_row is None:
             print(json.dumps({
                 "action": "queue_empty",
@@ -218,6 +298,16 @@ def main() -> int:
                     ts = datetime.fromisoformat(iso)
                     age = (datetime.now(tz=timezone.utc) - ts).total_seconds()
                     if age < TAKEN_LOCK_MAX_AGE_SECONDS:
+                        if args.prepare_only:
+                            # Pre-warm should never wrestle with an active reviewer.
+                            # Surface and bail with rc=0 so `--all` can keep going.
+                            print(json.dumps({
+                                "action": "skipped",
+                                "pr_url": args.url,
+                                "reason": "locked by another reviewer",
+                                "taken_at": taken_at,
+                            }, indent=2))
+                            return 0
                         die(
                             f"queue row for {args.url} is locked by another reviewer "
                             f"(taken_at={taken_at}, {int(TAKEN_LOCK_MAX_AGE_SECONDS - age)}s remaining). "
@@ -225,9 +315,13 @@ def main() -> int:
                         )
                 except ValueError:
                     pass
-            from queue_io import _now_iso  # type: ignore[attr-defined]
-            update_pr_entry(queue_path, args.url, {"taken_at": _now_iso(),
-                                                    "status": STATUS_IN_REVIEW})
+            # Prepare-only mode does NOT claim the queue lock — its job is to
+            # pre-warm cached state, not to begin a review session. A real
+            # reviewer must still be able to claim the row immediately after.
+            if not args.prepare_only:
+                from queue_io import _now_iso  # type: ignore[attr-defined]
+                update_pr_entry(queue_path, args.url, {"taken_at": _now_iso(),
+                                                        "status": STATUS_IN_REVIEW})
             queue_row = find_row(queue_path, args.url)
 
     parsed = parse_pr_url(args.url)
@@ -348,27 +442,49 @@ def _main_inner(args, parsed, task_dir, log) -> int:
         log.info("incremental re-index: %d files changed between %s..%s",
                  len(changed_files), prior_index_head[:12], head_oid[:12])
 
-    # NEW: when there's no prior PR-task-local index, consider seeding from the
-    # repo-level base index (built by `adk repo add|update`). This converts the
-    # cold 9-minute full reindex into a warm overlay: copy the base table dir,
-    # then run the embedder in incremental mode for just the files the PR
-    # touches relative to the base's indexed SHA.
+    # NEW: when there's no prior PR-task-local index, consider seeding from a
+    # repo-level base index (built by `adk repo add|update`). This converts
+    # the cold 9-minute full reindex into a warm overlay: copy the base table
+    # dir, then run the embedder in incremental mode for the files that
+    # changed between the base's indexed SHA and the PR's head_oid.
+    #
+    # Branch selection: the PR's target branch (`baseRefName` from pr.json) is
+    # preferred — if `develop` is indexed and the PR targets `develop`, the
+    # overlay is just (develop_indexed_sha → pr_head). When the target branch
+    # isn't indexed we fall back to the repo's default branch; that still
+    # beats a cold reindex but the overlay is larger.
+    target_branch = (pr.get("baseRefName") or "").strip()
     if not has_prior_index and not args.rebuild and not args.no_base_seed and _BASE_INDEX_AVAILABLE:
-        base = get_base_index(repo)
+        base = pick_base_index(repo, target_branch=target_branch or None)
         if base is None:
-            log.info("base index: not built for %s (run `adk repo add <url>` or `adk repo update %s` to enable warm seeding)",
-                     repo, repo)
+            log.info("base index: not built for %s (run `adk repo add <url>` or "
+                     "`adk repo branch add %s --branch %s` to enable warm seeding)",
+                     repo, repo, target_branch or "<default>")
         elif base.embed_model != args.embed_model:
             log.info("base index: skipping seed — model mismatch (base=%s, run=%s)",
                      base.embed_model, args.embed_model)
-        elif not is_fresh(base, max_staleness_days=args.max_base_staleness):
-            log.info("base index: %.1f days old (cap=%s) — seeding anyway and overlaying diff vs base SHA %s",
-                     base.age_days, args.max_base_staleness or "config", base.indexed_sha[:12])
-            seed_info = seed_copy(base, task_dir, log=log)
         else:
-            log.info("base index: fresh (%.1f days old) — seeding from %s",
-                     base.age_days, base.indexed_sha[:12])
+            # Surface the branch decision before we commit to seeding. If the
+            # PR targets X but only Y is indexed, the reviewer needs to know
+            # the overlay will include X-only commits.
+            if target_branch and base.branch != target_branch:
+                log.info("base index: target branch %s not indexed; falling back to %s "
+                         "(overlay will include commits that landed on %s since base)",
+                         target_branch, base.branch or "<default>", target_branch)
+            else:
+                log.info("base index: matched target branch %s", base.branch or "<default>")
+            if not is_fresh(base, max_staleness_days=args.max_base_staleness):
+                log.info("base index: %s @ %.1f days old (cap=%s) — seeding anyway "
+                         "and overlaying diff vs base SHA %s",
+                         base.branch or "<default>", base.age_days,
+                         args.max_base_staleness or "config", base.indexed_sha[:12])
+            else:
+                log.info("base index: %s fresh (%.1f days old) — seeding from %s",
+                         base.branch or "<default>", base.age_days,
+                         base.indexed_sha[:12])
             seed_info = seed_copy(base, task_dir, log=log)
+            seed_info["seeded_from_branch"] = base.branch
+            seed_info["seeded_from_branch_slug"] = base.slug
 
     if seed_info is not None:
         # We seeded the base; overlay only the files that differ between
@@ -404,19 +520,28 @@ def _main_inner(args, parsed, task_dir, log) -> int:
             log.info("overlay: 0 files changed since base — no chunker/embedder work needed")
         # State write goes here (BEFORE health check) so a transient health
         # failure doesn't orphan a usable index. Improvement #9 / #11.
-        _base_now = get_base_index(repo)
+        _base_now = pick_base_index(repo, target_branch=seed_info.get("seeded_from_branch"))
         mark_phase(task_dir, "3_index", "done",
                    head_oid_at_index=head_oid,
                    incremental=True,
                    seeded_from_base=True,
                    base_oid=seed_info["seeded_from_sha"],
+                   base_branch=seed_info.get("seeded_from_branch"),
+                   base_branch_slug=seed_info.get("seeded_from_branch_slug"),
+                   target_branch=target_branch or None,
+                   target_branch_matched=bool(
+                       target_branch and seed_info.get("seeded_from_branch") == target_branch
+                   ),
                    base_age_days=round(_base_now.age_days, 2) if _base_now else None,
                    files_changed=len(overlay_files),
                    embed_model=seed_info["embed_model"])
         append_decision(
             skill="adk-pr-review", fork_id="index_path", fork_type="inferred",
             default_offered="seed-from-base-and-overlay",
-            evidence=f"base @ {seed_info['seeded_from_sha'][:12]} overlay={len(overlay_files)} files",
+            evidence=(f"base={seed_info.get('seeded_from_branch') or '<default>'} "
+                      f"@ {seed_info['seeded_from_sha'][:12]} "
+                      f"target={target_branch or '<unknown>'} "
+                      f"overlay={len(overlay_files)} files"),
             repo=repo, task_slug=f"{repo}_pr-{n}",
         )
     elif not has_prior_index:
@@ -495,6 +620,19 @@ def _main_inner(args, parsed, task_dir, log) -> int:
     precis = build_precis(task_dir, args.top_k_context, args.scope)
     (task_dir / "precis.md").write_text(precis, encoding="utf-8")
 
+    # ---------- Prepare-only exit (no agent handoff) ----------
+    if args.prepare_only:
+        log.info("--prepare-only: phases 0-4a complete, skipping agent handoff")
+        print(json.dumps({
+            "action": "prepared",
+            "pr_url": args.url,
+            "task_dir": str(task_dir),
+            "head_oid": head_oid,
+            "worktree": str(task_dir / "code"),
+            "precis": str(task_dir / "precis.md"),
+        }, indent=2))
+        return 0
+
     # ---------- Hand-off ----------
     log.info("Orchestrator prepared all inputs.")
     # The orchestrator surfaces user-flag intent here so the parent agent
@@ -510,7 +648,8 @@ def _main_inner(args, parsed, task_dir, log) -> int:
     }
     next_steps = [
         f"agent: walk {task_dir / 'docs' / 'index.json'} — for each pending_mcp entry, fetch via the right MCP and write to its `path`.",
-        f"agent: read {task_dir / 'precis.md'} + SKILL.md + finding.template.json; produce findings.json (multi-dimension).",
+        f"agent: read {task_dir / 'precis.md'} + SKILL.md + finding.template.json; produce findings.json (multi-dimension). [Phase 2]",
+        f"python3 scripts/validate_findings.py --task-dir {task_dir} --json   # Phase 3: drop drifted anchors + no-fix findings",
     ]
     if retrieval_flags["rerank_enabled"]:
         next_steps.append(
@@ -552,7 +691,8 @@ def _main_inner(args, parsed, task_dir, log) -> int:
             "invoke its mcp_tool with mcp_args. NEVER call merge_pull_request / "
             "mergePullRequest. See references/platform-mcp.md."
         )
-    next_steps.append(f"python3 scripts/report.py --task-dir {task_dir}")
+    merge_flag = " --merge-if-approved" if args.merge_if_approved else ""
+    next_steps.append(f"python3 scripts/report.py --task-dir {task_dir}{merge_flag}")
     summary = {
         "task_dir": str(task_dir),
         "pr_url": args.url,
@@ -560,8 +700,8 @@ def _main_inner(args, parsed, task_dir, log) -> int:
         "head_oid": head_oid,
         "worktree": str(task_dir / "code"),
         "precis": str(task_dir / "precis.md"),
-        "finding_template": str(Path(__file__).parent.parent / "finding.template.json"),
-        "skill_md": str(Path(__file__).parent.parent / "SKILL.md"),
+        "finding_template": str(THIS_DIR.parent / "finding.template.json"),
+        "skill_md": str(THIS_DIR.parent / "SKILL.md"),
         "docs_index": str(task_dir / "docs" / "index.json"),
         "incremental_reindex": bool(has_prior_index and changed_files),
         "files_changed_since_last_index": len(changed_files),

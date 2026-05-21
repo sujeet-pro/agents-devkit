@@ -20,14 +20,27 @@ adk skills can consume it.
 
 ## Two index roots
 
-**Repo-level base** (long-lived; default branch):
+**Repo-level base** (long-lived; per branch):
 ```
 ~/.agents-devkit/repos/.indices/<repo>/
-  repo-meta.json
-  code-index/
-    chunks.jsonl  chunks.lance/  scip/  meta.json
+  repo-meta.json                                catalog: name, url, default_branch,
+                                                tracked_branches[]
+  branches/<slug>/
+    branch-meta.json                            { branch, slug, last_indexed_oid,
+                                                  last_indexed_at, embed_model }
+    code-index/
+      chunks.jsonl  chunks.lance/  scip/  meta.json
 ```
-Built by `adk repo add <git-url>`; refreshed by `adk repo update <name>`.
+Built by `adk repo add <git-url>` (default branch by default; `--branch X`
+adds more); refreshed by `adk repo update <name>` (default branch),
+`adk repo update <name> --branch develop`, or `... --all-branches`. The
+slug is `slugify_branch(name)`: lowercased, `/` → `__`, FS-unsafe chars
+stripped.
+
+> **Legacy layout** (`<repo>/code-index/` directly under the repo dir, no
+> `branches/`) is still read by `base_index.py` and treated as the
+> default-branch index. `adk repo migrate` moves it into the new layout;
+> any `repo add/update/branch` call also triggers migration implicitly.
 
 **Task-level** (per-PR or per-investigation; short-lived):
 ```
@@ -38,15 +51,24 @@ Owned by the consuming skill's task dir.
 
 ## PR-review seeding flow
 
-1. PR-review checks `~/.agents-devkit/repos/.indices/<repo>/`.
-2. If present, fresh enough, and the embed-model matches → `seed_copy()`
-   into the task dir (`chunks.lance/` dir + `chunks.jsonl` + `scip/` + meta).
-3. `meta.json.table_path` is rewritten to point at the COPIED location
-   (critical — otherwise the embedder mutates the shared base).
+1. `/adk-pr-review` reads the PR's target branch from `pr.json.baseRefName`
+   (populated by `fetch_pr.py`).
+2. `pick_base_index(repo, target_branch=<baseRefName>, require_model=…)`
+   walks: exact target-branch index → default-branch index → None. Skips
+   model-mismatched indexes; staleness is a warning, not a rejection.
+3. If a base is chosen, `seed_copy(base, task_dir)` copies the LanceDB
+   table + chunks + SCIP into the PR's task dir and rewrites
+   `meta.json.table_path` to point at the COPIED location (critical —
+   otherwise the embedder mutates the shared base).
 4. `embedder.py --mode incremental --replaced-files <diff>` overlays only
-   files that changed between the base's `indexed_sha` and the PR's head.
+   the files that changed between the base's `indexed_sha` and the PR's
+   `head_oid`. That diff naturally includes commits on the target branch
+   since the base was built PLUS the PR's own commits — `git diff
+   base_sha..pr_head_oid` returns the union in one call.
 
 Cold path on 20k chunks: ~9 min. Warm seeded path on a 12-file PR: ~30 s.
+Picking the *closest* base (target-branch instead of default) keeps the
+overlay small when default and target have diverged significantly.
 
 ## Adding a new consumer (any non-pr-review skill)
 
@@ -67,34 +89,41 @@ Full contract: `shared/guidelines/code-index.md`.
 
 ## CLI invocations (manual / debug)
 
+For most users the friendlier path is `adk repo add <git-url>` +
+`adk repo update <name>` (optionally `--branch develop`). The lib-level
+commands below show what those `adk repo` subcommands run under the hood
+and are useful for debugging a half-built index.
+
 ```sh
-# Build a base index from scratch:
+# Build a branch index from scratch — replace BRANCH_DIR with the per-branch
+# location, e.g. ~/.agents-devkit/repos/.indices/myrepo/branches/develop/
+
+BRANCH_DIR=~/.agents-devkit/repos/.indices/myrepo/branches/master
+
 python3 scripts/lib/code_index/chunker.py \
         --worktree ~/.agents-devkit/repos/myrepo \
-        --out ~/.agents-devkit/repos/.indices/myrepo/code-index/chunks.jsonl
+        --out      "$BRANCH_DIR/code-index/chunks.jsonl"
 
 python3 scripts/lib/code_index/embedder.py \
-        --task-dir ~/.agents-devkit/repos/.indices/myrepo \
-        --chunks   ~/.agents-devkit/repos/.indices/myrepo/code-index/chunks.jsonl \
+        --task-dir "$BRANCH_DIR" \
+        --chunks   "$BRANCH_DIR/code-index/chunks.jsonl" \
         --model    nomic-embed-text \
         --mode     replace --json
 
 python3 scripts/lib/code_index/scip_runner.py \
-        --task-dir ~/.agents-devkit/repos/.indices/myrepo \
+        --task-dir "$BRANCH_DIR" \
         --worktree ~/.agents-devkit/repos/myrepo --json
 
 # Query it:
 python3 scripts/lib/code_index/query_index.py \
-        --task-dir ~/.agents-devkit/repos/.indices/myrepo \
+        --task-dir "$BRANCH_DIR" \
         --query "auth login flow" --top-k 8 --json
 
 # Health check:
 python3 scripts/lib/code_index/query_index.py \
-        --task-dir ~/.agents-devkit/repos/.indices/myrepo \
+        --task-dir "$BRANCH_DIR" \
         --health --json
 ```
-
-The friendlier path is `adk repo add <git-url>` + `adk repo update <name>`.
 
 ## Versioning
 
