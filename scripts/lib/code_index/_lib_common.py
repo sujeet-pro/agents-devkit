@@ -1,104 +1,50 @@
-"""_common.py — focused helpers for the code_index shared library.
+"""_lib_common.py — code_index-specific helpers.
 
-Intentionally smaller than skills/adk-pr-review/scripts/_common.py — this
-module only carries what the indexer + query code actually need (logging,
-error exit, file IO, hashing, PATH check, config). State / lock / queue /
-PR-URL helpers stay in the skill because they're not part of the index
-contract.
+Pure helpers (logging, subprocess, JSON IO, hashing, deep_merge, ADK_HOME,
+REPOS_ROOT, repo_dir_for) are re-exported from `scripts/lib/adk_common.py`
+— see that file for the canonical source.
+
+This module keeps:
+- the lib-specific `load_config` / `get_cfg` that read
+  `scripts/lib/code_index/defaults.yaml`.
+- `die(msg)` wrapper that uses the `code_index` prefix.
 """
 from __future__ import annotations
 
-import hashlib
-import json
-import logging
-import os
-import subprocess
 import sys
 from pathlib import Path
 from typing import Any
 
+# `scripts/lib/` is already on sys.path because the consumer added the
+# code_index dir, and adk_common sits one level up. Add it explicitly so
+# this module also works under direct invocation.
+_LIB_DIR = Path(__file__).resolve().parent.parent
+if str(_LIB_DIR) not in sys.path:
+    sys.path.insert(0, str(_LIB_DIR))
 
-# ----- paths ---------------------------------------------------------------
-
-ADK_HOME = Path(os.environ.get("ADK_HOME", Path.home() / ".agents-devkit"))
-REPOS_ROOT = ADK_HOME / "repos"
-
-
-def repo_dir_for(repo: str) -> Path:
-    """Per-repo root: holds original-clone/, branch-*/, docs/, repo-meta.json."""
-    return REPOS_ROOT / repo
-
-
-# ----- logging --------------------------------------------------------------
-
-def get_logger(name: str, task_dir: Path | None = None) -> logging.Logger:
-    log = logging.getLogger(name)
-    if log.handlers:
-        return log
-    log.setLevel(logging.INFO)
-    fmt = logging.Formatter("%(asctime)s %(levelname)s [%(name)s] %(message)s")
-    sh = logging.StreamHandler(sys.stderr)
-    sh.setFormatter(fmt)
-    log.addHandler(sh)
-    if task_dir:
-        task_dir.mkdir(parents=True, exist_ok=True)
-        fh = logging.FileHandler(task_dir / "review.log")
-        fh.setFormatter(fmt)
-        log.addHandler(fh)
-    return log
-
-
-# ----- subprocess + path ----------------------------------------------------
-
-def which(binary: str) -> str | None:
-    from shutil import which as _which
-    return _which(binary)
-
-
-def run(cmd: list[str], *, cwd: Path | None = None, check: bool = True,
-        capture: bool = True, env: dict[str, str] | None = None,
-        timeout: float | None = None) -> subprocess.CompletedProcess:
-    return subprocess.run(
-        cmd, cwd=cwd, check=check,
-        capture_output=capture, text=True, env=env, timeout=timeout,
-    )
-
-
-# ----- IO -------------------------------------------------------------------
-
-def write_json(path: Path, obj: Any) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(obj, indent=2, sort_keys=False, ensure_ascii=False), encoding="utf-8")
-
-
-def read_json(path: Path) -> Any:
-    return json.loads(path.read_text(encoding="utf-8"))
-
-
-def emit_json(obj: Any) -> int:
-    print(json.dumps(obj, indent=2, ensure_ascii=False))
-    return 0
-
-
-# ----- hashing --------------------------------------------------------------
-
-def sha256_hex(s: str | bytes) -> str:
-    if isinstance(s, str):
-        s = s.encode("utf-8")
-    return hashlib.sha256(s).hexdigest()
-
-
-def sha1_hex(s: str | bytes) -> str:
-    if isinstance(s, str):
-        s = s.encode("utf-8")
-    return hashlib.sha1(s).hexdigest()
+from adk_common import (  # noqa: E402  (sys.path insertion above)
+    ADK_HOME,
+    REPOS_ROOT,
+    deep_merge,
+    _deep_merge,  # back-compat alias for the legacy underscore name
+    emit_json,
+    get_logger,
+    read_json,
+    repo_dir_for,
+    run,
+    sha1_hex,
+    sha256_hex,
+    which,
+    write_json,
+)
+from adk_common import die as _die_core  # noqa: E402
 
 
 # ----- die ------------------------------------------------------------------
 
 def die(msg: str, code: int = 1) -> None:
-    sys.stderr.write(f"code_index: {msg}\n")
-    raise SystemExit(code)
+    """code_index-prefixed exit. Wraps `adk_common.die` with the lib prefix."""
+    _die_core(msg, code, prefix="code_index")
 
 
 # ----- config ---------------------------------------------------------------
@@ -106,16 +52,6 @@ def die(msg: str, code: int = 1) -> None:
 LIB_DIR = Path(__file__).resolve().parent
 LIB_DEFAULTS_YAML = LIB_DIR / "defaults.yaml"
 USER_OVERRIDE_YAML = ADK_HOME / "config" / "code-index.yaml"
-
-
-def _deep_merge(base: dict, over: dict) -> dict:
-    out = dict(base)
-    for k, v in over.items():
-        if isinstance(v, dict) and isinstance(out.get(k), dict):
-            out[k] = _deep_merge(out[k], v)
-        else:
-            out[k] = v
-    return out
 
 
 def load_config() -> dict[str, Any]:
@@ -128,7 +64,7 @@ def load_config() -> dict[str, Any]:
     if USER_OVERRIDE_YAML.exists():
         try:
             user = yaml.safe_load(USER_OVERRIDE_YAML.read_text(encoding="utf-8")) or {}
-            cfg = _deep_merge(cfg, user)
+            cfg = deep_merge(cfg, user)
         except yaml.YAMLError as e:
             die(f"invalid user override {USER_OVERRIDE_YAML}: {e}")
     return cfg

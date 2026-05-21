@@ -79,8 +79,8 @@ def _remote_tip(repo: str, branch: str) -> str | None:
     bare clone, network error, branch missing on remote). Single network
     round-trip — call sparingly (once per indexed branch per audit)."""
     import subprocess
-    from _common import REPOS_ROOT as PR_REPOS_ROOT  # noqa: WPS433
-    bare = PR_REPOS_ROOT / repo / "original-clone"
+    from _common import repo_clone_for  # noqa: WPS433
+    bare = repo_clone_for(repo)
     if not (bare / "HEAD").exists():
         return None
     try:

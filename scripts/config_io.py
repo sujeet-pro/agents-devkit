@@ -73,34 +73,10 @@ LINKS_JSON5 = CONFIG_DIR / "links.json5"
 _ADK_CLI_RELOCATED_KEYS = ("pr_sync", "pr_scan", "pr_review")
 
 # ---------------------------------------------------------------- lock ------
-# fcntl-based exclusive lock for atomic writes. Local copy so this script
-# doesn't depend on adk-pr-review's _common.py.
-import contextlib
-import fcntl
-import time
-
-
-@contextlib.contextmanager
-def _file_lock(path: Path, timeout_s: float = 60.0):
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd = os.open(path, os.O_CREAT | os.O_RDWR, 0o644)
-    try:
-        deadline = time.time() + timeout_s
-        while True:
-            try:
-                fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-                break
-            except BlockingIOError:
-                if time.time() > deadline:
-                    raise TimeoutError(f"file_lock: timeout on {path}")
-                time.sleep(0.2)
-        yield
-    finally:
-        try:
-            fcntl.flock(fd, fcntl.LOCK_UN)
-        except Exception:
-            pass
-        os.close(fd)
+# Use the shared fcntl helper from scripts/lib/adk_common.py rather than
+# carrying a private copy. The path append is idempotent.
+sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
+from adk_common import file_lock as _file_lock  # noqa: E402
 
 
 # ---------------------------------------------------------- parsers ---------

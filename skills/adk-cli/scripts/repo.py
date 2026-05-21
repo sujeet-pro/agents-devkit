@@ -64,7 +64,11 @@ ADK_PR_REVIEW_SCRIPTS = THIS_DIR.parent.parent / "adk-pr-review" / "scripts"
 sys.path.insert(0, str(ADK_PR_REVIEW_SCRIPTS))
 sys.path.insert(0, str(CODE_INDEX_LIB))
 
-from _common import die, get_logger, which, ADK_HOME, REPOS_ROOT  # noqa: E402
+from _common import (  # noqa: E402
+    die, get_logger, which, ADK_HOME, REPOS_ROOT,
+    repo_dir_for, repo_clone_for, repo_branch_dir,
+    repo_meta_path_for, branch_worktree_for, branch_meta_path_for,
+)
 from base_index import slugify_branch  # noqa: E402
 from queue_io import _now_iso, _parse_iso  # noqa: E402
 
@@ -218,30 +222,14 @@ def _step(cmd: list[str], log) -> subprocess.CompletedProcess:
 
 # ----- repo + branch paths ------------------------------------------------
 
-def _repo_dir(name: str) -> Path:
-    return REPOS_ROOT / name
-
-
-def _repo_meta_path(name: str) -> Path:
-    return _repo_dir(name) / "repo-meta.json"
-
-
-def _bare_clone_dir(name: str) -> Path:
-    """Bare clone: holds .git only, source for every worktree."""
-    return _repo_dir(name) / "original-clone"
-
-
-def _branch_dir(name: str, slug: str) -> Path:
-    return _repo_dir(name) / f"branch-{slug}"
-
-
-def _branch_worktree(name: str, slug: str) -> Path:
-    """Worktree of the branch — `git worktree add` target."""
-    return _branch_dir(name, slug) / "code"
-
-
-def _branch_meta_path(name: str, slug: str) -> Path:
-    return _branch_dir(name, slug) / "branch-meta.json"
+# Per-repo / per-branch path helpers are canonical in _common.py and imported
+# above. Aliases kept so existing call sites stay readable without churn.
+_repo_dir = repo_dir_for
+_repo_meta_path = repo_meta_path_for
+_bare_clone_dir = repo_clone_for
+_branch_dir = repo_branch_dir
+_branch_worktree = branch_worktree_for
+_branch_meta_path = branch_meta_path_for
 
 
 def _read_repo_meta(name: str) -> dict:

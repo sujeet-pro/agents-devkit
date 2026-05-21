@@ -35,8 +35,16 @@ def test_repo_name_derivation(url, expected):
 
 @pytest.fixture
 def fake_repos_root(tmp_path, monkeypatch):
-    """Point REPOS_ROOT at a clean tmp dir for the test."""
+    """Point REPOS_ROOT at a clean tmp dir for the test.
+
+    The path helpers `repo_dir_for` / `repo_branch_dir` / etc. now live in
+    `scripts/lib/adk_common.py` and read `adk_common.REPOS_ROOT` at call time.
+    Patch both bindings so legacy call sites (`repo.REPOS_ROOT`) and the
+    canonical helpers see the same tmp root.
+    """
+    import adk_common
     monkeypatch.setattr(repo, "REPOS_ROOT", tmp_path)
+    monkeypatch.setattr(adk_common, "REPOS_ROOT", tmp_path)
     return tmp_path
 
 

@@ -1,26 +1,60 @@
-"""_common.py — shared helpers for adk-pr-review scripts.
+"""_common.py — adk-pr-review skill helpers.
 
-Imported by every other script in this folder. Keep it small and dependency-light.
+Pure helpers (logging, subprocess, JSON IO, hashing, file_lock, deep_merge,
+ADK_HOME, REPOS_ROOT, repo_dir_for) are re-exported from
+`scripts/lib/adk_common.py` — see that file for the canonical source.
+
+This module keeps the skill-specific helpers:
+- per-PR / per-repo path resolvers (task_dir_for, pr_review_dir, pr_lock_for, …)
+- the state-file layer (read_state / write_state / mark_phase)
+- `parse_pr_url`
+- the skill's config loader (reads `skills/adk-pr-review/defaults.yaml`)
+- `die(msg)` wrapper that uses the skill's prefix
 """
 from __future__ import annotations
 
-import contextlib
-import fcntl
-import hashlib
 import json
-import logging
-import os
 import re
-import subprocess
 import sys
 import time
 from pathlib import Path
-from typing import Any, Iterator
+from typing import Any
 
-# ----- paths -----------------------------------------------------------------
+# Make `scripts/lib/` importable so the re-exports below work regardless of
+# which entry point loaded this module.
+_REPO_LIB = Path(__file__).resolve().parents[3] / "scripts" / "lib"
+if str(_REPO_LIB) not in sys.path:
+    sys.path.insert(0, str(_REPO_LIB))
 
-ADK_HOME = Path(os.environ.get("ADK_HOME", Path.home() / ".agents-devkit"))
-REPOS_ROOT = ADK_HOME / "repos"
+from adk_common import (  # noqa: E402  (sys.path insertion above)
+    ADK_HOME,
+    REPOS_ROOT,
+    LockHeldError,
+    branch_meta_path_for,
+    branch_worktree_for,
+    clone_lock_for,
+    deep_merge,
+    _deep_merge,  # back-compat alias for the legacy underscore name
+    emit_json,
+    file_lock,
+    get_logger,
+    read_json,
+    repo_branch_dir,
+    repo_clone_for,
+    repo_dir_for,
+    repo_meta_path_for,
+    run,
+    run_ok,
+    sha1_hex,
+    sha256_hex,
+    try_file_lock,
+    which,
+    write_json,
+)
+from adk_common import die as _die_core  # noqa: E402
+
+
+# ----- paths (PR-review specific) ------------------------------------------
 
 PR_REVIEW_ROOT = ADK_HOME / "skill-pr-review"
 
@@ -28,28 +62,6 @@ PR_REVIEW_ROOT = ADK_HOME / "skill-pr-review"
 def task_dir_for(repo: str, pr_number: int) -> Path:
     """Resolve the task folder for a PR: `skill-pr-review/<repo>_pr-<n>/`."""
     return PR_REVIEW_ROOT / f"{repo}_pr-{pr_number}"
-
-
-def repo_clone_for(repo: str) -> Path:
-    """Bare clone of the repo. Holds .git/ only; every worktree (per-branch +
-    per-PR) is created from here via `git worktree add`."""
-    return REPOS_ROOT / repo / "original-clone"
-
-
-def repo_dir_for(repo: str) -> Path:
-    """Per-repo root: holds original-clone/, branch-*/, docs/, repo-meta.json."""
-    return REPOS_ROOT / repo
-
-
-def repo_branch_dir(repo: str, branch_slug: str) -> Path:
-    """Per-(repo, branch) folder: holds code/ (worktree), code-index/, branch-meta.json."""
-    return REPOS_ROOT / repo / f"branch-{branch_slug}"
-
-
-def clone_lock_for(repo: str) -> Path:
-    """Per-repo lock file. Acquired briefly during clone / fetch / reset / worktree-add.
-    Different repos do not contend; same-repo invocations serialize only on this brief window."""
-    return REPOS_ROOT / repo / ".clone-lock"
 
 
 def pr_lock_for(repo: str, pr_number: int) -> Path:
@@ -65,8 +77,6 @@ def pr_lock_for(repo: str, pr_number: int) -> Path:
 # the shape of a branch dir under repos/<name>/branch-<NAME>/ — a clean
 # separation of shared-with-other-skills folders from skill-specific ones.
 
-# The set of file names that belong in the pr-review/ subfolder (everything
-# the /adk-pr-review skill writes during a review).
 PR_REVIEW_FILES = frozenset({
     "pr.json", "pr-comments.json", "diff.patch", "precis.md",
     "findings.json", "validated-findings.json", "initial-findings.json",
@@ -111,29 +121,6 @@ def ensure_dirs() -> None:
         p.mkdir(parents=True, exist_ok=True)
 
 
-# ----- logging --------------------------------------------------------------
-
-def get_logger(name: str, task_dir: Path | None = None) -> logging.Logger:
-    log = logging.getLogger(name)
-    if log.handlers:
-        return log
-    log.setLevel(logging.INFO)
-    fmt = logging.Formatter("%(asctime)s %(levelname)s [%(name)s] %(message)s")
-
-    # stderr
-    sh = logging.StreamHandler(sys.stderr)
-    sh.setFormatter(fmt)
-    log.addHandler(sh)
-
-    # file
-    if task_dir:
-        task_dir.mkdir(parents=True, exist_ok=True)
-        fh = logging.FileHandler(task_dir / "review.log")
-        fh.setFormatter(fmt)
-        log.addHandler(fh)
-    return log
-
-
 # ----- state file -----------------------------------------------------------
 
 def read_state(task_dir: Path) -> dict[str, Any]:
@@ -159,164 +146,11 @@ def mark_phase(task_dir: Path, phase: str, status: str, **extra: Any) -> None:
     write_state(task_dir, state)
 
 
-# ----- file lock ------------------------------------------------------------
-
-@contextlib.contextmanager
-def file_lock(path: Path, timeout_s: float = 300.0, poll_s: float = 0.5) -> Iterator[None]:
-    """fcntl-based exclusive lock. timeout_s 0 = wait forever; default 5 min.
-
-    Use for short-held mutual exclusion (e.g. the clone-lock around `git fetch`
-    + `git worktree add`). For the PR-level long-held lock, prefer
-    `try_file_lock` so a duplicate invocation can fail fast with a clear
-    diagnostic instead of waiting forever.
-    """
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd = os.open(path, os.O_CREAT | os.O_RDWR, 0o644)
-    try:
-        deadline = time.time() + timeout_s if timeout_s > 0 else None
-        while True:
-            try:
-                fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-                break
-            except BlockingIOError:
-                if deadline and time.time() > deadline:
-                    raise TimeoutError(f"file_lock: timed out after {timeout_s}s on {path}")
-                time.sleep(poll_s)
-        os.write(fd, f"pid={os.getpid()} ts={time.time():.0f}\n".encode())
-        try:
-            yield
-        finally:
-            try:
-                fcntl.flock(fd, fcntl.LOCK_UN)
-            except Exception:
-                pass
-    finally:
-        os.close(fd)
-
-
-def _read_lockfile_holder(path: Path) -> str:
-    """Best-effort: return the contents of an existing lock file ('pid=… ts=…')."""
-    try:
-        return path.read_text(encoding="utf-8").strip()
-    except Exception:
-        return "<unknown>"
-
-
-class LockHeldError(RuntimeError):
-    """Raised by try_file_lock when the lock is already held and wait=False."""
-
-
-@contextlib.contextmanager
-def try_file_lock(path: Path, wait: bool = False, timeout_s: float = 0.0,
-                  poll_s: float = 0.5) -> Iterator[None]:
-    """fcntl-based exclusive lock with a fail-fast option.
-
-    - wait=False (default): if the lock is already held by another process,
-      raise LockHeldError immediately with the holder's pid/ts. Best for the
-      per-PR lock — two tabs reviewing the SAME PR should not silently queue.
-    - wait=True: block until acquired (or timeout). Timeout 0 = no timeout.
-    """
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd = os.open(path, os.O_CREAT | os.O_RDWR, 0o644)
-    acquired = False
-    try:
-        if not wait:
-            try:
-                fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-                acquired = True
-            except BlockingIOError:
-                holder = _read_lockfile_holder(path)
-                raise LockHeldError(
-                    f"{path} is already locked by {holder}. "
-                    "Pass --wait to block, or kill the prior process if it's stuck."
-                )
-        else:
-            deadline = (time.time() + timeout_s) if timeout_s > 0 else None
-            while True:
-                try:
-                    fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-                    acquired = True
-                    break
-                except BlockingIOError:
-                    if deadline and time.time() > deadline:
-                        raise TimeoutError(f"try_file_lock: timed out after {timeout_s}s on {path}")
-                    time.sleep(poll_s)
-        # Record the holder so a parallel run can produce a useful diagnostic.
-        try:
-            os.lseek(fd, 0, os.SEEK_SET)
-            os.ftruncate(fd, 0)
-            os.write(fd, f"pid={os.getpid()} ts={time.time():.0f}\n".encode())
-        except Exception:
-            pass
-        yield
-    finally:
-        if acquired:
-            try:
-                fcntl.flock(fd, fcntl.LOCK_UN)
-            except Exception:
-                pass
-        try:
-            os.close(fd)
-        except Exception:
-            pass
-
-
-# ----- subprocess helpers ---------------------------------------------------
-
-def run(cmd: list[str], *, cwd: Path | None = None, check: bool = True,
-        capture: bool = True, env: dict[str, str] | None = None,
-        timeout: float | None = None) -> subprocess.CompletedProcess:
-    """Run a command. Stdout/stderr captured by default; raises on non-zero unless check=False."""
-    return subprocess.run(
-        cmd, cwd=cwd, check=check,
-        capture_output=capture, text=True, env=env, timeout=timeout,
-    )
-
-
-def run_ok(cmd: list[str], *, cwd: Path | None = None, env: dict[str, str] | None = None) -> bool:
-    try:
-        run(cmd, cwd=cwd, check=True, capture=True, env=env)
-        return True
-    except subprocess.CalledProcessError:
-        return False
-
-
-def which(binary: str) -> str | None:
-    from shutil import which as _which
-    return _which(binary)
-
-
-# ----- misc -----------------------------------------------------------------
-
-def sha256_hex(s: str | bytes) -> str:
-    if isinstance(s, str):
-        s = s.encode("utf-8")
-    return hashlib.sha256(s).hexdigest()
-
-
-def sha1_hex(s: str | bytes) -> str:
-    if isinstance(s, str):
-        s = s.encode("utf-8")
-    return hashlib.sha1(s).hexdigest()
-
-
-def write_json(path: Path, obj: Any) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(obj, indent=2, sort_keys=False, ensure_ascii=False), encoding="utf-8")
-
-
-def read_json(path: Path) -> Any:
-    return json.loads(path.read_text(encoding="utf-8"))
-
-
-def emit_json(obj: Any) -> int:
-    print(json.dumps(obj, indent=2, ensure_ascii=False))
-    return 0
-
+# ----- die ------------------------------------------------------------------
 
 def die(msg: str, code: int = 1) -> None:
-    sys.stderr.write(f"adk-pr-review: {msg}\n")
-    raise SystemExit(code)
+    """Skill-prefixed exit. Wraps `adk_common.die` with the adk-pr-review prefix."""
+    _die_core(msg, code, prefix="adk-pr-review")
 
 
 # ----- config loader -------------------------------------------------------
@@ -324,16 +158,6 @@ def die(msg: str, code: int = 1) -> None:
 SKILL_DIR = Path(__file__).resolve().parent.parent
 SKILL_DEFAULTS_YAML = SKILL_DIR / "defaults.yaml"
 USER_OVERRIDE_YAML = ADK_HOME / "config" / "adk-pr-review.yaml"
-
-
-def _deep_merge(base: dict, over: dict) -> dict:
-    out = dict(base)
-    for k, v in over.items():
-        if isinstance(v, dict) and isinstance(out.get(k), dict):
-            out[k] = _deep_merge(out[k], v)
-        else:
-            out[k] = v
-    return out
 
 
 def load_config() -> dict[str, Any]:
@@ -348,7 +172,7 @@ def load_config() -> dict[str, Any]:
     if USER_OVERRIDE_YAML.exists():
         try:
             user = yaml.safe_load(USER_OVERRIDE_YAML.read_text(encoding="utf-8")) or {}
-            cfg = _deep_merge(cfg, user)
+            cfg = deep_merge(cfg, user)
         except yaml.YAMLError as e:
             die(f"invalid user override {USER_OVERRIDE_YAML}: {e}")
     return cfg
