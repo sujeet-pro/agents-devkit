@@ -178,9 +178,17 @@ def base_dir_for(skill_stem: str, scope: str, cwd: Path) -> Path:
                 f"adk_task_slug: scope=repo but cwd {cwd} is not inside a git repo"
             )
         return repo / ".temp" / "adk" / skill_stem
-    # global
+    # global — prefer the v4 path; fall back to the legacy v3 path ONLY if
+    # the new one is absent AND the legacy one exists on disk (preserves the
+    # user's in-flight task folders until P7 migrates the data).
     area = GLOBAL_AREA.get(skill_stem, skill_stem)
-    return GLOBAL_ROOT / area
+    new = GLOBAL_ROOT / area
+    legacy_area = LEGACY_GLOBAL_AREA.get(area)
+    if not new.exists() and legacy_area:
+        legacy = GLOBAL_ROOT / legacy_area
+        if legacy.exists():
+            return legacy
+    return new
 
 
 def dedup(slug: str, parent: Path) -> str:

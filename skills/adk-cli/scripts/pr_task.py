@@ -83,11 +83,7 @@ def _resolve_pr_review_root() -> Path:
     return PR_REVIEW_ROOT
 
 
-# Back-compat constant — many callers use this name. Now resolves lazily via
-# a Path-typed property would be cleaner, but Python module-level lazy attrs
-# are awkward; keep this as the v4 default and let callers that need the
-# live answer call _resolve_pr_review_root() directly.
-PR_REVIEWS_ROOT = PR_REVIEW_ROOT
+PR_REVIEWS_ROOT = PR_REVIEW_ROOT  # legacy import name; new code uses _resolve_pr_review_root().
 RUN_REVIEW = ADK_PR_REVIEW_SCRIPTS / "run_review.py"
 VALIDATE_FINDINGS = ADK_PR_REVIEW_SCRIPTS / "validate_findings.py"
 
