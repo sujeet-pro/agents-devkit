@@ -10,11 +10,34 @@ import argparse
 import asyncio
 import json
 import os
+import re
 import signal
 import sys
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
+
+# Anchored at start-of-line with optional decoration (---, ##, **, >, whitespace).
+# This is deliberately strict so we DON'T match "Phase N" mid-prose (e.g. PR
+# titles, JSON-embedded strings, narration like "completed Phase 4 ..."). The
+# description char-class excludes ':' so a multi-marker line ("Phase 1: foo
+# Phase 2: bar") doesn't capture across markers.
+_PHASE_RE = re.compile(
+    r"^[\s\-#*>]*"
+    r"[Pp]hase\s+"
+    r"([0-9]+[a-zA-Z]?)"
+    r"(?:\s*[:—\-]\s*([^.\n*:]{1,60}))?"
+)
+
+
+def _parse_phase_marker(text: str) -> str | None:
+    m = _PHASE_RE.match(text)
+    if m is None:
+        return None
+    num = m.group(1)
+    desc = (m.group(2) or "").strip().rstrip("- ").rstrip()
+    label = f"phase {num}: {desc}" if desc else f"phase {num}"
+    return label[:80]
 
 THIS_DIR = Path(__file__).resolve().parent
 REPO_ROOT = THIS_DIR.parent
@@ -94,14 +117,18 @@ async def _file_loop(hb_path: Path, payload: dict, interval: float) -> None:
             pass
 
 
-async def _stream_proc(proc: asyncio.subprocess.Process) -> None:
+async def _stream_proc(proc: asyncio.subprocess.Process, payload: dict) -> None:
     assert proc.stdout is not None
     while True:
         line = await proc.stdout.readline()
         if not line:
             break
-        sys.stdout.write(line.decode(errors="replace"))
+        decoded = line.decode(errors="replace")
+        sys.stdout.write(decoded)
         sys.stdout.flush()
+        new_phase = _parse_phase_marker(decoded)
+        if new_phase is not None:
+            payload["current_phase"] = new_phase
 
 
 async def _release(adk_bin: str, pr_url: str, queue: str, *, status: str | None = None) -> None:
@@ -169,7 +196,7 @@ async def _drive(args: argparse.Namespace) -> int:
         "pid": os.getpid(), "pr_url": args.pr_url, "task_type": "review",
         "agent": "claude", "queue": queue,
         "started_at": started, "last_heartbeat": started,
-        "current_phase": "review", "rc": None,
+        "current_phase": "phase 0", "rc": None,
     }
     _write_heartbeat(hb_path, payload)
 
@@ -187,7 +214,7 @@ async def _drive(args: argparse.Namespace) -> int:
             stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT,
             env=os.environ.copy(),
         )
-        await _stream_proc(agent_proc)
+        await _stream_proc(agent_proc, payload)
         agent_rc = await agent_proc.wait()
     except FileNotFoundError as exc:
         _emit(f"(error: agent not found: {exc})")

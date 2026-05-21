@@ -6,13 +6,14 @@ from textual.widgets import Static
 
 if TYPE_CHECKING:
     from tui.model.queue_model import QueueRow
+    from tui.model.workers_model import WorkerRow
 
 
 class DetailPane(Static):
     def __init__(self) -> None:
         super().__init__("(no row selected)", markup=False)
 
-    def show(self, row: QueueRow | None) -> None:
+    def show(self, row: QueueRow | None, *, worker: WorkerRow | None = None) -> None:
         if row is None:
             self.update("(no row selected)")
             return
@@ -41,8 +42,12 @@ class DetailPane(Static):
             f"Author:  {author}",
             f"Branch:  {head_short} → {target}",
             f"Status:  {row.status}  ·  prep: {prep}",
+        ]
+        if worker is not None:
+            lines.append(f"Phase:   {worker.current_phase}")
+        lines.extend([
             f"Lock:    {lock}",
             f"Slack:   {slack}",
             f"Last reviewed: {last_reviewed}{same_head}",
-        ]
+        ])
         self.update("\n".join(lines))

@@ -25,7 +25,7 @@ from tui.widgets.workers_pane import WorkersPane
 if TYPE_CHECKING:
     from tui.model.queue_model import FilterMode, QueueModel, QueueRow, SortMode
     from tui.model.sync_plan_model import SyncPlanModel
-    from tui.model.workers_model import WorkersModel
+    from tui.model.workers_model import WorkerRow, WorkersModel
 
 
 _FILTER_CYCLE: tuple[FilterMode, ...] = ("all", "open", "ready", "reviewed", "terminal")
@@ -85,6 +85,7 @@ class AdkApp(App):
         self._plan_model: SyncPlanModel | None = None
         self._workers_model: WorkersModel | None = None
         self._rows_by_url: dict[str, QueueRow] = {}
+        self._workers_by_url: dict[str, WorkerRow] = {}
         self._sync_proc: asyncio.subprocess.Process | None = None
         self._sync_task: asyncio.Task | None = None
         self._selection_order: list[str] = []
@@ -166,6 +167,8 @@ class AdkApp(App):
             return
         rows = self._workers_model.snapshot()
         self.query_one(WorkersPane).update_workers(rows, ascii_only=self._ascii_only)
+        self._workers_by_url = {w.pr_url: w for w in rows if not w.is_stale}
+        self._refresh_detail()
 
     def _maybe_reload(self) -> None:
         if self._model is not None and self._model.has_changed():
@@ -177,7 +180,8 @@ class AdkApp(App):
         table = self.query_one(QueueTable)
         url = table.selected_pr_url()
         row = self._rows_by_url.get(url) if url else None
-        self.query_one(DetailPane).show(row)
+        worker = self._workers_by_url.get(url) if url else None
+        self.query_one(DetailPane).show(row, worker=worker)
 
     def on_data_table_row_highlighted(self) -> None:
         self._refresh_detail()
