@@ -1,0 +1,32 @@
+# MEMORY.md — project-local decisions
+
+> Drop this file at the root of a new project so adk skills load it as repo-local context (per `AGENTS.md` §1.2 — alongside `<repo>/ai-guidelines/` and `<repo>/docs/`). Each entry is one decision with its rejected alternatives so a future-you (or another agent) can avoid re-litigating it.
+>
+> Machine-readable decision logs live globally at `~/.agents-devkit/improve/learning/decisions.jsonl` (per-fork, structured). This file is for **human-narrative project decisions that survive across sessions** — the prose that explains *why this codebase looks the way it does* and that adk skills should never silently contradict.
+
+## Decisions
+
+### YYYY-MM-DD — <one-line decision name>
+
+- **Chose:** <option>
+- **Why:** <one or two sentences>
+- **Rejected:** <option A> — <why>; <option B> — <why>
+- **Reversible if:** <condition that would justify revisiting>
+
+(append new decisions at the bottom; never edit old entries — superseding a decision is a new entry that links back to the old one)
+
+## Permanent facts (invariants this project must respect)
+
+- <invariant 1>
+- <invariant 2>
+
+## Session log (running notes; one line per session)
+
+- YYYY-MM-DD — worked on / completed / in progress / next priorities
+
+## How to use this file
+
+- adk skills read this at the start of every session (per AGENTS.md §1.2 load order).
+- The reading order is: `<repo>/.adk/overrides.yaml` → `<repo>/ai-guidelines/` → `<repo>/docs/` → THIS file → user/company config → constitution.
+- If a skill's plan conflicts with a decision logged here, the skill MUST surface the conflict before acting (see `shared/constitution.md` §III.3 — prior decisions inform, never override current intent, but conflicts must be named).
+- Add to "Permanent facts" sparingly. Most decisions belong under "Decisions" with a reversibility clause.

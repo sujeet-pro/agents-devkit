@@ -8,6 +8,7 @@
 
 1. **`<repo>/.adk/overrides.yaml`** (if working inside a repo with one)
 2. **`<repo>/ai-guidelines/`** or **`<repo>/docs/`** (repo-specific conventions)
+2a. **`<repo>/MEMORY.md`** and **`<repo>/ERRORS.md`** (if present — project-local decision log + failure log; templates at `shared/templates/`)
 3. **`~/.agents-devkit/config/core.yaml`** (user/company truth — workspaces, defaults, RAG config, learning state) + **`~/.agents-devkit/config/repos.md`** (repos) + **`~/.agents-devkit/config/connectors/*.md`** (one per data source) + **`~/.agents-devkit/config/links.json5`** (entity graph)
 4. **`<this-repo>/shared/constitution.md`** (universal hard rules)
 5. **The triggered skill's `SKILL.md`** (loaded after step 6 routes)
@@ -63,6 +64,24 @@ Parse the user's prompt against this table. **A single prompt can route to multi
 ## 3. Use non-adk skills when they exist
 
 If the agent has installed skills from outside adk that match the task better (e.g. a `frontend-design` skill, a `db-migration` skill, a `terraform-plan` skill), **prefer them for the slice they specialize in**. adk skills are generalists; specialized third-party skills usually have deeper rules. Compose: hand the data-fetching to adk (the MCPs and overrides), and the specialized step to the third-party skill.
+
+---
+
+## 3a. Sub-agent inheritance
+
+When a skill spawns a child agent via the `Agent` tool (e.g. `/adk-pr-review` dispatches a Haiku reranker, `/adk-implement` spawns a focused security pass, `/adk-investigate` fans out a multi-MCP context gather), the child inherits:
+
+- **The constitution (`shared/constitution.md`)** — every hard rule applies; the child cannot waive a parent's constraint.
+- **The narration contract (`shared/narration.md`)** — child reports back with a structured summary the parent stitches into its own report.
+- **The decision-log obligation** — child logs its forks to the same `~/.agents-devkit/improve/learning/decisions.jsonl` under the parent's `skill` + a `sub_flow: child:<name>` discriminator.
+- **The shared-state gate (§I.4)** — a child cannot post / merge / push without the human confirmation gate, even when the parent already passed one for a different action.
+- **Project-local context** — child reads the same `<repo>/MEMORY.md` / `<repo>/ERRORS.md` / `<repo>/.adk/overrides.yaml` the parent was loaded with.
+
+The child does NOT inherit:
+- **The parent's tool list** — children get the smallest tool surface needed for their slice.
+- **The parent's scope** — a child must operate inside its named slice; out-of-scope findings are returned to the parent for triage, never acted on by the child directly.
+
+This rule applies whether the child is an adk subagent (`adk-agent-*`) or a freshly spawned `general-purpose` / `Explore` / `Plan` agent.
 
 ---
 

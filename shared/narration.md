@@ -51,6 +51,14 @@ without scrolling.>
 ## What got done
 - <bullet — concrete, with file:line or URL evidence>
 
+## Files touched
+- <relative-path> · <one-line summary of the change>
+- (write "none" if the skill made no file changes)
+
+## Files intentionally not touched
+- <relative-path> · <why this was out of scope despite being adjacent>
+- (write "none" if nothing scope-adjacent was noticed)
+
 ## What got skipped (and why)
 - <gap>: <reason>
 - <e.g. "statsig MCP unreachable; feature-flow used grep fallback (lower confidence)">
