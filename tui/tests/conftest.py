@@ -214,3 +214,46 @@ def eligible_multi_queue(tmp_path: Path) -> Path:
     dst = tmp_path / "eligible-multi.json5"
     shutil.copyfile(src, dst)
     return dst
+
+
+@pytest.fixture
+def fake_repos_dir(tmp_path: Path) -> Path:
+    """A `~/.agents-devkit/repos/`-shaped tmp dir for RepoModel/RepoScreen tests.
+
+    Layout:
+      repos/
+        fake-repo/
+          repo-meta.json
+          branch-main/          (created_by=user)
+            branch-meta.json
+          branch-feat-x/        (created_by=auto, with auto_reason)
+            branch-meta.json
+    """
+    root = tmp_path / "repos"
+    repo = root / "fake-repo"
+    repo.mkdir(parents=True)
+    (repo / "repo-meta.json").write_text(json.dumps({
+        "name": "fake-repo",
+        "url": "git@github.com:acme/fake.git",
+        "default_branch": "main",
+    }))
+    branch = repo / "branch-main"
+    branch.mkdir()
+    (branch / "branch-meta.json").write_text(json.dumps({
+        "branch": "main",
+        "slug": "main",
+        "created_by": "user",
+        "last_indexed_at": "2026-05-22T10:00:00Z",
+        "last_used_at": "2026-05-22T13:00:00Z",
+    }))
+    auto_branch = repo / "branch-feat-x"
+    auto_branch.mkdir()
+    (auto_branch / "branch-meta.json").write_text(json.dumps({
+        "branch": "feat/x",
+        "slug": "feat-x",
+        "created_by": "auto",
+        "last_indexed_at": "2026-05-22T13:30:00Z",
+        "last_used_at": "2026-05-22T13:30:00Z",
+        "auto_reason": "3 PRs target feat/x",
+    }))
+    return root

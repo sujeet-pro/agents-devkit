@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from textual import work
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal
@@ -46,6 +47,8 @@ class AdkApp(App):
         Binding("R", "run_selected", "run-selected"),
         Binding("space", "toggle_select", "select"),
         Binding("p", "cycle_parallel", "parallel"),
+        Binding("plus", "add_pr", "add-pr"),
+        Binding("b", "repos", "repos"),
         Binding("j", "cursor_down", show=False),
         Binding("k", "cursor_up", show=False),
         Binding("g", "cursor_home", show=False),
@@ -64,6 +67,7 @@ class AdkApp(App):
         agent_bin: Path | None = None,
         heartbeat_dir: Path | None = None,
         worker_script: Path | None = None,
+        repos_dir: Path | None = None,
     ) -> None:
         super().__init__()
         self._queue_path = queue_path
@@ -74,6 +78,7 @@ class AdkApp(App):
         self._agent_bin = agent_bin
         self._heartbeat_dir = heartbeat_dir
         self._worker_script = worker_script
+        self._repos_dir: Path | None = repos_dir
         self._filter_mode: FilterMode = "all"
         self._sort_mode: SortMode = "fifo"
         self._model: QueueModel | None = None
@@ -87,6 +92,7 @@ class AdkApp(App):
         self._review_tasks: dict[str, asyncio.Task] = {}
         self._parallel_n: int = 4
         self._batch_task: asyncio.Task | None = None
+        self._add_pr_task: asyncio.Task | None = None
 
     def compose(self) -> ComposeResult:
         yield HeaderBar()
@@ -212,12 +218,70 @@ class AdkApp(App):
     def action_escape(self) -> None:
         return None
 
+    @work
+    async def action_add_pr(self) -> None:
+        # @work wraps the coroutine in a Textual worker, which is required for
+        # push_screen_wait to resolve. Without it, push_screen_wait raises
+        # NoActiveWorker.
+        from tui.screens.prompt_screen import PromptScreen
+        # Pre-check busy state BEFORE opening the modal so the user isn't
+        # asked to type a value that we'll just reject.
+        busy = self._busy_label()
+        if busy is not None:
+            self.query_one(LogPane).write(f"(can't add PR — {busy} already running)")
+            return
+        # Don't stack a second PromptScreen if one's already up.
+        if any(isinstance(s, PromptScreen) for s in self.screen_stack):
+            return
+        value = await self.push_screen_wait(
+            PromptScreen("Add PR", "URL, owner/repo#N, or PR number")
+        )
+        if not value:
+            return
+        self._add_pr_task = asyncio.create_task(self._run_add_pr(value.strip()))
+
+    async def _run_add_pr(self, text: str) -> None:
+        log_pane = self.query_one(LogPane)
+        adk = self._resolve_adk_bin()
+        cmd: list[str] = [str(adk), "pr-queue", "add", text, "-y"]
+        if self._queue_path is not None:
+            cmd += ["--queue", str(self._queue_path)]
+        log_pane.write(f"$ {' '.join(shlex.quote(c) for c in cmd)}")
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.STDOUT,
+            )
+        except (FileNotFoundError, PermissionError, OSError) as exc:
+            log_pane.write(f"(error: {exc})")
+            return
+        assert proc.stdout is not None
+        while True:
+            line = await proc.stdout.readline()
+            if not line:
+                break
+            log_pane.write(line.decode(errors="replace").rstrip("\n"))
+        rc = await proc.wait()
+        log_pane.write(f"(pr-queue add exited rc={rc})")
+        if self._model is not None:
+            self._reload(force=True)
+
+    def action_repos(self) -> None:
+        from tui.screens.repo_screen import RepoScreen
+        self.push_screen(RepoScreen(
+            repos_dir=self._repos_dir,
+            adk_bin_resolver=self._resolve_adk_bin,
+        ))
+
     def _busy_label(self) -> str | None:
         """Return a short label of any running subprocess, else None."""
         if self._sync_proc is not None and self._sync_proc.returncode is None:
             return "sync"
         if self._batch_task is not None and not self._batch_task.done():
             return "batch"
+        if self._add_pr_task is not None and not self._add_pr_task.done():
+            return "add-pr"
         if self._review_workers:
             return "review"
         return None

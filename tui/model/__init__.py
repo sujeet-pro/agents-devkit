@@ -7,6 +7,12 @@ from .queue_model import (
     QueueSnapshot,
     SortMode,
 )
+from .repo_model import (
+    RepoBranchRow,
+    RepoModel,
+    RepoRow,
+    default_repos_dir,
+)
 from .row_state import ASCII_FALLBACK, ICON_SET, RowState, derive
 from .sync_plan_model import (
     SyncPlanModel,
@@ -27,6 +33,9 @@ __all__ = [
     "QueueModel",
     "QueueRow",
     "QueueSnapshot",
+    "RepoBranchRow",
+    "RepoModel",
+    "RepoRow",
     "RowState",
     "SortMode",
     "SyncPlanModel",
@@ -35,6 +44,7 @@ __all__ = [
     "WorkerRow",
     "WorkersModel",
     "default_plan_path",
+    "default_repos_dir",
     "default_workers_dir",
     "derive",
 ]

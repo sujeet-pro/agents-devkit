@@ -17,6 +17,8 @@ _HELP_TEXT = """adk TUI · keys
   R              run all selected rows as a batch (parallel cap)
   space          toggle selection on the highlighted row
   p              cycle parallel cap (1 → 2 → 4 → 8)
+  +              add PR (modal — URL, owner/repo#N, or number)
+  b              switch to repos screen (manage repos + branches)
   j / down       move cursor down
   k / up         move cursor up
   g / home       jump to first row
