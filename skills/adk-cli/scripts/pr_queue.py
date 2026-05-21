@@ -528,7 +528,7 @@ def _refresh_one(pr_url: str, entry: dict, *, queue_path: Path, log) -> dict:
         return {"pr_url": pr_url, "status": "failed", "stage": "meta", "reason": meta["error"]}
 
     updates = {"last_checked_at": _now_iso()}
-    new_head = meta.get("head_sha") or meta.get("head_sha")
+    new_head = meta.get("head_sha") or meta.get("head_oid")
     if new_head:
         updates["head_sha"] = new_head
     # Capture target_branch (baseRefName / destination.branch.name). Skills
@@ -664,7 +664,7 @@ def get_next_eligible(queue_path: Path, *, validate: bool = True,
             continue
         # Refresh head_sha so the row reflects the API's current view, then
         # return the (still-claimed) candidate.
-        new_head = meta.get("head_sha") or meta.get("head_sha") if not meta.get("error") else None
+        new_head = meta.get("head_sha") or meta.get("head_oid") if not meta.get("error") else None
         if new_head and new_head != candidate.get("head_sha"):
             update_pr_entry(queue_path, pr_url,
                             {"head_sha": new_head, "last_checked_at": _now_iso()})
