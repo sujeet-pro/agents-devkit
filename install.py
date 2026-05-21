@@ -1325,112 +1325,17 @@ def uninstall_target(target: str, dry_run: bool, results: dict[str, Any]) -> Non
 # Bootstrap user dir
 # ----------------------------------------------------------------------------
 
-_LEGACY_USER_DIR = Path.home() / ".config" / "adk"
-
-
-def _migrate_legacy_user_dir(dry_run: bool, out: dict[str, str]) -> None:
-    """If ~/.config/adk/ exists and the new ~/.agents-devkit/config/ is empty
-    (or absent), COPY the user's data into the new location. We do NOT delete
-    the old dir — the user can remove it themselves once they've verified.
-    """
-    if not _LEGACY_USER_DIR.exists():
-        out["legacy_migration"] = "no-legacy-found"
-        return
-    # If the new dirs already have overrides.yaml or learning, assume migration ran before.
-    new_overrides = ADK_USER_DIR / "overrides.yaml"
-    new_learning = Path.home() / ".agents-devkit" / "improve" / "learning"
-    if new_overrides.exists() or (new_learning.exists() and any(new_learning.iterdir())):
-        out["legacy_migration"] = "skipped (new dir already populated)"
-        return
-    if dry_run:
-        out["legacy_migration"] = f"would-copy {_LEGACY_USER_DIR} → {ADK_USER_DIR}"
-        return
-    ADK_USER_DIR.mkdir(parents=True, exist_ok=True)
-    improve_root = Path.home() / ".agents-devkit" / "improve"
-    for item in _LEGACY_USER_DIR.iterdir():
-        # Items the user moved from ~/.config/adk into the new split layout:
-        #   learning/ + metadata/ → improve/
-        #   everything else (overrides.yaml, *.md, memory/) → config/
-        if item.name in ("learning", "metadata"):
-            dst = improve_root / item.name
-            dst.parent.mkdir(parents=True, exist_ok=True)
-        else:
-            dst = ADK_USER_DIR / item.name
-        if dst.exists():
-            continue  # don't clobber
-        if item.is_dir():
-            shutil.copytree(item, dst)
-        else:
-            shutil.copyfile(item, dst)
-    out["legacy_migration"] = (
-        f"copied {_LEGACY_USER_DIR} → ~/.agents-devkit/{{config,improve}}/ "
-        f"(legacy left in place — delete manually once verified)"
-    )
-
-
-_LEGACY_AGENTS_DEVKIT_CONFIGS = Path.home() / ".agents-devkit" / "configs"  # plural — pre-rename
-
-
-def _migrate_inrepo_layout(dry_run: bool, out: dict[str, str]) -> None:
-    """If `~/.agents-devkit/configs/` (plural) exists from an earlier install,
-    move its contents to the new layout:
-      configs/learning/   → improve/learning/
-      configs/metadata/   → improve/metadata/
-      configs/{everything else}/files → config/ (singular)
-    Then remove the empty `configs/` directory.
-    Skips silently if there's nothing to migrate.
-    """
-    legacy = _LEGACY_AGENTS_DEVKIT_CONFIGS
-    if not legacy.exists():
-        out["inrepo_migration"] = "no-legacy-found"
-        return
-
-    home = Path.home()
-    config_dst = home / ".agents-devkit" / "config"
-    improve_dst = home / ".agents-devkit" / "improve"
-    moved: list[str] = []
-
-    for item in list(legacy.iterdir()):
-        if item.name == "learning":
-            dst = improve_dst / "learning"
-        elif item.name == "metadata":
-            dst = improve_dst / "metadata"
-        else:
-            dst = config_dst / item.name
-
-        if dst.exists():
-            moved.append(f"{item.name}: already at destination, skipping")
-            continue
-        if dry_run:
-            moved.append(f"would-move {item} → {dst}")
-            continue
-        dst.parent.mkdir(parents=True, exist_ok=True)
-        shutil.move(str(item), str(dst))
-        moved.append(f"moved {item.name} → {dst.relative_to(home)}")
-
-    # Remove the empty `configs/` dir (only if empty after migration).
-    if not dry_run and legacy.exists() and not any(legacy.iterdir()):
-        legacy.rmdir()
-        moved.append("removed empty .agents-devkit/configs/")
-
-    out["inrepo_migration"] = "; ".join(moved) if moved else "nothing-to-move"
-
-
 def bootstrap_user_dir(repo_root: Path, dry_run: bool) -> dict[str, str]:
     """Create ~/.agents-devkit/ v4 skeleton.
 
     Layout (see shared/paths.md):
       ~/.agents-devkit/
         memory/                # cross-session memory (root level)
-        config/                # core.yaml + repos.md + links.json5 + connectors/*.md + .legacy/
+        config/                # core.yaml + repos.md + links.json5 + connectors/*.md
         improve/               # learning/ + metadata/ — data /adk-improve uses
-        repos/ pr-reviews/ investigations/ reviews/ sync/ setup/ explain/
+        repos/ skill-pr-review/ skill-investigate/ skill-review/ skill-sync/ skill-setup/ skill-explain/
     """
     out: dict[str, str] = {}
-
-    # Legacy migrations: pull data forward into the new layout.
-    _migrate_legacy_user_dir(dry_run, out)       # ~/.config/adk/ → ~/.agents-devkit/config/ (first move)
-    _migrate_inrepo_layout(dry_run, out)         # ~/.agents-devkit/configs/ → config/ + improve/ (this move)
 
     home = Path.home()
     config_root = home / ".agents-devkit" / "config"
@@ -1460,7 +1365,8 @@ def bootstrap_user_dir(repo_root: Path, dry_run: bool) -> dict[str, str]:
 
     # ~/.agents-devkit/ — working-dir root for global skills.
     agents_dk_root = home / ".agents-devkit"
-    for sub in ("repos", "pr-reviews", "investigations", "reviews", "sync", "setup", "explain"):
+    for sub in ("repos", "skill-pr-review", "skill-investigate", "skill-review",
+                "skill-sync", "skill-setup", "skill-explain"):
         ensure_dir(agents_dk_root / sub, dry_run)
     out["agents_devkit_root"] = str(agents_dk_root)
     return out
