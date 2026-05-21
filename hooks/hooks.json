@@ -1,5 +1,5 @@
 {
-  "comment": "adk v3 hooks — wired into ~/.claude/settings.json by install.sh. The Edit validator catches SKILL.md frontmatter bugs at write-time; the SessionStart banner runs at session open. The prompt-style PreToolUse Bash safety hook was removed 2026-05-19 (over-broad LLM interpretation produced too many false positives); the constitution §I rules still bind the assistant directly.",
+  "comment": "adk v4 hooks — wired into ~/.claude/settings.json by install.sh. The Edit validator catches SKILL.md frontmatter bugs at write-time + scans config writes for raw tokens; the SessionStart banner runs at session open. The prompt-style PreToolUse Bash safety hook was removed 2026-05-19 (over-broad LLM interpretation produced too many false positives); the constitution §I rules still bind the assistant directly.",
   "hooks": {
     "PostToolUse": [
       {
@@ -7,7 +7,7 @@
         "hooks": [
           {
             "type": "prompt",
-            "prompt": "Lightweight post-write check.\n\nIf the edited file path matches `*/skills/<skill>/SKILL.md`:\n  - Verify the YAML frontmatter has `name:` and `description:` fields.\n  - Verify `name:` value equals the folder basename (segment after `skills/` and before `/SKILL.md`).\n  - On mismatch, return {\"ok\":false,\"reason\":\"...\"}; otherwise {\"ok\":true}.\n\nIf the edited file path is under `.temp/<task-slug>/`:\n  - Append the current ISO-8601 UTC timestamp to a file `.temp/<task-slug>/.last-modified` (create if missing) so monitor tools can detect activity.\n  - Return {\"ok\":true}.\n\nIf the edited file path is `~/.agents-devkit/config/overrides.yaml`:\n  - Run a regex check that no line contains a raw token-looking value (`/^[A-Z_]+\\s*:\\s*['\"]?[a-zA-Z0-9_-]{20,}['\"]?$/` outside the `${VAR}` interpolation pattern).\n  - On match, return {\"ok\":false,\"reason\":\"raw token detected — use ${ENV_VAR} instead\"}.\n\nOtherwise: {\"ok\":true}."
+            "prompt": "Lightweight post-write check.\n\nIf the edited file path matches `*/skills/<skill>/SKILL.md`:\n  - Verify the YAML frontmatter has `name:` and `description:` fields.\n  - Verify `name:` value equals the folder basename (segment after `skills/` and before `/SKILL.md`).\n  - On mismatch, return {\"ok\":false,\"reason\":\"...\"}; otherwise {\"ok\":true}.\n\nIf the edited file path is under `.temp/<task-slug>/`:\n  - Append the current ISO-8601 UTC timestamp to a file `.temp/<task-slug>/.last-modified` (create if missing) so monitor tools can detect activity.\n  - Return {\"ok\":true}.\n\nIf the edited file path is `~/.agents-devkit/config/core.yaml` or `~/.agents-devkit/config/connectors/*.md` (frontmatter section between the leading `---` lines) or `~/.agents-devkit/config/adk-cli.json5`:\n  - Run a regex check that no line contains a raw token-looking value (`/^[A-Z_]+\\s*:\\s*['\"]?[a-zA-Z0-9_-]{20,}['\"]?$/` outside the `${VAR}` interpolation pattern).\n  - On match, return {\"ok\":false,\"reason\":\"raw token detected — use ${ENV_VAR} instead\"}.\n\nOtherwise: {\"ok\":true}."
           }
         ]
       }

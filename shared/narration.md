@@ -71,11 +71,10 @@ Two of those sections are **required even when empty**: *Risk / Blockers / Follo
 
 ## How to actually do this in a skill
 
-Three options, increasing in formality:
+Two options, increasing in formality:
 
-1. **Print + echo.** The skill's orchestrator script prints to stderr; the host agent passes the same lines to the user-facing chat. Cheapest. Default for everything in `scripts/adk-pr-review/scripts/`.
-2. **`scripts/adk_narrate.py`** (helper). Centralised formatter — same string shape across skills. Use this when consistency matters more than terseness.
-3. **In-skill flair.** For skills where the model authors the narration (e.g. `/adk-explain` walking the user through tie-breakers), the SKILL.md tells the model: "narrate each step inline, then close with the summary template above".
+1. **Print + echo.** The skill's orchestrator script prints to stderr; the host agent passes the same lines to the user-facing chat. Cheapest and current default for everything in `skills/adk-pr-review/scripts/` + `skills/adk-cli/scripts/`.
+2. **In-skill flair.** For skills where the model authors the narration (e.g. `/adk-explain` walking the user through tie-breakers), the SKILL.md tells the model: "narrate each step inline, then close with the summary template above".
 
 ## Failure modes (when narration goes wrong)
 

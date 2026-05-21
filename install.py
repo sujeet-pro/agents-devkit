@@ -434,8 +434,7 @@ def _toml_key(k: str) -> str:
 def _translate_mcp_entry_codex(cfg: dict[str, Any]) -> str:
     """Translate adk schema → a Codex `[[mcp_servers]]` TOML block string.
 
-    Matches the format the hand-maintained agents-codex/codex-config.toml.append
-    used before this generator existed:
+    Output shape:
       - http servers: `url`, plus either `authorization_token_env` (when the
         only header is `Authorization: Bearer ${VAR}`) or `[[mcp_servers.headers]]`.
       - stdio servers: `command`, `args`, optional `[mcp_servers.env]`.
@@ -555,8 +554,7 @@ def merge_mcp_into_junie(repo_root: Path, dry_run: bool) -> dict[str, str]:
 def merge_mcp_into_codex(repo_root: Path, dry_run: bool) -> dict[str, str]:
     """Generate `[[mcp_servers]]` TOML blocks from mcp/adk-mcp-*.json and write
     them into `~/.codex/config.toml` between the `# adk-marker:start` / `:end`
-    markers. Replaces the legacy hand-maintained
-    agents-codex/codex-config.toml.append, which duplicated mcp/adk-mcp-*.json.
+    markers.
 
     Idempotent: re-running replaces the block; uninstall strips it via the
     same marker.
@@ -1042,8 +1040,7 @@ def install_codex(repo_root: Path, dry_run: bool, results: dict[str, Any]) -> No
         dst = codex_dir / "prompts" / prompt_file.name
         prompt_results[prompt_file.name] = make_symlink(prompt_file, dst, dry_run)
     # MCP merge — generated from mcp/adk-mcp-*.json (single source of truth
-    # shared with Claude / Cursor / Junie). Replaces the legacy
-    # agents-codex/codex-config.toml.append hand-maintained file.
+    # shared with Claude / Cursor / Junie).
     mcp_results = merge_mcp_into_codex(repo_root, dry_run)
     # Permissions merge (approval_policy / sandbox_mode)
     perms_result = merge_permissions_into_codex(repo_root, dry_run)

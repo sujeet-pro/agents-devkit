@@ -31,9 +31,8 @@ Bootstrap + maintain `~/.agents-devkit/config/overrides.yaml`.
 
 Scaffolds `~/.agents-devkit/config/overrides.yaml` with full structure + comments. Behavior:
 
-1. If `~/.agents-devkit/config/overrides.yaml` exists → refuse; show user `--diff` instead.
-2. If `~/.agents-devkit/config/*.md` (v2 layout) exists → ask: "migrate v2 settings? [y/n]". Yes → call `scripts/migrate_v2_to_v3.py`. No → write fresh template.
-3. If neither → write fresh template.
+1. If `~/.agents-devkit/config/core.yaml` exists → refuse; show user `--diff` instead.
+2. Else → write fresh templates for `core.yaml`, `repos.md`, `connectors/*.md`, and `links.json5`.
 4. Walk the user through filling: workspaces (cap 3 questions), one starter repo, RAG config.
 
 Then: print "edit `~/.agents-devkit/config/overrides.yaml` to add more repos and data sources. Re-run `/adk-setup --enrich` to populate auto-discovery."
