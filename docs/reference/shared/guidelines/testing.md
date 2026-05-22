@@ -3,7 +3,7 @@ title: 'guidelines/testing'
 description: '1. **Test behavior, not implementation**. The test fails when behavior changes, not when refactoring touches a private method.'
 source: 'shared/guidelines/testing.md'
 group: 'shared-guidelines'
-order: 6309
+order: 6310
 ---
 # shared/guidelines/testing
 

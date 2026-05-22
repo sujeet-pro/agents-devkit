@@ -4,11 +4,11 @@ description: 'Investigate, debug, why-is-X-slow/broken/down, what-changed, RCA, 
 skill: 'adk-investigate'
 source: 'skills/adk-investigate/SKILL.md'
 group: 'skills'
-order: 1004
+order: 1005
 ---
 # adk-investigate
 
-Investigate, debug, why-is-X-slow/broken/down, what-changed, RCA, root-cause, post-mortem. Multi-source data investigator. Read-only. Triggers on: symptom + service ("checkout broken", "users see 500s" — incident sub-flow, most common), Datadog incident/monitor/dashboard/log URL (anchored), Slack alert permalink (auto-extracts service + symptom-time), Statsig URL (experiment or audit-log sub-flow), Mixpanel question (product-analytics), Snowflake/Looker question (data verification), `--use rca` for full root-cause analysis (combines incident + statsig audit-log ±2h + git-blame + optional mixpanel user-impact). Always pins an explicit time window — no "recent" / "lately". Correlates ≥2 independent signals before naming a root cause. States confidence on every claim (low/medium/high). Recommends lowest-blast-radius next action (rollback > flag-off > restart > investigate-which-PR > escalate). Never modifies a monitor / dashboard / gate / experiment. Refuses PII queries against columns in overrides.yaml.data_sources.*.pii_columns. Loads adk-agent-investigator + observability guideline always.
+Investigate, debug, why-is-X-slow/broken/down, what-changed, RCA, root-cause, post-mortem. Multi-source data investigator. Read-only. Triggers on: symptom + service ("checkout broken", "users see 500s" — incident sub-flow, most common), Datadog incident/monitor/dashboard/log URL (anchored), Slack alert permalink (auto-extracts service + symptom-time), Statsig URL (experiment or audit-log sub-flow), Mixpanel question (product-analytics), Snowflake/Looker question (data verification), `--use rca` for full root-cause analysis (combines incident + statsig audit-log ±2h + git-blame + optional mixpanel user-impact). Always pins an explicit time window — no "recent" / "lately". Correlates ≥2 independent signals before naming a root cause. States confidence on every claim (low/medium/high). Recommends lowest-blast-radius next action (rollback > flag-off > restart > investigate-which-PR > escalate). Never modifies a monitor / dashboard / gate / experiment. Refuses PII queries against columns in `connectors/<source>.md` frontmatter `pii_columns`. Loads adk-agent-investigator + observability guideline always.
 
 ## Source
 
@@ -19,7 +19,7 @@ Investigate, debug, why-is-X-slow/broken/down, what-changed, RCA, root-cause, po
 ```yaml
 name: adk-investigate
 description: |
-  Investigate, debug, why-is-X-slow/broken/down, what-changed, RCA, root-cause, post-mortem. Multi-source data investigator. Read-only. Triggers on: symptom + service ("checkout broken", "users see 500s" — incident sub-flow, most common), Datadog incident/monitor/dashboard/log URL (anchored), Slack alert permalink (auto-extracts service + symptom-time), Statsig URL (experiment or audit-log sub-flow), Mixpanel question (product-analytics), Snowflake/Looker question (data verification), `--use rca` for full root-cause analysis (combines incident + statsig audit-log ±2h + git-blame + optional mixpanel user-impact). Always pins an explicit time window — no "recent" / "lately". Correlates ≥2 independent signals before naming a root cause. States confidence on every claim (low/medium/high). Recommends lowest-blast-radius next action (rollback > flag-off > restart > investigate-which-PR > escalate). Never modifies a monitor / dashboard / gate / experiment. Refuses PII queries against columns in overrides.yaml.data_sources.*.pii_columns. Loads adk-agent-investigator + observability guideline always.
+  Investigate, debug, why-is-X-slow/broken/down, what-changed, RCA, root-cause, post-mortem. Multi-source data investigator. Read-only. Triggers on: symptom + service ("checkout broken", "users see 500s" — incident sub-flow, most common), Datadog incident/monitor/dashboard/log URL (anchored), Slack alert permalink (auto-extracts service + symptom-time), Statsig URL (experiment or audit-log sub-flow), Mixpanel question (product-analytics), Snowflake/Looker question (data verification), `--use rca` for full root-cause analysis (combines incident + statsig audit-log ±2h + git-blame + optional mixpanel user-impact). Always pins an explicit time window — no "recent" / "lately". Correlates ≥2 independent signals before naming a root cause. States confidence on every claim (low/medium/high). Recommends lowest-blast-radius next action (rollback > flag-off > restart > investigate-which-PR > escalate). Never modifies a monitor / dashboard / gate / experiment. Refuses PII queries against columns in `connectors/<source>.md` frontmatter `pii_columns`. Loads adk-agent-investigator + observability guideline always.
 allowed-tools: [Read, Grep, Glob, Bash, WebFetch, Agent]
 argument-hint: "<symptom-or-url> [--use incident|rca|experiment|datadog|mixpanel|statsig|snowflake|looker] [--window <duration>] [--service <name>]"
 metadata:
@@ -59,6 +59,7 @@ Read-only. Two-source minimum. State confidence honestly. Pin every window.
 
 - Personas: `shared/personas/{investigator,context-gatherer}.md`
 - Guidelines: `shared/guidelines/{observability,security,performance}.md`
+- Code index (lower-confidence second signal): `shared/guidelines/code-index.md` — when a symptom mentions a service / endpoint / feature, `from scripts.lib.code_index.query import open_index, similar` returns candidate code paths to anchor the trace correlation. Always treat as a secondary signal next to DD / Slack / Statsig.
 - Constitution: `shared/constitution.md`
 - Advisor + question-first: `shared/advisor.md`, `shared/question-first.md`, `shared/narration.md`
 

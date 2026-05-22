@@ -4,7 +4,7 @@ description: 'config_io.py — single I/O surface for the new adk config layout.
 script: 'config_io.py'
 source: 'scripts/config_io.py'
 group: 'scripts'
-order: 4004
+order: 4002
 ---
 # config_io.py
 
@@ -82,38 +82,20 @@ ADK_HOME = Path(os.environ.get("ADK_HOME", Path.home() / ".agents-devkit"))
 CONFIG_DIR = ADK_HOME / "config"
 CONNECTORS_DIR = CONFIG_DIR / "connectors"
 CORE_YAML = CONFIG_DIR / "core.yaml"
+ADK_CLI_JSON5 = CONFIG_DIR / "adk-cli.json5"
 REPOS_MD = CONFIG_DIR / "repos.md"
 LINKS_JSON5 = CONFIG_DIR / "links.json5"
 
+# Top-level adk-cli.json5 sections whose presence in core.yaml triggers a
+# one-time deprecation warning during load_core(). New code should read
+# these via load_adk_cli() / get_adk_cli().
+_ADK_CLI_RELOCATED_KEYS = ("pr_sync", "pr_scan", "pr_review")
+
 # ---------------------------------------------------------------- lock ------
-# fcntl-based exclusive lock for atomic writes. Local copy so this script
-# doesn't depend on adk-pr-review's _common.py.
-import contextlib
-import fcntl
-import time
-
-
-@contextlib.contextmanager
-def _file_lock(path: Path, timeout_s: float = 60.0):
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd = os.open(path, os.O_CREAT | os.O_RDWR, 0o644)
-    try:
-        deadline = time.time() + timeout_s
-        while True:
-            try:
-                fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-                break
-            except BlockingIOError:
-                if time.time() > deadline:
-                    raise TimeoutError(f"file_lock: timeout on {path}")
-                time.sleep(0.2)
-        yield
-    finally:
-        try:
-            fcntl.flock(fd, fcntl.LOCK_UN)
-        except Exception:
-            pass
-        os.close(fd)
+# Use the shared fcntl helper from scripts/lib/adk_common.py rather than
+# carrying a private copy. The path append is idempotent.
+sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
+from adk_common import file_lock as _file_lock  # noqa: E402
 
 
 # ---------------------------------------------------------- parsers ---------
@@ -175,9 +157,79 @@ def _load_json5(path: Path) -> Any:
 
 # ---------------------------------------------------------- public API ------
 
+_DEPRECATION_WARNED: set[str] = set()
+
+
+def _warn_once(key: str, msg: str) -> None:
+    if key in _DEPRECATION_WARNED:
+        return
+    _DEPRECATION_WARNED.add(key)
+    import sys as _sys
+    _sys.stderr.write(f"adk-config: {msg}\n")
+
+
 def load_core() -> dict:
-    """Load core.yaml (workspaces, defaults, rag, learning_state, …)."""
-    return _load_yaml(CORE_YAML)
+    """Load core.yaml (workspaces, defaults, rag, learning_state, …).
+
+    Emits a one-time deprecation warning if the file still carries any
+    adk-cli behavior blocks (pr_sync / pr_scan / pr_review) that should now
+    live in adk-cli.json5. The values are still returned — callers that
+    read them via load_adk_cli() get a merged view with adk-cli.json5
+    taking precedence.
+    """
+    data = _load_yaml(CORE_YAML)
+    for key in _ADK_CLI_RELOCATED_KEYS:
+        if key in data:
+            _warn_once(
+                f"core.{key}",
+                f"core.yaml.{key} is deprecated; move it to "
+                f"~/.agents-devkit/config/adk-cli.json5 under top-level `{key}:`. "
+                f"Reading from core.yaml for now.",
+            )
+    return data
+
+
+def load_adk_cli() -> dict:
+    """Load adk-cli.json5 — settings that govern the `adk` CLI's behavior
+    (pr_sync.*, pr_scan.*, pr_review.*, base_index thresholds, post policy).
+
+    Returns the parsed dict, or {} when the file doesn't exist yet. On a
+    fresh install the file is absent and every consumer falls back to its
+    in-code default.
+
+    Backward-compat: any top-level key in _ADK_CLI_RELOCATED_KEYS that is
+    absent from adk-cli.json5 but present in core.yaml is merged in, so
+    users can migrate at their own pace. adk-cli.json5 always wins on
+    collision.
+    """
+    cfg = _load_json5(ADK_CLI_JSON5)
+    if cfg is None:
+        cfg = {}
+    if not isinstance(cfg, dict):
+        raise ValueError(f"{ADK_CLI_JSON5}: top-level must be a mapping")
+    # Fold in any not-yet-migrated keys from core.yaml.
+    core = _load_yaml(CORE_YAML)
+    for key in _ADK_CLI_RELOCATED_KEYS:
+        if key not in cfg and key in core:
+            cfg[key] = core[key]
+    return cfg
+
+
+def get_adk_cli(*path, default=None):
+    """Dotted-path lookup against adk-cli.json5.
+
+    Examples:
+      get_adk_cli("pr_sync", "auto_update_base_indexes", default="act")
+      get_adk_cli("pr_sync", "base_index_promote_threshold", default=2)
+
+    Returns `default` if any segment is missing or the file isn't present.
+    """
+    node: Any = load_adk_cli()
+    for seg in path:
+        if not isinstance(node, dict) or seg not in node:
+            return default
+        node = node[seg]
+    return node
 
 
 def load_connector(name: str) -> tuple[dict, str]:

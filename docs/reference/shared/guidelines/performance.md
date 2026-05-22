@@ -3,7 +3,7 @@ title: 'guidelines/performance'
 description: '1. **Measure first.** No "this might be slow" without a profile. No "this is faster" without a benchmark.'
 source: 'shared/guidelines/performance.md'
 group: 'shared-guidelines'
-order: 6306
+order: 6307
 ---
 # shared/guidelines/performance
 

@@ -4,7 +4,7 @@ description: 'decision_logger.py — append a JSONL line to ~/.agents-devkit/imp
 script: 'decision_logger.py'
 source: 'scripts/decision_logger.py'
 group: 'scripts'
-order: 4005
+order: 4003
 ---
 # decision_logger.py
 
@@ -102,6 +102,62 @@ def from_args(a: argparse.Namespace) -> dict[str, object]:
     if a.task_slug:
         entry["task_slug"] = a.task_slug
     return entry
+
+
+def append_decision(skill: str, fork_id: str, fork_type: str,
+                    sub_flow: str | None = None,
+                    question: str | None = None,
+                    options: list[str] | None = None,
+                    default_offered: str | None = None,
+                    user_chose: str | None = None,
+                    reason: str | None = None,
+                    evidence: str | None = None,
+                    repo: str | None = None,
+                    workspace: str | None = None,
+                    task_slug: str | None = None,
+                    **extras: object) -> None:
+    """Importable helper — one call per fork from any skill script.
+
+    Never raises: a decision-log write must NEVER block the actual skill
+    work. Caller passes None for fields it doesn't have; only populated
+    fields land in the JSONL.
+
+    Schema: shared/decision-log-schema.md.
+    """
+    if fork_type not in VALID_FORK_TYPES:
+        # Refuse silently rather than raising — but log the issue so it
+        # surfaces in stderr without breaking the parent run.
+        sys.stderr.write(f"decision_logger: bad fork_type {fork_type!r}; dropping entry\n")
+        return
+    entry: dict[str, object] = {
+        "ts": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"),
+        "skill": skill,
+        "sub_flow": sub_flow,
+        "fork_id": fork_id,
+        "fork_type": fork_type,
+    }
+    for k, v in (
+        ("question", question),
+        ("default_offered", default_offered),
+        ("user_chose", user_chose),
+        ("reason_if_given", reason),
+        ("evidence", evidence),
+        ("repo", repo),
+        ("workspace", workspace),
+        ("task_slug", task_slug),
+    ):
+        if v is not None:
+            entry[k] = v
+    if options:
+        entry["options"] = list(options)
+    if extras:
+        entry.update(extras)
+    try:
+        ensure_log_dir()
+        with LOG_FILE.open("a", encoding="utf-8") as f:
+            f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+    except Exception as e:
+        sys.stderr.write(f"decision_logger: write failed ({e}); dropping entry\n")
 
 
 def main() -> int:

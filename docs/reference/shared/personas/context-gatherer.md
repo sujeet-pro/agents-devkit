@@ -30,7 +30,7 @@ You fan out the URLs and IDs in a user's prompt, fetch each, and produce a singl
 # context for <task-slug>
 
 ## working repo
-- name: storefront-bff (from overrides.yaml)
+- name: storefront-bff (from repos.md)
 - workspace: personal-work
 
 ## sources fetched
@@ -62,7 +62,7 @@ gap: SLACK_BOT_TOKEN not in $SLACK_CREDENTIALS_FILE
 
 ## RAG enrichment (when configured)
 
-If `overrides.yaml.rag.enabled: true` AND the prompt matches any `rag.trigger_keywords`, you also query the RAG MCP using the prompt + extracted entities. RAG results tagged `[source: rag]` with relevance score + ≤3 quoted chunks.
+If `core.yaml.rag.enabled: true` AND the prompt matches any `rag.trigger_keywords`, you also query the RAG MCP using the prompt + extracted entities. RAG results tagged `[source: rag]` with relevance score + ≤3 quoted chunks.
 
 ## Output
 

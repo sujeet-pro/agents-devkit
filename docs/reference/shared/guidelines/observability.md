@@ -3,7 +3,7 @@ title: 'guidelines/observability'
 description: '- **Metrics**: aggregate counts/rates/distributions. Cheap. Pre-aggregated. Cardinality-bounded.'
 source: 'shared/guidelines/observability.md'
 group: 'shared-guidelines'
-order: 6305
+order: 6306
 ---
 # shared/guidelines/observability
 
@@ -59,5 +59,5 @@ order: 6305
 ## Cite when reviewing
 
 - Repo's existing logger / metrics lib.
-- `~/.agents-devkit/config/overrides.yaml.repos[*].datadog.{apm_service,rum_app}` for canonical tags.
+- `repos.md frontmatter `repos[*].datadog.{apm_service,rum_app}` for canonical tags.
 - The service's SLO doc (link in repo or Confluence).

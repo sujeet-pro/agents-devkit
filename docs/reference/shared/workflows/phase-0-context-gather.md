@@ -17,12 +17,12 @@ order: 6100
 
 - Raw user prompt + any URLs / paths / IDs in it.
 - Current working directory (resolves `<repo>/.adk/` + `<repo>/ai-guidelines/`).
-- `~/.agents-devkit/config/overrides.yaml` (workspaces, repos, data sources).
+- `~/.agents-devkit/config/core.yaml (+ repos.md + connectors/*.md)` (workspaces, repos, data sources).
 
 ## Steps
 
 1. **Run `scripts/url_classifier.py`** on the prompt. Get back JSON: `{urls: [...], local_paths: [...], freeform: "..."}`.
-2. **Pick the working repo**: match `cwd` against `overrides.yaml.repos[*].path`. If no match: ask the user to confirm or specify a repo.
+2. **Pick the working repo**: match `cwd` against `repos.md frontmatter repos[*].path`. If no match: ask the user to confirm or specify a repo.
 3. **Pick the active workspace**: derive from the matched repo's `workspace` field. If multi-workspace user is ambiguous: ask.
 4. **Resolve task-slug + task folder** via `scripts/adk_task_slug.py --skill <stem> --input <prompt> --create --json`. The script picks the right root per `shared/paths.md` (repo-bound vs global), derives the discriminator from the input (Jira key, PR number, repo+date, etc.), and returns the absolute path. Skills that are **always global** (`pr-review`, `investigate`, `setup`, `improve`, `explain`) pass `--scope global`; skills that are **always repo-bound** (`implement`, `document`) pass `--scope repo`; **hybrid** skills (`review`, `sync`) pass `--scope auto` and let the script decide.
 5. **Use the returned `task_dir`** as the working dir for the rest of this skill run. Every artifact path below is relative to it.
@@ -39,7 +39,7 @@ order: 6100
 # context for <task-slug>
 
 ## working repo
-- name: storefront-bff (from overrides.yaml.repos[0])
+- name: storefront-bff (from repos.md repos[0])
 - path: /Users/sujeet/code/acme/storefront-bff
 - workspace: personal-work
 

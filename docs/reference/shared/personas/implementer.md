@@ -28,7 +28,7 @@ You write code in existing repos. Your goal is **the change the task asks for, a
 ## Hard nos
 
 - `git push --force` (in any form) without per-invocation, branch-named user confirmation.
-- Commits to `main` / `master` / `release/*` / `prod/*` (or any pattern in `overrides.yaml.protected_branches`).
+- Commits to `main` / `master` / `release/*` / `prod/*` (or any pattern in `core.yaml.protected_branches`).
 - `--no-verify` to skip pre-commit / commit-msg hooks. If hooks fail, fix the underlying issue.
 - `git reset --hard`, `git checkout --` on tracked changes, `git clean -fd` at repo root.
 - Adding a dependency without asking. If the change needs a new lib, surface the cost (size, maintenance, license) and let the user decide.

@@ -1,6 +1,6 @@
 ---
 title: 'adk-setup'
-description: 'Set-up, configure-overrides, init-config, refresh-metadata, verify-mcps, check-env. Stewards `~/.agents-devkit/config/overrides.yaml` and the metadata cache. NOT a CLI-dep installer — brew, gh, jq, uv, node are the...'
+description: 'Set-up, configure-overrides, init-config, refresh-metadata, verify-mcps, check-env. Stewards `~/.agents-devkit/config/core.yaml` and the metadata cache. NOT a CLI-dep installer — brew, gh, jq, uv, node are the user''s...'
 skill: 'adk-setup'
 source: 'skills/adk-setup/SKILL.md'
 group: 'skills'
@@ -8,7 +8,7 @@ order: 1008
 ---
 # adk-setup
 
-Set-up, configure-overrides, init-config, refresh-metadata, verify-mcps, check-env. Stewards `~/.agents-devkit/config/overrides.yaml` and the metadata cache. NOT a CLI-dep installer — brew, gh, jq, uv, node are the user's job (SETUP.md prints the exact commands). NOT a wiring tool — install.sh handles symlinks, MCP merges, hook wiring, AGENTS.md pointers. This skill picks up where install.sh stops: filling user data files (conversationally) and introspecting MCPs (with the agent's MCP client, which install.sh / curl cannot do). Four modes. --init: conversational scaffolding of overrides.yaml (workspaces, repos, data dictionary, RAG config); migrates v2 `~/.agents-devkit/config/*.md` if found. --enrich: queries every reachable MCP (Datadog dashboards, Statsig experiments, Mixpanel events, Snowflake schemas, Looker dashboards, Atlassian spaces, GitHub repos), summarizes findings, writes `enriched:` block + `~/.agents-devkit/improve/metadata/<source>.json`. Never overwrites manually-set values. --check: superset of `scripts/adk_mcp_health.py` — also probes stdio MCPs (Atlassian via uvx, Slack via npx, Snowflake via uvx) via real MCP-client invocation, and offers conversational guidance when something's broken. --diff: read-only preview of --enrich. Never modifies shell rc files. Never puts a raw token in overrides.yaml (regex-enforced).
+Set-up, configure-overrides, init-config, refresh-metadata, verify-mcps, check-env. Stewards `~/.agents-devkit/config/core.yaml` and the metadata cache. NOT a CLI-dep installer — brew, gh, jq, uv, node are the user's job (SETUP.md prints the exact commands). NOT a wiring tool — install.sh handles symlinks, MCP merges, hook wiring, AGENTS.md pointers. This skill picks up where install.sh stops: filling user data files (conversationally) and introspecting MCPs (with the agent's MCP client, which install.sh / curl cannot do). Four modes. --init: conversational scaffolding of core.yaml (workspaces, repos, data dictionary, RAG config). --enrich: queries every reachable MCP (Datadog dashboards, Statsig experiments, Mixpanel events, Snowflake schemas, Looker dashboards, Atlassian spaces, GitHub repos), summarizes findings, writes `enriched:` block + `~/.agents-devkit/improve/metadata/<source>.json`. Never overwrites manually-set values. --check: superset of `scripts/adk_mcp_health.py` — also probes stdio MCPs (Atlassian via uvx, Slack via npx, Snowflake via uvx) via real MCP-client invocation, and offers conversational guidance when something's broken. --diff: read-only preview of --enrich. Never modifies shell rc files. Never puts a raw token in core.yaml (regex-enforced).
 
 ## Source
 
@@ -19,7 +19,7 @@ Set-up, configure-overrides, init-config, refresh-metadata, verify-mcps, check-e
 ```yaml
 name: adk-setup
 description: |
-  Set-up, configure-overrides, init-config, refresh-metadata, verify-mcps, check-env. Stewards `~/.agents-devkit/config/overrides.yaml` and the metadata cache. NOT a CLI-dep installer — brew, gh, jq, uv, node are the user's job (SETUP.md prints the exact commands). NOT a wiring tool — install.sh handles symlinks, MCP merges, hook wiring, AGENTS.md pointers. This skill picks up where install.sh stops: filling user data files (conversationally) and introspecting MCPs (with the agent's MCP client, which install.sh / curl cannot do). Four modes. --init: conversational scaffolding of overrides.yaml (workspaces, repos, data dictionary, RAG config); migrates v2 `~/.agents-devkit/config/*.md` if found. --enrich: queries every reachable MCP (Datadog dashboards, Statsig experiments, Mixpanel events, Snowflake schemas, Looker dashboards, Atlassian spaces, GitHub repos), summarizes findings, writes `enriched:` block + `~/.agents-devkit/improve/metadata/<source>.json`. Never overwrites manually-set values. --check: superset of `scripts/adk_mcp_health.py` — also probes stdio MCPs (Atlassian via uvx, Slack via npx, Snowflake via uvx) via real MCP-client invocation, and offers conversational guidance when something's broken. --diff: read-only preview of --enrich. Never modifies shell rc files. Never puts a raw token in overrides.yaml (regex-enforced).
+  Set-up, configure-overrides, init-config, refresh-metadata, verify-mcps, check-env. Stewards `~/.agents-devkit/config/core.yaml` and the metadata cache. NOT a CLI-dep installer — brew, gh, jq, uv, node are the user's job (SETUP.md prints the exact commands). NOT a wiring tool — install.sh handles symlinks, MCP merges, hook wiring, AGENTS.md pointers. This skill picks up where install.sh stops: filling user data files (conversationally) and introspecting MCPs (with the agent's MCP client, which install.sh / curl cannot do). Four modes. --init: conversational scaffolding of core.yaml (workspaces, repos, data dictionary, RAG config). --enrich: queries every reachable MCP (Datadog dashboards, Statsig experiments, Mixpanel events, Snowflake schemas, Looker dashboards, Atlassian spaces, GitHub repos), summarizes findings, writes `enriched:` block + `~/.agents-devkit/improve/metadata/<source>.json`. Never overwrites manually-set values. --check: superset of `scripts/adk_mcp_health.py` — also probes stdio MCPs (Atlassian via uvx, Slack via npx, Snowflake via uvx) via real MCP-client invocation, and offers conversational guidance when something's broken. --diff: read-only preview of --enrich. Never modifies shell rc files. Never puts a raw token in core.yaml (regex-enforced).
 allowed-tools: [Read, Edit, Write, Bash, WebFetch]
 argument-hint: "(--init [--from-v2]) | (--enrich [--source <name>|all]) | (--check) | (--diff)"
 metadata:
@@ -41,7 +41,7 @@ metadata:
 
 # adk-setup
 
-Bootstrap + maintain `~/.agents-devkit/config/overrides.yaml`.
+Bootstrap + maintain `~/.agents-devkit/config/core.yaml`.
 
 **Global skill** — runs from anywhere; intermediate artifacts go to `~/.agents-devkit/setup/<ts>/` (per `shared/paths.md`). Touches `~/.agents-devkit/config/` (config) but not the cwd.
 
@@ -49,22 +49,21 @@ Bootstrap + maintain `~/.agents-devkit/config/overrides.yaml`.
 
 ### --init
 
-Scaffolds `~/.agents-devkit/config/overrides.yaml` with full structure + comments. Behavior:
+Scaffolds `~/.agents-devkit/config/core.yaml` with full structure + comments. Behavior:
 
-1. If `~/.agents-devkit/config/overrides.yaml` exists → refuse; show user `--diff` instead.
-2. If `~/.agents-devkit/config/*.md` (v2 layout) exists → ask: "migrate v2 settings? [y/n]". Yes → call `scripts/migrate_v2_to_v3.py`. No → write fresh template.
-3. If neither → write fresh template.
+1. If `~/.agents-devkit/config/core.yaml` exists → refuse; show user `--diff` instead.
+2. Else → write fresh templates for `core.yaml`, `repos.md`, `connectors/*.md`, and `links.json5`.
 4. Walk the user through filling: workspaces (cap 3 questions), one starter repo, RAG config.
 
-Then: print "edit `~/.agents-devkit/config/overrides.yaml` to add more repos and data sources. Re-run `/adk-setup --enrich` to populate auto-discovery."
+Then: print "edit `~/.agents-devkit/config/core.yaml` (defaults / workspaces / rag) and `~/.agents-devkit/config/repos.md` (per-repo entries). Add new data sources by editing `~/.agents-devkit/config/connectors/<name>.md`. Re-run `/adk-setup --enrich` to populate auto-discovery."
 
 ### --enrich
 
-For each MCP (or `--source <name>` for one), call `scripts/enrich_overrides.py`:
+For each MCP (or `--source <name>` for one), call `scripts/enrich_metadata.py`:
 
 1. Query reachable MCPs via curl / programmatic calls.
 2. Write `~/.agents-devkit/improve/metadata/<source>.json` (overwrites; archives previous).
-3. Update the `enriched:` block in `overrides.yaml` — only ADD; never delete manually-set values.
+3. Propose updates to `~/.agents-devkit/config/connectors/<name>.md` frontmatter — only ADD; never delete manually-set values. Per-update user confirmation required.
 4. Surface MCPs that couldn't be reached (env var missing, OAuth not done, etc.) with the exact fix.
 
 ### --check
@@ -84,7 +83,7 @@ case that env-presence checks alone cannot detect. The cross-reference
 is purely additive: `--no-creds` disables it, and it auto-skips on
 machines without the `creds` CLI.
 
-For overrides.yaml: workspaces count, repos count, data_sources presence, defaults presence.
+For core.yaml: workspaces count, repos count, data_sources presence, defaults presence.
 
 ### --diff
 
@@ -103,8 +102,8 @@ Phase 1 — advise
     --check / --diff: no questions
 
 Phase 2 — execute (mostly programmatic — script-driven)
-  - --init: write yaml file
-  - --enrich: run scripts/enrich_overrides.py
+  - --init: write core.yaml / repos.md / connectors/*.md / links.json5 templates
+  - --enrich: run scripts/enrich_metadata.py
   - --check: build verification table
   - --diff: dry-run enrich
 
@@ -120,8 +119,8 @@ Phase 4 — report
 
 ## Hard rules
 
-1. **Never** overwrite a manually-set value in `overrides.yaml`. Only the `enriched:` and `learning_state:` blocks are auto-managed.
-2. **Never** put a token / secret in `overrides.yaml`. Regex-check before writing.
+1. **Never** overwrite a manually-set value in `core.yaml`. Only the `enriched:` and `learning_state:` blocks are auto-managed.
+2. **Never** put a token / secret in `core.yaml`. Regex-check before writing.
 3. **Never** chmod or modify the user's shell rc files. Print export lines; the user adds them.
 4. **Never** OAuth a third-party service automatically. Print the URL; user clicks.
 

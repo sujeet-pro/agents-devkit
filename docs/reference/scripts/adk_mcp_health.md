@@ -4,7 +4,7 @@ description: 'adk_mcp_health.py — report which MCPs are configured + reachable
 script: 'adk_mcp_health.py'
 source: 'scripts/adk_mcp_health.py'
 group: 'scripts'
-order: 4001
+order: 4000
 ---
 # adk_mcp_health.py
 

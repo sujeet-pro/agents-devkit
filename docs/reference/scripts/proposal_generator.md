@@ -4,7 +4,7 @@ description: 'proposal_generator.py — analyze ~/.agents-devkit/improve/learnin
 script: 'proposal_generator.py'
 source: 'scripts/proposal_generator.py'
 group: 'scripts'
-order: 4010
+order: 4007
 ---
 # proposal_generator.py
 

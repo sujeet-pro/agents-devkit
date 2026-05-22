@@ -1,14 +1,14 @@
 ---
 title: 'metadata_introspector.py'
-description: 'metadata_introspector.py — thin orchestrator that calls enrich_overrides.py for'
+description: 'metadata_introspector.py — thin orchestrator that calls enrich_metadata.py for'
 script: 'metadata_introspector.py'
 source: 'scripts/metadata_introspector.py'
 group: 'scripts'
-order: 4008
+order: 4006
 ---
 # metadata_introspector.py
 
-metadata_introspector.py — thin orchestrator that calls enrich_overrides.py for
+metadata_introspector.py — thin orchestrator that calls enrich_metadata.py for
 
 ## Source
 
@@ -18,7 +18,7 @@ metadata_introspector.py — thin orchestrator that calls enrich_overrides.py fo
 
 ```python
 #!/usr/bin/env python3
-"""metadata_introspector.py — thin orchestrator that calls enrich_overrides.py for
+"""metadata_introspector.py — thin orchestrator that calls enrich_metadata.py for
 each configured source, writes ~/.agents-devkit/improve/metadata/<source>.json, and archives
 the previous version.
 
@@ -66,7 +66,7 @@ def main() -> int:
             print(f"archived prior metadata to {archived}", file=sys.stderr)
 
     result = subprocess.run(
-        [sys.executable, str(HERE / "enrich_overrides.py"), "--source", args.source],
+        [sys.executable, str(HERE / "enrich_metadata.py"), "--source", args.source],
         check=False,
     )
     return result.returncode

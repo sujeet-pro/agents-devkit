@@ -4,7 +4,7 @@ description: 'Helper script generate-reference-docs.mjs.'
 script: 'generate-reference-docs.mjs'
 source: 'scripts/generate-reference-docs.mjs'
 group: 'scripts'
-order: 4007
+order: 4005
 ---
 # generate-reference-docs.mjs
 

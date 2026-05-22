@@ -11,7 +11,7 @@ order: 5603
 
 # shared/decision-log-schema.md
 
-> The append-only JSONL at `~/.agents-devkit/improve/learning/decisions.jsonl`. One line per non-trivial fork. Consumed by `/adk-improve` to propose updates to `~/.agents-devkit/config/overrides.yaml.defaults.*`.
+> The append-only JSONL at `~/.agents-devkit/improve/learning/decisions.jsonl`. One line per non-trivial fork. Consumed by `/adk-improve` to propose updates to `~/.agents-devkit/config/core.yaml.defaults.*`.
 
 ## Line shape
 
@@ -54,8 +54,8 @@ order: 5603
 | `question` | string | exact question asked (for `user-answered`) |
 | `options` | string[] | the options presented |
 | `reason_if_given` | string \| null | the user's stated reason; gold for learning |
-| `repo` | string | repo name from overrides.yaml |
-| `workspace` | string | workspace name from overrides.yaml |
+| `repo` | string | repo name from repos.md |
+| `workspace` | string | workspace name from core.yaml.workspaces |
 | `evidence` | string \| null | for `auto-defaulted`: the rationale, e.g. "3 prior tickets in this repo chose vertical-slice" |
 | `prior_decisions_count` | integer | count of prior matching fork_ids in log (used by /adk-improve confidence) |
 
@@ -63,7 +63,7 @@ order: 5603
 
 - **`user-answered`** — agent asked; user explicitly chose. **Highest weight** in learning.
 - **`auto-defaulted`** — agent picked recommended default under `--auto`. Useful for "did the silent default match what the user would have picked?" detection (compare with later overrides).
-- **`override-applied`** — applies an existing override from `overrides.yaml.defaults`. **No learning weight** (this is the *result* of prior learning, not new data).
+- **`override-applied`** — applies an existing override from `core.yaml.defaults`. **No learning weight** (this is the *result* of prior learning, not new data).
 - **`inferred`** — agent inferred from context without offering choice (e.g., "this repo uses pytest, not jest"). Logged for traceability; light learning weight.
 
 ## Stable `fork_id`s

@@ -3,7 +3,7 @@ title: 'guidelines/security'
 description: '1. **Validate at trust boundaries**, not internally. Boundary = where untrusted input enters trusted code.'
 source: 'shared/guidelines/security.md'
 group: 'shared-guidelines'
-order: 6308
+order: 6309
 ---
 # shared/guidelines/security
 

@@ -4,7 +4,7 @@ description: 'adk_task_slug.py — resolve the task folder for a skill invocatio
 script: 'adk_task_slug.py'
 source: 'scripts/adk_task_slug.py'
 group: 'scripts'
-order: 4003
+order: 4001
 ---
 # adk_task_slug.py
 
@@ -67,19 +67,21 @@ SLUG_STOPWORDS = {"https", "http", "www", "com", "io", "the", "a", "an", "for", 
 
 # Per shared/paths.md
 ALWAYS_REPO_BOUND = {"implement", "document"}
-ALWAYS_GLOBAL = {"pr-review", "pr-reviews", "investigate", "setup", "improve", "explain"}
+ALWAYS_GLOBAL = {"pr-review", "investigate", "setup", "improve", "explain"}
 HYBRID = {"review", "sync"}
 
-# Area name under ~/.agents-devkit/ for global skills.
+# Area name under ~/.agents-devkit/ for global skills. Every skill has a
+# `skill-<stem>/` task-root per shared/paths.md.
 GLOBAL_AREA = {
-    "pr-review": "pr-reviews",
-    "pr-reviews": "pr-reviews",   # batch shares the per-PR root; the batch state is the CSV.
-    "investigate": "investigations",
-    "review": "reviews",
-    "sync": "sync",
-    "setup": "setup",
-    "improve": "improve",
-    "explain": "explain",
+    "pr-review": "skill-pr-review",
+    "investigate": "skill-investigate",
+    "review": "skill-review",
+    "sync": "skill-sync",
+    "setup": "skill-setup",
+    "improve": "skill-improve",
+    "explain": "skill-explain",
+    "document": "skill-document",
+    "implement": "skill-implement",
 }
 
 GLOBAL_ROOT = Path.home() / ".agents-devkit"
@@ -179,7 +181,6 @@ def base_dir_for(skill_stem: str, scope: str, cwd: Path) -> Path:
                 f"adk_task_slug: scope=repo but cwd {cwd} is not inside a git repo"
             )
         return repo / ".temp" / "adk" / skill_stem
-    # global
     area = GLOBAL_AREA.get(skill_stem, skill_stem)
     return GLOBAL_ROOT / area
 

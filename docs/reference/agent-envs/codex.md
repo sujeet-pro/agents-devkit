@@ -10,7 +10,7 @@ order: 5002
 
 Wrappers that install adk into `codex` at user level. Installed via `./install.sh --target codex`.
 
-### Prompts (10)
+### Prompts (9)
 
 - `agents-codex/prompts/adk-document.md`
 - `agents-codex/prompts/adk-explain.md`

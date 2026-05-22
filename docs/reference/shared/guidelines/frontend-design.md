@@ -3,7 +3,7 @@ title: 'guidelines/frontend-design'
 description: '1. **Component boundary = data + behavior + appearance** for one purpose. Split when any of the three doesn''t fit.'
 source: 'shared/guidelines/frontend-design.md'
 group: 'shared-guidelines'
-order: 6304
+order: 6305
 ---
 # shared/guidelines/frontend-design
 
@@ -42,7 +42,7 @@ order: 6304
 
 ## Cite when reviewing
 
-- Repo's design system (Storybook URL if present in `package.json` or `~/.agents-devkit/config/overrides.yaml.repos[*].design_system_url`).
+- Repo's design system (Storybook URL if present in `package.json` or `repos.md frontmatter `repos[*].design_system_url``).
 - Repo's existing component patterns (grep before suggesting "add a new component").
 - `accessibility.md` for keyboard / contrast / aria.
 - `performance.md` for budget violations.

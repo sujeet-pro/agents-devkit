@@ -19,7 +19,7 @@ Deterministic enforcement of `shared/constitution.md`. Three events:
 
 ```json
 {
-  "comment": "adk v3 hooks — wired into ~/.claude/settings.json by install.sh. The Edit validator catches SKILL.md frontmatter bugs at write-time; the SessionStart banner runs at session open. The prompt-style PreToolUse Bash safety hook was removed 2026-05-19 (over-broad LLM interpretation produced too many false positives); the constitution §I rules still bind the assistant directly.",
+  "comment": "adk v4 hooks — wired into ~/.claude/settings.json by install.sh. The Edit validator catches SKILL.md frontmatter bugs at write-time + scans config writes for raw tokens; the SessionStart banner runs at session open. The prompt-style PreToolUse Bash safety hook was removed 2026-05-19 (over-broad LLM interpretation produced too many false positives); the constitution §I rules still bind the assistant directly.",
   "hooks": {
     "PostToolUse": [
       {
@@ -27,7 +27,7 @@ Deterministic enforcement of `shared/constitution.md`. Three events:
         "hooks": [
           {
             "type": "prompt",
-            "prompt": "Lightweight post-write check.\n\nIf the edited file path matches `*/skills/<skill>/SKILL.md`:\n  - Verify the YAML frontmatter has `name:` and `description:` fields.\n  - Verify `name:` value equals the folder basename (segment after `skills/` and before `/SKILL.md`).\n  - On mismatch, return {\"ok\":false,\"reason\":\"...\"}; otherwise {\"ok\":true}.\n\nIf the edited file path is under `.temp/<task-slug>/`:\n  - Append the current ISO-8601 UTC timestamp to a file `.temp/<task-slug>/.last-modified` (create if missing) so monitor tools can detect activity.\n  - Return {\"ok\":true}.\n\nIf the edited file path is `~/.agents-devkit/config/overrides.yaml`:\n  - Run a regex check that no line contains a raw token-looking value (`/^[A-Z_]+\\s*:\\s*['\"]?[a-zA-Z0-9_-]{20,}['\"]?$/` outside the `${VAR}` interpolation pattern).\n  - On match, return {\"ok\":false,\"reason\":\"raw token detected — use ${ENV_VAR} instead\"}.\n\nOtherwise: {\"ok\":true}."
+            "prompt": "Lightweight post-write check.\n\nIf the edited file path matches `*/skills/<skill>/SKILL.md`:\n  - Verify the YAML frontmatter has `name:` and `description:` fields.\n  - Verify `name:` value equals the folder basename (segment after `skills/` and before `/SKILL.md`).\n  - On mismatch, return {\"ok\":false,\"reason\":\"...\"}; otherwise {\"ok\":true}.\n\nIf the edited file path is under `.temp/<task-slug>/`:\n  - Append the current ISO-8601 UTC timestamp to a file `.temp/<task-slug>/.last-modified` (create if missing) so monitor tools can detect activity.\n  - Return {\"ok\":true}.\n\nIf the edited file path is `~/.agents-devkit/config/core.yaml` or `~/.agents-devkit/config/connectors/*.md` (frontmatter section between the leading `---` lines) or `~/.agents-devkit/config/adk-cli.json5`:\n  - Run a regex check that no line contains a raw token-looking value (`/^[A-Z_]+\\s*:\\s*['\"]?[a-zA-Z0-9_-]{20,}['\"]?$/` outside the `${VAR}` interpolation pattern).\n  - On match, return {\"ok\":false,\"reason\":\"raw token detected — use ${ENV_VAR} instead\"}.\n\nOtherwise: {\"ok\":true}."
           }
         ]
       }
@@ -50,19 +50,19 @@ Deterministic enforcement of `shared/constitution.md`. Three events:
 
 ```bash
 #!/usr/bin/env bash
-# adk v3 SessionStart banner — short status line shown at the top of every Claude Code session.
-# Reads ~/.agents-devkit/config/overrides.yaml + scripts/adk_mcp_health.py for the summary.
+# adk v4 SessionStart banner — short status line shown at the top of every Claude Code session.
+# Reads ~/.agents-devkit/config/core.yaml + scripts/adk_mcp_health.py for the summary.
 # Stays under 30 lines so it doesn't dominate the session opener.
 
 set -uo pipefail
 
 ADK_REPO="${ADK_REPO:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
-OVERRIDES="$HOME/.agents-devkit/config/overrides.yaml"
+CORE_YAML="$HOME/.agents-devkit/config/core.yaml"
 
-echo "[adk v3] — 8 skills: /adk-implement /adk-review /adk-investigate /adk-document /adk-sync /adk-setup /adk-improve /adk-explain"
+echo "[adk v4] — 9 skills: /adk-implement /adk-review /adk-pr-review /adk-investigate /adk-document /adk-sync /adk-setup /adk-improve /adk-explain"
 
-if [ ! -f "$OVERRIDES" ]; then
-  echo "[adk v3] ⚠ no ~/.agents-devkit/config/overrides.yaml — run /adk-setup --init"
+if [ ! -f "$CORE_YAML" ]; then
+  echo "[adk v4] ⚠ no ~/.agents-devkit/config/core.yaml — run /adk-setup --init"
   exit 0
 fi
 
@@ -81,7 +81,7 @@ env_present = sum(1 for v in d.get('env_vars', {}).values() if v.startswith('pre
 env_missing = sum(1 for v in d.get('env_vars', {}).values() if v == 'MISSING')
 print(f'MCPs: {ok} env-ok, {miss} env-missing  ·  env: {env_present} present, {env_missing} missing')
 " 2>/dev/null)
-  [ -n "$summary" ] && echo "[adk v3] $summary"
+  [ -n "$summary" ] && echo "[adk v4] $summary"
 fi
 
 # Surface pending improve proposals if any
@@ -89,7 +89,7 @@ proposals_dir="$HOME/.agents-devkit/improve/learning/proposals"
 if [ -d "$proposals_dir" ]; then
   count=$(find "$proposals_dir" -maxdepth 1 -type f -name '*.diff' 2>/dev/null | wc -l | tr -d ' ')
   if [ "$count" -gt 0 ]; then
-    echo "[adk v3] $count pending /adk-improve proposals — run /adk-improve to review"
+    echo "[adk v4] $count pending /adk-improve proposals — run /adk-improve to review"
   fi
 fi
 

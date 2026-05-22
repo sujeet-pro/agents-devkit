@@ -4,7 +4,7 @@ description: 'verify_repo.py — validate the adk v3 repo layout.'
 script: 'verify_repo.py'
 source: 'scripts/verify_repo.py'
 group: 'scripts'
-order: 4012
+order: 4009
 ---
 # verify_repo.py
 
