@@ -143,8 +143,24 @@ class AdkApp(App):
             )
         self.set_interval(self.poll_interval, self._maybe_reload)
 
+    def _default_query(self, widget_type):
+        """Query for a widget on the DEFAULT screen, not the active one.
+        Critical for timer-driven reloads: when a modal (HelpScreen,
+        PromptScreen, RecapScreen, etc.) is on top, `self.query_one(X)`
+        searches the modal and raises NoMatches. The default screen
+        (`screen_stack[0]`) is where the AdkApp's main widgets live.
+
+        Raises `IndexError` if the screen_stack is empty (app is
+        unmounting); callers in periodic timers should guard via
+        `_maybe_reload`'s screen_stack check."""
+        return self.screen_stack[0].query_one(widget_type)
+
     def _reload(self, *, force: bool = False) -> None:
         if self._model is None:
+            return
+        # Skip during unmount — background tasks (worker finally, batch task)
+        # can call this after on_unmount drains screen_stack.
+        if not self.screen_stack:
             return
         if not force and not self._model.has_changed():
             return
@@ -155,13 +171,13 @@ class AdkApp(App):
         self._rows_by_url = {row.pr_url: row for row in snapshot.rows}
         # Prune disappeared URLs from selection.
         self._selection_order = [u for u in self._selection_order if u in self._rows_by_url]
-        self.query_one(HeaderBar).update_snapshot(snapshot)
-        self.query_one(QueueTable).load(
+        self._default_query(HeaderBar).update_snapshot(snapshot)
+        self._default_query(QueueTable).load(
             snapshot,
             ascii_only=self._ascii_only,
             selected_order=list(self._selection_order),
         )
-        self.query_one(FooterBar).update_status(
+        self._default_query(FooterBar).update_status(
             self._filter_mode, self._sort_mode,
             sync_running=(self._sync_proc is not None and self._sync_proc.returncode is None),
             review_running=bool(self._review_workers),
@@ -174,33 +190,43 @@ class AdkApp(App):
     def _reload_plan(self, *, force: bool = False) -> None:
         if self._plan_model is None:
             return
+        if not self.screen_stack:
+            return
         if not force and not self._plan_model.has_changed():
             return
         snapshot = self._plan_model.snapshot()
-        self.query_one(SyncPlanPane).update_snapshot(snapshot, ascii_only=self._ascii_only)
+        self._default_query(SyncPlanPane).update_snapshot(snapshot, ascii_only=self._ascii_only)
 
     def _reload_workers(self, *, force: bool = False) -> None:
         if self._workers_model is None:
             return
+        if not self.screen_stack:
+            return
         if not force and not self._workers_model.has_changed():
             return
         rows = self._workers_model.snapshot()
-        self.query_one(WorkersPane).update_workers(rows, ascii_only=self._ascii_only)
+        self._default_query(WorkersPane).update_workers(rows, ascii_only=self._ascii_only)
         self._workers_by_url = {w.pr_url: w for w in rows if not w.is_stale}
         self._refresh_detail()
 
     def _maybe_reload(self) -> None:
+        # Skip if the app is unmounting (screen_stack drains during teardown);
+        # the timer can fire one last tick after on_unmount starts.
+        if not self.screen_stack:
+            return
         if self._model is not None and self._model.has_changed():
             self._reload(force=True)
         self._reload_plan()
         self._reload_workers()
 
     def _refresh_detail(self) -> None:
-        table = self.query_one(QueueTable)
+        if not self.screen_stack:
+            return
+        table = self._default_query(QueueTable)
         url = table.selected_pr_url()
         row = self._rows_by_url.get(url) if url else None
         worker = self._workers_by_url.get(url) if url else None
-        self.query_one(DetailPane).show(row, worker=worker)
+        self._default_query(DetailPane).show(row, worker=worker)
 
     def on_data_table_row_highlighted(self) -> None:
         self._refresh_detail()

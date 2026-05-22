@@ -25,13 +25,17 @@ WORKER_SCRIPT = _REPO_ROOT / "tui" / "worker.py"
 
 
 def _log_text(app: AdkApp) -> str:
-    pane = app.query_one(LogPane)
+    # Query the DEFAULT screen explicitly so the call still works when a
+    # modal (e.g. RecapScreen pushed by ι at end-of-batch) is on top —
+    # `app.query_one(X)` resolves against the active screen, which would
+    # raise NoMatches in that case.
+    pane = app.screen_stack[0].query_one(LogPane)
     lines = getattr(pane, "lines", [])
     return "\n".join(getattr(line, "text", None) or str(line) for line in lines)
 
 
 def _footer_text(app: AdkApp) -> str:
-    return str(app.query_one(FooterBar).render())
+    return str(app.screen_stack[0].query_one(FooterBar).render())
 
 
 def _active_worker_count(app: AdkApp) -> int:
@@ -245,7 +249,8 @@ def test_R_skips_unready_rows(
     async def _run() -> None:
         async with app.run_test() as pilot:
             await pilot.pause()
-            table = app.query_one(QueueTable)
+            # Default-screen query so this stays valid if a modal is up later.
+            table = app.screen_stack[0].query_one(QueueTable)
 
             # Walk rows; select one ready + one not-ready URL.
             ready_url: str | None = None
