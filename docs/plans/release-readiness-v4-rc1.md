@@ -10,21 +10,21 @@ Already in repo:
 - `README.md` — 336 lines, dense, covers install + skills + supported agents.
 - `LICENSE` — MIT, dated 2026.
 - `SETUP.md` — install + env-var prereqs.
+- `CONTRIBUTING.md` — contributor guide covering setup, branch naming, commits, PR expectations, constitution, question-first, and decision logs.
+- `CODE_OF_CONDUCT.md` — Contributor Covenant 2.1 with repo-owner enforcement contact.
+- `SECURITY.md` — vulnerability-reporting policy and credential-safety posture.
 - `.github/workflows/docs.yml` — docs build workflow.
 - `.github/workflows/version-bump.yml` — version-bump automation.
 - `install.sh` / `install.py` — primary install path.
 - `571` tests passing across `tui/`, `skills/adk-cli/scripts/`, `skills/adk-pr-review/scripts/`.
 
 Missing for OSS-ready:
-- `CONTRIBUTING.md` — no contributor guide.
-- `CODE_OF_CONDUCT.md` — no community covenant.
 - `.github/ISSUE_TEMPLATE/` — no bug/feature templates.
 - `.github/PULL_REQUEST_TEMPLATE.md` — no PR template.
 - `.github/workflows/test.yml` — CI does not currently run the test suite on PRs.
 - `pyproject.toml` — no Python package metadata.
 - `CHANGELOG.md` — no release-notes file.
 - Screenshot / GIF demo of the TUI in the README.
-- `SECURITY.md` — vulnerability-reporting policy.
 - A badges row at the top of the README (CI status, license, Python version).
 
 ## Plan — 5 tracks, mostly parallel
@@ -40,6 +40,8 @@ Goals:
 Files: `README.md` (rewrite), `docs/assets/tui-demo.gif` (new).
 
 ### Track B — Community files (30 min)
+
+Status: complete in the working tree as of 2026-05-22.
 
 Goals:
 1. `CONTRIBUTING.md` — covers: dev setup (`./install.sh`, then `pytest`), branch naming, commit message style (look at `git log --oneline -20` for the de facto style), code review expectations, the constitution + decision-log rules, the question-first contract.
