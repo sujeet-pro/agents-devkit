@@ -20,6 +20,7 @@ _HELP_TEXT = """adk TUI · keys
   a              pick agent (claude / codex / cursor / headless ...)
   +              add PR (modal — URL, owner/repo#N, or number)
   b              switch to repos screen (manage repos + branches)
+  t              cycle theme (dark / light / nord / gruvbox / dracula)
   j / down       move cursor down
   k / up         move cursor up
   g / home       jump to first row

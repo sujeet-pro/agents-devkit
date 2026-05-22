@@ -31,6 +31,9 @@ if TYPE_CHECKING:
 _FILTER_CYCLE: tuple[FilterMode, ...] = ("all", "open", "ready", "reviewed", "terminal")
 _SORT_CYCLE: tuple[SortMode, ...] = ("fifo", "newest", "repo")
 _PARALLEL_CYCLE: tuple[int, ...] = (1, 2, 4, 8)
+_THEME_CYCLE: tuple[str, ...] = (
+    "textual-dark", "textual-light", "nord", "gruvbox", "dracula",
+)
 
 
 class AdkApp(App):
@@ -50,6 +53,7 @@ class AdkApp(App):
         Binding("a", "pick_agent", "agent"),
         Binding("plus", "add_pr", "add-pr"),
         Binding("b", "repos", "repos"),
+        Binding("t", "cycle_theme", "theme"),
         Binding("j", "cursor_down", show=False),
         Binding("k", "cursor_up", show=False),
         Binding("g", "cursor_home", show=False),
@@ -127,6 +131,16 @@ class AdkApp(App):
         self._reload(force=True)
         self._reload_plan(force=True)
         self._reload_workers(force=True)
+        # Reattach-on-restart banner: surface pre-existing live workers (from
+        # this user's other terminals OR from a prior TUI session) so the
+        # operator knows the TUI is observing them — even though it didn't
+        # spawn them and can't kill them on quit.
+        n_existing = len(self._workers_by_url)
+        if n_existing > 0:
+            self.query_one(LogPane).write(
+                f"(reattached: {n_existing} existing worker"
+                f"{'' if n_existing == 1 else 's'} from heartbeat dir)"
+            )
         self.set_interval(self.poll_interval, self._maybe_reload)
 
     def _reload(self, *, force: bool = False) -> None:
@@ -226,6 +240,39 @@ class AdkApp(App):
 
     def action_escape(self) -> None:
         return None
+
+    def action_cycle_theme(self) -> None:
+        """Rotate through the curated theme set; falls through to the first
+        if the current theme isn't in the cycle."""
+        try:
+            idx = _THEME_CYCLE.index(self.theme)
+        except ValueError:
+            idx = -1
+        new_theme = _THEME_CYCLE[(idx + 1) % len(_THEME_CYCLE)]
+        self.theme = new_theme
+        self.query_one(LogPane).write(f"(theme: {new_theme})")
+
+    @work
+    async def action_quit(self) -> None:
+        """Override Textual's default quit so we can warn when reviews are
+        still running. The user can confirm (terminate + exit) or cancel."""
+        n_live = sum(
+            1 for proc in self._review_workers.values()
+            if proc.returncode is None
+        )
+        if self._sync_proc is not None and self._sync_proc.returncode is None:
+            n_live += 1  # count the sync as one of the in-flight processes
+        if n_live > 0:
+            from tui.screens.confirm_screen import ConfirmScreen
+            if any(isinstance(s, ConfirmScreen) for s in self.screen_stack):
+                return  # already prompting; ignore double-q
+            ok = await self.push_screen_wait(ConfirmScreen(
+                f"{n_live} subprocess{'es' if n_live != 1 else ''} still running. "
+                "Quit anyway? (workers will be terminated)"
+            ))
+            if not ok:
+                return
+        self.exit()
 
     @work
     async def action_pick_agent(self) -> None:
