@@ -59,8 +59,12 @@ from typing import Any
 
 # ---------------------------------------------------------------- paths -----
 
-ADK_HOME = Path(os.environ.get("ADK_HOME", Path.home() / ".agents-devkit"))
-CONFIG_DIR = ADK_HOME / "config"
+_LIB_DIR = Path(__file__).resolve().parent / "lib"
+sys.path.insert(0, str(_LIB_DIR))
+from adk_home import adk_config_home, adk_data_home  # noqa: E402
+
+ADK_HOME = adk_data_home()
+CONFIG_DIR = adk_config_home()
 CONNECTORS_DIR = CONFIG_DIR / "connectors"
 CORE_YAML = CONFIG_DIR / "core.yaml"
 ADK_CLI_JSON5 = CONFIG_DIR / "adk-cli.json5"
@@ -70,7 +74,6 @@ LINKS_JSON5 = CONFIG_DIR / "links.json5"
 # ---------------------------------------------------------------- lock ------
 # Use the shared fcntl helper from scripts/lib/adk_common.py rather than
 # carrying a private copy. The path append is idempotent.
-sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 from adk_common import file_lock as _file_lock  # noqa: E402
 
 

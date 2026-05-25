@@ -57,7 +57,12 @@ def _get_token() -> tuple[str, str]:
         if v:
             return v, f"env:{env_name}"
 
-    token_json = Path.home() / ".config" / "creds" / "slack" / "slack.token.json"
+    _creds_home = os.environ.get("CREDS_HOME")
+    token_json = (
+        Path(_creds_home) / "slack" / "slack.token.json"
+        if _creds_home
+        else Path.home() / ".config" / "creds" / "slack" / "slack.token.json"
+    )
     if token_json.exists():
         try:
             import json as _json
@@ -446,9 +451,12 @@ def _lookup_slack_user_id(host: str, login: str | None) -> str | None:
     try:
         import os
         import yaml  # type: ignore
-        home = (os.environ.get("ADK_HOME")
-                or str(Path.home() / ".agents-devkit"))
-        core = Path(home) / "config" / "core.yaml"
+        _cfg_home = os.environ.get("ADK_CONFIG_HOME")
+        if _cfg_home:
+            core = Path(_cfg_home) / "core.yaml"
+        else:
+            return None
+
         if not core.exists():
             return None
         cfg = yaml.safe_load(core.read_text(encoding="utf-8")) or {}

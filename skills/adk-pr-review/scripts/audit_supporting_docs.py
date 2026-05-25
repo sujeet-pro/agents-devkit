@@ -4,7 +4,13 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
+
+_LIB_DIR = Path(__file__).resolve().parents[3] / "scripts" / "lib"
+if str(_LIB_DIR) not in sys.path:
+    sys.path.insert(0, str(_LIB_DIR))
+from adk_home import adk_skill_home  # noqa: E402
 
 
 def _task_dirs(root: Path) -> list[Path]:
@@ -51,7 +57,7 @@ def audit_task(task_dir: Path) -> dict:
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="Audit supporting-doc references in PR-review findings")
-    ap.add_argument("--root", default=str(Path.home() / ".agents-devkit" / "skill-pr-review"))
+    ap.add_argument("--root", default=str(adk_skill_home("pr-review")))
     ap.add_argument("--json", action="store_true")
     args = ap.parse_args(argv)
 

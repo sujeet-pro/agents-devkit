@@ -22,7 +22,12 @@ import sys
 from pathlib import Path
 from typing import Any
 
-METADATA_DIR = Path(os.path.expanduser("~/.agents-devkit/improve/metadata"))
+_LIB_DIR = Path(__file__).resolve().parent / "lib"
+if str(_LIB_DIR) not in sys.path:
+    sys.path.insert(0, str(_LIB_DIR))
+from adk_home import adk_improve_home  # noqa: E402
+
+METADATA_DIR = adk_improve_home() / "metadata"
 
 
 def run(cmd: list[str], env: dict[str, str] | None = None) -> tuple[int, str, str]:

@@ -34,6 +34,10 @@ THIS_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(THIS_DIR))
 ADK_PR_REVIEW_SCRIPTS = THIS_DIR.parent.parent / "adk-pr-review" / "scripts"
 sys.path.insert(0, str(ADK_PR_REVIEW_SCRIPTS))
+_LIB_DIR = THIS_DIR.parent.parent.parent / "scripts" / "lib"
+if str(_LIB_DIR) not in sys.path:
+    sys.path.insert(0, str(_LIB_DIR))
+from adk_home import adk_config_home, adk_data_home  # noqa: E402
 
 from _common import (  # noqa: E402
     die,
@@ -56,23 +60,17 @@ from comment_activity import fetch_comment_activity  # noqa: E402
 
 
 def _load_defaults() -> dict:
-    """Return the `defaults` block from ~/.agents-devkit/config/core.yaml,
+    """Return the `defaults` block from $ADK_CONFIG_HOME/core.yaml,
     or {} if the file or block is absent. Only the `defaults` key is
     retained — every other top-level key is discarded so we never bring
     unrelated config (which may contain tokens, paths, or other state)
     into call sites. Per constitution §VII.
 
-    Resolves $ADK_HOME / $HOME freshly on every call so tests that
-    monkeypatch the env see the new path. Don't go through
-    `config_io.load_core` here — its CORE_YAML constant is bound at
-    import time and won't pick up a later HOME override.
+    Calls adk_config_home() freshly each time so tests that
+    monkeypatch the env see the new path.
     """
-    import os
     try:
-        home = Path(os.environ.get("ADK_HOME") or (Path.home() / ".agents-devkit"))
-        if os.environ.get("ADK_HOME") is None and os.environ.get("HOME"):
-            home = Path(os.environ["HOME"]) / ".agents-devkit"
-        core = home / "config" / "core.yaml"
+        core = adk_config_home() / "core.yaml"
         if not core.exists():
             return {}
         import yaml  # noqa: WPS433 — lazy
@@ -366,7 +364,7 @@ def _resolve_bare_pr_number(token: str) -> str | None:
     if not repo:
         die(
             "bare PR number requires defaults.repo in "
-            "~/.agents-devkit/config/core.yaml. Example: "
+            "$ADK_CONFIG_HOME/core.yaml. Example: "
             "defaults: { platform: github, repo: acme/storefront-bff }. "
             "Or pass a full URL."
         )

@@ -36,6 +36,11 @@ import sys
 import time
 from pathlib import Path
 
+_LIB_DIR = Path(__file__).resolve().parent / "lib"
+if str(_LIB_DIR) not in sys.path:
+    sys.path.insert(0, str(_LIB_DIR))
+from adk_home import adk_data_home  # noqa: E402
+
 MAX_LEN = 60
 JIRA_KEY = re.compile(r"\b([A-Z][A-Z0-9]+)-(\d+)\b")
 GH_PR = re.compile(r"github\.com/[^/]+/[^/]+/pull/(\d+)", re.I)
@@ -65,7 +70,7 @@ GLOBAL_AREA = {
     "implement": "skill-implement",
 }
 
-GLOBAL_ROOT = Path.home() / ".agents-devkit"
+GLOBAL_ROOT = adk_data_home()
 
 
 def find_discriminator(text: str) -> tuple[str, dict] | tuple[None, dict]:

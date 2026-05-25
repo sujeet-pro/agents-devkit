@@ -2,8 +2,14 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 from dataclasses import dataclass
 from pathlib import Path
+
+_LIB_DIR = Path(__file__).resolve().parents[2] / "scripts" / "lib"
+if str(_LIB_DIR) not in sys.path:
+    sys.path.insert(0, str(_LIB_DIR))
+from adk_home import adk_data_home  # noqa: E402
 
 
 @dataclass(frozen=True)
@@ -29,7 +35,7 @@ def default_plan_path() -> Path:
     env = os.environ.get("ADK_TUI_PLAN_PATH")
     if env:
         return Path(env)
-    return Path.home() / ".agents-devkit" / "tui" / "workers" / "sync-plan.json"
+    return adk_data_home() / "tui" / "workers" / "sync-plan.json"
 
 
 class SyncPlanModel:

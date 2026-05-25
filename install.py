@@ -33,6 +33,13 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Iterable
 
+_LIB_DIR = Path(__file__).resolve().parent / "scripts" / "lib"
+if str(_LIB_DIR) not in sys.path:
+    sys.path.insert(0, str(_LIB_DIR))
+from adk_home import (  # noqa: E402
+    adk_config_home, adk_data_home, adk_improve_home, adk_memory_home,
+)
+
 MARKER_MD_START = "<!-- adk-marker:start -->"
 MARKER_MD_END = "<!-- adk-marker:end -->"
 MARKER_HASH_START = "# adk-marker:start"
@@ -55,7 +62,7 @@ ADK_REMOVED_MCP_KEY = "_adkRemovedMcpServers"
 # `mcpServers` map is considered user-authored.
 ADK_MCP_NAME_PREFIX = "adk-mcp-"
 
-ADK_USER_DIR = Path.home() / ".agents-devkit" / "config"
+ADK_USER_DIR = adk_config_home()
 
 # Skill directories under skills/ that are NOT slash-invokable agent skills:
 # they hold shared python modules / CLI subcommands and should not be symlinked
@@ -550,7 +557,7 @@ def cleanup_legacy_adk_state(quarantine_root: Path, dry_run: bool) -> dict[str, 
 def cleanup_adk_only(repo_root: Path, targets: list[str], dry_run: bool) -> dict[str, Any]:
     """Delete non-ADK integrations/caches and quarantine legacy ADK state."""
     stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-    quarantine_root = Path.home() / ".agents-devkit" / "legacy" / stamp
+    quarantine_root = adk_data_home() / "legacy" / stamp
     out: dict[str, Any] = {
         "mode": "adk-only",
         "quarantine_root": str(quarantine_root),
@@ -2146,24 +2153,23 @@ def uninstall_target(target: str, dry_run: bool, results: dict[str, Any]) -> Non
 # ----------------------------------------------------------------------------
 
 def bootstrap_user_dir(repo_root: Path, dry_run: bool) -> dict[str, str]:
-    """Create ~/.agents-devkit/ v4 skeleton.
+    """Create adk home dirs v4 skeleton.
 
     Layout (see shared/paths.md):
-      ~/.agents-devkit/
-        memory/                # cross-session memory (root level)
-        config/                # core.yaml + repos.md + links.json5 + connectors/*.md
-        improve/               # learning/ + metadata/ — data /adk-improve uses
-        repos/ skill-pr-review/ skill-investigate/ skill-review/ skill-sync/ skill-setup/ skill-explain/
+      $ADK_CONFIG_HOME/          # core.yaml + repos.md + links.json5 + connectors/*.md
+      $ADK_MEMORY_HOME/          # cross-session memory
+      $ADK_DATA_HOME/            # machine-local working dirs
+        improve/ repos/ skill-*/
     """
     out: dict[str, str] = {}
 
-    home = Path.home()
-    config_root = home / ".agents-devkit" / "config"
-    improve_root = home / ".agents-devkit" / "improve"
+    config_root = adk_config_home()
+    improve_root = adk_improve_home()
+    memory = adk_memory_home()
+    data_root = adk_data_home()
 
     learning = improve_root / "learning"
     metadata = improve_root / "metadata"
-    memory = home / ".agents-devkit" / "memory"
     sessions = learning / "sessions"
     proposals = learning / "proposals"
     archive = learning / "archive"
@@ -2183,12 +2189,11 @@ def bootstrap_user_dir(repo_root: Path, dry_run: bool) -> dict[str, str]:
     else:
         out["decisions_seed"] = "exists (left alone)"
 
-    # ~/.agents-devkit/ — working-dir root for global skills.
-    agents_dk_root = home / ".agents-devkit"
+    # $ADK_DATA_HOME — working-dir root for global skills.
     for sub in ("repos", "skill-pr-review", "skill-investigate", "skill-review",
                 "skill-sync", "skill-setup", "skill-explain"):
-        ensure_dir(agents_dk_root / sub, dry_run)
-    out["agents_devkit_root"] = str(agents_dk_root)
+        ensure_dir(data_root / sub, dry_run)
+    out["adk_data_root"] = str(data_root)
     return out
 
 

@@ -43,14 +43,13 @@ def test_footer_shows_primary_actions(tui_app):
 def test_main_uses_configured_runner_when_flag_absent(tmp_path, monkeypatch):
     from tui import app as app_module
 
-    adk_home = tmp_path / ".agents-devkit"
-    cfg_dir = adk_home / "config"
+    cfg_dir = tmp_path / "config"
     cfg_dir.mkdir(parents=True)
     (cfg_dir / "adk-cli.json5").write_text(
         json.dumps({"pr_review_all": {"runner": "cursor"}}),
         encoding="utf-8",
     )
-    monkeypatch.setenv("ADK_HOME", str(adk_home))
+    monkeypatch.setenv("ADK_CONFIG_HOME", str(cfg_dir))
     captured = {}
 
     class FakeApp:
@@ -72,14 +71,13 @@ def test_main_uses_configured_runner_when_flag_absent(tmp_path, monkeypatch):
 def test_main_runner_flag_overrides_config(tmp_path, monkeypatch):
     from tui import app as app_module
 
-    adk_home = tmp_path / ".agents-devkit"
-    cfg_dir = adk_home / "config"
+    cfg_dir = tmp_path / "config"
     cfg_dir.mkdir(parents=True)
     (cfg_dir / "adk-cli.json5").write_text(
         json.dumps({"pr_review_all": {"runner": "cursor"}}),
         encoding="utf-8",
     )
-    monkeypatch.setenv("ADK_HOME", str(adk_home))
+    monkeypatch.setenv("ADK_CONFIG_HOME", str(cfg_dir))
     captured = {}
 
     class FakeApp:

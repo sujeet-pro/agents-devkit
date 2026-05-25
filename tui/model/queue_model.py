@@ -12,9 +12,14 @@ _CLI_SCRIPTS = Path(__file__).resolve().parent.parent.parent / "skills" / "adk-c
 if str(_CLI_SCRIPTS) not in sys.path:
     sys.path.insert(0, str(_CLI_SCRIPTS))
 
+_LIB_DIR = Path(__file__).resolve().parents[2] / "scripts" / "lib"
+if str(_LIB_DIR) not in sys.path:
+    sys.path.insert(0, str(_LIB_DIR))
+from adk_home import adk_data_home  # noqa: E402
+
 import queue_io  # noqa: E402
 
-_ADK_HOME = Path(environ.get("ADK_HOME", Path.home() / ".agents-devkit"))
+_ADK_HOME = adk_data_home()
 _PR_REVIEW_ROOT = _ADK_HOME / "skill-pr-review"
 
 

@@ -22,7 +22,12 @@ from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any
 
-LEARNING = Path(os.path.expanduser("~/.agents-devkit/improve/learning"))
+_LIB_DIR = Path(__file__).resolve().parent / "lib"
+if str(_LIB_DIR) not in sys.path:
+    sys.path.insert(0, str(_LIB_DIR))
+from adk_home import adk_improve_home  # noqa: E402
+
+LEARNING = adk_improve_home() / "learning"
 DECISIONS = LEARNING / "decisions.jsonl"
 DEFAULT_MIN_EVIDENCE = 3
 

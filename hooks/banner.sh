@@ -1,17 +1,20 @@
 #!/usr/bin/env bash
 # adk v4 SessionStart banner — short status line shown at the top of every Claude Code session.
-# Reads ~/.agents-devkit/config/core.yaml + scripts/adk_mcp_health.py for the summary.
+# Reads $ADK_CONFIG_HOME/core.yaml + scripts/adk_mcp_health.py for the summary.
 # Stays under 30 lines so it doesn't dominate the session opener.
 
 set -uo pipefail
 
+: "${ADK_DATA_HOME:?ADK_DATA_HOME unset — see ~/personal/mac-setup/configs/shell/.zshenv.example}"
+: "${ADK_CONFIG_HOME:?ADK_CONFIG_HOME unset — see ~/personal/mac-setup/configs/shell/.zshenv.example}"
+
 ADK_REPO="${ADK_REPO:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
-CORE_YAML="$HOME/.agents-devkit/config/core.yaml"
+CORE_YAML="$ADK_CONFIG_HOME/core.yaml"
 
 echo "[adk v4] — 9 skills: /adk-implement /adk-review /adk-pr-review /adk-investigate /adk-document /adk-sync /adk-setup /adk-improve /adk-explain"
 
 if [ ! -f "$CORE_YAML" ]; then
-  echo "[adk v4] ⚠ no ~/.agents-devkit/config/core.yaml — run /adk-setup --init"
+  echo "[adk v4] ⚠ ADK_CONFIG_HOME=$ADK_CONFIG_HOME has no core.yaml — run /adk-setup --init"
   exit 0
 fi
 
@@ -34,7 +37,7 @@ print(f'MCPs: {ok} env-ok, {miss} env-missing  ·  env: {env_present} present, {
 fi
 
 # Surface pending improve proposals if any
-proposals_dir="$HOME/.agents-devkit/improve/learning/proposals"
+proposals_dir="$ADK_DATA_HOME/improve/learning/proposals"
 if [ -d "$proposals_dir" ]; then
   count=$(find "$proposals_dir" -maxdepth 1 -type f -name '*.diff' 2>/dev/null | wc -l | tr -d ' ')
   if [ "$count" -gt 0 ]; then

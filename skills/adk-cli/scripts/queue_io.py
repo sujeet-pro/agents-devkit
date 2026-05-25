@@ -52,6 +52,11 @@ ADK_PR_REVIEW_SCRIPTS = Path(__file__).resolve().parent.parent.parent / "adk-pr-
 sys.path.insert(0, str(ADK_PR_REVIEW_SCRIPTS))
 from _common import file_lock  # noqa: E402
 
+_LIB_DIR = Path(__file__).resolve().parents[3] / "scripts" / "lib"
+if str(_LIB_DIR) not in sys.path:
+    sys.path.insert(0, str(_LIB_DIR))
+from adk_home import adk_config_home  # noqa: E402
+
 try:
     import json5  # type: ignore
 except ImportError:
@@ -189,7 +194,7 @@ def review_work_needed(entry: dict, *, now=None) -> str:
     return WORK_NONE
 
 
-DEFAULT_QUEUE_PATH = Path.home() / ".agents-devkit" / "config" / "pr-queue.json5"
+DEFAULT_QUEUE_PATH = adk_config_home() / "pr-queue.json5"
 
 
 def classify_pr_state(meta: dict) -> str:
@@ -336,17 +341,17 @@ def load_slack_config(path: Path | None = None) -> dict:
       1. `path` if given AND exists (a .md connector file).
       2. `~/.agents-devkit/config/connectors/slack.md` `pr_reviews:` section.
     """
-    home_cfg = Path.home() / ".agents-devkit" / "config"
+    config_home = adk_config_home()
     candidates: list[Path] = []
     if path:
         candidates.append(Path(path).expanduser())
-    candidates.append(home_cfg / "connectors" / "slack.md")
+    candidates.append(config_home / "connectors" / "slack.md")
 
     for c in candidates:
         if c.exists():
             return _load_slack_from_connector_md(c)
     raise FileNotFoundError(
-        f"No slack config found. Expected: {home_cfg / 'connectors' / 'slack.md'}"
+        f"No slack config found. Expected: {config_home / 'connectors' / 'slack.md'}"
     )
 
 

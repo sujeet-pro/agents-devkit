@@ -5,13 +5,19 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 from dataclasses import dataclass, asdict
 from pathlib import Path
 from typing import Literal
 
+_LIB_DIR = Path(__file__).resolve().parents[3] / "scripts" / "lib"
+if str(_LIB_DIR) not in sys.path:
+    sys.path.insert(0, str(_LIB_DIR))
+from adk_home import adk_data_home  # noqa: E402
+
 PLAN_VERSION = 1
 
-DEFAULT_PLAN_PATH = Path.home() / ".agents-devkit" / "tui" / "workers" / "sync-plan.json"
+DEFAULT_PLAN_PATH = adk_data_home() / "tui" / "workers" / "sync-plan.json"
 
 StepStatus = Literal["pending", "running", "ok", "warn", "failed", "skipped"]
 

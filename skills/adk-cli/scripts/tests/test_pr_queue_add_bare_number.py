@@ -14,17 +14,16 @@ import pytest
 
 def test_bare_number_resolves_via_defaults_repo(tmp_path, monkeypatch):
     """Bare PR number + defaults.repo=acme/foo + defaults.platform=github → constructs https://github.com/acme/foo/pull/1234."""
-    fake_core = tmp_path / "core.yaml"
-    fake_core.write_text(
+    cfg_dir = tmp_path / "config"
+    cfg_dir.mkdir(parents=True, exist_ok=True)
+    (cfg_dir / "core.yaml").write_text(
         "schema_version: 4\n"
         "defaults:\n"
         "  platform: github\n"
         "  repo: acme/foo\n",
         encoding="utf-8",
     )
-    monkeypatch.setenv("HOME", str(tmp_path))
-    (tmp_path / ".agents-devkit" / "config").mkdir(parents=True, exist_ok=True)
-    (tmp_path / ".agents-devkit" / "config" / "core.yaml").write_text(fake_core.read_text(), encoding="utf-8")
+    monkeypatch.setenv("ADK_CONFIG_HOME", str(cfg_dir))
 
     queue_path = tmp_path / "pr-queue.json5"
     queue_path.write_text('{"filters": null, "prs": []}\n')
@@ -42,12 +41,12 @@ def test_bare_number_resolves_via_defaults_repo(tmp_path, monkeypatch):
 
 def test_bare_number_with_hash_prefix(tmp_path, monkeypatch):
     """#1234 (with leading hash) also resolves."""
-    monkeypatch.setenv("HOME", str(tmp_path))
-    cfg = tmp_path / ".agents-devkit" / "config"
-    cfg.mkdir(parents=True, exist_ok=True)
-    (cfg / "core.yaml").write_text(
+    cfg_dir = tmp_path / "config"
+    cfg_dir.mkdir(parents=True, exist_ok=True)
+    (cfg_dir / "core.yaml").write_text(
         "defaults:\n  platform: github\n  repo: acme/foo\n", encoding="utf-8"
     )
+    monkeypatch.setenv("ADK_CONFIG_HOME", str(cfg_dir))
     queue_path = tmp_path / "pr-queue.json5"
     queue_path.write_text('{"filters": null, "prs": []}\n')
     import pr_queue
@@ -60,10 +59,10 @@ def test_bare_number_with_hash_prefix(tmp_path, monkeypatch):
 
 def test_bare_number_without_defaults_repo_errors_cleanly(tmp_path, monkeypatch):
     """Bare number + no defaults.repo → clear error mentioning core.yaml."""
-    monkeypatch.setenv("HOME", str(tmp_path))
-    cfg = tmp_path / ".agents-devkit" / "config"
-    cfg.mkdir(parents=True, exist_ok=True)
-    (cfg / "core.yaml").write_text("schema_version: 4\n", encoding="utf-8")
+    cfg_dir = tmp_path / "config"
+    cfg_dir.mkdir(parents=True, exist_ok=True)
+    (cfg_dir / "core.yaml").write_text("schema_version: 4\n", encoding="utf-8")
+    monkeypatch.setenv("ADK_CONFIG_HOME", str(cfg_dir))
     queue_path = tmp_path / "pr-queue.json5"
     queue_path.write_text('{"filters": null, "prs": []}\n')
     import pr_queue
@@ -74,12 +73,12 @@ def test_bare_number_without_defaults_repo_errors_cleanly(tmp_path, monkeypatch)
 
 def test_bare_number_bitbucket_platform(tmp_path, monkeypatch):
     """defaults.platform=bitbucket builds a bitbucket URL."""
-    monkeypatch.setenv("HOME", str(tmp_path))
-    cfg = tmp_path / ".agents-devkit" / "config"
-    cfg.mkdir(parents=True, exist_ok=True)
-    (cfg / "core.yaml").write_text(
+    cfg_dir = tmp_path / "config"
+    cfg_dir.mkdir(parents=True, exist_ok=True)
+    (cfg_dir / "core.yaml").write_text(
         "defaults:\n  platform: bitbucket\n  repo: workspace/repo\n", encoding="utf-8"
     )
+    monkeypatch.setenv("ADK_CONFIG_HOME", str(cfg_dir))
     queue_path = tmp_path / "pr-queue.json5"
     queue_path.write_text('{"filters": null, "prs": []}\n')
     import pr_queue

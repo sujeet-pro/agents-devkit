@@ -58,6 +58,10 @@ THIS_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(THIS_DIR))
 ADK_PR_REVIEW_SCRIPTS = THIS_DIR.parent.parent / "adk-pr-review" / "scripts"
 sys.path.insert(0, str(ADK_PR_REVIEW_SCRIPTS))
+_LIB_DIR = THIS_DIR.parent.parent.parent / "scripts" / "lib"
+if str(_LIB_DIR) not in sys.path:
+    sys.path.insert(0, str(_LIB_DIR))
+from adk_home import adk_config_home, adk_logs_home  # noqa: E402
 
 from _common import (  # noqa: E402
     RunEvent,
@@ -79,7 +83,7 @@ from slack_helpers import (  # noqa: E402
     days_ago_ts, hours_ago_ts,
 )
 
-DEFAULT_SLACK_CONFIG = Path.home() / ".agents-devkit" / "config" / "connectors" / "slack.md"
+DEFAULT_SLACK_CONFIG = adk_config_home() / "connectors" / "slack.md"
 
 
 # ----- PR meta (cheap, no clone) -------------------------------------------
@@ -581,7 +585,7 @@ def main(argv: list[str] | None = None) -> int:
     except FileNotFoundError as e:
         die(
             f"{e}\n\nAdd a `pr_reviews:` section to "
-            f"~/.agents-devkit/config/connectors/slack.md frontmatter with at least "
+            f"$ADK_CONFIG_HOME/connectors/slack.md frontmatter with at least "
             "channels, url_patterns, status_emoji, and (optionally) filter_mentioned_users."
         )
 

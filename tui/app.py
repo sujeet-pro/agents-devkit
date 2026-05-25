@@ -41,11 +41,12 @@ _RUNNER_CHOICES: tuple[str, ...] = ("claude", "cursor", "codex", "opencode", "he
 
 
 def _configured_runner(default: str = "claude") -> str:
-    cfg_path = (
-        Path(os.environ.get("ADK_HOME", Path.home() / ".agents-devkit"))
-        / "config"
-        / "adk-cli.json5"
-    )
+    import sys as _sys
+    _lib = Path(__file__).resolve().parents[1] / "scripts" / "lib"
+    if str(_lib) not in _sys.path:
+        _sys.path.insert(0, str(_lib))
+    from adk_home import adk_config_home  # noqa: E402
+    cfg_path = adk_config_home() / "adk-cli.json5"
     if not cfg_path.exists():
         return default
     try:

@@ -61,8 +61,12 @@ sys.path.insert(0, str(THIS_DIR))
 # parse_pr_url, etc.) live alongside the PR-review skill scripts.
 CODE_INDEX_LIB = THIS_DIR.parent.parent.parent / "scripts" / "lib" / "code_index"
 ADK_PR_REVIEW_SCRIPTS = THIS_DIR.parent.parent / "adk-pr-review" / "scripts"
+_LIB_DIR = THIS_DIR.parent.parent.parent / "scripts" / "lib"
 sys.path.insert(0, str(ADK_PR_REVIEW_SCRIPTS))
 sys.path.insert(0, str(CODE_INDEX_LIB))
+if str(_LIB_DIR) not in sys.path:
+    sys.path.insert(0, str(_LIB_DIR))
+from adk_home import adk_config_home  # noqa: E402
 
 from _common import (  # noqa: E402
     die, get_logger, which, ADK_HOME, REPOS_ROOT,
@@ -802,7 +806,7 @@ def cmd_auto_bases_clean(args) -> int:
     """
     log = get_logger("repo-auto-bases-clean")
     queue_path = Path(args.queue).expanduser() if getattr(args, "queue", None) \
-        else Path.home() / ".agents-devkit" / "config" / "pr-queue.json5"
+        else adk_config_home() / "pr-queue.json5"
 
     # --force one specific base.
     if getattr(args, "force", False):

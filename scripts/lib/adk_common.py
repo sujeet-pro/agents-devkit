@@ -35,10 +35,16 @@ import time
 from pathlib import Path
 from typing import Any, Iterator
 
+# Make adk_home importable from this module (it lives alongside us in scripts/lib/).
+_HERE = Path(__file__).resolve().parent
+if str(_HERE) not in sys.path:
+    sys.path.insert(0, str(_HERE))
+from adk_home import adk_data_home  # noqa: E402
+
 
 # ----- paths ---------------------------------------------------------------
 
-ADK_HOME = Path(os.environ.get("ADK_HOME", Path.home() / ".agents-devkit"))
+ADK_HOME = adk_data_home()
 REPOS_ROOT = ADK_HOME / "repos"
 
 

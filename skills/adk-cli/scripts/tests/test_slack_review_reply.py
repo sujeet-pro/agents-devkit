@@ -39,7 +39,7 @@ def test_render_three_section_shape_approve():
 
 def test_render_uses_plain_at_login_when_no_mapping(tmp_path, monkeypatch):
     """No mapping for the github login → falls back to @login (not <@U…>)."""
-    monkeypatch.setenv("ADK_HOME", str(tmp_path))
+    monkeypatch.setenv("ADK_CONFIG_HOME", str(tmp_path / "config"))
     text = slack_helpers.render_review_reply(
         host="github", owner="acme", repo="foo", pr_number=42,
         pr_url="https://github.com/acme/foo/pull/42", head_sha="abc",
@@ -52,7 +52,7 @@ def test_render_uses_plain_at_login_when_no_mapping(tmp_path, monkeypatch):
 
 def test_render_uses_slack_user_id_when_mapping_exists(tmp_path, monkeypatch):
     """Mapping present in core.yaml → uses <@U…> notation."""
-    cfg_dir = tmp_path / ".agents-devkit" / "config"
+    cfg_dir = tmp_path / "config"
     cfg_dir.mkdir(parents=True, exist_ok=True)
     (cfg_dir / "core.yaml").write_text(
         "user_mappings:\n"
@@ -60,7 +60,7 @@ def test_render_uses_slack_user_id_when_mapping_exists(tmp_path, monkeypatch):
         "    sujeet-pro: U123ABC\n",
         encoding="utf-8",
     )
-    monkeypatch.setenv("ADK_HOME", str(tmp_path / ".agents-devkit"))
+    monkeypatch.setenv("ADK_CONFIG_HOME", str(cfg_dir))
     text = slack_helpers.render_review_reply(
         host="github", owner="acme", repo="foo", pr_number=1,
         pr_url="https://github.com/acme/foo/pull/1", head_sha="abc",

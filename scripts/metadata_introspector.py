@@ -15,7 +15,12 @@ import sys
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-METADATA_DIR = Path("~/.agents-devkit/improve/metadata").expanduser()
+_LIB_DIR = HERE / "lib"
+if str(_LIB_DIR) not in sys.path:
+    sys.path.insert(0, str(_LIB_DIR))
+from adk_home import adk_improve_home  # noqa: E402
+
+METADATA_DIR = adk_improve_home() / "metadata"
 ARCHIVE_DIR = METADATA_DIR / "archive"
 
 

@@ -29,8 +29,13 @@ import sys
 import time
 from pathlib import Path
 
-ADK_HOME = Path(os.environ.get("ADK_HOME", Path.home() / ".agents-devkit"))
-LOGS_DIR = ADK_HOME / "logs"
+_LIB_DIR = Path(__file__).resolve().parents[3] / "scripts" / "lib"
+if str(_LIB_DIR) not in sys.path:
+    sys.path.insert(0, str(_LIB_DIR))
+from adk_home import adk_logs_home  # noqa: E402
+
+ADK_HOME = adk_logs_home().parent  # adk_data_home()
+LOGS_DIR = adk_logs_home()
 
 # Env-var name patterns that signal a secret. We never log the VALUE of any
 # var whose name ends in one of these suffixes. Constitution §VII.

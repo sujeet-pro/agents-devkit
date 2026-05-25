@@ -77,10 +77,16 @@ from run_state import (  # noqa: E402
 from skill_preflight import preflight  # noqa: E402
 
 PY = sys.executable
-ADK_HOME = Path(os.environ.get("ADK_HOME", Path.home() / ".agents-devkit"))
-AUTO_RUNS_ROOT = ADK_HOME / "skill-setup" / "auto-runs"
 REPO_ROOT = THIS_DIR.parent.parent.parent
 ADK_BIN = REPO_ROOT / "bin" / "adk"
+
+_LIB_DIR = REPO_ROOT / "scripts" / "lib"
+if str(_LIB_DIR) not in sys.path:
+    sys.path.insert(0, str(_LIB_DIR))
+from adk_home import adk_data_home, adk_skill_home  # noqa: E402
+
+ADK_HOME = adk_data_home()
+AUTO_RUNS_ROOT = adk_skill_home("setup") / "auto-runs"
 
 # Per-agent rough cost coefficient (USD per review). Used by --max-cost-usd
 # as a pre-flight estimate. Conservative; doesn't account for retries.

@@ -1,10 +1,16 @@
 from __future__ import annotations
 
 import json
+import sys
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable
+
+_LIB_DIR = Path(__file__).resolve().parents[2] / "scripts" / "lib"
+if str(_LIB_DIR) not in sys.path:
+    sys.path.insert(0, str(_LIB_DIR))
+from adk_home import adk_data_home  # noqa: E402
 
 
 @dataclass(frozen=True)
@@ -30,7 +36,7 @@ class WorkerRow:
 
 
 def default_workers_dir() -> Path:
-    return Path.home() / ".agents-devkit" / "tui" / "workers"
+    return adk_data_home() / "tui" / "workers"
 
 
 def _parse_iso(ts: str | None) -> datetime | None:

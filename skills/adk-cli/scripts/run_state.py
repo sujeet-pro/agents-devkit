@@ -8,12 +8,18 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-ADK_HOME = Path(os.environ.get("ADK_HOME", Path.home() / ".agents-devkit"))
+_LIB_DIR = Path(__file__).resolve().parents[3] / "scripts" / "lib"
+if str(_LIB_DIR) not in sys.path:
+    sys.path.insert(0, str(_LIB_DIR))
+from adk_home import adk_data_home  # noqa: E402
+
+ADK_HOME = adk_data_home()
 STATE_ROOT = ADK_HOME / "tui"
 DEFAULT_RUNS_DIR = STATE_ROOT / "runs"
 DEFAULT_WORKERS_DIR = STATE_ROOT / "workers"

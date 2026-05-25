@@ -44,6 +44,10 @@ REPO_ROOT = THIS_DIR.parent
 sys.path.insert(0, str(REPO_ROOT))
 sys.path.insert(0, str(REPO_ROOT / "skills" / "adk-pr-review" / "scripts"))
 sys.path.insert(0, str(REPO_ROOT / "skills" / "adk-cli" / "scripts"))
+_LIB_DIR = REPO_ROOT / "scripts" / "lib"
+if str(_LIB_DIR) not in sys.path:
+    sys.path.insert(0, str(_LIB_DIR))
+from adk_home import adk_data_home, adk_config_home  # noqa: E402
 
 from _common import parse_pr_url  # noqa: E402
 
@@ -53,7 +57,7 @@ from run_state import worker_id as make_worker_id  # noqa: E402
 try:
     from queue_io import DEFAULT_QUEUE_PATH  # noqa: E402
 except Exception:  # pragma: no cover
-    DEFAULT_QUEUE_PATH = Path.home() / ".agents-devkit" / "config" / "pr-queue.json5"
+    DEFAULT_QUEUE_PATH = adk_config_home() / "pr-queue.json5"
 
 
 def _now_iso() -> str:
@@ -310,7 +314,7 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                     help="force claim/re-review when a row is already locked")
     ap.add_argument("--heartbeat-bump-interval-s", type=float, default=300.0)
     ap.add_argument("--heartbeat-file-interval-s", type=float, default=5.0)
-    ap.add_argument("--heartbeat-dir", default=str(Path.home() / ".agents-devkit" / "tui" / "workers"))
+    ap.add_argument("--heartbeat-dir", default=str(adk_data_home() / "tui" / "workers"))
     ap.add_argument("--run-id", default=None)
     ap.add_argument("--worker-id", default=None)
     return ap.parse_args(argv)
