@@ -39,12 +39,13 @@ from typing import Any, Iterator
 _HERE = Path(__file__).resolve().parent
 if str(_HERE) not in sys.path:
     sys.path.insert(0, str(_HERE))
-from adk_home import adk_data_home  # noqa: E402
+from adk_home import adk_config_home, adk_data_home  # noqa: E402
 
 
 # ----- paths ---------------------------------------------------------------
 
 ADK_HOME = adk_data_home()
+CONFIG_HOME = adk_config_home()
 REPOS_ROOT = ADK_HOME / "repos"
 
 

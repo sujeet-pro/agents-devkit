@@ -28,6 +28,7 @@ if str(_REPO_LIB) not in sys.path:
 
 from adk_common import (  # noqa: E402  (sys.path insertion above)
     ADK_HOME,
+    CONFIG_HOME,
     REPOS_ROOT,
     LockHeldError,
     RunDashboard,
@@ -253,7 +254,7 @@ def die(msg: str, code: int = 1) -> None:
 
 SKILL_DIR = Path(__file__).resolve().parent.parent
 SKILL_DEFAULTS_YAML = SKILL_DIR / "defaults.yaml"
-USER_OVERRIDE_YAML = ADK_HOME / "config" / "adk-pr-review.yaml"
+USER_OVERRIDE_YAML = CONFIG_HOME / "adk-pr-review.yaml"
 
 
 def load_config() -> dict[str, Any]:

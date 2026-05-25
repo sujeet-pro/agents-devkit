@@ -24,6 +24,7 @@ if str(_LIB_DIR) not in sys.path:
 
 from adk_common import (  # noqa: E402  (sys.path insertion above)
     ADK_HOME,
+    CONFIG_HOME,
     REPOS_ROOT,
     deep_merge,
     emit_json,
@@ -50,7 +51,7 @@ def die(msg: str, code: int = 1) -> None:
 
 LIB_DIR = Path(__file__).resolve().parent
 LIB_DEFAULTS_YAML = LIB_DIR / "defaults.yaml"
-USER_OVERRIDE_YAML = ADK_HOME / "config" / "code-index.yaml"
+USER_OVERRIDE_YAML = CONFIG_HOME / "code-index.yaml"
 
 
 def load_config() -> dict[str, Any]:
