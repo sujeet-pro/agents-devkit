@@ -38,7 +38,7 @@ Five phases, all wrapped by `shared/advisor.md`. Mode-aware (`--plan` skips Phas
 
 - `shared/workflows/phase-4-report.md`.
 - `.temp/adk/implement/<task>/report.md` — risk-first ordering.
-- Session summary → `~/.agents-devkit/improve/learning/sessions/<date>-implement-<slug>.md`.
+- Session summary → `$ADK_DATA_HOME/improve/learning/sessions/<date>-implement-<slug>.md`.
 - Next-best suggestions: `/adk-document --type pr-body`, `/adk-sync --to gh-pr-body`.
 
 ## Personas loaded

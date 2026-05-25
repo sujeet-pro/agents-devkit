@@ -1,7 +1,7 @@
 """queue_io.py — concurrency-safe JSON5 queue read / update / merge.
 
 Replaces the older csv_io.py. The queue lives at
-~/.agents-devkit/config/pr-queue.json5 by default.
+$ADK_CONFIG_HOME/pr-queue.json5 by default.
 
 Rules:
   - All writes happen under an fcntl lock on `<queue-path>.lock`.
@@ -339,7 +339,7 @@ def load_slack_config(path: Path | None = None) -> dict:
 
     Lookup order:
       1. `path` if given AND exists (a .md connector file).
-      2. `~/.agents-devkit/config/connectors/slack.md` `pr_reviews:` section.
+      2. `$ADK_CONFIG_HOME/connectors/slack.md` `pr_reviews:` section.
     """
     config_home = adk_config_home()
     candidates: list[Path] = []

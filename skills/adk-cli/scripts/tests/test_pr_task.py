@@ -1,7 +1,7 @@
 """Tests for `adk pr-task`:
 - prepare → forwards to prepare_task.py --prepare-only with the right args.
 - info → reads state.json + pr.json and emits a JSON status block.
-- list → enumerates ~/.agents-devkit/skill-pr-review/ and supports --names-only / --paths.
+- list → enumerates $ADK_DATA_HOME/skill-pr-review/ and supports --names-only / --paths.
 """
 from __future__ import annotations
 

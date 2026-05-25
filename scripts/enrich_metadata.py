@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""enrich_metadata.py — populate ~/.agents-devkit/improve/metadata/<source>.json
+"""enrich_metadata.py — populate $ADK_DATA_HOME/improve/metadata/<source>.json
 by introspecting reachable MCPs / CLI tools.
 
 This script does the PROGRAMMATIC enrichment. The AI step in /adk-setup --enrich
 produces nice prose around the results and decides what to lift into
-~/.agents-devkit/config/connectors/<name>.md frontmatter; this just gathers raw
+$ADK_CONFIG_HOME/connectors/<name>.md frontmatter; this just gathers raw
 data into the metadata cache.
 
 Usage:

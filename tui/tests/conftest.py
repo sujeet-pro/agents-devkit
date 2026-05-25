@@ -243,7 +243,7 @@ def eligible_multi_queue(tmp_path: Path) -> Path:
 
 @pytest.fixture
 def fake_repos_dir(tmp_path: Path) -> Path:
-    """A `~/.agents-devkit/repos/`-shaped tmp dir for RepoModel/RepoScreen tests.
+    """A `$ADK_DATA_HOME/repos/`-shaped tmp dir for RepoModel/RepoScreen tests.
 
     Layout:
       repos/

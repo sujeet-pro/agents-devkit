@@ -9,7 +9,7 @@
 1. **`<repo>/.adk/overrides.yaml`** (if working inside a repo with one)
 2. **`<repo>/ai-guidelines/`** or **`<repo>/docs/`** (repo-specific conventions)
 2a. **`<repo>/MEMORY.md`** and **`<repo>/ERRORS.md`** (if present — project-local decision log + failure log; templates at `shared/templates/`)
-3. **`~/.agents-devkit/config/core.yaml`** (user/company truth — workspaces, defaults, RAG config, learning state) + **`~/.agents-devkit/config/repos.md`** (repos) + **`~/.agents-devkit/config/connectors/*.md`** (one per data source) + **`~/.agents-devkit/config/links.json5`** (entity graph)
+3. **`$ADK_CONFIG_HOME/core.yaml`** (user/company truth — workspaces, defaults, RAG config, learning state) + **`$ADK_CONFIG_HOME/repos.md`** (repos) + **`$ADK_CONFIG_HOME/connectors/*.md`** (one per data source) + **`$ADK_CONFIG_HOME/links.json5`** (entity graph)
 4. **`<this-repo>/shared/constitution.md`** (universal hard rules)
 5. **The triggered skill's `SKILL.md`** (loaded after step 6 routes)
 6. **`<this-repo>/shared/model-depth.md`** when the prompt or skill args mention `--detailed`, `--deep`, planning, ambiguous model choice, or large/complex work
@@ -43,7 +43,7 @@ Parse the user's prompt against this table. **A single prompt can route to multi
 | "implement X" / "build the Y from Z" / "ship the feature from <ticket>" | `/adk-implement` |
 | "review the PR" / "look at <PR-URL>" / "review my changes" / "audit the repo" | `/adk-review` (lightweight — no worktree, no embeddings) |
 | "deep PR review" / "thorough review of <PR-URL>" / "check the PR with full code context" | `/adk-pr-review <pr-url>` (heavyweight — owns a worktree, builds embeddings + SCIP, traces feature flags and experiments) |
-| "review my PR queue" / "next PR to review" / "drain the queue" / "go through the open PRs" | `/adk-pr-review` with no arg — atomically claims the next eligible row from `~/.agents-devkit/config/pr-queue.json5`. Run in N terminals for parallel review. Refresh the queue beforehand via the shell binary: `adk pr-scan` (walks configured Slack channels — main message + thread replies — and upserts rows). Inspect via `adk pr-queue list / show / ready-to-merge / clean / release`. |
+| "review my PR queue" / "next PR to review" / "drain the queue" / "go through the open PRs" | `/adk-pr-review` with no arg — atomically claims the next eligible row from `$ADK_CONFIG_HOME/pr-queue.json5`. Run in N terminals for parallel review. Refresh the queue beforehand via the shell binary: `adk pr-scan` (walks configured Slack channels — main message + thread replies — and upserts rows). Inspect via `adk pr-queue list / show / ready-to-merge / clean / release`. |
 | "why is X slow/broken/down" / "what changed" / "RCA for Y" / "investigate <alert>" | `/adk-investigate` |
 | "write the runbook/ADR/RCA/PR-description/commit-message/changelog/diagram" | `/adk-document` |
 | "publish the doc to Confluence" / "update the Jira description" / "post to Slack #channel" / "fetch the Confluence page as markdown" | `/adk-sync` |
@@ -82,7 +82,7 @@ When a skill spawns a child agent via the `Agent` tool (e.g. `/adk-pr-review` di
 
 - **The constitution (`shared/constitution.md`)** — every hard rule applies; the child cannot waive a parent's constraint.
 - **The narration contract (`shared/narration.md`)** — child reports back with a structured summary the parent stitches into its own report.
-- **The decision-log obligation** — child logs its forks to the same `~/.agents-devkit/improve/learning/decisions.jsonl` under the parent's `skill` + a `sub_flow: child:<name>` discriminator.
+- **The decision-log obligation** — child logs its forks to the same `$ADK_DATA_HOME/improve/learning/decisions.jsonl` under the parent's `skill` + a `sub_flow: child:<name>` discriminator.
 - **The shared-state gate (§I.4)** — a child cannot post / merge / push without the human confirmation gate, even when the parent already passed one for a different action.
 - **Project-local context** — child reads the same `<repo>/MEMORY.md` / `<repo>/ERRORS.md` / `<repo>/.adk/overrides.yaml` the parent was loaded with.
 
@@ -96,7 +96,7 @@ This rule applies whether the child is an adk subagent (`adk-agent-*`) or a fres
 
 ## 4. Every skill, every time: question-first (auto by default; `-i` for interactive)
 
-Every skill walks the question-first contract in `shared/question-first.md`. The **default mode is auto** — the agent picks the recommended default for every fork and proceeds without waiting. Each choice is logged as `auto-defaulted` to `~/.agents-devkit/improve/learning/decisions.jsonl` AND narrated live so the user can stop / correct.
+Every skill walks the question-first contract in `shared/question-first.md`. The **default mode is auto** — the agent picks the recommended default for every fork and proceeds without waiting. Each choice is logged as `auto-defaulted` to `$ADK_DATA_HOME/improve/learning/decisions.jsonl` AND narrated live so the user can stop / correct.
 
 The user opts into interactive with **`-i`** (or `--interactive`). In `-i` mode the agent actually asks (cap 3 user-facing questions) and waits.
 
@@ -115,7 +115,7 @@ If the user (in `-i` mode) says "I don't know" / "you decide" / "what would you 
 
 ## 5. Decision logging is mandatory
 
-Every non-trivial fork — every question asked, every default picked, every override, every approach chosen — gets one JSONL line appended to `~/.agents-devkit/improve/learning/decisions.jsonl`. Schema in `shared/decision-log-schema.md`. These are the substrate for `/adk-improve`.
+Every non-trivial fork — every question asked, every default picked, every override, every approach chosen — gets one JSONL line appended to `$ADK_DATA_HOME/improve/learning/decisions.jsonl`. Schema in `shared/decision-log-schema.md`. These are the substrate for `/adk-improve`.
 
 ---
 
@@ -144,11 +144,11 @@ Source of truth: `shared/paths.md`. Summary:
 | Skill kind | Task folder root |
 |---|---|
 | **Repo-bound** (`/adk-implement`, `/adk-document`, `/adk-review` on local code, `/adk-sync` on a repo-coupled doc) | `<repo>/.temp/adk/<skill-stem>/<task>/` |
-| **Global** (`/adk-pr-review`, `/adk-investigate`, `/adk-sync` on a remote-only doc, `/adk-setup`, `/adk-improve`, `/adk-explain`) | `~/.agents-devkit/<area>/<task>/` |
+| **Global** (`/adk-pr-review`, `/adk-investigate`, `/adk-sync` on a remote-only doc, `/adk-setup`, `/adk-improve`, `/adk-explain`) | `$ADK_DATA_HOME/<area>/<task>/` |
 
 A global skill can be invoked from anywhere — your cwd is irrelevant to what it does. A repo-bound skill must be invoked from inside a repo (or with `--repo <path>`).
 
-Special folders under `~/.agents-devkit/`:
+Special folders under `$ADK_DATA_HOME/`:
 
 - `repos/<repo-name>/` — checkouts owned by adk; used as the base for PR-review worktrees.
 - `pr-reviews/<repo>_pr-<n>/` — one folder per PR being reviewed; contains a worktree, the diff, the embeddings, supporting docs, findings, report.
@@ -156,7 +156,7 @@ Special folders under `~/.agents-devkit/`:
 
 Project-scoped extensions (still respected):
 
-- `<dir>/.adk/overrides.yaml` extends/narrows `~/.agents-devkit/config/core.yaml` + `repos.md` + `connectors/*.md`. Skills merge these at runtime.
+- `<dir>/.adk/overrides.yaml` extends/narrows `$ADK_CONFIG_HOME/core.yaml` + `repos.md` + `connectors/*.md`. Skills merge these at runtime.
 - `<dir>/ai-guidelines/*.md` and `<dir>/docs/*.md` are loaded into context for the duration of the skill run if relevant to the task type.
 
 Task-slug convention: `<input-discriminator>` (no skill prefix — the skill name is now the folder above it). Examples: `SF-1234`, `pr-456`, `checkout-2026-05-18`, `rca-checkout-outage`.
@@ -192,6 +192,6 @@ The user's `--auto` flag does **not** waive these. They require a per-invocation
 - Generic guidelines (frontend, api, security, …): `shared/guidelines/*.md`
 - Skills: `skills/adk-*/SKILL.md`
 - MCP configs: `mcp/adk-mcp-*.json`
-- User config: `~/.agents-devkit/config/` (core.yaml + repos.md + connectors/*.md + links.json5 + adk-cli.json5 + pr-queue.json5)
-- Learning state: `~/.agents-devkit/improve/learning/`
-- Metadata cache: `~/.agents-devkit/improve/metadata/`
+- User config: `$ADK_CONFIG_HOME/` (core.yaml + repos.md + connectors/*.md + links.json5 + adk-cli.json5 + pr-queue.json5)
+- Learning state: `$ADK_DATA_HOME/improve/learning/`
+- Metadata cache: `$ADK_DATA_HOME/improve/metadata/`

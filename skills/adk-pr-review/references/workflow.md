@@ -33,13 +33,13 @@ The AI review pass never starts before Phase 3 settles — the precis the model 
 1. Parse the PR URL → `(host, owner, repo, pr_number)` via `scripts/parse_pr_url.py`.
 2. Probe ollama: `scripts/ensure_ollama.py` checks (a) `ollama` binary on PATH, (b) the daemon responds at `http://localhost:11434`, (c) the embedding model is pulled. Default model: `nomic-embed-text`; `--detailed` selects the detailed embedding model (`bge-m3` by default). Override via `--embed-model` or `core.yaml.defaults.adk-pr-review.embed_model`. If ollama is missing, refuse and print the install command (do not try to install for the user).
 3. Probe MCP availability: `gh` CLI for GitHub PRs; `adk-mcp-bitbucket` for Bitbucket PRs. If neither is reachable for the host, refuse and surface the gap.
-4. Resolve the task folder: `python3 scripts/adk_task_slug.py --skill pr-review --input <url> --create --json` → `~/.agents-devkit/skill-pr-review/<repo>_pr-<n>/`.
+4. Resolve the task folder: `python3 scripts/adk_task_slug.py --skill pr-review --input <url> --create --json` → `$ADK_DATA_HOME/skill-pr-review/<repo>_pr-<n>/`.
 
 ## Phase 1 — repo + worktree (serialized)
 
-A **process-level file lock** at `~/.agents-devkit/repos/.worktree-lock` serializes worktree creation across concurrent invocations. Without this, two simultaneous `/adk-pr-review` runs on the same repo would race on `git worktree add`.
+A **process-level file lock** at `$ADK_DATA_HOME/repos/.worktree-lock` serializes worktree creation across concurrent invocations. Without this, two simultaneous `/adk-pr-review` runs on the same repo would race on `git worktree add`.
 
-1. `scripts/ensure_repo_clone.py` — if `~/.agents-devkit/repos/<repo-name>/` doesn't exist, clone via `gh repo clone` (GitHub) or `git clone` from the BB SSH URL. If it exists, `git fetch --all --prune`.
+1. `scripts/ensure_repo_clone.py` — if `$ADK_DATA_HOME/repos/<repo-name>/` doesn't exist, clone via `gh repo clone` (GitHub) or `git clone` from the BB SSH URL. If it exists, `git fetch --all --prune`.
 2. **Reset to current implementation** — the user's note: "Before creating working tree, it must be set back to its current implementation." The clone's default branch is checked out and reset to the remote head. Any local commits in the clone are unexpected (it's an adk-owned clone) and surfaced as a refusal.
 3. `scripts/create_worktree.py` — acquires the lock, then `git worktree add <task>/code <head-sha>`. Sets the worktree to detached HEAD so no branch shenanigans.
 4. Release the lock. The orchestrator records `worktree_path` in `<task>/state.json`.
@@ -58,7 +58,7 @@ Fanned out concurrently:
 1. `scripts/lib/code_index/chunker.py` — tree-sitter AST chunker (function / class / method / top-level / const / doc) for `ts / tsx / js / jsx / py / go / java / rs / rb / md`. Caps: 1500-token chunks, 50-token minimum, oversized-split. Heuristic fallback for any language without a grammar.
 2. `scripts/lib/code_index/embedder.py` — POST batches of 24 chunks to ollama (`/api/embed`), idle-eviction via `keep_alive: 0`. Writes to LanceDB table `code-index/chunks.lance/` with schema `(id, file, line_start, line_end, parent_symbol, language, content, vector)`. Modes: `replace`, `incremental`. Oversized-input errors short-circuit retries (improvement #8).
 3. `scripts/lib/code_index/scip_runner.py` — detect `scip-typescript` / `scip-python` / `scip-go` / `scip-java` on PATH. For each language present in the worktree, run the corresponding scip indexer at `code/`, output to `code-index/scip/<lang>/index.scip`. Missing binaries are marked `not_installed` in `code-index/meta.json` — the review falls back to chunker `parent_symbol` matching.
-4. **Seed-from-base** (Phase 3 of refactor-a): before chunking, check `~/.agents-devkit/repos/.indices/<repo>/code-index/`. If present, fresh enough, and the embed model matches → `seed_copy()` into the task dir, then run the embedder in `--mode incremental` for just the files that changed between `base.indexed_sha` and the PR's `head_sha`. Cold path: ~9 min. Warm seeded path on a 12-file PR: ~30 s. Disable with `--no-base-seed` for a clean reindex.
+4. **Seed-from-base** (Phase 3 of refactor-a): before chunking, check `$ADK_DATA_HOME/repos/.indices/<repo>/code-index/`. If present, fresh enough, and the embed model matches → `seed_copy()` into the task dir, then run the embedder in `--mode incremental` for just the files that changed between `base.indexed_sha` and the PR's `head_sha`. Cold path: ~9 min. Warm seeded path on a 12-file PR: ~30 s. Disable with `--no-base-seed` for a clean reindex.
 5. Write `code-index/meta.json` — provider, dim, chunk count, SCIP languages indexed, ts, `seeded_from_base` + `seeded_from_sha` when seeding. The Phase-3 `state.json` entry is written BEFORE the post-Phase-3 health check (improvements #9 + #11) — a transient health failure no longer orphans the index.
 
 ## Phase 4 — review
@@ -68,7 +68,7 @@ Fanned out concurrently:
 1. The orchestrator prepares the user-prompt with a pre-loaded `# Index context` section: changed-files, top-k chunks per changed file, symbol matches, feature-flag references found in the diff (via `scripts/lib/code_index/query_index.py --feature-flags-in-diff`).
 2. (Hypothetical `claude -p` revival, not the current path.) Invoke `claude -p` with:
    - `--system-prompt skills/adk-pr-review/SKILL.md`
-   - `--add-dir ~/.agents-devkit/skill-pr-review/<task>/code`
+   - `--add-dir $ADK_DATA_HOME/skill-pr-review/<task>/code`
    - `--allowedTools Read,Glob,Grep,Bash` (Bash limited to `python3 scripts/lib/code_index/query_index.py …` via permissions)
    - `--permission-mode auto`
    - `--output-format stream-json`

@@ -18,7 +18,7 @@ Source: `shared/question-first.md`.
 
 - **Up to 3 user-facing questions** per skill invocation.
 - If you need more, run a second round AFTER showing partial results.
-- Each question is logged to `~/.agents-devkit/improve/learning/decisions.jsonl`.
+- Each question is logged to `$ADK_DATA_HOME/improve/learning/decisions.jsonl`.
 
 ## Question types (in priority order)
 

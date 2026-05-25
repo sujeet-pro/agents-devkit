@@ -9,9 +9,9 @@ A skill writes its artifacts to **exactly one** of two roots:
 | Root | When | Reason |
 |---|---|---|
 | `<repo>/.temp/adk/<skill-stem>/<task>/` | The skill operates **on the cwd repo** (reads or writes files in this checkout). | Artifacts live next to the code they describe; gitignored; a human can `cd` to them. |
-| `~/.agents-devkit/<area>/<task>/` | The skill operates **without a cwd repo** — its inputs are URLs, IDs, dashboards, MCPs; or its working copy is an isolated clone/worktree it owns. | A user can invoke from anywhere (`~`, `/tmp`, an unrelated repo) and the skill still works. No pollution of the user's current project. |
+| `$ADK_DATA_HOME/<area>/<task>/` | The skill operates **without a cwd repo** — its inputs are URLs, IDs, dashboards, MCPs; or its working copy is an isolated clone/worktree it owns. | A user can invoke from anywhere (`~`, `/tmp`, an unrelated repo) and the skill still works. No pollution of the user's current project. |
 
-**The rule**: if running the skill requires the user's cwd to be inside a specific repo, the root is `<repo>/.temp/adk/`. Otherwise, it's `~/.agents-devkit/`.
+**The rule**: if running the skill requires the user's cwd to be inside a specific repo, the root is `<repo>/.temp/adk/`. Otherwise, it's `$ADK_DATA_HOME/`.
 
 ## Per-skill anchoring
 
@@ -19,20 +19,20 @@ A skill writes its artifacts to **exactly one** of two roots:
 |---|---|---|---|
 | `/adk-implement` | repo-bound | `<repo>/.temp/adk/implement/<task>/` | Writes code into the cwd repo. Always repo-bound. |
 | `/adk-document` | repo-bound | `<repo>/.temp/adk/document/<task>/` | Draft path. `--write-to <path>` overrides to a canonical repo path (e.g. `docs/adr/...`). |
-| `/adk-review` | hybrid | `<repo>/.temp/adk/review/<task>/` for `.` / local-changes / `--audit`; `~/.agents-devkit/skill-review/<task>/` for a PR URL where the cwd is unrelated | Light review. No worktree, no embeddings. |
-| `/adk-pr-review` | **global, always** | `~/.agents-devkit/skill-pr-review/<repo>_pr-<n>/` | Heavy review. Owns a worktree in `~/.agents-devkit/repos/<repo>/`. Never touches cwd. |
-| `/adk-investigate` | global | `~/.agents-devkit/skill-investigate/<task>/` | Queries DD / Slack / Statsig / Mixpanel / Snowflake / Looker. No repo. |
-| `/adk-sync` | hybrid | `<repo>/.temp/adk/sync/<task>/` when invoked from a repo and the synced doc belongs to that repo; `~/.agents-devkit/skill-sync/<task>/` otherwise | Bridge for 3P docs. |
-| `/adk-setup` | global | `~/.agents-devkit/skill-setup/<ts>/` | Configures `~/.agents-devkit/config/`. |
-| `/adk-improve` | global | `~/.agents-devkit/skill-improve/<ts>/` (top-level `improve/` keeps the shared learning data) | Reads decision logs. |
-| `/adk-explain` | global | `~/.agents-devkit/skill-explain/<ts>/` (only if an artifact is produced; usually ephemeral) | Advisor, mostly transient. |
+| `/adk-review` | hybrid | `<repo>/.temp/adk/review/<task>/` for `.` / local-changes / `--audit`; `$ADK_DATA_HOME/skill-review/<task>/` for a PR URL where the cwd is unrelated | Light review. No worktree, no embeddings. |
+| `/adk-pr-review` | **global, always** | `$ADK_DATA_HOME/skill-pr-review/<repo>_pr-<n>/` | Heavy review. Owns a worktree in `$ADK_DATA_HOME/repos/<repo>/`. Never touches cwd. |
+| `/adk-investigate` | global | `$ADK_DATA_HOME/skill-investigate/<task>/` | Queries DD / Slack / Statsig / Mixpanel / Snowflake / Looker. No repo. |
+| `/adk-sync` | hybrid | `<repo>/.temp/adk/sync/<task>/` when invoked from a repo and the synced doc belongs to that repo; `$ADK_DATA_HOME/skill-sync/<task>/` otherwise | Bridge for 3P docs. |
+| `/adk-setup` | global | `$ADK_DATA_HOME/skill-setup/<ts>/` | Configures `$ADK_CONFIG_HOME/`. |
+| `/adk-improve` | global | `$ADK_DATA_HOME/skill-improve/<ts>/` (top-level `improve/` keeps the shared learning data) | Reads decision logs. |
+| `/adk-explain` | global | `$ADK_DATA_HOME/skill-explain/<ts>/` (only if an artifact is produced; usually ephemeral) | Advisor, mostly transient. |
 
 `<skill-stem>` = the skill name with the leading `adk-` stripped. `<task>` = the task discriminator (Jira key, PR number, slug from the prompt). `<ts>` = a UTC timestamp `YYYYMMDDTHHMMSSZ` when no natural discriminator exists.
 
-## ~/.agents-devkit/ skeleton (v4)
+## $ADK_DATA_HOME/ skeleton (v4)
 
 ```
-~/.agents-devkit/
+$ADK_DATA_HOME/
 ├── memory/                      # user-managed cross-session memory
 ├── config/                      # user-owned settings
 │   ├── core.yaml                # user, workspaces, defaults, rag, learning_state, enriched
@@ -163,7 +163,7 @@ Before this change: `<repo>/.temp/<task-slug>/` (skill prefixed into the slug). 
 ## Anti-patterns
 
 - Writing to `<repo>/` (uncontained). Always under `<repo>/.temp/adk/` or under a canonical destination the user named with `--write-to`.
-- Writing to `~/` outside `~/.agents-devkit/` and `~/.agents-devkit/config/`. Those are the only two roots adk owns.
+- Writing to `~/` outside `$ADK_DATA_HOME/` and `$ADK_CONFIG_HOME/`. Those are the only two roots adk owns.
 - Writing to `/tmp/`. Lost on reboot, not gitignored, not inspectable later.
 - Mixing the two roots in one task. A single invocation picks one and stays there.
 - Hard-coding `task-slug` into a path string. Use the stem-folder layout so a `find <repo>/.temp/adk/implement/ -mindepth 1 -maxdepth 1` lists all implement tasks cleanly.

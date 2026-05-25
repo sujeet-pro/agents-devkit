@@ -22,7 +22,7 @@ Reference: https://claude.com/blog/the-advisor-strategy
 1. Restate the user's goal in one sentence. Quote the input.
 2. Identify the **intent verb** (implement / review / investigate / document / sync / explain / improve / setup).
 3. Identify entities mentioned: repo, service, PR, ticket, dashboard, experiment, dataset, channel, user.
-4. Resolve entities against `~/.agents-devkit/config/core.yaml` + `<repo>/.adk/overrides.yaml` if present. Surface ambiguity.
+4. Resolve entities against `$ADK_CONFIG_HOME/core.yaml` + `<repo>/.adk/overrides.yaml` if present. Surface ambiguity.
 
 ### B. Clarify (the question-first phase)
 

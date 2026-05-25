@@ -1,4 +1,4 @@
-"""TUI sync-plan writer. Persists ~/.agents-devkit/tui/workers/sync-plan.json
+"""TUI sync-plan writer. Persists $ADK_DATA_HOME/tui/workers/sync-plan.json
 during pr-sync execution so the TUI's Sync-plan pane can render live progress.
 """
 from __future__ import annotations

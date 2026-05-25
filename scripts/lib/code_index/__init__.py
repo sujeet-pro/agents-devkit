@@ -14,8 +14,8 @@ Public surface (stable for skill consumers):
 
 Storage layout (see also shared/paths.md):
 
-    ~/.agents-devkit/repos/<name>/                clone (default branch)
-    ~/.agents-devkit/repos/.indices/<name>/       adk-owned base index task dir
+    $ADK_DATA_HOME/repos/<name>/                clone (default branch)
+    $ADK_DATA_HOME/repos/.indices/<name>/       adk-owned base index task dir
       code-index/
         chunks.jsonl                              chunker output
         chunks.lance/                             LanceDB table

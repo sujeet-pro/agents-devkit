@@ -2,7 +2,7 @@
 """config_io.py — single I/O surface for the new adk config layout.
 
 Layout (see shared/paths.md):
-  ~/.agents-devkit/
+  $ADK_DATA_HOME/
     config/
       core.yaml                      # user + workspaces + defaults + rag + enriched
       repos.md                       # frontmatter = repo defs; body = notes per repo

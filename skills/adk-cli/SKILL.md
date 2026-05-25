@@ -35,9 +35,9 @@ Every subcommand accepts `-y` / `--yes` for headless / smart-default operation
 - `pr_queue.py` — `adk pr-queue …`. Single-shot add from a slack permalink OR
   PR URL; cheap meta refresh on one row; lock release; merged-row cleanup; the
   ready-to-merge summary used at the tail of every review.
-- `repo.py` — `adk repo …`. Clones repos to `~/.agents-devkit/repos/<name>/`
+- `repo.py` — `adk repo …`. Clones repos to `$ADK_DATA_HOME/repos/<name>/`
   and indexes each tracked branch at
-  `~/.agents-devkit/repos/.indices/<name>/branches/<slug>/code-index/`.
+  `$ADK_DATA_HOME/repos/.indices/<name>/branches/<slug>/code-index/`.
   Default branch is auto-indexed by `add`; use `--branch X` (multi-arg) on
   `add`/`update`, and the `repo branch {add,remove,list}` subgroup to manage
   branches. Incremental reindex on `update` when HEAD has moved.
@@ -58,7 +58,7 @@ Every subcommand accepts `-y` / `--yes` for headless / smart-default operation
 
 ## Queue location
 
-`~/.agents-devkit/config/pr-queue.json5`.
+`$ADK_CONFIG_HOME/pr-queue.json5`.
 
 ## Constitutional posture
 

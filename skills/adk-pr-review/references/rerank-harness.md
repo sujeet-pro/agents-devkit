@@ -144,7 +144,7 @@ use whatever it has — the score scale is robust to mid-tier models.
 - Before findings generation — so the parent agent reads the reranked
   top-N candidates as context for writing findings.json.
 - Skip it entirely with `reranker.enabled: false` in
-  `~/.agents-devkit/config/adk-pr-review.yaml`. Hybrid merged scores then
+  `$ADK_CONFIG_HOME/adk-pr-review.yaml`. Hybrid merged scores then
   flow through unchanged.
 
 ## Cost & latency note

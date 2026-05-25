@@ -293,7 +293,7 @@ def main(argv: list[str] | None = None) -> int:
                     help="only check shell-completion wiring")
     ap.add_argument("-y", "--yes", action="store_true", help="no-op; accepted for uniformity")
     ap.add_argument("-v", "--verbose", action="store_true",
-                    help="write a structured DEBUG log to ~/.agents-devkit/logs/")
+                    help="write a structured DEBUG log to $ADK_DATA_HOME/logs/")
     args = ap.parse_args(argv)
     if getattr(args, "verbose", False):
         from _verbose import setup_verbose  # type: ignore  # noqa: WPS433

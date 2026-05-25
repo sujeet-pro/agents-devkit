@@ -15,7 +15,7 @@ Flow:
      selects the deep profile (Claude Opus, Cursor GPT 5.5) and is auto-added
      for large/high-risk PRs unless --no-auto-deep is set.
   5. Capture per-PR exit code + stdout last line.
-  6. Aggregate to `~/.agents-devkit/skill-setup/auto-runs/<ts>/report.md`.
+  6. Aggregate to `$ADK_DATA_HOME/skill-setup/auto-runs/<ts>/report.md`.
 
 Exit codes:
   0 — every spawned review succeeded
@@ -767,7 +767,7 @@ def main(argv: list[str] | None = None) -> int:
                          "at the end of the run. Requires SLACK_BOT_TOKEN_CRED. "
                          "(default: pr_review_all.report_to_slack, fallback none)")
     ap.add_argument("-v", "--verbose", action="store_true",
-                    help="write a structured DEBUG log to ~/.agents-devkit/logs/")
+                    help="write a structured DEBUG log to $ADK_DATA_HOME/logs/")
     args = ap.parse_args(argv)
     guard_json = bool(args.quiet_hours or args.max_cost_usd is not None or args.report_to_slack)
     if getattr(args, "verbose", False):

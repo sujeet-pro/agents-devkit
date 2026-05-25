@@ -10,7 +10,7 @@ Stable surface (skills can rely on this across minor versions):
 
 Two roots are supported:
 
-    open_index("ecomm-ssr")                            # kind="repo"  → ~/.agents-devkit/repos/.indices/<name>/code-index/
+    open_index("ecomm-ssr")                            # kind="repo"  → $ADK_DATA_HOME/repos/.indices/<name>/code-index/
     open_index(Path(".../skill-pr-review/foo_pr-42"), kind="task")  # → <path>/code-index/
 
 When the index is absent, callers get `IndexNotBuilt(repo)`. When the
@@ -132,7 +132,7 @@ class Index:
     last_refreshed: datetime | None
     kind: Literal["repo", "task"]
     # Worktree associated with the index. For kind="task" this is the PR
-    # checkout; for kind="repo" this is ~/.agents-devkit/repos/<name>/.
+    # checkout; for kind="repo" this is $ADK_DATA_HOME/repos/<name>/.
     worktree: Path | None = None
     # The branch this index was built against (empty when seedless). For
     # kind="task" indexes that were seeded from a base, this is the source

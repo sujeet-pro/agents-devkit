@@ -5,14 +5,14 @@ Single source of truth for path resolution: shared/paths.md.
 
 Two roots:
   - repo-bound: <repo>/.temp/adk/<skill-stem>/<task>/
-  - global:     ~/.agents-devkit/<area>/<task>/
+  - global:     $ADK_DATA_HOME/<area>/<task>/
 
 Skill scopes:
   - repo-bound (always): implement, document
   - global    (always): pr-review, investigate, setup, improve, explain
   - hybrid    (caller picks): review, sync
-      review → repo if input is local path or no URL; else global at ~/.agents-devkit/reviews/
-      sync   → repo if --repo-coupled; else global at ~/.agents-devkit/sync/
+      review → repo if input is local path or no URL; else global at $ADK_DATA_HOME/reviews/
+      sync   → repo if --repo-coupled; else global at $ADK_DATA_HOME/sync/
 
 Slug rules:
   - lowercase ASCII letters + digits + hyphens; max 60 chars
@@ -56,7 +56,7 @@ ALWAYS_REPO_BOUND = {"implement", "document"}
 ALWAYS_GLOBAL = {"pr-review", "investigate", "setup", "improve", "explain"}
 HYBRID = {"review", "sync"}
 
-# Area name under ~/.agents-devkit/ for global skills. Every skill has a
+# Area name under $ADK_DATA_HOME/ for global skills. Every skill has a
 # `skill-<stem>/` task-root per shared/paths.md.
 GLOBAL_AREA = {
     "pr-review": "skill-pr-review",
@@ -115,7 +115,7 @@ def slugify(text: str) -> str:
 
 def build_slug(skill_stem: str, input_text: str) -> tuple[str, dict]:
     """Return (slug, parsed-entities). The slug does NOT carry the skill prefix —
-    the skill is the parent folder under .temp/adk/<skill>/ or ~/.agents-devkit/<area>/.
+    the skill is the parent folder under .temp/adk/<skill>/ or $ADK_DATA_HOME/<area>/.
     """
     if not input_text.strip():
         # No input ⇒ timestamp slug

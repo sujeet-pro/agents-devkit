@@ -10,9 +10,9 @@ What it does (per agent target):
   - Merges mcp/adk-mcp-*.json into the agent's MCP config (idempotent).
   - Appends a one-line reference to AGENTS.md in the agent's global guidelines
     file (idempotent, by marker).
-  - Seeds ~/.agents-devkit/improve/learning/decisions.jsonl with shared/seed-decisions.jsonl
+  - Seeds $ADK_DATA_HOME/improve/learning/decisions.jsonl with shared/seed-decisions.jsonl
     (first install only).
-  - Creates ~/.agents-devkit/config/ skeleton if missing.
+  - Creates $ADK_CONFIG_HOME/ skeleton if missing.
 
 Targets: claude, cursor, codex, junie, all.
 
@@ -572,7 +572,7 @@ def cleanup_adk_only(repo_root: Path, targets: list[str], dry_run: bool) -> dict
     if "junie" in targets:
         out["junie"] = cleanup_junie_adk_only(dry_run)
     # Legacy ADK state is global, not target-specific. Quarantine it on every
-    # normal install so the v4 ~/.agents-devkit tree is the only active ADK
+    # normal install so the v4 $ADK_DATA_HOME tree is the only active ADK
     # runtime state.
     out["legacy_adk"] = cleanup_legacy_adk_state(quarantine_root, dry_run)
     return out
@@ -1822,7 +1822,7 @@ For every prompt:
 3. Apply `{repo_root}/shared/constitution.md` and `{repo_root}/shared/question-first.md` before any skill workflow.
 4. Use MCP servers generated from `{repo_root}/mcp/adk-mcp-*.json` in `~/.codex/config.toml`.
 5. Treat non-ADK Codex plugins, imported skills, prompts, and MCP servers as unavailable unless the user explicitly asks to bypass ADK for this invocation.
-6. Log every non-trivial decision to `~/.agents-devkit/improve/learning/decisions.jsonl` via `{repo_root}/scripts/decision_logger.py`.
+6. Log every non-trivial decision to `$ADK_DATA_HOME/improve/learning/decisions.jsonl` via `{repo_root}/scripts/decision_logger.py`.
 """
 
 
@@ -2267,7 +2267,7 @@ def main() -> int:
         err(f"ADK-only cleanup failed: {e}")
         results["adk_only_cleanup"] = {"error": str(e)}
 
-    # Always bootstrap ~/.agents-devkit/config/
+    # Always bootstrap $ADK_CONFIG_HOME/
     results["user_dir"] = bootstrap_user_dir(repo_root, dry_run)
 
     # Always install the `adk` CLI (target-agnostic — it's a user-level shell binary).
@@ -2318,7 +2318,7 @@ def main() -> int:
     print(f"  - targets: {targets}")
     print()
     print("next:")
-    print("  1. run /adk-setup --init from your agent to scaffold ~/.agents-devkit/config/{core.yaml,repos.md,connectors/*.md,links.json5}.")
+    print("  1. run /adk-setup --init from your agent to scaffold $ADK_CONFIG_HOME/{core.yaml,repos.md,connectors/*.md,links.json5}.")
     print("  2. set env vars per SETUP.md.")
     print("  3. restart your agent so it picks up env + MCP changes.")
     print("  4. run /adk-setup --check to verify.")

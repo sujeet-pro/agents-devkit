@@ -43,7 +43,7 @@ metadata:
 
 Read-only. Two-source minimum. State confidence honestly. Pin every window.
 
-**Global skill** — runs from anywhere; artifacts go to `~/.agents-devkit/investigations/<task>/` (per `shared/paths.md`). Does not require a cwd repo.
+**Global skill** — runs from anywhere; artifacts go to `$ADK_DATA_HOME/investigations/<task>/` (per `shared/paths.md`). Does not require a cwd repo.
 
 `--detailed` widens source gathering inside the pinned window. `--deep` selects the stronger model profile per `shared/model-depth.md`; auto-select it for RCAs, multi-service incidents, security signals, ambiguous symptoms, or conflicting source evidence.
 

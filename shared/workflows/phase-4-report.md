@@ -5,7 +5,7 @@
 ## Steps
 
 1. **Write the final report** to `<task_dir>/report.md` (the task folder resolved in Phase 0, per `shared/paths.md`).
-2. **Append a one-paragraph session summary** to `~/.agents-devkit/improve/learning/sessions/<date>-<skill>-<slug>.md`.
+2. **Append a one-paragraph session summary** to `$ADK_DATA_HOME/improve/learning/sessions/<date>-<skill>-<slug>.md`.
 3. **Display the report** in the agent's chat.
 4. **Suggest next-best skill** if applicable (e.g., after `/adk-investigate`, suggest `/adk-document --type rca` if symptom was post-incident).
 
@@ -42,12 +42,12 @@
 ---
 artifacts: <task_dir>     # e.g. /Users/sujeet/code/storefront-bff/.temp/adk/implement/SF-1234/
                           #  or  /Users/sujeet/.agents-devkit/skill-pr-review/storefront-bff_pr-456/
-decision log: ~/.agents-devkit/improve/learning/decisions.jsonl (12 new entries this run)
+decision log: $ADK_DATA_HOME/improve/learning/decisions.jsonl (12 new entries this run)
 ```
 
 ## Session summary shape
 
-`~/.agents-devkit/improve/learning/sessions/2026-05-18-implement-SF-1234.md`:
+`$ADK_DATA_HOME/improve/learning/sessions/2026-05-18-implement-SF-1234.md`:
 
 ```markdown
 # 2026-05-18 — /adk-implement SF-1234

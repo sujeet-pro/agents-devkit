@@ -8,7 +8,7 @@ order: 1004
 ---
 # adk-improve
 
-Improve, learn, refresh-metadata, update-defaults, self-improve, train-skill, learn-from-session. The self-improvement loop. Always interactive (asks first: improve skill defaults from decision logs, metadata via MCP introspection, or both). For defaults: runs scripts/proposal_generator.py against `~/.agents-devkit/improve/learning/decisions.jsonl`, drafts proposed updates to `~/.agents-devkit/config/core.yaml.defaults.*`, presents each with ≥3 evidence lines, applies on confirm; rotates decisions.jsonl to learning/archive/ after each run; appends summary to learning/summary.md. For metadata: runs scripts/metadata_introspector.py to refresh `~/.agents-devkit/improve/metadata/<source>.json` from every reachable MCP. Bounded: cannot change shared/constitution.md; cannot change Must-do/Must-not-do sections of any SKILL.md (those are constitution-grade). Each proposal requires per-item confirmation regardless of mode. Never auto-applies. Min-evidence default 3 (configurable). Manual-only by design (disable-model-invocation: true) so the agent doesn't auto-trigger improvements mid-session.
+Improve, learn, refresh-metadata, update-defaults, self-improve, train-skill, learn-from-session. The self-improvement loop. Always interactive (asks first: improve skill defaults from decision logs, metadata via MCP introspection, or both). For defaults: runs scripts/proposal_generator.py against `$ADK_DATA_HOME/improve/learning/decisions.jsonl`, drafts proposed updates to `$ADK_CONFIG_HOME/core.yaml.defaults.*`, presents each with ≥3 evidence lines, applies on confirm; rotates decisions.jsonl to learning/archive/ after each run; appends summary to learning/summary.md. For metadata: runs scripts/metadata_introspector.py to refresh `$ADK_DATA_HOME/improve/metadata/<source>.json` from every reachable MCP. Bounded: cannot change shared/constitution.md; cannot change Must-do/Must-not-do sections of any SKILL.md (those are constitution-grade). Each proposal requires per-item confirmation regardless of mode. Never auto-applies. Min-evidence default 3 (configurable). Manual-only by design (disable-model-invocation: true) so the agent doesn't auto-trigger improvements mid-session.
 
 ## Source
 
@@ -19,7 +19,7 @@ Improve, learn, refresh-metadata, update-defaults, self-improve, train-skill, le
 ```yaml
 name: adk-improve
 description: |
-  Improve, learn, refresh-metadata, update-defaults, self-improve, train-skill, learn-from-session. The self-improvement loop. Always interactive (asks first: improve skill defaults from decision logs, metadata via MCP introspection, or both). For defaults: runs scripts/proposal_generator.py against `~/.agents-devkit/improve/learning/decisions.jsonl`, drafts proposed updates to `~/.agents-devkit/config/core.yaml.defaults.*`, presents each with ≥3 evidence lines, applies on confirm; rotates decisions.jsonl to learning/archive/ after each run; appends summary to learning/summary.md. For metadata: runs scripts/metadata_introspector.py to refresh `~/.agents-devkit/improve/metadata/<source>.json` from every reachable MCP. Bounded: cannot change shared/constitution.md; cannot change Must-do/Must-not-do sections of any SKILL.md (those are constitution-grade). Each proposal requires per-item confirmation regardless of mode. Never auto-applies. Min-evidence default 3 (configurable). Manual-only by design (disable-model-invocation: true) so the agent doesn't auto-trigger improvements mid-session.
+  Improve, learn, refresh-metadata, update-defaults, self-improve, train-skill, learn-from-session. The self-improvement loop. Always interactive (asks first: improve skill defaults from decision logs, metadata via MCP introspection, or both). For defaults: runs scripts/proposal_generator.py against `$ADK_DATA_HOME/improve/learning/decisions.jsonl`, drafts proposed updates to `$ADK_CONFIG_HOME/core.yaml.defaults.*`, presents each with ≥3 evidence lines, applies on confirm; rotates decisions.jsonl to learning/archive/ after each run; appends summary to learning/summary.md. For metadata: runs scripts/metadata_introspector.py to refresh `$ADK_DATA_HOME/improve/metadata/<source>.json` from every reachable MCP. Bounded: cannot change shared/constitution.md; cannot change Must-do/Must-not-do sections of any SKILL.md (those are constitution-grade). Each proposal requires per-item confirmation regardless of mode. Never auto-applies. Min-evidence default 3 (configurable). Manual-only by design (disable-model-invocation: true) so the agent doesn't auto-trigger improvements mid-session.
 allowed-tools: [Read, Edit, Write, Bash]
 argument-hint: "[--target defaults|metadata|both] [--since <date>] [--min-evidence N] [--dry-run] [--detailed] [--deep]"
 metadata:
@@ -43,7 +43,7 @@ metadata:
 
 Read accumulated decision logs + introspect MCPs; propose updates to `core.yaml`.
 
-**Global skill** — intermediate artifacts go to `~/.agents-devkit/improve/<ts>/`. Mutates `~/.agents-devkit/config/core.yaml` and `~/.agents-devkit/improve/metadata/<source>.json` on confirm; never touches the cwd repo.
+**Global skill** — intermediate artifacts go to `$ADK_DATA_HOME/improve/<ts>/`. Mutates `$ADK_CONFIG_HOME/core.yaml` and `$ADK_DATA_HOME/improve/metadata/<source>.json` on confirm; never touches the cwd repo.
 
 `--detailed` inspects more decision evidence before proposing defaults. `--deep` selects the stronger model profile per `shared/model-depth.md`; use it for broad default rewrites or conflicting evidence, never to bypass per-item confirmation.
 
@@ -65,9 +65,9 @@ What do you want to improve?
 
 ```
 Phase 0 — read learning state
-  - ~/.agents-devkit/improve/learning/decisions.jsonl (current cycle)
-  - ~/.agents-devkit/improve/learning/summary.md (history)
-  - ~/.agents-devkit/config/core.yaml.defaults (current state)
+  - $ADK_DATA_HOME/improve/learning/decisions.jsonl (current cycle)
+  - $ADK_DATA_HOME/improve/learning/summary.md (history)
+  - $ADK_CONFIG_HOME/core.yaml.defaults (current state)
 
 Phase 1 — advise
   - Show count of decisions since last improve run
@@ -87,8 +87,8 @@ Phase 3 — validate
 
 Phase 4 — report + rotate logs
   - Print: N proposals accepted, M deferred, K rejected
-  - Append run summary to ~/.agents-devkit/improve/learning/summary.md
-  - Archive current decisions.jsonl to ~/.agents-devkit/improve/learning/archive/<ts>-decisions.jsonl
+  - Append run summary to $ADK_DATA_HOME/improve/learning/summary.md
+  - Archive current decisions.jsonl to $ADK_DATA_HOME/improve/learning/archive/<ts>-decisions.jsonl
   - Start fresh empty decisions.jsonl
   - Update core.yaml.learning_state.last_improve_run
 ```
@@ -107,7 +107,7 @@ Phase 4 — report: diff vs prior (new dashboards, removed gates, etc.)
 ## Hard rules
 
 1. **Never modify**: `shared/constitution.md`, any skill's `Must do` / `Must not do` / `Hard rules` sections, `agents/*.md` core personas.
-2. **Only modify**: `~/.agents-devkit/config/core.yaml` (defaults block + enriched block + learning_state block) and `~/.agents-devkit/improve/metadata/*.json`.
+2. **Only modify**: `$ADK_CONFIG_HOME/core.yaml` (defaults block + enriched block + learning_state block) and `$ADK_DATA_HOME/improve/metadata/*.json`.
 3. **Never auto-apply** a proposal under `--auto`. Each proposal requires per-item confirm — `--auto` only skips the "what do you want to improve" question if `--target` is passed.
 4. **Rotate decisions.jsonl** after every successful improve run. Archive, never delete.
 5. **Show ≥3 evidence lines** per proposal. < 3 = surface as "observation, not enough evidence yet".

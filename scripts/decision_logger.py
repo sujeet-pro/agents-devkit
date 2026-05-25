@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""decision_logger.py — append a JSONL line to ~/.agents-devkit/improve/learning/decisions.jsonl.
+"""decision_logger.py — append a JSONL line to $ADK_DATA_HOME/improve/learning/decisions.jsonl.
 
 Called from skills whenever a non-trivial fork is resolved.
 

@@ -1,6 +1,6 @@
 """repo.py — `adk repo` subcommands.
 
-add <git-url>                 clone the repo into ~/.agents-devkit/repos/<name>/,
+add <git-url>                 clone the repo into $ADK_DATA_HOME/repos/<name>/,
                               check out the default branch, run the chunker +
                               embedder + (optional) scip indexer. Use --branch
                               N times to also index other branches (e.g.
@@ -28,8 +28,8 @@ list                          list repos known to adk. Add --branches for the
 All commands accept `-y` / `--yes` for non-interactive mode.
 
 Index layout:
-  ~/.agents-devkit/repos/<name>/                                  clone (working tree)
-  ~/.agents-devkit/repos/.indices/<name>/                         per-repo dir
+  $ADK_DATA_HOME/repos/<name>/                                  clone (working tree)
+  $ADK_DATA_HOME/repos/.indices/<name>/                         per-repo dir
     repo-meta.json                                                catalog: name,
                                                                   url, default_branch,
                                                                   tracked_branches[]
@@ -963,9 +963,9 @@ def cmd_list(args) -> int:
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="adk repo",
-                                 description="Manage repo clones + indices under ~/.agents-devkit/repos/")
+                                 description="Manage repo clones + indices under $ADK_DATA_HOME/repos/")
     ap.add_argument("-v", "--verbose", action="store_true",
-                    help="write a structured DEBUG log to ~/.agents-devkit/logs/")
+                    help="write a structured DEBUG log to $ADK_DATA_HOME/logs/")
     sub = ap.add_subparsers(dest="cmd", required=True)
 
     sp_add = sub.add_parser("add", help="clone + index a repo")
@@ -988,7 +988,7 @@ def main(argv: list[str] | None = None) -> int:
     sp_upd.add_argument("name", nargs="?", default=None,
                         help="repo name to update (omit when using --all)")
     sp_upd.add_argument("--all", action="store_true",
-                        help="update every indexed repo under ~/.agents-devkit/repos/; "
+                        help="update every indexed repo under $ADK_DATA_HOME/repos/; "
                              "continues past per-repo failures and exits 1 if any failed")
     sp_upd.add_argument("--branch", action="append", default=None,
                         help="refresh only the named branch(es). Repeat for several.")
@@ -1053,7 +1053,7 @@ def main(argv: list[str] | None = None) -> int:
     sp_abc = ab_sub.add_parser("clean",
                                help="delete auto-bases with 0 active users + >= 24h old")
     sp_abc.add_argument("--queue", default=None,
-                        help="path to pr-queue.json5 (default: ~/.agents-devkit/config/pr-queue.json5)")
+                        help="path to pr-queue.json5 (default: $ADK_CONFIG_HOME/pr-queue.json5)")
     sp_abc.add_argument("--dry-run", action="store_true")
     sp_abc.add_argument("-y", "--yes", action="store_true")
     sp_abc.add_argument("--force", action="store_true",

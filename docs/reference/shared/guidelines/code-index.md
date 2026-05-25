@@ -25,8 +25,8 @@ same data.
 Storage:
 
 ```
-~/.agents-devkit/repos/<repo>/                    clone (default branch)
-~/.agents-devkit/repos/.indices/<repo>/           adk-owned index
+$ADK_DATA_HOME/repos/<repo>/                    clone (default branch)
+$ADK_DATA_HOME/repos/.indices/<repo>/           adk-owned index
   repo-meta.json                                  indexed_oid, indexed_at, default_branch
   code-index/
     chunks.jsonl  chunks.lance/  scip/  meta.json
@@ -52,7 +52,7 @@ Every other name in the module is internal and may change without notice.
 Resolves the on-disk index. Two roots:
 
 - `kind="repo"`: `target` is a repo name; resolves to
-  `~/.agents-devkit/repos/.indices/<target>/code-index/`.
+  `$ADK_DATA_HOME/repos/.indices/<target>/code-index/`.
 - `kind="task"`: `target` is a task-dir path; resolves to
   `<target>/code-index/`. PR-review uses this internally.
 
@@ -149,7 +149,7 @@ api_defs    = defs(idx, deprecated_fn)
 
 ## Configuration
 
-Defaults ship in `scripts/lib/code_index/defaults.yaml`. User overrides go in `~/.agents-devkit/config/code-index.yaml` — same shape, deep merged:
+Defaults ship in `scripts/lib/code_index/defaults.yaml`. User overrides go in `$ADK_CONFIG_HOME/code-index.yaml` — same shape, deep merged:
 
 ```yaml
 embed:

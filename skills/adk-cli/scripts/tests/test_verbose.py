@@ -1,7 +1,7 @@
 """v4 §6.x verbose-mode helper tests.
 
 - setup_verbose() is no-op when enabled=False.
-- When enabled=True it writes a human-readable manifest line to ~/.agents-devkit/logs/.
+- When enabled=True it writes a human-readable manifest line to $ADK_DATA_HOME/logs/.
 - _scrub_argv() masks values of flags whose name matches secret patterns.
 - _HumanFormatter scrubs secret env-name=value patterns in message bodies
   and indents multi-line message bodies.

@@ -3,7 +3,7 @@ base indexes.
 
 Storage layout (owned by `adk repo {add,update,branch}`):
 
-    ~/.agents-devkit/repos/<repo>/
+    $ADK_DATA_HOME/repos/<repo>/
       .clone-lock
       original-clone/                           bare clone (.git/ only)
       docs/                                     supporting docs (lazy)
@@ -246,7 +246,7 @@ def pick_base_index(
 
 def default_max_staleness_days() -> int:
     """User-configurable via `base_index.max_staleness_days` in
-    `~/.agents-devkit/config/code-index.yaml`. Built-in default: 7."""
+    `$ADK_CONFIG_HOME/code-index.yaml`. Built-in default: 7."""
     try:
         return int(get_cfg("base_index.max_staleness_days", default=7))
     except Exception:

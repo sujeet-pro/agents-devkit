@@ -9,8 +9,8 @@ order: 5500
 
 Deterministic enforcement of `shared/constitution.md`. Three events:
 
-- **PreToolUse:Bash** — blocks force-push, hard-reset on protected branches, `rm -rf $HOME`, unrequested PR merges, writes to `~/.agents-devkit/improve/learning/archive/`, `--no-verify` bypasses.
-- **PostToolUse:Edit\|Write** — validates SKILL.md frontmatter on writes; touches `.temp/<task-slug>/.last-modified`; refuses raw-token writes to `~/.agents-devkit/config/overrides.yaml`.
+- **PreToolUse:Bash** — blocks force-push, hard-reset on protected branches, `rm -rf $HOME`, unrequested PR merges, writes to `$ADK_DATA_HOME/improve/learning/archive/`, `--no-verify` bypasses.
+- **PostToolUse:Edit\|Write** — validates SKILL.md frontmatter on writes; touches `.temp/<task-slug>/.last-modified`; refuses raw-token writes to `$ADK_CONFIG_HOME/overrides.yaml`.
 - **SessionStart** — prints the adk status banner.
 
 `install.sh` merges these into `~/.claude/settings.json` with an `_adk_managed: true` tag so they're idempotent and removable on uninstall.
@@ -27,7 +27,7 @@ Deterministic enforcement of `shared/constitution.md`. Three events:
         "hooks": [
           {
             "type": "prompt",
-            "prompt": "Lightweight post-write check.\n\nIf the edited file path matches `*/skills/<skill>/SKILL.md`:\n  - Verify the YAML frontmatter has `name:` and `description:` fields.\n  - Verify `name:` value equals the folder basename (segment after `skills/` and before `/SKILL.md`).\n  - On mismatch, return {\"ok\":false,\"reason\":\"...\"}; otherwise {\"ok\":true}.\n\nIf the edited file path is under `.temp/<task-slug>/`:\n  - Append the current ISO-8601 UTC timestamp to a file `.temp/<task-slug>/.last-modified` (create if missing) so monitor tools can detect activity.\n  - Return {\"ok\":true}.\n\nIf the edited file path is `~/.agents-devkit/config/core.yaml` or `~/.agents-devkit/config/connectors/*.md` (frontmatter section between the leading `---` lines) or `~/.agents-devkit/config/adk-cli.json5`:\n  - Run a regex check that no line contains a raw token-looking value (`/^[A-Z_]+\\s*:\\s*['\"]?[a-zA-Z0-9_-]{20,}['\"]?$/` outside the `${VAR}` interpolation pattern).\n  - On match, return {\"ok\":false,\"reason\":\"raw token detected — use ${ENV_VAR} instead\"}.\n\nOtherwise: {\"ok\":true}."
+            "prompt": "Lightweight post-write check.\n\nIf the edited file path matches `*/skills/<skill>/SKILL.md`:\n  - Verify the YAML frontmatter has `name:` and `description:` fields.\n  - Verify `name:` value equals the folder basename (segment after `skills/` and before `/SKILL.md`).\n  - On mismatch, return {\"ok\":false,\"reason\":\"...\"}; otherwise {\"ok\":true}.\n\nIf the edited file path is under `.temp/<task-slug>/`:\n  - Append the current ISO-8601 UTC timestamp to a file `.temp/<task-slug>/.last-modified` (create if missing) so monitor tools can detect activity.\n  - Return {\"ok\":true}.\n\nIf the edited file path is `$ADK_CONFIG_HOME/core.yaml` or `$ADK_CONFIG_HOME/connectors/*.md` (frontmatter section between the leading `---` lines) or `$ADK_CONFIG_HOME/adk-cli.json5`:\n  - Run a regex check that no line contains a raw token-looking value (`/^[A-Z_]+\\s*:\\s*['\"]?[a-zA-Z0-9_-]{20,}['\"]?$/` outside the `${VAR}` interpolation pattern).\n  - On match, return {\"ok\":false,\"reason\":\"raw token detected — use ${ENV_VAR} instead\"}.\n\nOtherwise: {\"ok\":true}."
           }
         ]
       }
@@ -51,18 +51,18 @@ Deterministic enforcement of `shared/constitution.md`. Three events:
 ```bash
 #!/usr/bin/env bash
 # adk v4 SessionStart banner — short status line shown at the top of every Claude Code session.
-# Reads ~/.agents-devkit/config/core.yaml + scripts/adk_mcp_health.py for the summary.
+# Reads $ADK_CONFIG_HOME/core.yaml + scripts/adk_mcp_health.py for the summary.
 # Stays under 30 lines so it doesn't dominate the session opener.
 
 set -uo pipefail
 
 ADK_REPO="${ADK_REPO:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
-CORE_YAML="$HOME/.agents-devkit/config/core.yaml"
+CORE_YAML="$ADK_CONFIG_HOME/core.yaml"
 
 echo "[adk v4] — 9 skills: /adk-implement /adk-review /adk-pr-review /adk-investigate /adk-document /adk-sync /adk-setup /adk-improve /adk-explain"
 
 if [ ! -f "$CORE_YAML" ]; then
-  echo "[adk v4] ⚠ no ~/.agents-devkit/config/core.yaml — run /adk-setup --init"
+  echo "[adk v4] ⚠ no $ADK_CONFIG_HOME/core.yaml — run /adk-setup --init"
   exit 0
 fi
 
@@ -85,7 +85,7 @@ print(f'MCPs: {ok} env-ok, {miss} env-missing  ·  env: {env_present} present, {
 fi
 
 # Surface pending improve proposals if any
-proposals_dir="$HOME/.agents-devkit/improve/learning/proposals"
+proposals_dir="$ADK_DATA_HOME/improve/learning/proposals"
 if [ -d "$proposals_dir" ]; then
   count=$(find "$proposals_dir" -maxdepth 1 -type f -name '*.diff' 2>/dev/null | wc -l | tr -d ' ')
   if [ "$count" -gt 0 ]; then

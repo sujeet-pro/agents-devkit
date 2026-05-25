@@ -5,7 +5,7 @@ Two invocation modes:
 
   1. URL mode:   `python3 prepare_task.py <pr-url> [...flags]`
      Reviews the named PR. If the PR is found in the queue
-     (~/.agents-devkit/config/pr-queue.json5) the row's `taken_at` is
+     ($ADK_CONFIG_HOME/pr-queue.json5) the row's `taken_at` is
      atomically claimed for the duration of this run, and the row's
      `slack` + `supporting_docs` are merged into the review context.
 
@@ -925,7 +925,7 @@ def build_precis(task_dir: Path, top_k: int, scope: str) -> str:
             lines.append(f"- {u}")
         lines += [
             "",
-            "If a related task dir already exists under `~/.agents-devkit/skill-pr-review/`, inspect its `code/`, `diff.patch`, and `precis.md` only when the PRs appear to be the same feature, split PRs, or sync PRs.",
+            "If a related task dir already exists under `$ADK_DATA_HOME/skill-pr-review/`, inspect its `code/`, `diff.patch`, and `precis.md` only when the PRs appear to be the same feature, split PRs, or sync PRs.",
             "",
         ]
 

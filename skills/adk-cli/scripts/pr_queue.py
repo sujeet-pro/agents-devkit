@@ -6,7 +6,7 @@ add <url>           — single-shot upsert. URL may be a PR link (direct insert
                       after cheap meta-fetch), a Slack permalink (fetch that
                       message + replies, walk for PR links, upsert each), or
                       a bare PR number that resolves against
-                      ~/.agents-devkit/config/core.yaml's defaults.repo (with
+                      $ADK_CONFIG_HOME/core.yaml's defaults.repo (with
                       defaults.platform, default "github").
 update <pr-url>     — refresh head_sha + merged-state on one row (cheap meta
                       only — does not trigger a review).
@@ -18,7 +18,7 @@ release <pr-url>    — clear `taken_at` on a row (manual lock release).
 Every subcommand accepts `-y` / `--yes` for non-interactive use (no confirms;
 smart defaults).
 
-The queue lives at ~/.agents-devkit/config/pr-queue.json5 by default; override
+The queue lives at $ADK_CONFIG_HOME/pr-queue.json5 by default; override
 with `--queue <path>`.
 """
 from __future__ import annotations
@@ -349,7 +349,7 @@ _BARE_PR_NUMBER_RE = re.compile(r"^#?(\d+)$")
 def _resolve_bare_pr_number(token: str) -> str | None:
     """If `token` is a bare PR number (e.g. `1234` or `#1234`), expand it to
     a full PR URL using `defaults.platform` + `defaults.repo` from
-    ~/.agents-devkit/config/core.yaml. Returns None if `token` is not a
+    $ADK_CONFIG_HOME/core.yaml. Returns None if `token` is not a
     bare-number form. Raises SystemExit (via `die`) on configuration errors
     so the caller surfaces a clear actionable message.
     """
@@ -953,7 +953,7 @@ def main(argv: list[str] | None = None) -> int:
                                  description="Inspect / manage the PR review queue.")
     ap.add_argument("--queue", default=str(DEFAULT_QUEUE_PATH))
     ap.add_argument("-v", "--verbose", action="store_true",
-                    help="write a structured DEBUG log to ~/.agents-devkit/logs/")
+                    help="write a structured DEBUG log to $ADK_DATA_HOME/logs/")
     sub = ap.add_subparsers(dest="cmd", required=True)
 
     sp_list = sub.add_parser("list", help="list queue entries")

@@ -1,6 +1,6 @@
 # forks — adk-pr-review
 
-Canonical fork IDs the skill emits to `~/.agents-devkit/improve/learning/decisions.jsonl`. `/adk-improve` reads these to propose default updates.
+Canonical fork IDs the skill emits to `$ADK_DATA_HOME/improve/learning/decisions.jsonl`. `/adk-improve` reads these to propose default updates.
 
 | fork_id | options | default | trained by |
 |---|---|---|---|
@@ -22,7 +22,7 @@ Canonical fork IDs the skill emits to `~/.agents-devkit/improve/learning/decisio
 ## Reading the log
 
 ```bash
-jq -c 'select(.skill == "adk-pr-review")' ~/.agents-devkit/improve/learning/decisions.jsonl
+jq -c 'select(.skill == "adk-pr-review")' $ADK_DATA_HOME/improve/learning/decisions.jsonl
 ```
 
 ## What does NOT get logged

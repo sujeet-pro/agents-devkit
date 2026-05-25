@@ -10,7 +10,7 @@ The most important thing in adk. Every skill run accumulates evidence; `/adk-imp
 
 ## The file
 
-`~/.agents-devkit/improve/learning/decisions.jsonl` — append-only, one line per non-trivial fork.
+`$ADK_DATA_HOME/improve/learning/decisions.jsonl` — append-only, one line per non-trivial fork.
 
 Schema in `shared/decision-log-schema.md`. Required fields: `ts`, `skill`, `fork_id`, `fork_type`, `default_offered`, `user_chose`, `task_slug`.
 
@@ -77,22 +77,22 @@ What do you want to improve?
 4. AI step drafts the proposal as user-facing prose with quoted evidence lines.
 5. Each proposal requires per-item confirm. You accept / reject / defer.
 
-On accept: writes to `~/.agents-devkit/config/overrides.yaml.defaults.<skill>.<fork_id>` with a comment naming the date + evidence count.
+On accept: writes to `$ADK_CONFIG_HOME/overrides.yaml.defaults.<skill>.<fork_id>` with a comment naming the date + evidence count.
 
 After the run:
-- Appends a summary to `~/.agents-devkit/improve/learning/summary.md`.
-- Archives the current `decisions.jsonl` to `~/.agents-devkit/improve/learning/archive/<ts>-decisions.jsonl`.
+- Appends a summary to `$ADK_DATA_HOME/improve/learning/summary.md`.
+- Archives the current `decisions.jsonl` to `$ADK_DATA_HOME/improve/learning/archive/<ts>-decisions.jsonl`.
 - Starts a fresh empty `decisions.jsonl`.
 
 ### For "metadata"
 
-`scripts/metadata_introspector.py` queries every reachable MCP and refreshes `~/.agents-devkit/improve/metadata/<source>.json`. Prior version archived to `~/.agents-devkit/improve/metadata/archive/<ts>/`.
+`scripts/metadata_introspector.py` queries every reachable MCP and refreshes `$ADK_DATA_HOME/improve/metadata/<source>.json`. Prior version archived to `$ADK_DATA_HOME/improve/metadata/archive/<ts>/`.
 
 ## Bounded surface
 
 `/adk-improve` can change:
-- `~/.agents-devkit/config/overrides.yaml.defaults.*` (your per-skill defaults)
-- `~/.agents-devkit/improve/metadata/*.json` (auto-discovered metadata cache)
+- `$ADK_CONFIG_HOME/overrides.yaml.defaults.*` (your per-skill defaults)
+- `$ADK_DATA_HOME/improve/metadata/*.json` (auto-discovered metadata cache)
 
 `/adk-improve` **cannot** change:
 - `shared/constitution.md` (constitution-grade)

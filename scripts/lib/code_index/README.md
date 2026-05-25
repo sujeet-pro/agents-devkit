@@ -15,14 +15,14 @@ adk skills can consume it.
 | `base_index.py` | Locate / freshness-check / seed-copy the repo-level base index. |
 | `ensure_ollama.py` | Verify ollama is running + the named model is pulled. |
 | `_common.py` | Focused subset of helpers (logging, IO, hashing, `which`, config). |
-| `defaults.yaml` | Shipped defaults; user override at `~/.agents-devkit/config/code-index.yaml`. |
+| `defaults.yaml` | Shipped defaults; user override at `$ADK_CONFIG_HOME/code-index.yaml`. |
 | `requirements.txt` | Single source of truth for `lancedb`, `tree_sitter_language_pack`, etc. |
 
 ## Two index roots
 
 **Repo-level base** (long-lived; per branch):
 ```
-~/.agents-devkit/repos/.indices/<repo>/
+$ADK_DATA_HOME/repos/.indices/<repo>/
   repo-meta.json                                catalog: name, url, default_branch,
                                                 tracked_branches[]
   branches/<slug>/
@@ -44,7 +44,7 @@ stripped.
 
 **Task-level** (per-PR or per-investigation; short-lived):
 ```
-~/.agents-devkit/skill-pr-review/<repo>_pr-<n>/code-index/
+$ADK_DATA_HOME/skill-pr-review/<repo>_pr-<n>/code-index/
   chunks.jsonl  chunks.lance/  scip/  meta.json
 ```
 Owned by the consuming skill's task dir.
@@ -96,12 +96,12 @@ and are useful for debugging a half-built index.
 
 ```sh
 # Build a branch index from scratch — replace BRANCH_DIR with the per-branch
-# location, e.g. ~/.agents-devkit/repos/.indices/myrepo/branches/develop/
+# location, e.g. $ADK_DATA_HOME/repos/.indices/myrepo/branches/develop/
 
-BRANCH_DIR=~/.agents-devkit/repos/.indices/myrepo/branches/master
+BRANCH_DIR=$ADK_DATA_HOME/repos/.indices/myrepo/branches/master
 
 python3 scripts/lib/code_index/chunker.py \
-        --worktree ~/.agents-devkit/repos/myrepo \
+        --worktree $ADK_DATA_HOME/repos/myrepo \
         --out      "$BRANCH_DIR/code-index/chunks.jsonl"
 
 python3 scripts/lib/code_index/embedder.py \
@@ -112,7 +112,7 @@ python3 scripts/lib/code_index/embedder.py \
 
 python3 scripts/lib/code_index/scip_runner.py \
         --task-dir "$BRANCH_DIR" \
-        --worktree ~/.agents-devkit/repos/myrepo --json
+        --worktree $ADK_DATA_HOME/repos/myrepo --json
 
 # Query it:
 python3 scripts/lib/code_index/query_index.py \
@@ -138,6 +138,6 @@ not stable.
 ## Decision logging
 
 `open_index` writes one JSONL line per call to
-`~/.agents-devkit/improve/learning/decisions.jsonl`. Skip via `_log=False`
+`$ADK_DATA_HOME/improve/learning/decisions.jsonl`. Skip via `_log=False`
 in hot paths. Fork id: `open_index`. Hot tight loops calling `similar()`
 should pass `_log=False` to keep the log file tractable.

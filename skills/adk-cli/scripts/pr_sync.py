@@ -530,7 +530,7 @@ def main(argv: list[str] | None = None) -> int:
                     help="accepted for uniformity with other adk subcommands; pr-sync's "
                          "destructive steps are actual-by-default")
     ap.add_argument("-v", "--verbose", action="store_true",
-                    help="write a structured DEBUG log to ~/.agents-devkit/logs/")
+                    help="write a structured DEBUG log to $ADK_DATA_HOME/logs/")
     ap.add_argument("--quiet", action="store_true",
                     help=argparse.SUPPRESS)
     args = ap.parse_args(argv)

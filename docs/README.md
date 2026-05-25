@@ -26,9 +26,9 @@ features:
   - title: Multi-agent, one repo
     details: install.sh symlinks the right wrappers into Claude Code, Cursor, Codex CLI, and Junie at user level. No marketplace. Same content, native format per agent.
   - title: Question-first, every run
-    details: Every skill goes through a mandatory ≤3-question phase before any execution. The Q&A is logged to ~/.agents-devkit/improve/learning/decisions.jsonl as training data for the self-improvement loop.
+    details: Every skill goes through a mandatory ≤3-question phase before any execution. The Q&A is logged to $ADK_DATA_HOME/improve/learning/decisions.jsonl as training data for the self-improvement loop.
   - title: Self-improving by design
-    details: /adk-improve reads accumulated decision logs and proposes updates to ~/.agents-devkit/config/overrides.yaml. After each run the log rotates so improvements compound over time.
+    details: /adk-improve reads accumulated decision logs and proposes updates to $ADK_CONFIG_HOME/overrides.yaml. After each run the log rotates so improvements compound over time.
   - title: Plan/act tool enforcement
     details: --plan mode literally restricts the implementer to read-only tools; --act unlocks edits. Cline-style separation, not advisor-prose-only.
   - title: Deterministic hooks

@@ -20,14 +20,14 @@ adk has grown into a working pipeline but with rough edges:
 **v4 lands one coordinated overhaul that:**
 
 1. Makes **GitHub-first** the default everywhere (terminology, routing, defaults, fallback to `gh` CLI).
-2. Restructures `~/.agents-devkit/` so that **a branch dir and a PR task dir have the same shape**, with skill-specific files isolated in subfolders.
+2. Restructures `$ADK_DATA_HOME/` so that **a branch dir and a PR task dir have the same shape**, with skill-specific files isolated in subfolders.
 3. Replaces today's straight-line sync with a **dependency-aware 3-tier DAG**: existing bases serve their PRs immediately, branches needing a base get one built (user **or** auto-created), and singleton PRs run as full indexes. A PR becomes "ready for review" only after its prerequisites are met.
 4. Auto-creates **transient base indexes** for branches shared by ≥2 queued PRs, tagged so the TUI can show them; cleans them up after 24h of zero use.
 5. Migrates skill-specific working dirs to a `skill-<name>/` prefix. **Migration preserves existing prepared indices** — re-indexing every PR after a layout change would burn hours of CPU; the install script MOVES task folders and branch indices, it does not rebuild them.
 6. Adds a **post-review Slack notification** that tags the PR author in the original thread with the verdict + summary + link to the PR.
 7. Adds a **fully automated review mode** (`adk auto`) — headless sync + parallel reviews + Slack roll-up; scheduler-friendly.
 8. Adds an iterative **`prj-adk-pr-auto` project-level skill** (lives in `<repo>/.claude/skills/`) — runs `adk auto` at growing batch sizes (1 → 4 → all), observes failures via verbose logs, proposes + applies fixes, repeats until clean. The auto-improve loop is itself a skill, scriptable, repeatable.
-9. Adds a **verbose mode** (`--verbose` / `-v`) to every CLI verb. Off by default; writes structured debug logs to `~/.agents-devkit/logs/` so dev users and the `prj-adk-pr-auto` skill can observe behaviour.
+9. Adds a **verbose mode** (`--verbose` / `-v`) to every CLI verb. Off by default; writes structured debug logs to `$ADK_DATA_HOME/logs/` so dev users and the `prj-adk-pr-auto` skill can observe behaviour.
 10. Adds a Textual **TUI** that surfaces the whole pipeline live: queue list, per-row prep progress, "review" enabled only when prereqs are met, parallel batched runs, repo & branch management. **Built LAST**, after the skill + CLI version of every feature is stable.
 11. Enforces a **single binary + CLI-as-sole-API** layering: every operation goes through `adk <verb>`; TUI and skills both shell out; nothing imports the implementation modules directly.
 12. Drives the whole build using **agentic teams** — each phase has a lead/worker/reviewer breakdown so independent units can run in parallel.
@@ -43,8 +43,8 @@ The migration runs through `install.sh`, idempotently. Each phase is shippable o
 Confirmed by re-reading the repo on $(date +%Y-%m-%d). Anything marked ✓ is in-tree today and should not be re-implemented:
 
 **Filesystem & data:**
-- `~/.agents-devkit/repos/<name>/` ✓ clone at the top, `.indices/<name>/branches/<slug>/{code-index,branch-meta.json}/` per-branch index (mid-migration shape).
-- `~/.agents-devkit/pr-reviews/<repo>_pr-<n>/` ✓ legacy PR task root.
+- `$ADK_DATA_HOME/repos/<name>/` ✓ clone at the top, `.indices/<name>/branches/<slug>/{code-index,branch-meta.json}/` per-branch index (mid-migration shape).
+- `$ADK_DATA_HOME/pr-reviews/<repo>_pr-<n>/` ✓ legacy PR task root.
 - `pr-queue.json5` row schema captures `target_branch`, `head_oid`, `status` ∈ {`pending`, `in_review`, `reviewed`, `comments`, `approved`, `merged`, `declined`, `error`, `reminded`}, plus `last_reviewed_*`, `last_reminded_at`. ✓
 - `memory/` exists, is empty, has no callers. Drop in Phase P2.
 
@@ -81,7 +81,7 @@ Every phase below runs §2 before any code is written. The implementer:
 3. Reads `SKILL.md` for `adk-pr-review` (and any other skill being modified).
 4. Reads `shared/constitution.md` (§I.3 no auto-merge, §I.4 posting policy, §VII secret handling).
 5. Reads `shared/paths.md` for canonical roots.
-6. Inspects `~/.agents-devkit/` on the dev machine to see what's actually on disk.
+6. Inspects `$ADK_DATA_HOME/` on the dev machine to see what's actually on disk.
 7. Greps for callers of any symbol about to be renamed.
 8. Lists any open PRs touching the same files.
 
@@ -92,7 +92,7 @@ Every phase below runs §2 before any code is written. The implementer:
 ## 3. Target architecture (end state)
 
 ```
-~/.agents-devkit/
+$ADK_DATA_HOME/
 ├── config/                              # user-owned (preserved)
 │   ├── core.yaml                        # adds defaults.platform=github, defaults.repo=…
 │   ├── pr-queue.json5
@@ -263,7 +263,7 @@ Phase B · Plan
           → mark for AUTO-base creation in Phase C with `created_by: "auto"`
         Otherwise (singleton group, missing base):
           → mark PR(s) for Tier-2 (full-from-scratch indexing)
-  B4  Emit the plan as plan.json under ~/.agents-devkit/tui/workers/sync-plan.json
+  B4  Emit the plan as plan.json under $ADK_DATA_HOME/tui/workers/sync-plan.json
        with each PR tagged (tier-0 | tier-1 | tier-2) so the TUI can render
        the DAG and the auto-vs-user origin of each base.
 
@@ -322,7 +322,7 @@ Eligibility rules are owned by **§6.u** (single source of truth for what makes 
 
 ### 5.4 Auto-base lifecycle
 
-A **base index** is the chunked + embedded view of a branch in `~/.agents-devkit/repos/<repo>/branch-<NAME>/code-index/`. Two origins:
+A **base index** is the chunked + embedded view of a branch in `$ADK_DATA_HOME/repos/<repo>/branch-<NAME>/code-index/`. Two origins:
 
 | Origin | Created by | Cleanup | Survives if 0 users |
 |---|---|---|---|
@@ -390,7 +390,7 @@ If `pr-sync` is interrupted mid-Phase-D:
 
 ### 5.8 Config
 
-`~/.agents-devkit/config/core.yaml`:
+`$ADK_CONFIG_HOME/core.yaml`:
 ```yaml
 pr_sync:
   base_jobs: 2                  # parallel base-index builds
@@ -595,7 +595,7 @@ Every CLI verb gains `--verbose` / `-v`. Off by default.
 - Each subprocess invocation logged with full argv, cwd, exit code, runtime.
 - Each network call logged with method, URL (no headers — secret hygiene), response code, elapsed.
 - Each file read/write over 1 MB logged with byte count.
-- One structured log file per invocation at `~/.agents-devkit/logs/<verb>-<utc-ts>-<pid>.log`. JSON-lines so it's `jq`-able.
+- One structured log file per invocation at `$ADK_DATA_HOME/logs/<verb>-<utc-ts>-<pid>.log`. JSON-lines so it's `jq`-able.
 - Stderr also receives a human-readable summary line per major step.
 
 **Off (default):**
@@ -783,7 +783,7 @@ adk auto [--max-reviews N] [--max-cost-usd X] [--quiet-hours 00-08]
    - Auto-mode: the skill runs Phase 2-6 without `-i`.
    - Posts inline comments + Slack summary per existing policy (constitution §I.4).
 3. Final `adk pr-queue clean` to drop rows that became terminal during the run.
-4. Write `~/.agents-devkit/skill-setup/auto-runs/<ts>/report.md` aggregating per-PR recaps.
+4. Write `$ADK_DATA_HOME/skill-setup/auto-runs/<ts>/report.md` aggregating per-PR recaps.
 5. If `--report-to-slack` set: one summary post to that channel ("Auto-review: 8 PRs reviewed · 4 approved · 2 needs-changes · 2 comment-only · run time 12m18s").
 
 ### 7.4 Safety
@@ -856,7 +856,7 @@ adk repo rebuild-index <name> [--branch X]   ← NEW (for "folder got deleted" c
 adk repo migrate [<name>]                    ← already in-tree; finish it
 ```
 
-**Migration:** Walk every `~/.agents-devkit/repos/<name>/`. For each, detect layout state (legacy v3 / mid-transition / v4) and apply the minimal moves to reach v4. Idempotent.
+**Migration:** Walk every `$ADK_DATA_HOME/repos/<name>/`. For each, detect layout state (legacy v3 / mid-transition / v4) and apply the minimal moves to reach v4. Idempotent.
 
 **Exit:** Every repo has `repo-meta.json`, `original-clone/`, `branch-<DEFAULT>/`. Every branch dir has `code/`, `code-index/`, `branch-meta.json`. `adk repo rebuild-index` works when a folder was deleted by hand.
 
@@ -881,7 +881,7 @@ adk repo migrate [<name>]                    ← already in-tree; finish it
 - `_build_bases(plan, jobs, embed_model, log)` — Phase C (user refreshes + auto-creates).
 - `_prepare_tier(prs, jobs, log, on_progress, tier)` — Phase D (tier-0, tier-1, or tier-2).
 - `_clean_auto_bases(log)` — Phase F.
-- `_write_plan(plan)` — persists to `~/.agents-devkit/tui/workers/sync-plan.json` for the TUI.
+- `_write_plan(plan)` — persists to `$ADK_DATA_HOME/tui/workers/sync-plan.json` for the TUI.
 
 **Queue schema additions:** `prep_status`, `prep_started_at`, `prep_completed_at`, `prep_head_sha`, `prep_used_base` (now includes `{repo, branch, created_by}`), `prep_error`.
 
@@ -949,8 +949,8 @@ adk pr-task prepare <url> -v
 
 **Preservation contract (the rule):**
 - The PR queue (`pr-queue.json5`) is rewritten in place with the new field names; no row is dropped.
-- Every existing `~/.agents-devkit/pr-reviews/<repo>_pr-<n>/` task folder is MOVED to `~/.agents-devkit/skill-pr-review/<repo>_pr-<n>/`, with its `code/`, `code-index/`, `scip/`, `docs/` subfolders untouched (only PR-specific files relocate into `pr-review/`).
-- Every existing branch index under `~/.agents-devkit/repos/<name>/...` is MOVED to its v4 location (`branch-<NAME>/code-index/`). `branch-meta.json` gets `created_by: "user"` (everything in-tree today was user-driven).
+- Every existing `$ADK_DATA_HOME/pr-reviews/<repo>_pr-<n>/` task folder is MOVED to `$ADK_DATA_HOME/skill-pr-review/<repo>_pr-<n>/`, with its `code/`, `code-index/`, `scip/`, `docs/` subfolders untouched (only PR-specific files relocate into `pr-review/`).
+- Every existing branch index under `$ADK_DATA_HOME/repos/<name>/...` is MOVED to its v4 location (`branch-<NAME>/code-index/`). `branch-meta.json` gets `created_by: "user"` (everything in-tree today was user-driven).
 - Anything *outside* the preservation set (e.g. orphaned task folders without a queue row, stale `memory/`, decision-log archives) may be cleaned up — but only after the preservation set is safely in v4 layout.
 
 **Flow:**
@@ -970,9 +970,9 @@ adk pr-task prepare <url> -v
                                                                 verified)
 ```
 
-Each step writes to `~/.agents-devkit/.migration-staging/<phase>/` first using **hardlinks where possible** (instant, free, no data duplication on the same filesystem); only renames into place on success of the WHOLE batch. On failure, staging is preserved + report explains what to fix. `./install.sh --rollback-migration <timestamp>` reverts.
+Each step writes to `$ADK_DATA_HOME/.migration-staging/<phase>/` first using **hardlinks where possible** (instant, free, no data duplication on the same filesystem); only renames into place on success of the WHOLE batch. On failure, staging is preserved + report explains what to fix. `./install.sh --rollback-migration <timestamp>` reverts.
 
-**Migration report:** `~/.agents-devkit/skill-setup/migrations/<ts>.md` listing every transformation, byte counts moved, references in user-authored markdown that need a manual edit, AND an "**indices preserved: N task folders, M branch indices, 0 re-indexed**" line so the user sees that no work was lost.
+**Migration report:** `$ADK_DATA_HOME/skill-setup/migrations/<ts>.md` listing every transformation, byte counts moved, references in user-authored markdown that need a manual edit, AND an "**indices preserved: N task folders, M branch indices, 0 re-indexed**" line so the user sees that no work was lost.
 
 **Verification:** post-migration, the install runs a quick sanity check — for each preserved task folder, confirm `code-index/meta.json` exists, has a valid embed model, and `chunks.lance/` is readable. If any index fails verification, surface in the report; do not silently re-index.
 
@@ -1000,7 +1000,7 @@ Detail in §10.
 2. Enumerate rows passing the §6.u eligibility predicate, sort FIFO, cap at `--max-reviews`.
 3. Apply guards: `--quiet-hours`, `--max-cost-usd`, `--exclude`, `--dry-run`.
 4. Spawn parallel **agent subprocesses** up to `--parallel N`. The invocation is `<agent_binary> -p "/adk-pr-review <pr_url>"` — e.g. `claude -p "/adk-pr-review https://github.com/acme/foo/pull/42"`. The agent loads the skill, which makes its own `adk pr-task ...` calls (Phase 2-6). `auto_run.py` never imports `prepare_task.py` directly; it just spawns the agent.
-5. Per child: stream stdout to `~/.agents-devkit/skill-setup/auto-runs/<ts>/<repo>_pr-<n>.log`; on exit, capture the final recap from `pr-review/report.md`.
+5. Per child: stream stdout to `$ADK_DATA_HOME/skill-setup/auto-runs/<ts>/<repo>_pr-<n>.log`; on exit, capture the final recap from `pr-review/report.md`.
 6. Aggregate to `report.md`.
 7. If `--report-to-slack` set: post the summary via the Slack helper.
 
@@ -1022,7 +1022,7 @@ Detail in §10.
 <repo>/.claude/skills/prj-adk-pr-auto/
   SKILL.md                            # main contract: process + invariants
   scripts/
-    observe.py                        # parse ~/.agents-devkit/logs/ + auto-run reports
+    observe.py                        # parse $ADK_DATA_HOME/logs/ + auto-run reports
                                       # extract failure categories (prep_failed, agent_crashed,
                                       # post_failed, slack_failed, ...) with line refs
     propose_fix.py                    # given a failure category + log excerpt, draft a fix patch
@@ -1218,7 +1218,7 @@ A row's state is the join of `prep_status`, `taken_at`, `status`, `last_reviewed
 └──────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-The "Sync plan" pane is read from `~/.agents-devkit/tui/workers/sync-plan.json` (written by `pr-sync` in Phases B/C/D). It updates as bases land and tiers complete.
+The "Sync plan" pane is read from `$ADK_DATA_HOME/tui/workers/sync-plan.json` (written by `pr-sync` in Phases B/C/D). It updates as bases land and tiers complete.
 
 ### 8.5 Architecture
 
@@ -1246,7 +1246,7 @@ The "Sync plan" pane is read from `~/.agents-devkit/tui/workers/sync-plan.json` 
                 │   3. spawn agent: claude -p "/adk-pr-review <url>"  (agent runs phases 2-6)
                 │   4. heartbeat loop: adk pr-queue heartbeat <url>   (every 5 min, daemon)
                 │   5. on exit: skill already called `adk pr-task report` which released the lock
-                │  TUI worker file: ~/.agents-devkit/tui/workers/<pid>.json (heartbeat + state)
+                │  TUI worker file: $ADK_DATA_HOME/tui/workers/<pid>.json (heartbeat + state)
                 └─────────────────────────────────────────────┘
 ```
 
@@ -1254,8 +1254,8 @@ The "Sync plan" pane is read from `~/.agents-devkit/tui/workers/sync-plan.json` 
 - Calls `adk pr-queue claim <url>` first — fails fast if the row is locked.
 - Calls `adk pr-queue heartbeat <url>` every ~5 minutes in a daemon thread to keep the lock fresh; stops on the agent's exit.
 - Spawns the configured agent via the agent registry: the registry's `launch(slash_cmd, args)` returns the argv (`["claude", "-p", "/adk-pr-review <url>"]` by default; per-agent overrides).
-- Writes the TUI heartbeat JSON every 5s (pid, pr_url, task type, agent, current_phase, started_at, last_heartbeat) to `~/.agents-devkit/tui/workers/<pid>.json`.
-- Streams agent stdout/stderr to `~/.agents-devkit/tui/logs/<id>.log` AND to its parent (the TUI tails both).
+- Writes the TUI heartbeat JSON every 5s (pid, pr_url, task type, agent, current_phase, started_at, last_heartbeat) to `$ADK_DATA_HOME/tui/workers/<pid>.json`.
+- Streams agent stdout/stderr to `$ADK_DATA_HOME/tui/logs/<id>.log` AND to its parent (the TUI tails both).
 - Traps SIGTERM: kills the agent child, calls `adk pr-queue release <url>` to clear the lock, exits 130.
 
 **Key invariant: the worker driver never imports `prepare_task.py` or any Layer-3 module directly.** It only calls `adk <verb>` and spawns the agent binary. This is what makes the worker driver swappable across agent backends and resilient to internal refactors.
@@ -1384,7 +1384,7 @@ Total estimate: **≈32 engineer-days** (sequential). Agentic-team parallelism w
 | Verbose log files balloon disk | One file per CLI invocation; rotated at 100 MB or pruned after 7 days by an `adk doctor` check. |
 | `prj-adk-pr-auto` proposes an unsafe fix | `propose_fix.py` greps the patch for credential patterns; refuses to apply if any match. All fixes go through local commit (never push); the user inspects before pushing. |
 | `prj-adk-pr-auto` loops forever | `consecutive_clean >= 3` termination at the top level; per-iteration time-box (default 30 min); `--max-iterations N` flag for paranoia. |
-| `prj-adk-pr-auto` state file lost | Re-deriveable: read recent `~/.agents-devkit/skill-setup/auto-runs/<ts>/report.md` to reconstruct. `--reset` flag for fresh start. |
+| `prj-adk-pr-auto` state file lost | Re-deriveable: read recent `$ADK_DATA_HOME/skill-setup/auto-runs/<ts>/report.md` to reconstruct. `--reset` flag for fresh start. |
 | Slack-author mention broken (no mapping) | Falls back to plain text `@<github-login>`. No broken `<@U…>` literal. Document mapping in SETUP.md. |
 | `adk pr-task post` Slack reply fires twice on a re-run | `post-result.json` records `slack_reply_ts` after first post; subsequent runs see it set and skip the reply. |
 | Reaction flip (§6.y.3) clobbers a human-added emoji | Helper only removes emojis listed in the adk-managed set (the values column of §6.y.3 + any declared in `connectors/slack.md` frontmatter). Anything else (👍, 🚀, custom team emojis) is preserved. |

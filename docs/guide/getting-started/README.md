@@ -35,7 +35,7 @@ export ATLASSIAN_API_TOKEN_CRED="ATATT..."
 Then in your agent:
 
 ```text
-/adk-setup --init                 # scaffold ~/.agents-devkit/config/overrides.yaml
+/adk-setup --init                 # scaffold $ADK_CONFIG_HOME/overrides.yaml
 /adk-setup --check                # verify env, MCPs, agents
 /adk-setup --enrich               # auto-populate metadata cache from MCPs
 ```

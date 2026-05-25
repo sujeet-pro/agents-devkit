@@ -47,7 +47,7 @@ Polymorphic on target. Read-only by default; `--fix` extends to apply + push (ne
 
 `--detailed` means "gather more local/programmatic context where available" (for this lightweight skill, use the code-index light path more aggressively). `--deep` means "use the stronger model profile" per `shared/model-depth.md`. For large PRs, prefer `/adk-pr-review`; for ambiguous but small reviews, `--deep` is enough.
 
-**Hybrid path** — repo-bound (`<repo>/.temp/adk/review/<task>/`) when reviewing local code (`.`, `--audit`, a doc in the cwd repo); global (`~/.agents-devkit/reviews/<task>/`) when reviewing a remote PR URL from outside the relevant repo. Path resolved per `shared/paths.md`.
+**Hybrid path** — repo-bound (`<repo>/.temp/adk/review/<task>/`) when reviewing local code (`.`, `--audit`, a doc in the cwd repo); global (`$ADK_DATA_HOME/reviews/<task>/`) when reviewing a remote PR URL from outside the relevant repo. Path resolved per `shared/paths.md`.
 
 ## References (loaded as needed)
 

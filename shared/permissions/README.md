@@ -51,7 +51,7 @@ Behaviour:
 Edit the files in this folder and re-run `./install.sh` to push changes to
 every supported agent. To exclude a specific entry on a specific machine,
 remove it from the relevant config file here or rebuild the entry list in
-your `~/.agents-devkit/config/core.yaml (+ repos.md + connectors/*.md)` (planned).
+your `$ADK_CONFIG_HOME/core.yaml (+ repos.md + connectors/*.md)` (planned).
 
 ## Safety notes
 

@@ -123,13 +123,13 @@ cd ~/code/agents-devkit
 
 The installer:
 
-1. Enforces an ADK-only agent profile before installing fresh files. It removes non-ADK skills/rules/prompts/MCP descriptor caches from Cursor, Claude, Codex, and Junie; deletes non-ADK plugin/import caches; and quarantines legacy ADK v2/v3 state under `~/.agents-devkit/legacy/<timestamp>/`.
-2. Creates `~/.agents-devkit/config/` if missing. The conversational scaffolding (core.yaml, repos.md, connectors/*.md, links.json5, settings.json5) is then done by `/adk-setup --init` — see §4.
+1. Enforces an ADK-only agent profile before installing fresh files. It removes non-ADK skills/rules/prompts/MCP descriptor caches from Cursor, Claude, Codex, and Junie; deletes non-ADK plugin/import caches; and quarantines legacy ADK v2/v3 state under `$ADK_DATA_HOME/legacy/<timestamp>/`.
+2. Creates `$ADK_CONFIG_HOME/` if missing. The conversational scaffolding (core.yaml, repos.md, connectors/*.md, links.json5, settings.json5) is then done by `/adk-setup --init` — see §4.
 3. Symlinks skills + agents + commands into each detected agent's config dir wherever the agent supports symlinks. Cursor requestable rules, Junie command files, and JSON/TOML config are generated deterministically because those formats need rendered absolute paths/content.
 4. **Replaces** each agent's MCP server list with the `mcp/*.json` adk set: Claude → `~/.claude.json`, Cursor → `~/.cursor/mcp.json`, Codex → `~/.codex/config.toml` (marker block), Junie → `~/.junie/mcp/mcp.json`. Any pre-configured user MCPs are stashed under `_adkRemovedMcpServers` and put back on `--uninstall`.
 5. Merges `shared/permissions/*` into each agent's settings file so all safe / read tool calls are auto-approved and only dangerous actions prompt. See `shared/permissions/README.md`.
 6. Appends a one-line reference to `AGENTS.md` in each agent's global guidelines file.
-7. Seeds `~/.agents-devkit/improve/learning/decisions.jsonl` with foundational design decisions (your earlier Q&A) so the first `/adk-improve` run has evidence.
+7. Seeds `$ADK_DATA_HOME/improve/learning/decisions.jsonl` with foundational design decisions (your earlier Q&A) so the first `/adk-improve` run has evidence.
 8. Prints a JSON manifest of cleanup + install actions. In `--dry-run`, the same manifest is emitted with `would-*` statuses and no filesystem changes.
 
 ### ADK-only cleanup and repeatability
@@ -175,18 +175,18 @@ Division of labor:
 | Install brew, gh, jq, uv, node, python | **You.** See §1 above. | adk doesn't run brew on your machine. |
 | Export env vars in `~/.zshenv` | **You.** See §2 above. | adk doesn't modify shell rc. |
 | Symlink skills/agents/commands; merge MCP config; wire hooks | `install.sh` | Filesystem wiring. Deterministic; no AI needed. |
-| Scaffold `~/.agents-devkit/config/{core.yaml,repos.md,connectors/*.md,links.json5}` (workspaces, repos, data sources) | `/adk-setup --init` (in your agent) | Conversational walkthrough; data dictionary needs your judgment. |
-| Query MCPs and populate `~/.agents-devkit/improve/metadata/<source>.json` + propose `connectors/<name>.md` frontmatter updates | `/adk-setup --enrich` | Uses the agent's MCP client to invoke stdio MCPs (uvx/npx) that `curl` can't. AI summarizes large lists. |
+| Scaffold `$ADK_CONFIG_HOME/{core.yaml,repos.md,connectors/*.md,links.json5}` (workspaces, repos, data sources) | `/adk-setup --init` (in your agent) | Conversational walkthrough; data dictionary needs your judgment. |
+| Query MCPs and populate `$ADK_DATA_HOME/improve/metadata/<source>.json` + propose `connectors/<name>.md` frontmatter updates | `/adk-setup --enrich` | Uses the agent's MCP client to invoke stdio MCPs (uvx/npx) that `curl` can't. AI summarizes large lists. |
 | Verify env + MCPs reachable | `/adk-setup --check` or `python3 scripts/adk_mcp_health.py --probe` | The skill version also tests stdio MCPs via real MCP-client invocation and offers conversational fix-it guidance. The script is faster for repeated checks. |
 
 ```text
-/adk-setup --init       # scaffold ~/.agents-devkit/config/{core.yaml,repos.md,connectors/*.md,links.json5}
+/adk-setup --init       # scaffold $ADK_CONFIG_HOME/{core.yaml,repos.md,connectors/*.md,links.json5}
 /adk-setup --enrich     # query every reachable MCP, populate the enriched.* block + metadata cache
 /adk-setup --check      # superset of scripts/adk_mcp_health.py (also tests stdio MCPs)
 /adk-setup --diff       # show what --enrich would change (read-only)
 ```
 
-Edit `~/.agents-devkit/config/core.yaml` for your workspaces, defaults, and RAG config; `~/.agents-devkit/config/repos.md` for the repos you work in; `~/.agents-devkit/config/connectors/*.md` for each data source (Snowflake/Looker/Mixpanel/Datadog/etc — frontmatter is config, body is the human cheatsheet the agent reads as context). The skills won't be useful until at least one workspace and one repo entry are filled.
+Edit `$ADK_CONFIG_HOME/core.yaml` for your workspaces, defaults, and RAG config; `$ADK_CONFIG_HOME/repos.md` for the repos you work in; `$ADK_CONFIG_HOME/connectors/*.md` for each data source (Snowflake/Looker/Mixpanel/Datadog/etc — frontmatter is config, body is the human cheatsheet the agent reads as context). The skills won't be useful until at least one workspace and one repo entry are filled.
 
 ## 5. Verify
 
@@ -237,7 +237,7 @@ overrides:
 ## 7. Layout
 
 ```
-~/.agents-devkit/
+$ADK_DATA_HOME/
 ├── memory/                 # auto: cross-session memory
 ├── config/                 # YOU edit
 │   ├── core.yaml           # workspaces, defaults, rag, learning_state, enriched
@@ -267,6 +267,6 @@ Inside any repo you work on:
 
 ## 8. Privacy
 
-- No skill ever uploads `~/.agents-devkit/config/*` anywhere.
+- No skill ever uploads `$ADK_CONFIG_HOME/*` anywhere.
 - Tokens live in `~/.zshenv` (or shell rc) only. `core.yaml` / `connectors/*.md` frontmatter / `adk-cli.json5` can reference env vars by name but **must not** contain raw token values; a post-write hook enforces this with a regex check.
 - Decision logs are local-only; `/adk-improve` proposals stay local until you accept them.

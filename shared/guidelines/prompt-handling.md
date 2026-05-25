@@ -6,7 +6,7 @@
 
 1. **Tokenize the prompt** into: imperative verb(s), entities (URLs / paths / IDs / quoted strings), modifiers (deadlines, constraints, mode flags).
 2. **Classify the verb**: implement | review | investigate | document | sync | explain | improve | setup. Multiple verbs → multiple skills in sequence.
-3. **Resolve entities** against `~/.agents-devkit/config/core.yaml` + `<repo>/.adk/overrides.yaml`. If unresolved: surface to user.
+3. **Resolve entities** against `$ADK_CONFIG_HOME/core.yaml` + `<repo>/.adk/overrides.yaml`. If unresolved: surface to user.
 4. **Detect mode flags**: `--auto`, `-i`, `--fix`, `--dry-run`, `--target X`, etc.
 5. **Pick the skill (or chain)** per `AGENTS.md §2` table.
 6. **Compose with non-adk skills** if available — see §3 of AGENTS.md.

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""proposal_generator.py — analyze ~/.agents-devkit/improve/learning/decisions.jsonl and
-suggest defaults to update in ~/.agents-devkit/config/overrides.yaml.
+"""proposal_generator.py — analyze $ADK_DATA_HOME/improve/learning/decisions.jsonl and
+suggest defaults to update in $ADK_CONFIG_HOME/overrides.yaml.
 
 This is the PROGRAMMATIC pattern-detector. /adk-improve calls it, then uses
 the AI step to wrap the proposals in user-facing prose + apply diffs after

@@ -106,7 +106,7 @@ Review turnaround is best-effort. Ping in the PR thread if it's been quiet for >
 
 Every skill walks `shared/question-first.md` before executing:
 
-- Default mode is **auto** — the agent picks the recommended default for each fork, logs the choice to `~/.agents-devkit/improve/learning/decisions.jsonl`, and narrates the pick so the user can interrupt.
+- Default mode is **auto** — the agent picks the recommended default for each fork, logs the choice to `$ADK_DATA_HOME/improve/learning/decisions.jsonl`, and narrates the pick so the user can interrupt.
 - `-i` / `--interactive` actually asks (cap 3 user-facing questions).
 - "I don't know" hands off to `/adk-explain`.
 
@@ -116,7 +116,7 @@ Shared-state writes (Slack post, PR comment, Confluence page update, Statsig mut
 
 ## 8. The decision-log obligation
 
-Every non-trivial fork your skill resolves gets one JSONL line in `~/.agents-devkit/improve/learning/decisions.jsonl`. Schema: `shared/decision-log-schema.md`. These lines feed `/adk-improve`, which proposes default updates to `~/.agents-devkit/config/core.yaml`.
+Every non-trivial fork your skill resolves gets one JSONL line in `$ADK_DATA_HOME/improve/learning/decisions.jsonl`. Schema: `shared/decision-log-schema.md`. These lines feed `/adk-improve`, which proposes default updates to `$ADK_CONFIG_HOME/core.yaml`.
 
 If you're touching a skill, audit its decision-log emissions:
 
@@ -137,7 +137,7 @@ Don't log free-form prose. Don't log PII. Don't log credential values.
 - **TUI**: `tui/` (Textual). Tests under `tui/tests/`.
 - **Docs**: `docs/` — plans, archive, progress. Active plans at the top level of `docs/plans/`; historical sessions under `docs/plans/archive/<session>/`.
 - **Tests**: collocated under each slice — `tui/tests/`, `skills/adk-cli/scripts/tests/`, `skills/adk-pr-review/scripts/tests/`.
-- **Task folders**: `<repo>/.temp/adk/<skill>/<task>/` (repo-bound skills) or `~/.agents-devkit/<area>/<task>/` (global skills). Both gitignored. See `shared/paths.md` for the full layout.
+- **Task folders**: `<repo>/.temp/adk/<skill>/<task>/` (repo-bound skills) or `$ADK_DATA_HOME/<area>/<task>/` (global skills). Both gitignored. See `shared/paths.md` for the full layout.
 
 ## 10. Releasing
 

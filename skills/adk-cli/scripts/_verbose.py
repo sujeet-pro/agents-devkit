@@ -2,7 +2,7 @@
 
 Every CLI verb's main() can call `setup_verbose(verb_name, enabled=args.verbose)`
 to wire structured DEBUG logging into a plain-text file at
-`~/.agents-devkit/logs/<verb>-<utc-ts>-<pid>.log`. Off by default; stderr
+`$ADK_DATA_HOME/logs/<verb>-<utc-ts>-<pid>.log`. Off by default; stderr
 keeps the human-friendly INFO output.
 
 Off (default):

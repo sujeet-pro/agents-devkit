@@ -1,6 +1,6 @@
 ---
 title: 'enrich_metadata.py'
-description: 'enrich_metadata.py — populate ~/.agents-devkit/improve/metadata/<source>.json'
+description: 'enrich_metadata.py — populate $ADK_DATA_HOME/improve/metadata/<source>.json'
 script: 'enrich_metadata.py'
 source: 'scripts/enrich_metadata.py'
 group: 'scripts'
@@ -8,7 +8,7 @@ order: 4004
 ---
 # enrich_metadata.py
 
-enrich_metadata.py — populate ~/.agents-devkit/improve/metadata/<source>.json
+enrich_metadata.py — populate $ADK_DATA_HOME/improve/metadata/<source>.json
 
 ## Source
 
@@ -18,12 +18,12 @@ enrich_metadata.py — populate ~/.agents-devkit/improve/metadata/<source>.json
 
 ```python
 #!/usr/bin/env python3
-"""enrich_metadata.py — populate ~/.agents-devkit/improve/metadata/<source>.json
+"""enrich_metadata.py — populate $ADK_DATA_HOME/improve/metadata/<source>.json
 by introspecting reachable MCPs / CLI tools.
 
 This script does the PROGRAMMATIC enrichment. The AI step in /adk-setup --enrich
 produces nice prose around the results and decides what to lift into
-~/.agents-devkit/config/connectors/<name>.md frontmatter; this just gathers raw
+$ADK_CONFIG_HOME/connectors/<name>.md frontmatter; this just gathers raw
 data into the metadata cache.
 
 Usage:
@@ -41,7 +41,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-METADATA_DIR = Path(os.path.expanduser("~/.agents-devkit/improve/metadata"))
+METADATA_DIR = Path(os.path.expanduser("$ADK_DATA_HOME/improve/metadata"))
 
 
 def run(cmd: list[str], env: dict[str, str] | None = None) -> tuple[int, str, str]:

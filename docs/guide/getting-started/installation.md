@@ -72,7 +72,7 @@ export LOOKER_CLIENT_ID="..."
 export LOOKER_CLIENT_SECRET_CRED="..."
 
 # Slack — shell-sourceable file (chmod 600) that exports SLACK_BOT_TOKEN and/or SLACK_USER_TOKEN
-export SLACK_CREDENTIALS_FILE="$HOME/.agents-devkit/config/slack-credentials.sh"
+export SLACK_CREDENTIALS_FILE="$ADK_CONFIG_HOME/slack-credentials.sh"
 
 # RAG — optional company knowledge base MCP
 export RAG_MCP_URL="https://your-rag.example.com/mcp"
@@ -82,13 +82,13 @@ export RAG_MCP_TOKEN_CRED="..."
 The Slack credentials file template:
 
 ```bash
-# ~/.agents-devkit/config/slack-credentials.sh — chmod 600
+# $ADK_CONFIG_HOME/slack-credentials.sh — chmod 600
 export SLACK_BOT_TOKEN="xoxb-..."
 export SLACK_USER_TOKEN="xoxp-..."     # optional
 ```
 
 ```bash
-chmod 600 ~/.agents-devkit/config/slack-credentials.sh
+chmod 600 $ADK_CONFIG_HOME/slack-credentials.sh
 ```
 
 ## install.sh
@@ -104,12 +104,12 @@ chmod 600 ~/.agents-devkit/config/slack-credentials.sh
 
 What it does:
 
-1. Creates `~/.agents-devkit/config/` skeleton (learning/, metadata/, memory/).
+1. Creates `$ADK_CONFIG_HOME/` skeleton (learning/, metadata/, memory/).
 2. Symlinks `skills/adk-*` + `agents-claude/agents/*` + `agents-claude/commands/*` into the agent's config dir.
 3. Merges `mcp/*.json` into the agent's MCP config (idempotent, JSON merge).
 4. Appends a marker block to the agent's global guidelines file pointing at `<repo>/AGENTS.md`.
 5. (Claude only) Merges `hooks/hooks.json` into `~/.claude/settings.json` `hooks` block with `_adk_managed: true` markers.
-6. Seeds `~/.agents-devkit/improve/learning/decisions.jsonl` from `shared/seed-decisions.jsonl` on first install (so `/adk-improve` has evidence from day one).
+6. Seeds `$ADK_DATA_HOME/improve/learning/decisions.jsonl` from `shared/seed-decisions.jsonl` on first install (so `/adk-improve` has evidence from day one).
 7. Prints a verification table.
 
 ## Per-agent install paths
@@ -129,7 +129,7 @@ See per-env caveats in [Multi-agent setup](../usage/multi-agent.md).
 
 | `install.sh` (shell, deterministic) | `/adk-setup` (inside agent, conversational) |
 |---|---|
-| Symlink skills + agents + commands | Scaffold `~/.agents-devkit/config/overrides.yaml` |
+| Symlink skills + agents + commands | Scaffold `$ADK_CONFIG_HOME/overrides.yaml` |
 | Merge MCP configs | Query MCPs and build the metadata cache |
 | Wire hooks (Claude only) | Verify env + MCP reachability (incl. stdio MCPs) |
 | Append `AGENTS.md` pointer | — |
@@ -142,7 +142,7 @@ After install, scaffold your overrides file:
 /adk-setup --init             # conversational scaffolding of overrides.yaml + v2 migrate if found
 ```
 
-Edit `~/.agents-devkit/config/overrides.yaml` to fill workspaces, repos, and data sources. See [overrides.yaml](../usage/overrides-yaml.md) for the schema.
+Edit `$ADK_CONFIG_HOME/overrides.yaml` to fill workspaces, repos, and data sources. See [overrides.yaml](../usage/overrides-yaml.md) for the schema.
 
 Then enrich + verify:
 
@@ -176,7 +176,7 @@ If `install.sh` itself or any wrapper template changed, re-run install:
 ./install.sh --uninstall --target claude
 ```
 
-Removes all `adk-*` symlinks, strips the marker block from `CLAUDE.md`, removes `_adk_managed` hook entries. Your `~/.agents-devkit/config/` data (overrides + decision log + metadata) is left untouched.
+Removes all `adk-*` symlinks, strips the marker block from `CLAUDE.md`, removes `_adk_managed` hook entries. Your `$ADK_CONFIG_HOME/` data (overrides + decision log + metadata) is left untouched.
 
 ## Verify
 

@@ -23,7 +23,7 @@ metadata:
 
 Advisor. Teach, don't pick.
 
-**Global skill** — mostly transient; if any artifact is produced (a written decision-tree, a referenced comparison table) it goes to `~/.agents-devkit/explain/<ts>/`. Never writes to the cwd repo.
+**Global skill** — mostly transient; if any artifact is produced (a written decision-tree, a referenced comparison table) it goes to `$ADK_DATA_HOME/explain/<ts>/`. Never writes to the cwd repo.
 
 `--depth deep` controls how much the answer explains. `--deep` controls the harness model profile per `shared/model-depth.md`. `--detailed` asks for more evidence gathering before teaching the choice.
 
@@ -38,7 +38,7 @@ Advisor. Teach, don't pick.
 ```
 Phase 0 — context-gather
   - If --from <skill> is set, the calling skill passed the question + options + context
-  - If standalone, parse the topic from the user's prompt; pull related entries from ~/.agents-devkit/improve/learning/
+  - If standalone, parse the topic from the user's prompt; pull related entries from $ADK_DATA_HOME/improve/learning/
 
 Phase 1 — restate
   - Restate the question in plain English; define any jargon inline once

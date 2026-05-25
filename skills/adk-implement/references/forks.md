@@ -1,6 +1,6 @@
 # adk-implement — fork IDs
 
-Each fork is a decision point the skill logs to `~/.agents-devkit/improve/learning/decisions.jsonl`. `/adk-improve` reads these to propose defaults for `~/.agents-devkit/config/core.yaml.defaults.adk-implement.<fork_id>`.
+Each fork is a decision point the skill logs to `$ADK_DATA_HOME/improve/learning/decisions.jsonl`. `/adk-improve` reads these to propose defaults for `$ADK_CONFIG_HOME/core.yaml.defaults.adk-implement.<fork_id>`.
 
 | fork_id | options | first-time recommendation |
 |---|---|---|

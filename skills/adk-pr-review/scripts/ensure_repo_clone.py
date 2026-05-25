@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """ensure_repo_clone.py — ensure the bare clone at
-~/.agents-devkit/repos/<repo>/original-clone/ exists and is at the latest
+$ADK_DATA_HOME/repos/<repo>/original-clone/ exists and is at the latest
 remote refs.
 
 If absent: clone via `gh repo clone --bare` (GitHub) or

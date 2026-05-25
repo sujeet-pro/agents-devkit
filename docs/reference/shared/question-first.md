@@ -96,7 +96,7 @@ When the agent proceeds in auto mode:
 
 ## Recording (the part that's training data)
 
-For each question asked + answered, append one line to `~/.agents-devkit/improve/learning/decisions.jsonl`:
+For each question asked + answered, append one line to `$ADK_DATA_HOME/improve/learning/decisions.jsonl`:
 
 ```json
 {"ts":"2026-05-18T14:22Z","skill":"adk-implement","sub_flow":"from-jira",

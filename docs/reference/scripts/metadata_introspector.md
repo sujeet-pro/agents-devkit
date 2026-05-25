@@ -19,7 +19,7 @@ metadata_introspector.py — thin orchestrator that calls enrich_metadata.py for
 ```python
 #!/usr/bin/env python3
 """metadata_introspector.py — thin orchestrator that calls enrich_metadata.py for
-each configured source, writes ~/.agents-devkit/improve/metadata/<source>.json, and archives
+each configured source, writes $ADK_DATA_HOME/improve/metadata/<source>.json, and archives
 the previous version.
 
 Called by /adk-improve --metadata and /adk-setup --enrich.
@@ -34,7 +34,7 @@ import sys
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-METADATA_DIR = Path("~/.agents-devkit/improve/metadata").expanduser()
+METADATA_DIR = Path("$ADK_DATA_HOME/improve/metadata").expanduser()
 ARCHIVE_DIR = METADATA_DIR / "archive"
 
 

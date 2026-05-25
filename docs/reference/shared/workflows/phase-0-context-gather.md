@@ -17,7 +17,7 @@ order: 6100
 
 - Raw user prompt + any URLs / paths / IDs in it.
 - Current working directory (resolves `<repo>/.adk/` + `<repo>/ai-guidelines/`).
-- `~/.agents-devkit/config/core.yaml (+ repos.md + connectors/*.md)` (workspaces, repos, data sources).
+- `$ADK_CONFIG_HOME/core.yaml (+ repos.md + connectors/*.md)` (workspaces, repos, data sources).
 
 ## Steps
 

@@ -22,10 +22,10 @@ Inspects every `Bash` invocation before it runs. Blocks (with a precise reason i
 - `git reset --hard` on protected branches
 - `git clean -fd` at a repo root
 - `git branch -D main` / `master` / `develop` / `release/*` / `prod/*`
-- `rm -rf` targeting `$HOME`, `/`, anything under `~/.agents-devkit/config/`, or any repo root
+- `rm -rf` targeting `$HOME`, `/`, anything under `$ADK_CONFIG_HOME/`, or any repo root
 - `gh pr merge` UNLESS the user explicitly asked to merge a PR in the current session
 - `gh pr close` UNLESS the user explicitly asked
-- Any command writing into `~/.agents-devkit/improve/learning/archive/` (only `/adk-improve` writes there)
+- Any command writing into `$ADK_DATA_HOME/improve/learning/archive/` (only `/adk-improve` writes there)
 - `--no-verify` flags on `git commit` or `git push`
 
 Allows: normal `git`, `gh`, `npm`, `jq`, `fd`, `rg`, `curl`, `python3`, `./install.sh`, `claude` operations, and writes to `.temp/<task-slug>/` paths.
@@ -36,7 +36,7 @@ After any `Edit` or `Write`:
 
 - If the edited file is a `*/skills/<skill>/SKILL.md`: verifies YAML frontmatter has `name:` and `description:`, and that `name:` matches the folder basename.
 - If the edited file is under `.temp/<task-slug>/`: touches `.temp/<task-slug>/.last-modified` so monitors can detect activity.
-- If the edited file is `~/.agents-devkit/config/overrides.yaml`: regex-checks for raw token-looking values (`/^[A-Z_]+:\s*['"]?[a-zA-Z0-9_-]{20,}['"]?$/` outside `${VAR}` patterns). Refuses if a likely secret is detected.
+- If the edited file is `$ADK_CONFIG_HOME/overrides.yaml`: regex-checks for raw token-looking values (`/^[A-Z_]+:\s*['"]?[a-zA-Z0-9_-]{20,}['"]?$/` outside `${VAR}` patterns). Refuses if a likely secret is detected.
 
 ### 3. SessionStart (banner)
 

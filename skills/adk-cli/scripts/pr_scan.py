@@ -1,7 +1,7 @@
 """pr_scan.py — `adk pr-scan` subcommand.
 
 Scans configured Slack channels for PR links, fetches cheap PR meta (merged?
-head_sha?), and merges the results into ~/.agents-devkit/config/pr-queue.json5.
+head_sha?), and merges the results into $ADK_CONFIG_HOME/pr-queue.json5.
 
 Each PR link gets its own queue row, even when multiple PRs live in the same
 thread. Specifically:
@@ -29,8 +29,8 @@ Flow:
   5. Merge non-merged candidates into the queue (additive; dedupe by host/repo/pr#).
 
 Args:
-  --slack-config <path>   default: ~/.agents-devkit/config/connectors/slack.md
-  --queue <path>          default: ~/.agents-devkit/config/pr-queue.json5
+  --slack-config <path>   default: $ADK_CONFIG_HOME/connectors/slack.md
+  --queue <path>          default: $ADK_CONFIG_HOME/pr-queue.json5
   --since-hours <h>       override scan window in hours (else: slack config
                           `scan_days_default` × 24)
   --since-days <d>        override scan window in days
@@ -568,7 +568,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("-y", "--yes", action="store_true",
                     help="non-interactive; smart defaults")
     ap.add_argument("-v", "--verbose", action="store_true",
-                    help="write a structured DEBUG log to ~/.agents-devkit/logs/")
+                    help="write a structured DEBUG log to $ADK_DATA_HOME/logs/")
     ap.add_argument("--quiet", action="store_true", help=argparse.SUPPRESS)
     args = ap.parse_args(argv)
     if getattr(args, "verbose", False):

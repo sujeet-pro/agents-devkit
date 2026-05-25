@@ -49,7 +49,7 @@ def _parse_iso(ts: str | None) -> datetime | None:
 
 
 class RepoModel:
-    """Reads ~/.agents-devkit/repos/ and exposes repos + branches as
+    """Reads $ADK_DATA_HOME/repos/ and exposes repos + branches as
     frozen dataclasses. Mtime-gated via a directory-fingerprint signature
     that samples both repo-meta.json and each branch-meta.json mtime."""
 

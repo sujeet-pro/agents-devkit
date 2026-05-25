@@ -1,7 +1,7 @@
 ---
 name: adk-pr-review
 description: |
-  Deep PR review: tree-sitter AST chunking + ollama embeddings + LanceDB hybrid (vector + BM25) retrieval + SCIP cross-file symbols + harness-LLM reranker + feature-flow tracing + accept/reject/edit triage before posting. Triggers on a GitHub or Bitbucket Cloud pull-request URL OR no arg at all — when no URL is passed, the next eligible row from `~/.agents-devkit/config/pr-queue.json5` is atomically claimed (FIFO by last_checked_at, 30-min auto-expiring `taken_at` lock so two terminals review different PRs). Curate the queue via `adk pr-scan` (scans Slack threads for PR links — main message AND replies — and upserts rows). When a URL is passed and that PR is already in the queue, the row's `slack` + `supporting_docs` are merged into the review context. **Global skill** — runs from anywhere; isolates to `~/.agents-devkit/skill-pr-review/<repo>_pr-<n>/` (per `shared/paths.md`); never touches the cwd. Pipeline: clone+worktree at the PR head, tree-sitter chunker → ollama embed (`nomic-embed-text` default, `bge-m3` via `--detailed`) → LanceDB w/ FTS index, optional SCIP indices when scip-typescript/python/go/java are on PATH, hybrid query merge (vector + BM25) → optional harness-LLM rerank (JSONL queue contract; harness picks the model) → findings.json. `--detailed` controls retrieval inputs; `--deep` controls the review model profile and may be auto-selected for large PRs. Triage step before posting: in `-i`/`--interactive` mode the user walks each finding accept/reject/edit (edits go through an iterative LLM rewrite loop driven by the harness). Posts via adk-mcp-bitbucket / adk-mcp-github after explicit confirmation. At the tail of every review, the queue row is updated (status, head_sha, last_checked_at, taken_at cleared), Slack reactions are reconciled, and the cumulative `ready-to-merge` list is printed. Heavyweight. For lightweight review, use `/adk-review`.
+  Deep PR review: tree-sitter AST chunking + ollama embeddings + LanceDB hybrid (vector + BM25) retrieval + SCIP cross-file symbols + harness-LLM reranker + feature-flow tracing + accept/reject/edit triage before posting. Triggers on a GitHub or Bitbucket Cloud pull-request URL OR no arg at all — when no URL is passed, the next eligible row from `$ADK_CONFIG_HOME/pr-queue.json5` is atomically claimed (FIFO by last_checked_at, 30-min auto-expiring `taken_at` lock so two terminals review different PRs). Curate the queue via `adk pr-scan` (scans Slack threads for PR links — main message AND replies — and upserts rows). When a URL is passed and that PR is already in the queue, the row's `slack` + `supporting_docs` are merged into the review context. **Global skill** — runs from anywhere; isolates to `$ADK_DATA_HOME/skill-pr-review/<repo>_pr-<n>/` (per `shared/paths.md`); never touches the cwd. Pipeline: clone+worktree at the PR head, tree-sitter chunker → ollama embed (`nomic-embed-text` default, `bge-m3` via `--detailed`) → LanceDB w/ FTS index, optional SCIP indices when scip-typescript/python/go/java are on PATH, hybrid query merge (vector + BM25) → optional harness-LLM rerank (JSONL queue contract; harness picks the model) → findings.json. `--detailed` controls retrieval inputs; `--deep` controls the review model profile and may be auto-selected for large PRs. Triage step before posting: in `-i`/`--interactive` mode the user walks each finding accept/reject/edit (edits go through an iterative LLM rewrite loop driven by the harness). Posts via adk-mcp-bitbucket / adk-mcp-github after explicit confirmation. At the tail of every review, the queue row is updated (status, head_sha, last_checked_at, taken_at cleared), Slack reactions are reconciled, and the cumulative `ready-to-merge` list is printed. Heavyweight. For lightweight review, use `/adk-review`.
 allowed-tools: [Read, Grep, Glob, Bash, WebFetch, Agent]
 argument-hint: "[<pr-url>] [-i|--interactive] [--detailed] [--deep] [--no-hybrid] [--no-reranker] [--no-triage] [--no-post] [--no-resolve-existing] [--embed-model <name>] [--scope security|correctness|tests|all] [--queue <path>]"
 metadata:
@@ -27,9 +27,9 @@ metadata:
 
 ## Scope
 
-- **Inputs**: either one GitHub / Bitbucket Cloud pull-request URL, or no argument (drains one row from the queue at `~/.agents-devkit/config/pr-queue.json5`). Bitbucket Server / GitLab / self-hosted forges are out of scope (constitution §VI.1).
+- **Inputs**: either one GitHub / Bitbucket Cloud pull-request URL, or no argument (drains one row from the queue at `$ADK_CONFIG_HOME/pr-queue.json5`). Bitbucket Server / GitLab / self-hosted forges are out of scope (constitution §VI.1).
 - **Output**: `findings.json` (schema in `finding.template.json`) + `findings.md` (human-readable) + `report.md` (1-page summary with PR link). On confirm, posts inline review comments via MCP; resolves/reopens existing review comments by classification. Tail of `report.py`: updates the queue row (status / head_sha / last_checked_at / clears `taken_at`), reconciles Slack reactions, and prints the cumulative ready-to-merge list.
-- **Working dir**: `~/.agents-devkit/skill-pr-review/<repo>_pr-<n>/` — owns a worktree of the PR head at `code/`, a LanceDB embeddings table at `code-index/chunks.lance/`, optional SCIP indices at `code-index/scip/<lang>/index.scip`, and the diff at `diff.patch`. Queue context (slack + supporting_docs) lives at `queue-context.json`.
+- **Working dir**: `$ADK_DATA_HOME/skill-pr-review/<repo>_pr-<n>/` — owns a worktree of the PR head at `code/`, a LanceDB embeddings table at `code-index/chunks.lance/`, optional SCIP indices at `code-index/scip/<lang>/index.scip`, and the diff at `diff.patch`. Queue context (slack + supporting_docs) lives at `queue-context.json`.
 
 ## Depth Flags
 
@@ -37,7 +37,7 @@ Follow `shared/model-depth.md`. `--detailed` selects the detailed embedding/retr
 
 ## Queue flow
 
-The queue (`~/.agents-devkit/config/pr-queue.json5`) is the only state that crosses
+The queue (`$ADK_CONFIG_HOME/pr-queue.json5`) is the only state that crosses
 invocations. It is curated by `adk pr-scan` (which walks configured Slack channels,
 extracts PR links from main messages AND thread replies, and upserts one row per
 PR-link/message pair) and drained by `/adk-pr-review` running with no argument.
@@ -119,7 +119,7 @@ The orchestrator (`scripts/prepare_task.py`, also reachable as `adk pr-task prep
 
 Use related PRs only when they plausibly describe the same feature: branch-name similarity, title overlap, split frontend/backend PRs, or sync PRs to different target branches. If they look unrelated, note that in your reasoning and do not use them as evidence.
 
-When a related task dir already exists under `~/.agents-devkit/skill-pr-review/`, you may inspect its `code/`, `diff.patch`, and `precis.md` for context. Cite only the PR under review for findings unless the related PR directly explains a cross-repo contract.
+When a related task dir already exists under `$ADK_DATA_HOME/skill-pr-review/`, you may inspect its `code/`, `diff.patch`, and `precis.md` for context. Cite only the PR under review for findings unless the related PR directly explains a cross-repo contract.
 
 ## Supporting-Docs Evidence Requirement
 

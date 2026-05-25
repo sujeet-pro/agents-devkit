@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """create_worktree.py — serialized worktree creation at a PR's head SHA.
 
-Acquires ~/.agents-devkit/repos/.worktree-lock before `git worktree add`, releases after.
+Acquires $ADK_DATA_HOME/repos/.worktree-lock before `git worktree add`, releases after.
 
 Usage:
   python3 create_worktree.py --repo foo --pr-number 42 --head-sha abc123 \

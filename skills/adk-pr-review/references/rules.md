@@ -2,9 +2,9 @@
 
 ## Must do
 
-1. **Always isolated.** Operate from `~/.agents-devkit/skill-pr-review/<repo>_pr-<n>/`. Never read or write the user's working repo. (Constitution §IV.1, `shared/paths.md`.)
-2. **Serialize worktree creation.** `scripts/create_worktree.py` acquires `~/.agents-devkit/repos/.worktree-lock` before `git worktree add` and releases it after. No concurrent worktree adds against the same clone.
-3. **Reset the clone before worktree.** Before adding a worktree, ensure `~/.agents-devkit/repos/<repo>/` is on its default branch at the remote HEAD with no local changes. Refuse if there are unexpected local commits.
+1. **Always isolated.** Operate from `$ADK_DATA_HOME/skill-pr-review/<repo>_pr-<n>/`. Never read or write the user's working repo. (Constitution §IV.1, `shared/paths.md`.)
+2. **Serialize worktree creation.** `scripts/create_worktree.py` acquires `$ADK_DATA_HOME/repos/.worktree-lock` before `git worktree add` and releases it after. No concurrent worktree adds against the same clone.
+3. **Reset the clone before worktree.** Before adding a worktree, ensure `$ADK_DATA_HOME/repos/<repo>/` is on its default branch at the remote HEAD with no local changes. Refuse if there are unexpected local commits.
 4. **Read every existing comment before flagging.** Per the persona's anti-pattern — don't re-raise pushed-back items.
 5. **Cite evidence by `path:line`.** Every finding has at least one `evidence[]` entry with a verifiable ref.
 6. **Quote ≤ 15 words verbatim** from any source (PR body, comment, doc, code) per constitution §II.1.
@@ -36,7 +36,7 @@
 | GH PR + `gh` CLI missing + no adk-mcp-github | "GitHub PR but neither `gh` CLI nor `adk-mcp-github` reachable. Install gh or enable the MCP." |
 | BB PR + adk-mcp-bitbucket missing | "Bitbucket PR but `adk-mcp-bitbucket` not reachable. Wire it via `install.sh` or run `/adk-setup --check`." |
 | Diff > 5000 LOC + no `--scope` flag | "Diff is `<n>` LOC. Refusing single-pass. Pass `--scope security` or `--scope correctness` to narrow." |
-| `~/.agents-devkit/repos/<repo>/` has uncommitted changes | "adk-owned clone has local changes — unexpected. Inspect or delete the folder, then re-run." |
+| `$ADK_DATA_HOME/repos/<repo>/` has uncommitted changes | "adk-owned clone has local changes — unexpected. Inspect or delete the folder, then re-run." |
 | Worktree lock held > 5 min by another process | "Worktree lock held by pid `<n>` since `<ts>`. Inspect — likely a stuck prior run." |
 
 ## Degradations (allowed; surfaced)

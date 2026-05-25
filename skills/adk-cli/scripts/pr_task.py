@@ -1,7 +1,7 @@
 """pr_task.py — `adk pr-task` subcommands.
 
 The stable CLI surface for managing the per-PR task folder under
-~/.agents-devkit/skill-pr-review/<repo>_pr-<n>/. The /adk-pr-review skill calls
+$ADK_DATA_HOME/skill-pr-review/<repo>_pr-<n>/. The /adk-pr-review skill calls
 through this binary so it doesn't depend on internal script paths.
 
 prepare <pr-url>     Create or refresh the task folder for one PR. Runs the
@@ -19,7 +19,7 @@ info <pr-url>        JSON view of a task folder's current state: paths,
                      whether the folder is ready for an interactive review.
 
 list                 Names of every task folder under
-                     ~/.agents-devkit/skill-pr-review/. Pair with `--paths` to
+                     $ADK_DATA_HOME/skill-pr-review/. Pair with `--paths` to
                      get the full paths instead. Powers shell completion.
 
 Internals: prepare delegates to skills/adk-pr-review/scripts/prepare_task.py
@@ -442,7 +442,7 @@ def cmd_validate(args) -> int:
 # ----- clean-orphans -------------------------------------------------------
 
 def cmd_clean_orphans(args) -> int:
-    """Drop task folders under ~/.agents-devkit/skill-pr-review/ that no longer
+    """Drop task folders under $ADK_DATA_HOME/skill-pr-review/ that no longer
     have a matching queue row (or whose row is merged). Idempotent."""
     log = get_logger("pr-task-clean-orphans")
     root = PR_REVIEW_ROOT
@@ -736,9 +736,9 @@ def cmd_review_comments(args) -> int:
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="adk pr-task",
                                  description="Manage per-PR task folders "
-                                             "under ~/.agents-devkit/skill-pr-review/")
+                                             "under $ADK_DATA_HOME/skill-pr-review/")
     ap.add_argument("-v", "--verbose", action="store_true",
-                    help="write a structured DEBUG log to ~/.agents-devkit/logs/")
+                    help="write a structured DEBUG log to $ADK_DATA_HOME/logs/")
     sub = ap.add_subparsers(dest="cmd", required=True)
 
     sp_prep = sub.add_parser("prepare",

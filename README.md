@@ -24,7 +24,7 @@ cd ~/code/agents-devkit
 ./install.sh --uninstall      # removes by marker, leaves your overrides
 ```
 
-After install, run `/adk-setup --init` (from your agent) to scaffold `~/.agents-devkit/config/{core.yaml,repos.md,connectors/*.md,links.json5}`. See `SETUP.md` for CLI deps + env-var requirements.
+After install, run `/adk-setup --init` (from your agent) to scaffold `$ADK_CONFIG_HOME/{core.yaml,repos.md,connectors/*.md,links.json5}`. See `SETUP.md` for CLI deps + env-var requirements.
 
 ## Quick start
 
@@ -32,7 +32,7 @@ After install, run `/adk-setup --init` (from your agent) to scaffold `~/.agents-
 # 1. Verify env, deps, MCPs, ollama, tokens
 adk doctor
 
-# 2. Index a repo you'll review PRs in (clones to ~/.agents-devkit/repos/<name>/)
+# 2. Index a repo you'll review PRs in (clones to $ADK_DATA_HOME/repos/<name>/)
 adk repo add git@github.com:acme/storefront-bff.git
 
 # 3. Sync the PR review queue end-to-end (scan → metadata refresh → drop merged
@@ -81,7 +81,7 @@ adk pr-task prepare --all                   # 6. create/refresh task folders for
 |---|---|---|
 | 1 | `pr-scan` walks configured Slack channels; new PR links → new queue rows (status=pending) | Re-scans dedupe by PR URL |
 | 2 | `pr-queue update --all` fetches cheap metadata per row via the origin API (GitHub `gh pr view` / Bitbucket REST). The `state` field is interpreted uniformly: `merged_at` set → status=merged; GitHub `CLOSED`-without-merge or Bitbucket `DECLINED` / `SUPERSEDED` → status=closed; otherwise open. | Re-runs are cheap; one call per row |
-| 3 | `pr-queue clean` drops every row in a terminal state (merged or closed) AND its `~/.agents-devkit/skill-pr-review/<repo>_pr-<n>/` task folder | No-op when nothing is terminal |
+| 3 | `pr-queue clean` drops every row in a terminal state (merged or closed) AND its `$ADK_DATA_HOME/skill-pr-review/<repo>_pr-<n>/` task folder | No-op when nothing is terminal |
 | 4 | `pr-task clean-orphans` removes any task folder whose PR isn't in the queue (or whose row is in a terminal state) | Always dry-run unless `-y`; safe to repeat |
 | 5 | `pr-queue remind` posts a Slack reply in the original thread for every row that: was reviewed >=24h ago, has no new commits since (`head_sha == last_reviewed_head_sha`), isn't terminal, hasn't been reminded in the last 24h, and has `slack.{channel_id,thread_ts}` populated. Stamps `last_reminded_at` so the next pass doesn't re-fire | One reminder per 24h window per row |
 | 6 | `pr-task prepare --all` runs Phase 0-4a for every remaining row: fetch PR, sync clone, materialise worktree at the PR head, chunk + embed + SCIP, build precis | Triple-incremental: (a) when `head_sha == last_indexed_head`, Phase 3 skips entirely; (b) when head moved but file delta is computable, only changed files are re-indexed; (c) embed-model is read from the existing `code-index/meta.json` so a re-run without `--detailed` keeps the prior model. Pass `--rebuild` to override and re-index from scratch. |
@@ -172,7 +172,7 @@ Run this first whenever something's misbehaving — it tells you exactly which e
 
 ### `adk repo` — manage indexed checkouts
 
-`/adk-pr-review` runs out of an isolated worktree it owns. The worktree is anchored to a base clone under `~/.agents-devkit/repos/<name>/` with a precomputed code-index (chunks + LanceDB + optional SCIP). `adk repo` builds and refreshes that index.
+`/adk-pr-review` runs out of an isolated worktree it owns. The worktree is anchored to a base clone under `$ADK_DATA_HOME/repos/<name>/` with a precomputed code-index (chunks + LanceDB + optional SCIP). `adk repo` builds and refreshes that index.
 
 ```bash
 adk repo add git@github.com:acme/foo.git              # clone default branch + build full index
@@ -184,11 +184,11 @@ adk repo list                                         # show indexed repos + las
 adk repo list --names-only                            # one name per line (used by shell completion)
 ```
 
-The index lives at `~/.agents-devkit/repos/.indices/<repo>/code-index/` and is consumed by `/adk-pr-review` (seed-and-overlay merge with the PR diff) and the other skills via `scripts/lib/code_index/query.py`.
+The index lives at `$ADK_DATA_HOME/repos/.indices/<repo>/code-index/` and is consumed by `/adk-pr-review` (seed-and-overlay merge with the PR diff) and the other skills via `scripts/lib/code_index/query.py`.
 
 ### `adk pr-scan` — populate the review queue from Slack
 
-Walks the channels configured in `~/.agents-devkit/config/connectors/slack.md` (frontmatter `pr_reviews.*`), reads main messages **and** thread replies, extracts every GitHub / Bitbucket PR URL, and upserts rows into `~/.agents-devkit/config/pr-queue.json5`.
+Walks the channels configured in `$ADK_CONFIG_HOME/connectors/slack.md` (frontmatter `pr_reviews.*`), reads main messages **and** thread replies, extracts every GitHub / Bitbucket PR URL, and upserts rows into `$ADK_CONFIG_HOME/pr-queue.json5`.
 
 ```bash
 adk pr-scan                              # default window (configured in slack.md)
@@ -227,7 +227,7 @@ adk pr-queue remind [--threshold-hours N] [--dry-run]   # Slack reminders for st
 
 ### `adk pr-task` — manage per-PR task folders
 
-The stable CLI surface for the per-PR scratch dir at `~/.agents-devkit/skill-pr-review/<repo>_pr-<n>/`. `/adk-pr-review` calls these internally so it doesn't depend on script paths.
+The stable CLI surface for the per-PR scratch dir at `$ADK_DATA_HOME/skill-pr-review/<repo>_pr-<n>/`. `/adk-pr-review` calls these internally so it doesn't depend on script paths.
 
 ```bash
 adk pr-task prepare <pr-url>             # create or refresh the task folder (phase 0-4a)
@@ -235,7 +235,7 @@ adk pr-task prepare <pr-url>             # create or refresh the task folder (ph
 adk pr-task prepare <pr-url> --rebuild   # force a full index rebuild
 adk pr-task prepare <pr-url> --detailed  # use the bge-m3 embedder (higher recall, slower)
 adk pr-task info <pr-url>                # JSON: task_dir, head_sha, last_indexed_head, has-findings
-adk pr-task list                         # every task folder under ~/.agents-devkit/skill-pr-review/
+adk pr-task list                         # every task folder under $ADK_DATA_HOME/skill-pr-review/
 adk pr-task list --names-only            # one folder name per line (used by completion)
 adk pr-task list --paths                 # one absolute path per line
 ```
@@ -276,7 +276,7 @@ Refuses single-pass on diffs > 5000 LOC — for those, use `/adk-pr-review`.
 
 The default for any real PR review. Builds the full pipeline:
 
-1. **Clone + worktree** at the PR head under `~/.agents-devkit/skill-pr-review/<repo>_pr-<n>/code/` (uses `~/.agents-devkit/repos/<name>/` as the base if `adk repo add` was run).
+1. **Clone + worktree** at the PR head under `$ADK_DATA_HOME/skill-pr-review/<repo>_pr-<n>/code/` (uses `$ADK_DATA_HOME/repos/<name>/` as the base if `adk repo add` was run).
 2. **Tree-sitter chunker** → **ollama embed** (`nomic-embed-text` default; `bge-m3` with `--detailed`) → **LanceDB** with FTS index. Hybrid retrieval (vector + BM25) at query time.
 3. **SCIP cross-file symbols** when `scip-typescript` / `scip-python` / `scip-go` / `scip-java` is on `PATH`. Missing → grep + chunker `parent_symbol` fallback (lower confidence; surfaced in the report).
 4. **Feature-flow tracing** through Statsig flags, experiments, and dynamic configs the diff touches.
@@ -294,7 +294,7 @@ The default for any real PR review. Builds the full pipeline:
 
 **Parallel review**: run `/adk-pr-review` (no arg) in N terminals and each claims a different row via a 30-min auto-expiring `taken_at` lock. Use `adk pr-queue release <url>` to free a stuck lock.
 
-**Isolation**: this skill is global. It never touches your cwd. All scratch state lives under `~/.agents-devkit/skill-pr-review/<repo>_pr-<n>/` (see `shared/paths.md`).
+**Isolation**: this skill is global. It never touches your cwd. All scratch state lives under `$ADK_DATA_HOME/skill-pr-review/<repo>_pr-<n>/` (see `shared/paths.md`).
 
 ## All skills
 
@@ -314,11 +314,11 @@ Each skill is task-based and polymorphic on input. Every skill goes through a ma
 
 ## Key concepts
 
-- **One source of truth for user data:** `~/.agents-devkit/config/` — `core.yaml` (workspaces / defaults / RAG), `repos.md` (repos), `connectors/*.md` (per-source dictionaries for Snowflake/Looker/Mixpanel/etc.), `links.json5` (cross-connector entity graph).
+- **One source of truth for user data:** `$ADK_CONFIG_HOME/` — `core.yaml` (workspaces / defaults / RAG), `repos.md` (repos), `connectors/*.md` (per-source dictionaries for Snowflake/Looker/Mixpanel/etc.), `links.json5` (cross-connector entity graph).
 - **Project-scoped overrides:** `<repo>/.adk/overrides.yaml` + `<repo>/ai-guidelines/` (or `docs/`).
-- **Two task-folder roots** (see `shared/paths.md`): repo-bound skills write under `<repo>/.temp/adk/<skill>/<task>/`; global skills (pr-review, investigate, sync, …) write under `~/.agents-devkit/<area>/<task>/`. The latter root is created by `install.sh`.
-- **Self-improving:** every Q&A and override is logged; `/adk-improve` reads logs and proposes updated defaults that get applied to `~/.agents-devkit/config/core.yaml` (or the right connector file) after you confirm.
-- **Metadata cache:** `~/.agents-devkit/improve/metadata/<source>.json` — built by `/adk-setup --enrich` and refreshed by `/adk-improve --metadata`. Skills consult it instead of re-introspecting on every run.
+- **Two task-folder roots** (see `shared/paths.md`): repo-bound skills write under `<repo>/.temp/adk/<skill>/<task>/`; global skills (pr-review, investigate, sync, …) write under `$ADK_DATA_HOME/<area>/<task>/`. The latter root is created by `install.sh`.
+- **Self-improving:** every Q&A and override is logged; `/adk-improve` reads logs and proposes updated defaults that get applied to `$ADK_CONFIG_HOME/core.yaml` (or the right connector file) after you confirm.
+- **Metadata cache:** `$ADK_DATA_HOME/improve/metadata/<source>.json` — built by `/adk-setup --enrich` and refreshed by `/adk-improve --metadata`. Skills consult it instead of re-introspecting on every run.
 - **RAG optional:** drop an `RAG_MCP_URL` into env, set `rag.enabled: true` in overrides, and every skill's context-gather phase pulls company knowledge alongside MCP results.
 
 ## Honest limits
