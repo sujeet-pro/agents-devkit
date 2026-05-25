@@ -96,7 +96,7 @@ adk pr-task prepare --all                   # 6. create/refresh task folders for
 
 ```bash
 adk pr-queue get-next                       # claim the next eligible row (origin-API validated)
-adk pr-queue get-next --no-validate         # skip the API check (legacy in-memory pick)
+adk pr-queue get-next --no-validate         # skip the API check for already-validated callers
 ```
 
 Explicit `/adk-pr-review <pr-url>` bypasses queue filters and reviews the PR even if it's merged or closed — useful when re-reviewing for posterity, where any posted comments serve as future-reference material.

@@ -111,23 +111,31 @@ Usage:
   adk repo branch remove <name> --branch X    drop the index for a branch
   adk repo branch list <name>                 show tracked branches + SHA + ts
   adk repo rebuild-index <name> [--branch X]  rebuild a branch's index from scratch (when its dir was deleted by hand)
-  adk repo migrate [<name>]                   migrate legacy v3 layout to v4 (idempotent)
   adk repo list [--names-only]                list repos under ~/.agents-devkit/repos/
-  adk pr-review-all [--max-reviews N] [--parallel N] [--agent X] [--exclude URL] [--no-sync]
-           [--dry-run] [--quiet-hours WW-XX] [--max-cost-usd N] [--report-to-slack #ch]
+  adk skill-run [--runner claude|cursor|codex|custom] [--agent X]
+           [--agent-model M] [--detailed] [--deep] [--planning] <skill> [-- <args...>]
+                                              run any /adk-* skill in a selected agent harness.
+                                              Defaults: Claude/Sonnet, Cursor/Composer 2.5;
+                                              --deep selects Opus for Claude and GPT 5.5 for Cursor.
+  adk pr-review-all [--max-reviews N] [--parallel N] [--runner claude|cursor|codex|custom]
+           [--agent X] [--agent-model M] [--exclude URL] [--no-sync]
+           [--detailed] [--deep] [--no-auto-deep] [--dry-run]
+           [--quiet-hours WW-XX] [--max-cost-usd N] [--report-to-slack #ch]
                                               headless review of every eligible queued PR: pr-sync + spawn
                                               one review agent per PR. Scheduler-friendly (cron, launchd).
+                                              --detailed controls embeddings; --deep controls the review model.
                                               NEVER merges (constitution §I.3).
                                               --quiet-hours WW-XX refuses to spawn during the local-clock window.
                                               --max-cost-usd aborts when the per-agent estimate × eligible count exceeds.
                                               --report-to-slack posts a one-liner to the channel at the end.
-                                              (`adk auto` is a deprecated alias for this command.)
   adk pr-review [<same flags as pr-review-all>] [--pr <url>]
                                               one-shot review: drain the next eligible queued row (FIFO) and
                                               run a single review end-to-end. Equivalent to
                                               `pr-review-all --max-reviews 1`. Pass `--pr <url>` to target
                                               a specific PR instead of draining from the queue (planned).
-  adk doctor [--tui] [--strict]               validate env, deps, MCPs, ollama, tokens
+  adk doctor [--tui] [--strict] [--completion]
+                                              validate env, deps, MCPs, ollama, tokens
+                                              (--completion checks shell wiring only)
   adk completion bash|zsh|fish                emit a shell-completion script
 
 Defaults: queue at ~/.agents-devkit/config/pr-queue.json5.
@@ -172,10 +180,10 @@ def main(argv: list[str]) -> int:
     if cmd == "completion":
         from completion import main as f  # type: ignore[import-not-found]
         return f(rest)
-    if cmd in ("pr-review-all", "auto"):
-        # `auto` is a deprecated alias for `pr-review-all` (kept one release).
-        if cmd == "auto":
-            sys.stderr.write("adk: `auto` is deprecated; use `pr-review-all`.\n")
+    if cmd == "skill-run":
+        from skill_run import main as f  # type: ignore[import-not-found]
+        return f(rest)
+    if cmd == "pr-review-all":
         from auto_run import main as f  # type: ignore[import-not-found]
         return f(rest)
     if cmd == "pr-review":

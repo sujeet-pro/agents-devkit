@@ -1,6 +1,6 @@
 ---
 description: Bidirectional 3P bridge for markdown. Read a Confluence/Jira/GDoc/PR/issue/Slack as markdown OR push markdown to any of those.
-argument-hint: (--read <url>) | (--write <md-path> --to <destination>)
+argument-hint: (--read <url>) | (--write <md-path> --to <destination>) [--detailed] [--deep]
 ---
 
 Invoke the adk-sync skill at {{ADK_REPO}}/skills/adk-sync/SKILL.md.

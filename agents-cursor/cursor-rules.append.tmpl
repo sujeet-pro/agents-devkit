@@ -11,7 +11,8 @@ For every prompt, follow {{ADK_REPO}}/AGENTS.md. Specifically:
 2. Use the 8 `/adk-*` slash skills (installed under `~/.cursor/rules/adk-*.mdc`).
 3. Apply {{ADK_REPO}}/shared/constitution.md as hard rules.
 4. Apply {{ADK_REPO}}/shared/question-first.md before any skill executes.
-5. Log every non-trivial decision to ~/.config/adk/learning/decisions.jsonl via {{ADK_REPO}}/scripts/decision_logger.py.
+5. Apply {{ADK_REPO}}/shared/model-depth.md when `--detailed`, `--deep`, planning, or ambiguous model selection is involved.
+6. Log every non-trivial decision to ~/.config/adk/learning/decisions.jsonl via {{ADK_REPO}}/scripts/decision_logger.py.
 
 Reference:
 - @AGENTS.md
@@ -19,3 +20,4 @@ Reference:
 - @shared/advisor.md
 - @shared/question-first.md
 - @shared/decision-log-schema.md
+- @shared/model-depth.md

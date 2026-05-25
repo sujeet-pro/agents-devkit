@@ -78,11 +78,11 @@ If the plan is older than 24h OR the repo has had commits since the plan was gen
 
 - Silent file mutations during the "planning" phase.
 - Skipping the user-confirm gate by claiming "I'll just do a quick fix while explaining."
-- Cost spike from invoking opus for read-only planning when sonnet would do.
+- Cost spike from invoking a deep model for read-only planning when the standard model would do.
 
 ## Cost optimization
 
-Plan mode is a great candidate for sonnet (planning is reasoning, not high-context generation). Skills SHOULD declare `metadata.model: opus` for `--act` and override to `sonnet` for `--plan` invocations. (This is enforced by `agents-claude/agents/adk-agent-implementer.md` reading a `mode` env var; future agents will follow the same pattern.)
+Plan mode normally uses the standard model profile (`sonnet` for Claude, Composer 2.5 for Cursor). Switch to the deep profile from `shared/model-depth.md` only for ambiguous architecture choices, large blast radius, or when the user passes `--deep`.
 
 ## Integration with question-first
 

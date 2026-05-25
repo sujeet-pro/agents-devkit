@@ -16,6 +16,7 @@ import textwrap
 
 # Top-level subcommands and their nested subcommands.
 SUBCMDS = {
+    "skill-run":   [],
     "pr-sync":    [],
     "pr-scan":    [],
     "pr-queue":   ["list", "show", "add", "update", "clean", "ready-to-merge",
@@ -23,6 +24,8 @@ SUBCMDS = {
     "pr-task":    ["prepare", "info", "list", "validate", "clean-orphans"],
     "repo":       ["add", "update", "list", "branch", "migrate"],
     "doctor":     [],
+    "pr-review-all": [],
+    "pr-review":  [],
     "completion": ["bash", "zsh", "fish"],
 }
 
@@ -85,7 +88,7 @@ def emit_bash() -> str:
                     prepare)
                         local urls
                         urls=$(adk pr-queue list --urls-only 2>/dev/null)
-                        COMPREPLY=( $(compgen -W "$urls --all --rebuild --detailed" -- "$cur") )
+                        COMPREPLY=( $(compgen -W "$urls --all --rebuild --detailed --deep" -- "$cur") )
                         return
                         ;;
                     info|validate)
@@ -161,7 +164,8 @@ def emit_zsh() -> str:
                         _values 'pr-task prepare' \\
                             '--all[prepare every non-merged queue row]' \\
                             '--rebuild[force full re-index]' \\
-                            '--detailed[use bge-m3 embeddings]' $urls
+                            '--detailed[use bge-m3 embeddings]' \\
+                            '--deep[record deep model intent]' $urls
                         return
                         ;;
                     info|validate)
@@ -206,7 +210,7 @@ def emit_fish() -> str:
     lines.append(
         "complete -c adk -n \"__fish_seen_subcommand_from pr-task; "
         "and __fish_seen_subcommand_from prepare\" "
-        "-a \"(adk pr-queue list --urls-only 2>/dev/null) --all --rebuild --detailed\""
+        "-a \"(adk pr-queue list --urls-only 2>/dev/null) --all --rebuild --detailed --deep\""
     )
     for nested in ("info", "validate"):
         lines.append(

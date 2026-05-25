@@ -21,20 +21,20 @@ name: adk-improve
 description: |
   Improve, learn, refresh-metadata, update-defaults, self-improve, train-skill, learn-from-session. The self-improvement loop. Always interactive (asks first: improve skill defaults from decision logs, metadata via MCP introspection, or both). For defaults: runs scripts/proposal_generator.py against `~/.agents-devkit/improve/learning/decisions.jsonl`, drafts proposed updates to `~/.agents-devkit/config/core.yaml.defaults.*`, presents each with ≥3 evidence lines, applies on confirm; rotates decisions.jsonl to learning/archive/ after each run; appends summary to learning/summary.md. For metadata: runs scripts/metadata_introspector.py to refresh `~/.agents-devkit/improve/metadata/<source>.json` from every reachable MCP. Bounded: cannot change shared/constitution.md; cannot change Must-do/Must-not-do sections of any SKILL.md (those are constitution-grade). Each proposal requires per-item confirmation regardless of mode. Never auto-applies. Min-evidence default 3 (configurable). Manual-only by design (disable-model-invocation: true) so the agent doesn't auto-trigger improvements mid-session.
 allowed-tools: [Read, Edit, Write, Bash]
-argument-hint: "[--target defaults|metadata|both] [--since <date>] [--min-evidence N] [--dry-run]"
+argument-hint: "[--target defaults|metadata|both] [--since <date>] [--min-evidence N] [--dry-run] [--detailed] [--deep]"
 metadata:
   category: core
   kind: task
   layer: 0
   paths: []
-  model: opus
+  model: sonnet
   effort: medium
   user-invocable: true
   disable-model-invocation: true
   needs_mcp_required: []
   needs_mcp_optional: [adk-mcp-github, adk-mcp-datadog, adk-mcp-statsig, adk-mcp-atlassian, adk-mcp-mixpanel, adk-mcp-slack, adk-mcp-snowflake, adk-mcp-looker]
   needs_meta_info: [workspaces, repos]
-  forks_emitted: [improve-target, min-evidence, apply-policy]
+  forks_emitted: [improve-target, min-evidence, apply-policy, model-depth]
 ```
 
 ## Workflow body
@@ -44,6 +44,8 @@ metadata:
 Read accumulated decision logs + introspect MCPs; propose updates to `core.yaml`.
 
 **Global skill** — intermediate artifacts go to `~/.agents-devkit/improve/<ts>/`. Mutates `~/.agents-devkit/config/core.yaml` and `~/.agents-devkit/improve/metadata/<source>.json` on confirm; never touches the cwd repo.
+
+`--detailed` inspects more decision evidence before proposing defaults. `--deep` selects the stronger model profile per `shared/model-depth.md`; use it for broad default rewrites or conflicting evidence, never to bypass per-item confirmation.
 
 ## Modes (mandatory interactive choice at start)
 

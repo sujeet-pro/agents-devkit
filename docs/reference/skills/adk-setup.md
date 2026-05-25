@@ -21,7 +21,7 @@ name: adk-setup
 description: |
   Set-up, configure-overrides, init-config, refresh-metadata, verify-mcps, check-env. Stewards `~/.agents-devkit/config/core.yaml` and the metadata cache. NOT a CLI-dep installer — brew, gh, jq, uv, node are the user's job (SETUP.md prints the exact commands). NOT a wiring tool — install.sh handles symlinks, MCP merges, hook wiring, AGENTS.md pointers. This skill picks up where install.sh stops: filling user data files (conversationally) and introspecting MCPs (with the agent's MCP client, which install.sh / curl cannot do). Four modes. --init: conversational scaffolding of core.yaml (workspaces, repos, data dictionary, RAG config). --enrich: queries every reachable MCP (Datadog dashboards, Statsig experiments, Mixpanel events, Snowflake schemas, Looker dashboards, Atlassian spaces, GitHub repos), summarizes findings, writes `enriched:` block + `~/.agents-devkit/improve/metadata/<source>.json`. Never overwrites manually-set values. --check: superset of `scripts/adk_mcp_health.py` — also probes stdio MCPs (Atlassian via uvx, Slack via npx, Snowflake via uvx) via real MCP-client invocation, and offers conversational guidance when something's broken. --diff: read-only preview of --enrich. Never modifies shell rc files. Never puts a raw token in core.yaml (regex-enforced).
 allowed-tools: [Read, Edit, Write, Bash, WebFetch]
-argument-hint: "(--init [--from-v2]) | (--enrich [--source <name>|all]) | (--check) | (--diff)"
+argument-hint: "(--init [--from-v2]) | (--enrich [--source <name>|all]) | (--check) | (--diff) [--detailed] [--deep]"
 metadata:
   category: core
   kind: task
@@ -34,7 +34,7 @@ metadata:
   needs_mcp_required: []
   needs_mcp_optional: [adk-mcp-github, adk-mcp-datadog, adk-mcp-statsig, adk-mcp-atlassian, adk-mcp-mixpanel, adk-mcp-slack, adk-mcp-snowflake, adk-mcp-looker]
   needs_meta_info: []
-  forks_emitted: [init-source, enrich-sources, conflict-with-existing]
+  forks_emitted: [init-source, enrich-sources, conflict-with-existing, model-depth]
 ```
 
 ## Workflow body
@@ -44,6 +44,8 @@ metadata:
 Bootstrap + maintain `~/.agents-devkit/config/core.yaml`.
 
 **Global skill** — runs from anywhere; intermediate artifacts go to `~/.agents-devkit/setup/<ts>/` (per `shared/paths.md`). Touches `~/.agents-devkit/config/` (config) but not the cwd.
+
+`--detailed` increases MCP/config diagnostics. `--deep` selects the stronger model profile per `shared/model-depth.md`; use it when reconciling ambiguous config, migrations from older installs, or many failing connectors.
 
 ## Modes
 

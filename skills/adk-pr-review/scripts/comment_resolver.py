@@ -179,33 +179,85 @@ def normalize_threads(pr: dict, comments_blob: dict) -> dict[str, dict]:
     return threads
 
 
-def lines_touched_by_diff(diff_text: str) -> dict[str, list[tuple[int, int]]]:
-    """Map file → list of (added_line_start, added_line_end) ranges."""
-    out: dict[str, list[tuple[int, int]]] = {}
-    cur = None
-    a_start = 0
-    a_count = 0
-    in_hunk = False
-    last_added_start = 0
-    last_added_end = 0
+def parse_diff_changes(diff_text: str) -> tuple[dict[str, list[tuple[int, int]]], set[str]]:
+    """Return (touched, deleted).
+
+    touched: map of file path (new side) → list of (added_line_start, added_line_end) ranges.
+    deleted: set of file paths (old side) that were removed entirely (`+++ /dev/null`).
+
+    Deletion is a stronger signal of resolution than a line-level touch — the
+    file is gone, so any anchored concern on it is moot. The previous parser
+    keyed only by the new side and silently dropped deletions, which caused
+    legitimate resolve decisions to be downgraded to leave-as-is.
+    """
+    touched: dict[str, list[tuple[int, int]]] = {}
+    deleted: set[str] = set()
+    old_path: str | None = None
+    new_path: str | None = None
     for line in diff_text.splitlines():
-        if line.startswith("+++ "):
-            cur = line[4:].strip()
-            if cur.startswith("b/"):
-                cur = cur[2:]
+        if line.startswith("--- "):
+            old_path = line[4:].strip()
+            if old_path.startswith("a/"):
+                old_path = old_path[2:]
+            if old_path == "/dev/null":
+                old_path = None
             continue
-        if line.startswith("@@") and cur:
+        if line.startswith("+++ "):
+            new_path = line[4:].strip()
+            if new_path.startswith("b/"):
+                new_path = new_path[2:]
+            if new_path == "/dev/null":
+                # File deleted — the OLD path is gone.
+                if old_path:
+                    deleted.add(old_path)
+                new_path = None
+            continue
+        if line.startswith("@@") and new_path:
             m = re.search(r"\+(\d+)(?:,(\d+))?", line)
             if m:
                 a_start = int(m.group(1))
                 a_count = int(m.group(2) or "1")
                 if a_count > 0:
-                    out.setdefault(cur, []).append((a_start, a_start + a_count - 1))
-            in_hunk = True
-    return out
+                    touched.setdefault(new_path, []).append((a_start, a_start + a_count - 1))
+    return touched, deleted
+
+# When the diff doesn't touch the exact anchored line, but touches a nearby
+# line, treat that as evidence of resolution with a low-confidence note.
+# 5 lines accommodates refactors that shift line numbers by a small amount.
+_RESOLVE_PROXIMITY_LINES = 5
 
 
-def verify_action(action: dict, threads: dict, touched: dict, log) -> dict:
+def _line_touch_evidence(path: str | None, line: int | None,
+                          touched: dict, deleted: set[str]) -> tuple[bool, str]:
+    """Return (verified, note) describing how the diff addresses this anchor.
+
+    Tiered:
+      file deleted     → strongest; the concern is moot.
+      exact line       → strong; verified.
+      ±N lines         → medium; verified with proximity note.
+      otherwise        → not verified.
+    """
+    if not path:
+        return False, "no file path on the anchored comment"
+    if path in deleted:
+        return True, f"file `{path}` deleted in the diff"
+    if not line:
+        return False, "no line number on the anchored comment"
+    ranges = touched.get(path, [])
+    if not ranges:
+        return False, "diff did not touch this file"
+    if any(a <= line <= b for (a, b) in ranges):
+        return True, f"diff touched anchored line {path}:{line}"
+    # Proximity check — the line number may have shifted due to a refactor.
+    for a, b in ranges:
+        if (a - _RESOLVE_PROXIMITY_LINES) <= line <= (b + _RESOLVE_PROXIMITY_LINES):
+            return True, (f"diff touched {path}:{a}-{b} (within "
+                          f"{_RESOLVE_PROXIMITY_LINES} lines of anchor {line})")
+    return False, "diff did not touch anchored line or its vicinity"
+
+
+def verify_action(action: dict, threads: dict, touched: dict, log,
+                  deleted: set[str] | None = None) -> dict:
     cid = str(action.get("comment_id"))
     decision = action.get("decision", "leave-as-is")
     reason = action.get("reason", "")
@@ -267,20 +319,19 @@ def verify_action(action: dict, threads: dict, touched: dict, log) -> dict:
         result["verified"] = True
         return result
 
+    deleted_files: set[str] = deleted or set()
     if decision == "resolve":
         if currently_resolved:
             result["verifier_note"] += " | already resolved, leaving as-is"
             result["decision"] = "leave-as-is"
             result["verified"] = True
             return result
-        # Verify diff touched the anchored line.
         first = thread_state["thread"][0]
-        path = first.get("path")
-        line = first.get("line")
-        touched_ranges = touched.get(path, []) if path else []
-        line_touched = any(a <= (line or 0) <= b for (a, b) in touched_ranges)
-        if not line_touched:
-            result["verifier_note"] += " | claimed fixed but diff did not touch anchored line; downgrading to leave-as-is"
+        ok, evidence = _line_touch_evidence(first.get("path"), first.get("line"),
+                                             touched, deleted_files)
+        result["verifier_evidence"] = evidence
+        if not ok:
+            result["verifier_note"] += f" | resolve claim not supported ({evidence}); downgrading to leave-as-is"
             result["decision"] = "leave-as-is"
             return result
         result["verified"] = True
@@ -292,15 +343,14 @@ def verify_action(action: dict, threads: dict, touched: dict, log) -> dict:
             result["decision"] = "leave-as-is"
             result["verified"] = True
             return result
-        # If diff touched the anchored line, the resolution might be justified — downgrade.
         first = thread_state["thread"][0]
-        path = first.get("path")
-        line = first.get("line")
-        touched_ranges = touched.get(path, []) if path else []
-        line_touched = any(a <= (line or 0) <= b for (a, b) in touched_ranges)
-        if line_touched:
-            result["verifier_note"] += " | diff touched anchored line; reopen is questionable"
-            # Still allow if the model claims confidently AND not offline-aligned.
+        ok, evidence = _line_touch_evidence(first.get("path"), first.get("line"),
+                                             touched, deleted_files)
+        result["verifier_evidence"] = evidence
+        if ok:
+            # Diff addresses the concern; the resolution is justified, reopen
+            # is questionable. Log but allow if the model insists.
+            result["verifier_note"] += f" | diff addresses concern ({evidence}); reopen is questionable"
         result["verified"] = True
         return result
 
@@ -330,7 +380,10 @@ def main() -> int:
     pr = read_json(pr_json)
     comments_blob = read_json(cm_json)
     threads = normalize_threads(pr, comments_blob)
-    touched = lines_touched_by_diff(diff.read_text(encoding="utf-8", errors="replace")) if diff.exists() else {}
+    if diff.exists():
+        touched, deleted = parse_diff_changes(diff.read_text(encoding="utf-8", errors="replace"))
+    else:
+        touched, deleted = {}, set()
 
     proposed: list[dict] = []
     findings_blob: dict = {}
@@ -338,7 +391,7 @@ def main() -> int:
         findings_blob = read_json(findings)
         proposed = findings_blob.get("existing_comment_actions", [])
 
-    verified = [verify_action(a, threads, touched, log) for a in proposed]
+    verified = [verify_action(a, threads, touched, log, deleted=deleted) for a in proposed]
 
     # Auto-classify orphan threads — every thread the model did NOT name in
     # existing_comment_actions[] still needs a decision (user requirement:
@@ -350,7 +403,7 @@ def main() -> int:
         thread_ids = {c["id"] for c in t["thread"]}
         if thread_ids & addressed_ids:
             continue  # at least one comment in this thread already addressed
-        auto = _auto_classify_thread(t, touched)
+        auto = _auto_classify_thread(t, touched, deleted=deleted)
         auto["auto_classified"] = True
         verified.append(auto)
 
@@ -390,23 +443,26 @@ def main() -> int:
     return 0
 
 
-def _auto_classify_thread(thread_state: dict, touched: dict) -> dict:
+def _auto_classify_thread(thread_state: dict, touched: dict,
+                            deleted: set[str] | None = None) -> dict:
     """Classify an orphan thread (no model action) using the same rules.
 
     Same shape as verify_action's return, but with a leading auto-pass:
     - acceptable reply present → leave-as-is
-    - currently OPEN + diff touched anchored line → resolve
-    - currently RESOLVED + diff did not touch + no acceptable reply → reopen
+    - currently OPEN + diff addresses anchor (touched, near anchor, or
+      file deleted) → resolve
+    - currently RESOLVED + diff did not address anchor + no acceptable reply
+      → reopen
     - everything else → leave-as-is (ambiguous)
     """
+    deleted_files: set[str] = deleted or set()
     root_id = thread_state.get("root_id")
     root = thread_state["thread"][0] if thread_state["thread"] else {}
     cid = str(root.get("id") or root_id or "")
     currently_resolved = bool(thread_state.get("resolved", False))
     path = root.get("path")
     line = root.get("line")
-    touched_ranges = touched.get(path, []) if path else []
-    line_touched = any(a <= (line or 0) <= b for (a, b) in touched_ranges)
+    diff_addresses, evidence = _line_touch_evidence(path, line, touched, deleted_files)
 
     # Check every reply for an acceptable disposition.
     valid_reply_kind: str | None = None
@@ -423,6 +479,7 @@ def _auto_classify_thread(thread_state: dict, touched: dict) -> dict:
         "thread_root": root_id,
         "thread_currently_resolved": currently_resolved,
         "verified": True,
+        "verifier_evidence": evidence,
         "valid_reply": ({"kind": valid_reply_kind, "detail": valid_reply_detail}
                          if valid_reply_kind else None),
     }
@@ -430,13 +487,13 @@ def _auto_classify_thread(thread_state: dict, touched: dict) -> dict:
         result["decision"] = "leave-as-is"
         result["reason"] = f"acceptable reply ({valid_reply_kind}): {valid_reply_detail or '-'}"
         return result
-    if not currently_resolved and line_touched:
+    if not currently_resolved and diff_addresses:
         result["decision"] = "resolve"
-        result["reason"] = f"diff touched anchored line {path}:{line}"
+        result["reason"] = evidence
         return result
-    if currently_resolved and not line_touched:
+    if currently_resolved and not diff_addresses:
         result["decision"] = "reopen"
-        result["reason"] = "thread is RESOLVED but the diff did not touch the anchored line and no acceptable reply"
+        result["reason"] = "thread is RESOLVED but the diff did not address the anchor and no acceptable reply"
         return result
     result["decision"] = "leave-as-is"
     result["reason"] = "ambiguous — no clear signal from diff or replies"

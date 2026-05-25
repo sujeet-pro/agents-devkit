@@ -147,8 +147,9 @@ def test_bb_appreciation_emits_addPullRequestComment_no_inline(pc_mod):
     assert len(gen) == 1
     assert gen[0]["mcp_tool"] == "mcp__adk-mcp-bitbucket__addPullRequestComment"
     assert "inline" not in gen[0]["mcp_args"]  # critical: NO inline arg
-    assert gen[0]["mcp_args"]["pullRequestId"] == 5521
-    assert "🎉" in gen[0]["mcp_args"]["content"]["raw"]
+    assert gen[0]["mcp_args"]["pull_request_id"] == "5521"
+    assert gen[0]["mcp_args"]["repo_slug"] == "ecomm-ssr"
+    assert "🎉" in gen[0]["mcp_args"]["content"]
 
 
 def test_bb_appreciation_not_in_inline_steps(pc_mod):

@@ -123,7 +123,7 @@ def test_prepare_forwards_to_run_review(monkeypatch, capsys):
     args = SimpleNamespace(
         pr_url="https://github.com/acme/foo/pull/9",
         queue="~/.agents-devkit/config/pr-queue.json5",
-        all=False, rebuild=False, detailed=False, embed_model=None,
+        all=False, rebuild=False, detailed=False, deep=False, embed_model=None,
         jobs=None, yes=False,
     )
     rc = pr_task.cmd_prepare(args)
@@ -149,13 +149,14 @@ def test_prepare_forwards_extra_flags(monkeypatch):
     args = SimpleNamespace(
         pr_url="https://github.com/acme/foo/pull/9",
         queue="/tmp/q.json5",
-        all=False, rebuild=True, detailed=True, embed_model="custom-model",
+        all=False, rebuild=True, detailed=True, deep=True, embed_model="custom-model",
         jobs=None, yes=False,
     )
     pr_task.cmd_prepare(args)
     cmd = captured["cmd"]
     assert "--rebuild" in cmd
     assert "--detailed" in cmd
+    assert "--deep" in cmd
     assert "--embed-model" in cmd
     assert "custom-model" in cmd
 
@@ -170,7 +171,7 @@ def test_prepare_propagates_nonzero_exit(monkeypatch):
 
     args = SimpleNamespace(
         pr_url="x", queue="q",
-        all=False, rebuild=False, detailed=False, embed_model=None,
+        all=False, rebuild=False, detailed=False, deep=False, embed_model=None,
         jobs=None, yes=False,
     )
     rc = pr_task.cmd_prepare(args)
@@ -182,13 +183,13 @@ def test_prepare_propagates_nonzero_exit(monkeypatch):
 def _all_args(*, jobs=None):
     return SimpleNamespace(
         pr_url=None, queue="/tmp/q.json5", all=True,
-        rebuild=False, detailed=False, embed_model=None,
+        rebuild=False, detailed=False, deep=False, embed_model=None,
         jobs=jobs, yes=False,
     )
 
 
 def test_prepare_all_sequential_default(monkeypatch, capsys):
-    """--all with no --jobs flag and no core.yaml setting → sequential, one
+    """--all with no --jobs flag and no config setting → sequential, one
     _prepare_one call per URL, all results returned in queue order."""
     urls = ["https://github.com/acme/foo/pull/1",
             "https://github.com/acme/foo/pull/2",
@@ -206,9 +207,9 @@ def test_prepare_all_sequential_default(monkeypatch, capsys):
     rc = pr_task.cmd_prepare(_all_args())
     assert rc == 0
     assert seen == urls  # sequential preserves submission order
-    out = json.loads(capsys.readouterr().out)
-    assert out["count"] == 3
-    assert {r["pr_url"] for r in out["prepared"]} == set(urls)
+    out = capsys.readouterr().out
+    assert "prepared: 3" in out
+    assert "gh:foo#1" in out and "gh:foo#2" in out and "gh:foo#3" in out
 
 
 def test_prepare_all_parallel_returns_all_results(monkeypatch, capsys):
@@ -229,15 +230,16 @@ def test_prepare_all_parallel_returns_all_results(monkeypatch, capsys):
 
     rc = pr_task.cmd_prepare(_all_args(jobs=3))
     assert rc == 0
-    out = json.loads(capsys.readouterr().out)
-    assert out["count"] == 5
-    assert {r["pr_url"] for r in out["prepared"]} == set(urls)
+    out = capsys.readouterr().out
+    assert "prepared: 5" in out
+    for i in range(1, 6):
+        assert f"gh:foo#{i}" in out
     assert set(seen) == set(urls)
 
 
 def test_prepare_all_parallel_isolates_failures(monkeypatch, capsys):
     """One failing PR must not kill the worker pool; rc=1; other PRs return
-    successfully; the failure surfaces in the JSON result."""
+    successfully; the failure surfaces in the terminal summary."""
     urls = [f"https://github.com/acme/foo/pull/{i}" for i in range(1, 5)]
     monkeypatch.setattr(pr_task, "_queued_task_dirs",
                         lambda _q: {u: object() for u in urls})
@@ -250,13 +252,10 @@ def test_prepare_all_parallel_isolates_failures(monkeypatch, capsys):
 
     rc = pr_task.cmd_prepare(_all_args(jobs=2))
     assert rc == 1
-    out = json.loads(capsys.readouterr().out)
-    assert out["count"] == 4
-    by_url = {r["pr_url"]: r for r in out["prepared"]}
-    assert by_url[urls[1]]["status"] == "failed"
-    assert by_url[urls[1]]["reason"] == "boom"
-    for u in (urls[0], urls[2], urls[3]):
-        assert by_url[u]["status"] == "prepared"
+    out = capsys.readouterr().out
+    assert "prepared: 3" in out
+    assert "failed: 1" in out
+    assert "gh:foo#2" in out and "boom" in out
 
 
 def test_prepare_all_parallel_clamps_jobs_to_url_count(monkeypatch, capsys):
@@ -271,13 +270,13 @@ def test_prepare_all_parallel_clamps_jobs_to_url_count(monkeypatch, capsys):
 
     rc = pr_task.cmd_prepare(_all_args(jobs=10))
     assert rc == 0
-    out = json.loads(capsys.readouterr().out)
-    assert out["count"] == 2
+    out = capsys.readouterr().out
+    assert "prepared: 2" in out
 
 
 def test_prepare_all_jobs_one_matches_sequential_behavior(monkeypatch, capsys):
     """--jobs 1 explicitly takes the sequential code path (same as omitting
-    --jobs when core.yaml is empty); ensures we didn't regress the single-job
+    --jobs when the config key is absent); ensures we didn't regress the single-job
     case to use ThreadPoolExecutor."""
     urls = ["https://github.com/acme/foo/pull/1",
             "https://github.com/acme/foo/pull/2"]
@@ -294,7 +293,7 @@ def test_prepare_all_jobs_one_matches_sequential_behavior(monkeypatch, capsys):
 
 
 def test_default_prepare_jobs_falls_back_to_one(monkeypatch):
-    """If config_io is unimportable / core.yaml missing / key absent → 1."""
+    """If config_io is unimportable / config key absent → 1."""
     import builtins
     real_import = builtins.__import__
     def blocked(name, *a, **kw):
@@ -306,8 +305,7 @@ def test_default_prepare_jobs_falls_back_to_one(monkeypatch):
 
 
 def test_default_prepare_jobs_reads_adk_cli_json5(monkeypatch):
-    """When adk-cli.json5 has pr_sync.prepare_jobs: N (or the legacy
-    core.yaml block still has it), that becomes the default."""
+    """When adk-cli.json5 has pr_sync.prepare_jobs: N, that becomes the default."""
     def fake_get(*path, default=None):
         if path == ("pr_sync", "prepare_jobs"):
             return 4
@@ -326,6 +324,88 @@ def test_default_prepare_jobs_clamps_to_minimum_one(monkeypatch):
     fake_module = SimpleNamespace(get_adk_cli=fake_get)
     monkeypatch.setitem(sys.modules, "config_io", fake_module)
     assert pr_task._default_prepare_jobs() == 1
+
+
+# ----- _extract_trailing_json -------------------------------------------------
+
+def test_extract_trailing_json_multiline_indented():
+    """The orchestrator's `json.dumps(..., indent=2)` output is recovered
+    correctly — the old code grabbed only the trailing `}` and lost the
+    whole payload."""
+    blob = """[pr-sync] preparing 14 task folder(s)
+$ prepare_task.py ...
+{
+  "action": "prepared",
+  "pr_url": "https://bitbucket.org/foo/bar/pull-requests/1",
+  "task_dir": "/tmp/foo_pr-1",
+  "head_sha": "abc123"
+}
+"""
+    obj = pr_task._extract_trailing_json(blob)
+    assert obj is not None
+    assert obj["action"] == "prepared"
+    assert obj["pr_url"].endswith("/1")
+
+
+def test_extract_trailing_json_returns_none_on_empty():
+    assert pr_task._extract_trailing_json("") is None
+    assert pr_task._extract_trailing_json("no json here\nstill nothing") is None
+
+
+def test_extract_trailing_json_ignores_braces_in_strings():
+    blob = """logs:
+"this } contains a brace"
+{"action":"prepared","note":"also { fake"}
+"""
+    obj = pr_task._extract_trailing_json(blob)
+    assert obj is not None
+    assert obj["action"] == "prepared"
+    assert obj["note"] == "also { fake"
+
+
+def test_extract_trailing_json_picks_last_object():
+    blob = """{"first": true}
+log line
+{"second": true}
+"""
+    obj = pr_task._extract_trailing_json(blob)
+    assert obj == {"second": True}
+
+
+# ----- _extract_error_reason -------------------------------------------------
+
+def test_extract_error_reason_prefers_step_failed():
+    stderr = (
+        "Traceback (most recent call last):\n"
+        '  File "create_worktree.py", line 72, in fetch_sha\n'
+        '    raise RuntimeError(f"sha {sha} not reachable from origin after full fetch")\n'
+        "RuntimeError: sha a2ab692a4db6 not reachable from origin after full fetch\n"
+        "step failed (rc=1): /usr/bin/python3 .../create_worktree.py --repo ecomm-ssr ...\n"
+    )
+    out = pr_task._extract_error_reason(stderr, "")
+    assert out.startswith("step failed (rc=1):")
+    # And the old, broken slice no longer appears:
+    assert not out.startswith("ise RuntimeError")
+
+
+def test_extract_error_reason_falls_back_to_runtime_error():
+    stderr = (
+        "Traceback (most recent call last):\n"
+        '  File "x.py", line 1, in <module>\n'
+        "RuntimeError: sha abc not reachable from origin after full fetch\n"
+    )
+    out = pr_task._extract_error_reason(stderr, "")
+    assert out == "RuntimeError: sha abc not reachable from origin after full fetch"
+
+
+def test_extract_error_reason_empty_inputs():
+    assert pr_task._extract_error_reason("", "") == "<no output>"
+
+
+def test_extract_error_reason_uses_stdout_when_stderr_empty():
+    stdout = "something useful on stdout\nfinal status line"
+    out = pr_task._extract_error_reason("", stdout)
+    assert out == "final status line"
 
 
 if __name__ == "__main__":

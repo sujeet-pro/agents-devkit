@@ -32,7 +32,12 @@ except ImportError:
     requests = None  # type: ignore  # only needed for markdown-remote fetch
 
 
-URL_RE = re.compile(r"https?://[^\s\)\]>]+", re.I)
+# Excludes whitespace, paired delimiters that may wrap the URL in markdown
+# (`)`, `]`, `>`, `}`), and quote characters used in inline-card attribute
+# lists like `{: data-inline-card='' }` (observed on Bitbucket PR bodies for
+# STRFRNT-14054). Pandoc-style attributes start with `{`, so excluding `{`
+# stops the greedy match before the attribute block.
+URL_RE = re.compile(r"https?://[^\s\)\]>}{'\"]+", re.I)
 
 CONFLUENCE_HOST_RE = re.compile(r"\.atlassian\.net$", re.I)
 JIRA_PATH_RE = re.compile(r"/browse/[A-Z]+-\d+")

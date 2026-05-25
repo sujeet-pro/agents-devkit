@@ -182,6 +182,17 @@ def test_sync_forwards_prepare_flags(stubbed_steps):
     assert "--detailed" in prep_argv
 
 
+def test_quiet_mode_emits_events_and_forwards_quiet(stubbed_steps, capsys):
+    rc = pr_sync.main(["--queue", "/tmp/q.json5", "--quiet"])
+
+    out = capsys.readouterr().out
+    assert rc == 0
+    assert "ADK_EVENT" in out
+    assert "--quiet" in stubbed_steps[0][1]
+    assert "--quiet" in stubbed_steps[-1][1]
+    assert "adk pr-sync complete" not in out
+
+
 def test_sync_continues_past_step_failures(stubbed_steps, monkeypatch, capsys):
     """If one step exits with rc=1, the rest still run and pr-sync exits 1."""
     import pr_queue
@@ -194,14 +205,13 @@ def test_sync_continues_past_step_failures(stubbed_steps, monkeypatch, capsys):
 
     monkeypatch.setattr(pr_queue, "main", flaky_queue)
     rc = pr_sync.main(["--no-scan", "--queue", "/tmp/q.json5"])
-    out = json.loads(capsys.readouterr().out)
-    assert any(s["status"] == "warn" for s in out["steps"])
+    out = capsys.readouterr().out
+    assert "warn" in out
     # rc=1 because there was a non-zero step rc (status=warn, not failed).
     # pr_sync only returns 1 when a step crashes (status=failed).
     assert rc == 0  # warn ≠ failed
     # All 4 non-scan steps still ran.
-    step_names = [s["step"] for s in out["steps"]]
-    assert "pr-task prepare --all" in step_names
+    assert "pr-task prepare --all" in out
 
 
 # ---------------------------------------------------------------
@@ -520,8 +530,7 @@ def test_audit_auto_mode_invokes_repo_main(tmp_path, monkeypatch):
 
 
 def test_audit_step_runs_in_pipeline(stubbed_steps, tmp_path, monkeypatch, capsys):
-    """End-to-end: pr-sync (default audit-mode=warn from config) includes a
-    `base-index audit` entry in the final summary."""
+    """End-to-end: pr-sync includes a `base-index audit` entry in the final summary."""
     fake_base = SimpleNamespace(
         get_branch_index=lambda repo, br: None,
         is_fresh=lambda idx: True,
@@ -530,17 +539,16 @@ def test_audit_step_runs_in_pipeline(stubbed_steps, tmp_path, monkeypatch, capsy
     monkeypatch.setitem(__import__("sys").modules, "base_index", fake_base)
     qpath = _write_queue(tmp_path, [])
     pr_sync.main(["--queue", qpath, "--no-scan", "--no-prepare"])
-    out = _json.loads(capsys.readouterr().out)
-    steps = [s["step"] for s in out["steps"]]
-    assert "base-index audit" in steps
+    out = capsys.readouterr().out
+    assert "base-index audit" in out
 
 
 def test_audit_step_can_be_skipped(stubbed_steps, tmp_path, capsys):
     qpath = _write_queue(tmp_path, [])
     pr_sync.main(["--queue", qpath, "--no-scan", "--no-prepare", "--no-base-audit"])
-    out = _json.loads(capsys.readouterr().out)
-    audit_step = next((s for s in out["steps"] if s["step"] == "base-index audit"), None)
-    assert audit_step is not None and audit_step["status"] == "skipped"
+    out = capsys.readouterr().out
+    assert "base-index audit" in out
+    assert "skipped" in out
 
 
 def test_auto_demote_step_runs_in_pipeline(stubbed_steps, tmp_path, capsys, monkeypatch):
@@ -553,14 +561,9 @@ def test_auto_demote_step_runs_in_pipeline(stubbed_steps, tmp_path, capsys, monk
     monkeypatch.setitem(__import__("sys").modules, "base_index", fake_base)
     qpath = _write_queue(tmp_path, [])
     pr_sync.main(["--queue", qpath, "--no-scan", "--no-prepare"])
-    out = _json.loads(capsys.readouterr().out)
-    steps = [s["step"] for s in out["steps"]]
-    assert "auto-base cleanup" in steps
-    demote_step = next(s for s in out["steps"] if s["step"] == "auto-base cleanup")
-    # The stubbed cmd_auto_bases_clean returns 0 and prints `{"action":"noop"}`,
-    # which gets parsed and attached to the step record.
-    assert demote_step["status"] == "ok"
-    assert demote_step["detail"] == {"action": "noop", "count": 0}
+    out = capsys.readouterr().out
+    assert "auto-base cleanup" in out
+    assert "ok" in out
 
 
 def test_auto_demote_can_be_skipped(stubbed_steps, tmp_path, capsys, monkeypatch):
@@ -572,14 +575,14 @@ def test_auto_demote_can_be_skipped(stubbed_steps, tmp_path, capsys, monkeypatch
     monkeypatch.setitem(__import__("sys").modules, "base_index", fake_base)
     qpath = _write_queue(tmp_path, [])
     pr_sync.main(["--queue", qpath, "--no-scan", "--no-prepare", "--no-auto-demote"])
-    out = _json.loads(capsys.readouterr().out)
-    demote_step = next(s for s in out["steps"] if s["step"] == "auto-base cleanup")
-    assert demote_step["status"] == "skipped"
+    out = capsys.readouterr().out
+    assert "auto-base cleanup" in out
+    assert "skipped" in out
 
 
 def test_audit_default_mode_is_act(stubbed_steps, tmp_path, monkeypatch, capsys):
     """Model 1: with no flags, the audit defaults to 'act' (run fix commands).
-    No more --audit-mode three-way enum on the visible surface."""
+    The visible surface has only direct flags for ask/preview/off."""
     seen_mode = []
     real_audit = pr_sync._audit_base_indexes
     def trace(*a, **kw):
@@ -619,28 +622,14 @@ def test_audit_dry_run_sets_preview_mode(stubbed_steps, tmp_path,
     assert seen_mode == ["preview"]
 
 
-def test_legacy_audit_mode_flag_still_works_with_deprecation(
-        stubbed_steps, tmp_path, monkeypatch, capsys):
-    """`--audit-mode warn` is the old way to ask for preview-only; it's now
-    deprecated but still maps cleanly to 'preview' with a warning."""
-    seen_mode = []
-    real_audit = pr_sync._audit_base_indexes
-    monkeypatch.setattr(pr_sync, "_audit_base_indexes",
-                        lambda *a, **kw: (seen_mode.append(kw.get("mode")) or
-                                          real_audit(*a, **kw)))
+def test_audit_mode_flag_is_not_supported(stubbed_steps, tmp_path):
     qpath = _write_queue(tmp_path, [])
-    pr_sync.main(["--queue", qpath, "--no-scan", "--no-prepare",
-                  "--audit-mode", "warn"])
-    assert seen_mode == ["preview"]
-    # `auto` legacy → act; `off` legacy → off.
-    seen_mode.clear()
-    pr_sync.main(["--queue", qpath, "--no-scan", "--no-prepare",
-                  "--audit-mode", "auto"])
-    assert seen_mode == ["act"]
-    seen_mode.clear()
-    pr_sync.main(["--queue", qpath, "--no-scan", "--no-prepare",
-                  "--audit-mode", "off"])
-    assert seen_mode == ["off"]
+    removed_flag = "--" + "audit-mode"
+    with pytest.raises(SystemExit) as exc:
+        pr_sync.main(["--queue", qpath, "--no-scan", "--no-prepare",
+                      removed_flag, "warn"])
+
+    assert exc.value.code == 2
 
 
 def test_audit_mode_config_override(stubbed_steps, tmp_path,

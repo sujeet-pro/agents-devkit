@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import io
 import json
+import logging
 from contextlib import redirect_stdout
 from pathlib import Path
 from types import SimpleNamespace
@@ -17,6 +18,9 @@ from types import SimpleNamespace
 import pytest
 
 import pr_queue
+import pr_scan
+import queue_io
+import slack_helpers
 from queue_io import STATUS_MERGED, STATUS_PENDING
 
 
@@ -75,6 +79,55 @@ def test_update_all_with_empty_queue(tmp_path, capsys):
     assert "no rows to refresh" in out
 
 
+def test_add_from_slack_permalink_preserves_thread_pr_count(tmp_path, monkeypatch, capsys):
+    main = {
+        "ts": "100.000",
+        "user": "U1",
+        "text": "Main https://github.com/acme/foo/pull/1",
+    }
+    reply = {
+        "ts": "100.001",
+        "user": "U2",
+        "text": "Reply https://github.com/acme/foo/pull/2",
+    }
+
+    class FakeSlackClient:
+        def iter_thread_replies(self, channel_id, thread_ts):
+            return iter([main, reply])
+
+        def get_message_permalink(self, channel_id, ts):
+            return f"https://slack/{channel_id}/{ts}"
+
+    monkeypatch.setattr(slack_helpers, "SlackClient", lambda: FakeSlackClient())
+    monkeypatch.setattr(
+        queue_io,
+        "load_slack_config",
+        lambda _path=None: {"url_patterns": ["https://github.com/"], "status_emoji": {}},
+    )
+    monkeypatch.setattr(
+        pr_scan,
+        "post_process",
+        lambda candidates, slack_cfg, dry_run, log: (candidates, {"kept": len(candidates)}),
+    )
+
+    queue_path = _write_queue(tmp_path, [])
+    rc = pr_queue._add_from_slack_permalink(
+        "https://lastbrand.slack.com/archives/C1/p100000",
+        {"channel_id": "C1", "message_ts": "100.000", "thread_ts": "100.000"},
+        queue_path,
+        SimpleNamespace(),
+        logging.getLogger("test"),
+    )
+
+    assert rc == 0
+    capsys.readouterr()
+    rows = json.loads(queue_path.read_text())["prs"]
+    assert len(rows) == 2
+    for row in rows:
+        assert row["slack"]["thread_pr_count"] == 2
+        assert len(row["related_pr_urls"]) == 1
+
+
 def test_update_all_skips_merged_and_continues_on_failure(tmp_path, capsys, monkeypatch):
     """One simulated per-row failure → rc=1, but the others still ran. Merged
     rows are not touched at all."""
@@ -103,9 +156,31 @@ def test_update_all_skips_merged_and_continues_on_failure(tmp_path, capsys, monk
         "https://github.com/acme/foo/pull/4",
     ]
     out = capsys.readouterr().out
-    parsed = json.loads(out)
-    assert parsed["count"] == 3
-    assert any(r.get("status") == "failed" for r in parsed["updated"])
+    assert "3 rows refreshed" in out
+    assert "1 failed" in out
+    assert "https://github.com/acme/foo/pull/3" in out
+
+
+def test_update_all_json_keeps_full_payload(tmp_path, capsys, monkeypatch):
+    queue_path = _write_queue(tmp_path, [
+        {"pr_url": "https://github.com/acme/foo/pull/1", "status": STATUS_PENDING},
+    ])
+    monkeypatch.setattr(
+        pr_queue,
+        "_refresh_one",
+        lambda pr_url, entry, *, queue_path, log: {
+            "pr_url": pr_url,
+            "refreshed": "meta",
+            "head_sha": "abc",
+        },
+    )
+
+    rc = pr_queue.main(["--queue", str(queue_path), "update", "--all", "--json"])
+
+    assert rc == 0
+    parsed = json.loads(capsys.readouterr().out)
+    assert parsed["count"] == 1
+    assert parsed["updated"][0]["head_sha"] == "abc"
 
 
 def test_update_full_flag_removed(tmp_path):

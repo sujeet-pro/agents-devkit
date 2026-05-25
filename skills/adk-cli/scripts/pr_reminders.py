@@ -31,6 +31,7 @@ from _common import get_logger  # noqa: E402
 from queue_io import (  # noqa: E402
     DEFAULT_QUEUE_PATH, TERMINAL_STATUSES,
     read_queue, update_pr_entry, _parse_iso, _now_iso, load_slack_config,
+    slack_threads_for,
 )
 
 
@@ -54,8 +55,9 @@ def _is_stale_review(entry: dict, *, now: datetime, threshold_hours: float) -> b
     if last_reminded_at is not None:
         if (now - last_reminded_at) < timedelta(hours=threshold_hours):
             return False
-    slack = entry.get("slack") or {}
-    if not slack.get("channel_id") or not slack.get("thread_ts"):
+    threads = slack_threads_for(entry)
+    if not any(t.get("channel_id") and (t.get("thread_ts") or t.get("message_ts"))
+               for t in threads):
         return False
     return True
 
@@ -105,8 +107,8 @@ def send_reminders(queue_path: Path, *, threshold_hours: float = DEFAULT_THRESHO
     # Lazy: only construct the Slack client if we have something to send.
     try:
         from slack_helpers import SlackClient  # type: ignore[import-not-found]
-        slack_cfg = load_slack_config()
-        client = SlackClient(slack_cfg, log=log)
+        load_slack_config()  # raises FileNotFoundError when config is missing
+        client = SlackClient()
     except FileNotFoundError as e:
         return {"sent": [], "skipped": 0,
                 "failed": [{"error": f"slack config missing: {e}"}],
@@ -120,22 +122,41 @@ def send_reminders(queue_path: Path, *, threshold_hours: float = DEFAULT_THRESHO
     failed: list[dict] = []
     for entry in qualifying:
         pr_url = entry.get("pr_url")
-        slack = entry.get("slack") or {}
-        channel_id = slack.get("channel_id")
-        thread_ts = slack.get("thread_ts")
+        threads = slack_threads_for(entry)
         text = _reminder_text(entry, now=now)
-        try:
-            reply_ts = client.post_thread_reply(channel_id, thread_ts, text)
-        except Exception as e:
-            failed.append({"pr_url": pr_url, "error": str(e)})
+        thread_replies: list[dict] = []
+        thread_failed = False
+        if not threads:
+            failed.append({"pr_url": pr_url, "error": "no slack threads"})
             continue
-        if reply_ts is None:
-            failed.append({"pr_url": pr_url, "error": "post_thread_reply returned None"})
+        for slack in threads:
+            channel_id = slack.get("channel_id")
+            thread_ts = slack.get("thread_ts") or slack.get("message_ts")
+            if not channel_id or not thread_ts:
+                continue
+            try:
+                reply_ts = client.post_thread_reply(channel_id, thread_ts, text)
+            except Exception as e:
+                failed.append({"pr_url": pr_url, "channel_id": channel_id,
+                               "thread_ts": thread_ts, "error": str(e)})
+                thread_failed = True
+                continue
+            if reply_ts is None:
+                failed.append({"pr_url": pr_url, "channel_id": channel_id,
+                               "thread_ts": thread_ts,
+                               "error": "post_thread_reply returned None"})
+                thread_failed = True
+                continue
+            thread_replies.append({"channel_id": channel_id, "thread_ts": thread_ts,
+                                   "reply_ts": reply_ts})
+        if thread_failed:
             continue
         update_pr_entry(queue_path, pr_url,
                         {"last_reminded_at": _now_iso(),
                          "last_checked_at": _now_iso()})
-        sent.append({"pr_url": pr_url, "reply_ts": reply_ts})
+        sent.append({"pr_url": pr_url,
+                     "reply_ts": thread_replies[0]["reply_ts"] if thread_replies else None,
+                     "replies": thread_replies})
 
     return {"sent": sent, "failed": failed, "count": len(qualifying)}
 

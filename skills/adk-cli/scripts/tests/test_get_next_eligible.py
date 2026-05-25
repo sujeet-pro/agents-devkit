@@ -132,7 +132,7 @@ def test_get_next_refreshes_head_sha_on_eligible(tmp_path, monkeypatch):
 
 
 def test_get_next_no_validate_skips_api(tmp_path, monkeypatch):
-    """`--no-validate` is the legacy in-memory path; cheap_pr_meta MUST NOT
+    """`--no-validate` is the in-memory path; cheap_pr_meta MUST NOT
     be called. Used by tests + by callers who validated separately."""
     q = _write_queue(tmp_path, [
         {"pr_url": "u1", "status": STATUS_PENDING, "head_sha": "x"},

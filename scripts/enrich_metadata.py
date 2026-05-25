@@ -129,6 +129,7 @@ def enrich_atlassian() -> dict[str, Any]:
     token = os.environ.get("ATLASSIAN_API_TOKEN_CRED")
     if not (site and user and token):
         return {"_status": "skipped", "_reason": "ATLASSIAN_SITE/USERNAME/API_TOKEN_CRED not all set"}
+    site = site.removeprefix("https://").removeprefix("http://").split("/", 1)[0]
     auth = ["-u", f"{user}:{token}"]
     out: dict[str, Any] = {"_status": "ok", "site": site}
     # Jira projects

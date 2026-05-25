@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# install.sh — adk v3 installer (thin wrapper around install.py)
+# install.sh — adk installer (thin wrapper around install.py)
 #
 # Usage:
 #   ./install.sh                      # autodetect installed agents, install for all detected
@@ -9,6 +9,10 @@
 #   ./install.sh --uninstall          # remove by marker; leave overrides intact
 #   ./install.sh --dry-run            # show what would change
 #   ./install.sh --interactive        # textual TUI (if installed) / plain prompt fallback
+#
+# Normal installs enforce an ADK-only agent profile: non-ADK agent
+# integrations/caches are removed, legacy ADK state is quarantined, and fresh
+# ADK skills/agents/MCPs are regenerated from this repo.
 
 set -euo pipefail
 

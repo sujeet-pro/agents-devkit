@@ -1,9 +1,9 @@
-"""Tests for improvement #3: post_comments.py refuses an empty request_changes
-review.
+"""Tests for post_comments.should_post_review.
 
-When triage rejects every finding, the post step must not transmit a
-`request_changes` verdict with zero inline comments — that's a confusing
-artifact on the PR. Resolves/reopens are still allowed to proceed.
+Policy (2026-05-22): every review takes a verdict (`approve` /
+`request_changes`). The review summary post carries that verdict, so we
+post it whenever there's a verdict to express. Empty reviews without a verdict
+are suppressed.
 """
 from __future__ import annotations
 
@@ -32,14 +32,18 @@ def test_should_post_review_true_when_findings(post_comments):
                                              "recommendation": "request_changes"}) is True
 
 
-def test_should_post_review_false_when_empty_request_changes(post_comments):
-    """The core fix: n_findings=0 + request_changes → suppress."""
+def test_should_post_review_true_when_empty_request_changes(post_comments):
+    """Empty request_changes IS meaningful — surfaces the verdict. After the
+    2026-05-22 policy change, derive_recommendation only emits this when
+    there's at least one blocker, so n=0+request_changes should not occur
+    in practice — but if it does, post the verdict (it carries information).
+    """
     assert post_comments.should_post_review({"findings": [],
-                                             "recommendation": "request_changes"}) is False
+                                             "recommendation": "request_changes"}) is True
 
 
-def test_should_post_review_false_when_empty_comment_only(post_comments):
-    """Empty comment_only is also a no-op."""
+def test_should_post_review_false_when_empty_unknown_verdict(post_comments):
+    """An empty review without approve/request_changes has nothing to post."""
     assert post_comments.should_post_review({"findings": [],
                                              "recommendation": "comment_only"}) is False
 
@@ -50,16 +54,28 @@ def test_should_post_review_true_when_empty_approve(post_comments):
                                              "recommendation": "approve"}) is True
 
 
-def test_plan_only_reflects_suppression(post_comments):
-    """plan_only output should show would_post_review=False for the empty case."""
+def test_plan_only_reflects_post_for_request_changes(post_comments):
+    """plan_only should show would_post_review=True for any verdict
+    (approve / request_changes), even with zero findings."""
     out = post_comments.plan_only(
         Path("/tmp/x"),
         {"findings": [], "recommendation": "request_changes"},
         actions=[{"decision": "resolve", "verified": True}],
     )
-    assert out["would_post_review"] is False
+    assert out["would_post_review"] is True
     assert out["n_findings"] == 0
     assert out["n_resolve"] == 1
+
+
+def test_plan_only_suppresses_empty_unknown_verdict(post_comments):
+    """Unknown verdict + zero findings is suppressed."""
+    out = post_comments.plan_only(
+        Path("/tmp/x"),
+        {"findings": [], "recommendation": "comment_only"},
+        actions=[],
+    )
+    assert out["would_post_review"] is False
+    assert out["n_findings"] == 0
 
 
 def test_plan_only_normal_case(post_comments):

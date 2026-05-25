@@ -31,7 +31,7 @@ The AI review pass never starts before Phase 3 settles — the precis the model 
 ## Phase 0 — prerequisites + URL dispatch
 
 1. Parse the PR URL → `(host, owner, repo, pr_number)` via `scripts/parse_pr_url.py`.
-2. Probe ollama: `scripts/ensure_ollama.py` checks (a) `ollama` binary on PATH, (b) the daemon responds at `http://localhost:11434`, (c) the embedding model is pulled. Default model: `nomic-embed-text`. Override via `--embed-model` or `core.yaml.defaults.adk-pr-review.embed_model`. If ollama is missing, refuse and print the install command (do not try to install for the user).
+2. Probe ollama: `scripts/ensure_ollama.py` checks (a) `ollama` binary on PATH, (b) the daemon responds at `http://localhost:11434`, (c) the embedding model is pulled. Default model: `nomic-embed-text`; `--detailed` selects the detailed embedding model (`bge-m3` by default). Override via `--embed-model` or `core.yaml.defaults.adk-pr-review.embed_model`. If ollama is missing, refuse and print the install command (do not try to install for the user).
 3. Probe MCP availability: `gh` CLI for GitHub PRs; `adk-mcp-bitbucket` for Bitbucket PRs. If neither is reachable for the host, refuse and surface the gap.
 4. Resolve the task folder: `python3 scripts/adk_task_slug.py --skill pr-review --input <url> --create --json` → `~/.agents-devkit/skill-pr-review/<repo>_pr-<n>/`.
 
@@ -74,7 +74,7 @@ Fanned out concurrently:
    - `--output-format stream-json`
    - `--json-schema skills/adk-pr-review/finding.template.json`
 3. The model issues retrieval queries via `query_index.py`. **Hybrid (vector + BM25) is on by default** — both signals contribute to candidate selection. The `score_breakdown` in each result shows which signal pulled it. Disable with `--no-hybrid` (CLI) or `retrieval.hybrid: false` (config).
-4. **Optional rerank stage.** When the candidate pool is wide (≥ 50 chunks per query × multiple queries), the model emits a `queries.json5` and the orchestrator runs `rerank.py --build-queue` → harness-LLM scoring → `rerank.py --apply-scores`. The harness picks the model (Claude Code: Haiku subagent by default; Cursor: auto; etc.) per `references/rerank-harness.md`. Skipped when retrieval already converges on a small candidate set.
+4. **Optional rerank stage.** When the candidate pool is wide (≥ 50 chunks per query × multiple queries), the model emits a `queries.json5` and the orchestrator runs `rerank.py --build-queue` → harness-LLM scoring → `rerank.py --apply-scores`. The harness picks the model per `references/rerank-harness.md` and `shared/model-depth.md`. Skipped when retrieval already converges on a small candidate set.
 5. Parse `structured_output` from the result. Validate every finding: `file` in worktree, `line_start ≤ line_end`, `line_end ≤ file LOC`, `evidence` non-empty. Invalid findings drop to `status=rejected` in the local store and are not posted.
 6. Cross-check existing comments: `scripts/comment_resolver.py` consumes `existing_comment_actions` from the model + `pr-comments.json` + the worktree diff to verify each decision (see `references/comment-resolution.md`).
 

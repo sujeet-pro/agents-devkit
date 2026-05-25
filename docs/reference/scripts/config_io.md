@@ -86,11 +86,6 @@ ADK_CLI_JSON5 = CONFIG_DIR / "adk-cli.json5"
 REPOS_MD = CONFIG_DIR / "repos.md"
 LINKS_JSON5 = CONFIG_DIR / "links.json5"
 
-# Top-level adk-cli.json5 sections whose presence in core.yaml triggers a
-# one-time deprecation warning during load_core(). New code should read
-# these via load_adk_cli() / get_adk_cli().
-_ADK_CLI_RELOCATED_KEYS = ("pr_sync", "pr_scan", "pr_review")
-
 # ---------------------------------------------------------------- lock ------
 # Use the shared fcntl helper from scripts/lib/adk_common.py rather than
 # carrying a private copy. The path append is idempotent.
@@ -155,38 +150,9 @@ def _load_json5(path: Path) -> Any:
         return json.loads(text)
 
 
-# ---------------------------------------------------------- public API ------
-
-_DEPRECATION_WARNED: set[str] = set()
-
-
-def _warn_once(key: str, msg: str) -> None:
-    if key in _DEPRECATION_WARNED:
-        return
-    _DEPRECATION_WARNED.add(key)
-    import sys as _sys
-    _sys.stderr.write(f"adk-config: {msg}\n")
-
-
 def load_core() -> dict:
-    """Load core.yaml (workspaces, defaults, rag, learning_state, …).
-
-    Emits a one-time deprecation warning if the file still carries any
-    adk-cli behavior blocks (pr_sync / pr_scan / pr_review) that should now
-    live in adk-cli.json5. The values are still returned — callers that
-    read them via load_adk_cli() get a merged view with adk-cli.json5
-    taking precedence.
-    """
-    data = _load_yaml(CORE_YAML)
-    for key in _ADK_CLI_RELOCATED_KEYS:
-        if key in data:
-            _warn_once(
-                f"core.{key}",
-                f"core.yaml.{key} is deprecated; move it to "
-                f"~/.agents-devkit/config/adk-cli.json5 under top-level `{key}:`. "
-                f"Reading from core.yaml for now.",
-            )
-    return data
+    """Load core.yaml (workspaces, defaults, rag, learning_state, ...)."""
+    return _load_yaml(CORE_YAML)
 
 
 def load_adk_cli() -> dict:
@@ -197,21 +163,14 @@ def load_adk_cli() -> dict:
     fresh install the file is absent and every consumer falls back to its
     in-code default.
 
-    Backward-compat: any top-level key in _ADK_CLI_RELOCATED_KEYS that is
-    absent from adk-cli.json5 but present in core.yaml is merged in, so
-    users can migrate at their own pace. adk-cli.json5 always wins on
-    collision.
+    CLI behavior lives only in adk-cli.json5; core.yaml remains reserved for
+    workspace, defaults, RAG, connector, and learning-state configuration.
     """
     cfg = _load_json5(ADK_CLI_JSON5)
     if cfg is None:
         cfg = {}
     if not isinstance(cfg, dict):
         raise ValueError(f"{ADK_CLI_JSON5}: top-level must be a mapping")
-    # Fold in any not-yet-migrated keys from core.yaml.
-    core = _load_yaml(CORE_YAML)
-    for key in _ADK_CLI_RELOCATED_KEYS:
-        if key not in cfg and key in core:
-            cfg[key] = core[key]
     return cfg
 
 

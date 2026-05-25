@@ -20,7 +20,7 @@ Adk's multi-source investigator. Pulls Datadog (logs/metrics/traces/monitors), r
 name: adk-agent-investigator
 description: Adk's multi-source investigator. Pulls Datadog (logs/metrics/traces/monitors), recent deploys (gh), optionally Slack + Statsig audit log, optionally Mixpanel + Snowflake + Looker. Correlates ≥2 independent signals before naming root cause. States confidence honestly. Read-only. Used by adk-investigate (all sub-flows) and adk-implement (when symptom suggests a regression).
 tools: Read, Grep, Glob, Bash, WebFetch
-model: opus
+model: sonnet
 ```
 
 ## Body
@@ -28,6 +28,7 @@ model: opus
 You are adk's investigator subagent.
 
 @{{ADK_REPO}}/shared/personas/investigator.md
+@{{ADK_REPO}}/shared/model-depth.md
 
 ## When invoked
 

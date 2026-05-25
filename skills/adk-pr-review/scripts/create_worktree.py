@@ -4,7 +4,8 @@
 Acquires ~/.agents-devkit/repos/.worktree-lock before `git worktree add`, releases after.
 
 Usage:
-  python3 create_worktree.py --repo foo --pr-number 42 --head-sha abc123 [--json]
+  python3 create_worktree.py --repo foo --pr-number 42 --head-sha abc123 \
+                             [--host github|bitbucket] [--json]
 """
 from __future__ import annotations
 
@@ -20,7 +21,26 @@ from _common import (  # noqa: E402
 )
 
 
-def fetch_sha(repo_path: Path, sha: str, log) -> None:
+def _pr_head_refspec(host: str | None, pr_number: int) -> str | None:
+    """Return the platform-specific refspec for a PR head ref, or None.
+
+    These refs are maintained server-side but are NOT in the default
+    `+refs/heads/*:refs/heads/*` fetch refspec, so a plain `git fetch --all`
+    misses them. Required when the PR's source branch has been deleted on
+    origin (typical after merge) or never existed as a regular branch
+    (fork PRs on GitHub).
+    """
+    if not host:
+        return None
+    if host == "github":
+        return f"+refs/pull/{pr_number}/head:refs/pr/{pr_number}/head"
+    if host == "bitbucket":
+        return f"+refs/pull-requests/{pr_number}/from:refs/pr/{pr_number}/from"
+    return None
+
+
+def fetch_sha(repo_path: Path, sha: str, log, *, host: str | None = None,
+              pr_number: int | None = None) -> None:
     # Make sure the SHA is reachable. If not, fetch it.
     if run_ok(["git", "cat-file", "-e", sha], cwd=repo_path):
         return
@@ -29,11 +49,50 @@ def fetch_sha(repo_path: Path, sha: str, log) -> None:
     # uploadpack.allowAnySHA1InWant; otherwise we have to fetch refs and re-check.
     if run_ok(["git", "fetch", "origin", sha], cwd=repo_path):
         return
+    # Try the platform-specific PR head ref BEFORE a full all-prune. PR refs
+    # work when the source branch has been deleted (merged PRs) or never lived
+    # under refs/heads (fork PRs on GitHub) — both cases where --all misses it.
+    refspec = _pr_head_refspec(host, pr_number) if pr_number is not None else None
+    if refspec:
+        log.info("fetching PR head ref: %s", refspec)
+        if run_ok(["git", "fetch", "origin", refspec], cwd=repo_path):
+            if run_ok(["git", "cat-file", "-e", sha], cwd=repo_path):
+                return
     # Fallback: fetch all refs (slower).
     log.info("direct sha fetch failed; doing full fetch")
     run(["git", "fetch", "--all", "--prune"], cwd=repo_path)
-    if not run_ok(["git", "cat-file", "-e", sha], cwd=repo_path):
-        raise RuntimeError(f"sha {sha} not reachable from origin after full fetch")
+    if run_ok(["git", "cat-file", "-e", sha], cwd=repo_path):
+        return
+    # Last resort: PR ref AFTER the full fetch, in case mirroring is slow.
+    if refspec:
+        log.info("retrying PR head ref after full fetch: %s", refspec)
+        if run_ok(["git", "fetch", "origin", refspec], cwd=repo_path):
+            if run_ok(["git", "cat-file", "-e", sha], cwd=repo_path):
+                return
+    # Diagnostic-rich failure message — abbreviated SHAs (typical when the
+    # PR was pulled from Bitbucket Cloud's pullrequests endpoint without
+    # the /commit resolution step) cannot be fetched directly; a deleted
+    # source branch on Bitbucket Cloud is unrecoverable without admin
+    # access (Cloud does not expose `refs/pull-requests/{n}/from` over git).
+    hints: list[str] = []
+    if len(sha) < 40:
+        hints.append(
+            f"head_sha looks abbreviated ({len(sha)} chars) — Bitbucket Cloud's "
+            "pullrequests endpoint returns a 12-char hash. Re-run `adk pr-queue update "
+            "--all` after upgrading: the queue should now resolve the full SHA via "
+            "/commit/{short}."
+        )
+    if host == "bitbucket":
+        hints.append(
+            "Bitbucket Cloud does NOT expose `refs/pull-requests/{n}/from` to git "
+            "clients — if the source branch was deleted upstream, the commit may "
+            "be unrecoverable without admin access."
+        )
+    hint_block = ("\n  hint: " + "\n  hint: ".join(hints)) if hints else ""
+    raise RuntimeError(
+        f"sha {sha} not reachable from origin after full fetch (host={host or 'unknown'}, "
+        f"pr={pr_number}){hint_block}"
+    )
 
 
 def worktree_exists_at(repo_path: Path, target: Path) -> bool:
@@ -46,6 +105,9 @@ def main() -> int:
     ap.add_argument("--repo", required=True)
     ap.add_argument("--pr-number", required=True, type=int)
     ap.add_argument("--head-sha", required=True)
+    ap.add_argument("--host", choices=("github", "bitbucket"),
+                    help="Enables PR-ref fetch fallback when the SHA isn't on a "
+                         "regular branch (deleted source branch, fork PRs).")
     ap.add_argument("--rebuild", action="store_true", help="remove existing worktree before recreating")
     ap.add_argument("--json", action="store_true")
     args = ap.parse_args()
@@ -69,7 +131,8 @@ def main() -> int:
     lock_path = clone_lock_for(args.repo)
     with file_lock(lock_path, timeout_s=300.0):
         log.info("clone-lock acquired (%s)", lock_path)
-        fetch_sha(repo_path, args.head_sha, log)
+        fetch_sha(repo_path, args.head_sha, log,
+                  host=args.host, pr_number=args.pr_number)
 
         if worktree_exists_at(repo_path, target) and args.rebuild:
             log.info("removing existing worktree at %s", target)

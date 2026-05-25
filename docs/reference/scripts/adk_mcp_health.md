@@ -105,6 +105,9 @@ VARS_WITH_DEFAULTS: set[str] = {
     "BITBUCKET_URL",
 }
 
+# Vars whose MCP wrappers normalize a full URL down to the bare host.
+NORMALIZED_HOST_VARS: set[str] = {"ATLASSIAN_SITE"}
+
 # Aliases — if right-hand var is set, the left-hand var is "satisfied".
 # Empty since 2026-05-19: every consumer reads the canonical `_CRED`
 # names directly. MCP json configs interpolate ${X_CRED} into the third-
@@ -187,7 +190,15 @@ def mcp_to_service(name: str) -> str | None:
 
 
 def env_status(var: str) -> str:
-    if os.environ.get(var):
+    val = os.environ.get(var)
+    if val:
+        if var in NORMALIZED_HOST_VARS:
+            if val.startswith("/"):
+                # Don't echo the value — just flag the shape. A path-only value
+                # cannot be normalized into a host.
+                return "present BUT INVALID (must include host)"
+            if "://" in val or "/" in val:
+                return "present (will normalize to bare host)"
         return "present"
     alias = ALIASES.get(var)
     if alias and os.environ.get(alias):
@@ -333,13 +344,18 @@ def main() -> int:
     print()
     print("env vars referenced by adk:")
     for var, status in report["env_vars"].items():
-        if status.startswith("present"):
+        if "INVALID" in status:
+            marker = "✗"
+            hint = f"  ({DECLARED_VARS[var]})"
+        elif status.startswith("present"):
             marker = "✓"
+            hint = ""
         elif status.startswith("unset (using default)"):
             marker = "·"
+            hint = ""
         else:
             marker = "✗"
-        hint = "" if status.startswith("present") else f"  ({DECLARED_VARS[var]})"
+            hint = f"  ({DECLARED_VARS[var]})"
         print(f"  {marker} {var:32} {status}{hint}")
 
     # Optional creds-system section (only when the cross-reference succeeded).

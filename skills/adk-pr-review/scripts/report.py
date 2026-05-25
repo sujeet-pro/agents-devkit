@@ -31,12 +31,15 @@ sys.path.insert(0, str(ADK_CLI_SCRIPTS))
 try:
     from queue_release import release_after_review  # noqa: E402
     from queue_io import (  # noqa: E402
-        DEFAULT_QUEUE_PATH, read_queue, load_slack_config,
+        DEFAULT_QUEUE_PATH, read_queue, load_slack_config, slack_threads_for,
     )
     from pr_queue import print_summary  # noqa: E402
     _CLI_AVAILABLE = True
 except Exception:
     _CLI_AVAILABLE = False
+    def slack_threads_for(entry):  # type: ignore[no-redef]
+        slack = entry.get("slack") if isinstance(entry, dict) else None
+        return [slack] if isinstance(slack, dict) and slack else []
 
 
 SEV_ORDER = {"blocker": 0, "critical": 1, "should-have": 2, "may-have": 3,
@@ -241,21 +244,23 @@ def render_findings_md(*, task_dir: Path, pr: dict, findings_blob: dict,
     return "\n".join(out).rstrip() + "\n"
 
 
-def derive_recommendation(findings: list[dict], approved_host: bool = False) -> str:
+def derive_recommendation(findings: list[dict]) -> str:
     """Re-derive the post-triage recommendation from the accepted findings.
 
-    Why: the pre-triage findings.json carries the AI reviewer's first guess.
-    After triage rejects findings, the recommendation stored in that file
-    can contradict the actual posted set (e.g., 'request_changes' with zero
-    accepted findings). The post-triage source of truth is the count and
-    severity of what survived triage.
+    Policy (set by the user, 2026-05-22): our review's verdict is independent
+    of what other reviewers have done on the PR. There is no `comment_only`
+    middle ground — every review takes a stance:
+
+      - any blocker / critical finding survives triage → `request_changes`
+      - otherwise                                       → `approve`
+
+    Should-have / may-have / nitpick / question findings ride along on an
+    `approve` — we surface them but they don't block.
     """
     real_issues = [f for f in findings if f.get("severity") != APPRECIATION_SEV]
-    if not real_issues:
-        return "approve" if approved_host else "comment_only"
     if any(f.get("severity") in BLOCKING_SEV for f in real_issues):
         return "request_changes"
-    return "comment_only"
+    return "approve"
 SEV_TAG = {"blocker": "[blocker]", "critical": "[critical]", "should-have": "[should]",
            "may-have": "[may]", "nitpick": "[nit]", "question": "[?]"}
 SEV_TO_CATEGORY = {
@@ -297,7 +302,7 @@ def main() -> int:
     if f_path == final_path:
         review_decision = pr.get("reviewDecision") or pr.get("review_decision")
         approved_host = (review_decision == "APPROVED")
-        findings_blob["recommendation"] = derive_recommendation(findings, approved_host=approved_host)
+        findings_blob["recommendation"] = derive_recommendation(findings)
         log.info("post-triage recommendation: %s (n_findings=%d, approved_host=%s)",
                  findings_blob["recommendation"], len(findings), approved_host)
     actions = []
@@ -434,14 +439,16 @@ def _print_links_tail(task_dir: Path, pr: dict) -> None:
     pr_url = pr.get("url") or ""
     # Pull slack info from queue-context.json — same source the queue release
     # path used.
-    slack_url = None
+    slack_urls: list[str] = []
     try:
         ctx_path = pr_review_file(task_dir, "queue-context.json")
         if ctx_path.exists():
             import json as _json
             ctx = _json.loads(ctx_path.read_text(encoding="utf-8"))
-            slack_info = ctx.get("slack") or {}
-            slack_url = slack_info.get("permalink") or _derive_slack_permalink(slack_info)
+            for slack_info in slack_threads_for(ctx):
+                slack_url = slack_info.get("permalink") or _derive_slack_permalink(slack_info)
+                if slack_url and slack_url not in slack_urls:
+                    slack_urls.append(slack_url)
     except Exception:
         # Best-effort — never block the report tail on a missing slack URL.
         pass
@@ -449,8 +456,9 @@ def _print_links_tail(task_dir: Path, pr: dict) -> None:
     print()
     print("── Links " + "─" * 70)
     print(f"PR:        {pr_url}")
-    if slack_url:
-        print(f"Slack:     {slack_url}")
+    for idx, slack_url in enumerate(slack_urls, start=1):
+        label = "Slack" if idx == 1 else f"Slack {idx}"
+        print(f"{label}:     {slack_url}")
     findings_md = pr_review_file(task_dir, "findings.md")
     report_md = pr_review_file(task_dir, "report.md")
     if findings_md.exists():
@@ -490,7 +498,7 @@ def _release_and_print_tail(task_dir: Path, pr: dict, findings_blob: dict, log) 
             qp = ctx.get("queue_path")
             if qp:
                 queue_path = Path(qp)
-            slack_info = ctx.get("slack")
+            slack_info = ctx if ctx.get("slack_threads") else ctx.get("slack")
             if ctx.get("pr_url"):
                 pr_url = ctx["pr_url"]
         except Exception as e:
@@ -500,6 +508,13 @@ def _release_and_print_tail(task_dir: Path, pr: dict, findings_blob: dict, log) 
     recommendation = findings_blob.get("recommendation")
     review_decision = pr.get("reviewDecision") or pr.get("review_decision")
     approved_host = (review_decision == "APPROVED")
+    host_requested_changes = review_decision in {"CHANGES_REQUESTED", "REQUEST_CHANGES"}
+    approve_ready = False
+    if actions_path.exists():
+        try:
+            approve_ready = bool(read_json(actions_path).get("approve_ready", False))
+        except Exception:
+            approve_ready = False
 
     slack_cfg = None
     if slack_info:
@@ -518,6 +533,8 @@ def _release_and_print_tail(task_dir: Path, pr: dict, findings_blob: dict, log) 
             n_findings=n_findings,
             approved_host=approved_host,
             recommendation=recommendation,
+            approve_ready=approve_ready,
+            host_requested_changes=host_requested_changes,
             slack_cfg=slack_cfg,
             slack_info=slack_info,
             log=log,

@@ -1,5 +1,8 @@
-"""Tests for improvement #2: report.py reads findings-final.json and
-re-derives the recommendation from the post-triage set.
+"""Tests for report.py:derive_recommendation.
+
+Policy (2026-05-22): every review takes a verdict — `approve` or
+`request_changes`. The `comment_only` middle ground is gone, and our verdict
+is independent of other reviewers' state on the host.
 """
 from __future__ import annotations
 
@@ -23,12 +26,15 @@ def report():
     return mod
 
 
-def test_no_findings_no_approval_is_comment_only(report):
-    assert report.derive_recommendation([], approved_host=False) == "comment_only"
+def test_no_findings_defaults_to_approve(report):
+    """Zero findings → approve."""
+    assert report.derive_recommendation([]) == "approve"
 
 
-def test_no_findings_with_host_approval_is_approve(report):
-    assert report.derive_recommendation([], approved_host=True) == "approve"
+def test_only_appreciations_is_approve(report):
+    """Appreciations don't count as real issues — clean approve."""
+    findings = [{"severity": "appreciation"}, {"severity": "appreciation"}]
+    assert report.derive_recommendation(findings) == "approve"
 
 
 def test_any_blocker_is_request_changes(report):
@@ -41,20 +47,27 @@ def test_any_critical_is_request_changes(report):
     assert report.derive_recommendation(findings) == "request_changes"
 
 
-def test_only_should_have_is_comment_only(report):
+def test_only_should_have_is_approve(report):
+    """Non-blocking severities (should-have/may-have) ride along on an approve."""
     findings = [{"severity": "should-have"}, {"severity": "may-have"}]
-    assert report.derive_recommendation(findings) == "comment_only"
+    assert report.derive_recommendation(findings) == "approve"
 
 
-def test_only_nitpick_is_comment_only(report):
+def test_only_nitpick_is_approve(report):
+    """Nitpicks and questions are non-blocking — approve."""
     findings = [{"severity": "nitpick"}, {"severity": "question"}]
-    assert report.derive_recommendation(findings) == "comment_only"
+    assert report.derive_recommendation(findings) == "approve"
 
 
-def test_approved_host_does_not_override_blocker(report):
-    """If a blocker survives triage, host approval doesn't downgrade the verdict."""
+def test_blocker_requests_changes(report):
+    """If a blocker survives triage, the verdict is request_changes."""
     findings = [{"severity": "blocker"}]
-    assert report.derive_recommendation(findings, approved_host=True) == "request_changes"
+    assert report.derive_recommendation(findings) == "request_changes"
+
+
+def test_non_blocking_finding_approves(report):
+    findings = [{"severity": "should-have"}]
+    assert report.derive_recommendation(findings) == "approve"
 
 
 if __name__ == "__main__":

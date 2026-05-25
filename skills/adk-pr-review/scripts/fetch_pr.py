@@ -32,8 +32,27 @@ except ImportError:
 GH_FIELDS = (
     "number,title,body,state,isDraft,createdAt,updatedAt,mergeable,mergedAt,"
     "headRefName,headRefOid,baseRefName,baseRefOid,headRepository,"
-    "author,reviewDecision,labels,additions,deletions,changedFiles,url"
+    "author,reviewDecision,labels,additions,deletions,changedFiles,url,statusCheckRollup"
 )
+
+
+def _normalize_check_rollup(items: list[dict]) -> dict:
+    failing_states = {"FAILURE", "FAILED", "ERROR", "CANCELLED", "TIMED_OUT", "ACTION_REQUIRED"}
+    pending_states = {"PENDING", "QUEUED", "IN_PROGRESS", "WAITING", "REQUESTED"}
+    failing: list[str] = []
+    pending: list[str] = []
+    passed = 0
+    for item in items or []:
+        name = item.get("name") or item.get("workflowName") or item.get("context") or "check"
+        state = (item.get("conclusion") or item.get("status") or item.get("state") or "").upper()
+        if state in failing_states:
+            failing.append(name)
+        elif state in pending_states:
+            pending.append(name)
+        elif state in {"SUCCESS", "SUCCESSFUL", "COMPLETED", "NEUTRAL", "SKIPPED"}:
+            passed += 1
+    overall = "failing" if failing else ("pending" if pending else ("passed" if passed else "unknown"))
+    return {"state": overall, "failing": failing, "pending": pending, "passed": passed}
 
 
 def fetch_github(owner: str, repo: str, n: int, task_dir: Path, log) -> dict:
@@ -49,6 +68,7 @@ def fetch_github(owner: str, repo: str, n: int, task_dir: Path, log) -> dict:
     pr["pr_number"] = n
     pr["head_sha"] = pr.get("headRefOid")
     pr["base_oid"] = pr.get("baseRefOid")
+    pr["checks"] = _normalize_check_rollup(pr.get("statusCheckRollup") or [])
     write_json(pr_review_file(task_dir, "pr.json"), pr)
 
     log.info("gh api repos/%s/%s/pulls/%d/comments", owner, repo, n)
@@ -110,6 +130,60 @@ def _bb_paginate(session: requests.Session, url: str) -> list[dict]:
     return out
 
 
+def _bb_resolve_full_sha(s: requests.Session, workspace: str, repo: str,
+                         short: str, log) -> str:
+    """Resolve a Bitbucket Cloud abbreviated commit hash to its full 40-char
+    SHA via `/repositories/{ws}/{repo}/commit/{short}`. Returns the input
+    unchanged on failure — callers downstream can still try to fetch by
+    branch ref. Bitbucket Cloud's pullrequests endpoint returns 12-char
+    abbreviations, and `git fetch origin <short>` fails with
+    "couldn't find remote ref" over the wire.
+    """
+    if not short or len(short) >= 40:
+        return short
+    try:
+        r = s.get(f"{BB_BASE}/repositories/{workspace}/{repo}/commit/{short}",
+                  timeout=20)
+        r.raise_for_status()
+        full = r.json().get("hash")
+        if full and len(full) >= 40 and full.startswith(short):
+            return full
+        log.warning("bb: commit endpoint returned unexpected hash %r for short %s; "
+                    "keeping abbreviated value", full, short)
+    except Exception as e:
+        log.warning("bb: failed to resolve abbreviated head_sha %s (%s); "
+                    "git fetch may fail downstream", short, e)
+    return short
+
+
+def _fetch_bb_checks(s: requests.Session, workspace: str, repo: str,
+                     head_sha: str | None, log) -> dict:
+    if not head_sha:
+        return {"state": "unknown", "failing": [], "pending": [], "passed": 0}
+    try:
+        statuses = _bb_paginate(
+            s,
+            f"{BB_BASE}/repositories/{workspace}/{repo}/commit/{head_sha}/statuses/build?pagelen=100",
+        )
+    except Exception as e:
+        log.warning("bb: failed to fetch build statuses for %s (%s)", head_sha, e)
+        return {"state": "unknown", "failing": [], "pending": [], "passed": 0}
+    failing: list[str] = []
+    pending: list[str] = []
+    passed = 0
+    for status in statuses:
+        name = status.get("name") or status.get("key") or "build"
+        state = (status.get("state") or "").upper()
+        if state in {"FAILED", "STOPPED", "ERROR"}:
+            failing.append(name)
+        elif state in {"INPROGRESS", "PENDING"}:
+            pending.append(name)
+        elif state == "SUCCESSFUL":
+            passed += 1
+    overall = "failing" if failing else ("pending" if pending else ("passed" if passed else "unknown"))
+    return {"state": overall, "failing": failing, "pending": pending, "passed": passed}
+
+
 def fetch_bitbucket(workspace: str, repo: str, n: int, task_dir: Path, log) -> dict:
     s = _bb_session()
     log.info("bb GET /pullrequests/%d", n)
@@ -119,6 +193,11 @@ def fetch_bitbucket(workspace: str, repo: str, n: int, task_dir: Path, log) -> d
 
     head = pr.get("source", {}).get("commit", {}).get("hash")
     base = pr.get("destination", {}).get("commit", {}).get("hash")
+    # Bitbucket Cloud abbreviates both source.commit.hash and destination.commit.hash
+    # to 12 chars in the pullrequests endpoint. Resolve to full 40-char SHAs so
+    # create_worktree.py can `git fetch origin <full-sha>` cleanly.
+    head = _bb_resolve_full_sha(s, workspace, repo, head, log)
+    base = _bb_resolve_full_sha(s, workspace, repo, base, log)
     out = {
         "host": "bitbucket",
         "owner": workspace,
@@ -133,6 +212,9 @@ def fetch_bitbucket(workspace: str, repo: str, n: int, task_dir: Path, log) -> d
         "baseRefName": pr.get("destination", {}).get("branch", {}).get("name"),
         "head_sha": head,
         "base_oid": base,
+        "mergeable": pr.get("mergeable"),
+        "merge_status": pr.get("merge_status"),
+        "checks": _fetch_bb_checks(s, workspace, repo, head, log),
         "url": pr.get("links", {}).get("html", {}).get("href"),
         "raw": pr,
     }

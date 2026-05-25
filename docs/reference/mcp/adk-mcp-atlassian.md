@@ -8,7 +8,7 @@ order: 3000
 ---
 # adk-mcp-atlassian
 
-Atlassian MCP via uvx — Python package sooperset/mcp-atlassian. Covers Jira + Confluence including image / attachment upload (which the Anthropic Rovo connector does not). Auth: API token (ATLASSIAN_SITE + ATLASSIAN_USERNAME + ATLASSIAN_API_TOKEN_CRED at https://id.atlassian.com/manage-profile/security/api-tokens). For OAuth: set ATLASSIAN_OAUTH_* per upstream README and remove the env block above. Requires `uv` on PATH. See SETUP.md.
+Atlassian MCP via uvx — Python package sooperset/mcp-atlassian. Covers Jira + Confluence including image / attachment upload (which the Anthropic Rovo connector does not). Auth: API token (ATLASSIAN_SITE + ATLASSIAN_USERNAME + ATLASSIAN_API_TOKEN_CRED at https://id.atlassian.com/manage-profile/security/api-tokens). ATLASSIAN_SITE can be a bare host or full URL; the wrapper normalizes it before setting JIRA_URL and CONFLUENCE_URL. For OAuth: set ATLASSIAN_OAUTH_* per upstream README and replace the wrapper above. Requires `uv` on PATH. See SETUP.md.
 
 ## Source
 
@@ -25,18 +25,11 @@ Atlassian MCP via uvx — Python package sooperset/mcp-atlassian. Covers Jira + 
 ```json
 {
   "name": "adk-mcp-atlassian",
-  "command": "uvx",
+  "command": "sh",
   "args": [
-    "mcp-atlassian@latest"
+    "-c",
+    "site=\"${ATLASSIAN_SITE}\"\nsite=\"${site#https://}\"\nsite=\"${site#http://}\"\nsite=\"${site%%/*}\"\nexport CONFLUENCE_URL=\"https://${site}/wiki\"\nexport CONFLUENCE_USERNAME=\"${ATLASSIAN_USERNAME}\"\nexport CONFLUENCE_API_TOKEN=\"${ATLASSIAN_API_TOKEN_CRED}\"\nexport JIRA_URL=\"https://${site}\"\nexport JIRA_USERNAME=\"${ATLASSIAN_USERNAME}\"\nexport JIRA_API_TOKEN=\"${ATLASSIAN_API_TOKEN_CRED}\"\nexec uvx mcp-atlassian@latest"
   ],
-  "env": {
-    "CONFLUENCE_URL": "https://${ATLASSIAN_SITE}/wiki",
-    "CONFLUENCE_USERNAME": "${ATLASSIAN_USERNAME}",
-    "CONFLUENCE_API_TOKEN": "${ATLASSIAN_API_TOKEN_CRED}",
-    "JIRA_URL": "https://${ATLASSIAN_SITE}",
-    "JIRA_USERNAME": "${ATLASSIAN_USERNAME}",
-    "JIRA_API_TOKEN": "${ATLASSIAN_API_TOKEN_CRED}"
-  },
-  "description": "Atlassian MCP via uvx — Python package sooperset/mcp-atlassian. Covers Jira + Confluence including image / attachment upload (which the Anthropic Rovo connector does not). Auth: API token (ATLASSIAN_SITE + ATLASSIAN_USERNAME + ATLASSIAN_API_TOKEN_CRED at https://id.atlassian.com/manage-profile/security/api-tokens). For OAuth: set ATLASSIAN_OAUTH_* per upstream README and remove the env block above. Requires `uv` on PATH. See SETUP.md."
+  "description": "Atlassian MCP via uvx — Python package sooperset/mcp-atlassian. Covers Jira + Confluence including image / attachment upload (which the Anthropic Rovo connector does not). Auth: API token (ATLASSIAN_SITE + ATLASSIAN_USERNAME + ATLASSIAN_API_TOKEN_CRED at https://id.atlassian.com/manage-profile/security/api-tokens). ATLASSIAN_SITE can be a bare host or full URL; the wrapper normalizes it before setting JIRA_URL and CONFLUENCE_URL. For OAuth: set ATLASSIAN_OAUTH_* per upstream README and replace the wrapper above. Requires `uv` on PATH. See SETUP.md."
 }
 ```

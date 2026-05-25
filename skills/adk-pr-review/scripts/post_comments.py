@@ -31,6 +31,10 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 from _common import read_json, write_json, emit_json, get_logger, die, pr_review_file  # noqa: E402
 
+ADK_CLI_SCRIPTS = Path(__file__).resolve().parent.parent.parent / "adk-cli" / "scripts"
+sys.path.insert(0, str(ADK_CLI_SCRIPTS))
+from queue_io import slack_threads_for  # noqa: E402
+
 try:
     import requests
 except ImportError:
@@ -379,10 +383,10 @@ def bb_approve(workspace: str, repo: str, n: int, log) -> dict:
 
 def bb_resolve(workspace: str, repo: str, n: int, comment_id: str, resolve: bool, log) -> dict:
     s = _bb_session()
-    # BB Cloud exposes resolution as PUT/DELETE on /comments/<id>/resolution.
-    url = f"{BB_API}/repositories/{workspace}/{repo}/pullrequests/{n}/comments/{comment_id}/resolution"
+    # BB Cloud exposes thread state as POST/DELETE on /comments/<id>/resolve.
+    url = f"{BB_API}/repositories/{workspace}/{repo}/pullrequests/{n}/comments/{comment_id}/resolve"
     if resolve:
-        r = s.put(url, json={}, timeout=30)
+        r = s.post(url, json={}, timeout=30)
     else:
         r = s.delete(url, timeout=30)
     if r.status_code >= 300:
@@ -393,22 +397,27 @@ def bb_resolve(workspace: str, repo: str, n: int, comment_id: str, resolve: bool
 # ----- entrypoint ----------------------------------------------------------
 
 def should_post_review(findings: dict) -> bool:
-    """Suppress an empty request_changes review.
+    """Decide whether to post the review summary (and bundled APPROVE event).
 
-    Posting a `request_changes` review with zero inline comments leaves a
-    confusing artifact on the PR — a verdict with no substance. When triage
-    rejects everything, the right thing is to skip the review post and let
-    the resolve/reopen actions stand on their own.
+    Policy (set by the user, 2026-05-22): every reviewed PR takes a verdict —
+    either `approve` or `request_changes`. The review summary post carries
+    that verdict, so we always post it when there's a verdict to express:
 
-    Exception: a review consisting only of appreciations IS worth posting —
-    positive feedback is the whole point of the feature, and authors should
-    see it in the PR thread, not just in findings.md.
+      - any non-appreciation finding present → post (the inline comments
+        give the verdict substance).
+      - zero findings + recommendation in (approve, request_changes) → post
+        (it's a clean approve/request_changes with no inline comments — the
+        verdict itself is the value).
+      - zero findings without an approve/request_changes verdict → don't post.
+
+    The earlier behaviour suppressed zero-finding posts unless recommendation
+    was explicitly "approve". That dropped the slack reply + host approve
+    action for PRs with no findings under the old `comment_only` default.
     """
     n = len(findings.get("findings", []) or [])
     if n > 0:
         return True
-    # No new findings — only post if the recommendation is positive (approve).
-    return (findings.get("recommendation") == "approve")
+    return findings.get("recommendation") in ("approve", "request_changes")
 
 
 def has_only_appreciations(findings: dict) -> bool:
@@ -445,6 +454,10 @@ def main() -> int:
     ap.add_argument("--no-slack-summary", action="store_true",
                     help="suppress the Slack summary reply (otherwise posted to the same "
                          "thread the queue row's `slack` metadata names).")
+    ap.add_argument("--no-refresh-comments", action="store_true",
+                    help="skip re-fetching pr-comments.json before posting. By default "
+                         "we refresh so the resolver sees comments that may have been "
+                         "resolved by another reviewer between prepare and post.")
     ap.add_argument("--json", action="store_true")
     args = ap.parse_args()
 
@@ -456,29 +469,86 @@ def main() -> int:
     if not findings_path.exists():
         die(f"missing {findings_path} — run triage first.")
     log.info("reading findings-final.json (triage applied)")
+
+    # Refresh pr-comments.json (and pr.json + diff.patch) before deciding what
+    # to post. Comments can change between prepare and post — another reviewer
+    # may have resolved a thread, leaving the cached resolution:{} (open) state
+    # stale. The resolver and the posting plan both depend on this snapshot,
+    # so refreshing here is the single point that keeps both honest.
+    if not args.no_refresh_comments:
+        try:
+            fetch = Path(__file__).resolve().parent / "fetch_pr.py"
+            host = pr.get("host")
+            owner = pr.get("owner")
+            repo = pr.get("repo")
+            n = pr.get("pr_number")
+            if host and owner and repo and n is not None:
+                log.info("refreshing pr-comments.json (host=%s, pr=%s#%s)", host, repo, n)
+                cp = subprocess.run(
+                    [sys.executable, str(fetch),
+                     "--host", host, "--owner", owner, "--repo", repo,
+                     "--pr-number", str(n), "--task-dir", str(task_dir), "--json"],
+                    capture_output=True, text=True, check=False, timeout=60,
+                )
+                if cp.returncode != 0:
+                    log.warning("pr-comments refresh failed (rc=%d) — using cached snapshot: %s",
+                                cp.returncode, (cp.stderr or "")[:200])
+                else:
+                    # pr.json may have been rewritten too; reload it.
+                    pr = read_json(pr_review_file(task_dir, "pr.json"))
+            else:
+                log.warning("pr.json missing host/owner/repo/pr_number — skipping refresh")
+        except subprocess.TimeoutExpired:
+            log.warning("pr-comments refresh timed out — using cached snapshot")
+
     actions_path = pr_review_file(task_dir, "comment-actions.json")
     findings = read_json(findings_path)
     actions = read_json(actions_path).get("actions", []) if actions_path.exists() else []
 
-    # Improvement #6: chain comment_resolver.py when actions exist but none are
-    # `verified`, AND no comment-resolver state has been written. Skipping the
-    # resolver leaves `n_resolve=0 / n_reopen=0` and silently drops the user's
-    # intent. Running it here is idempotent — it just rewrites the actions
-    # JSON with `verified` flags set.
-    resolver_state = task_dir / "comment-resolver-state.json"
-    if actions and not resolver_state.exists() and \
-            not any(a.get("verified") for a in actions if a.get("decision") in ("resolve", "reopen")):
+    # Improvement #6: chain comment_resolver.py whenever comment-actions.json
+    # is missing OR has no verified resolves/reopens, AND the PR has existing
+    # comments worth classifying. Two scenarios:
+    #   (a) actions file absent — first run, resolver never invoked.
+    #   (b) actions file present but all unverified — resolver started but
+    #       the verified flags weren't written (interrupted, schema change).
+    # In both cases the resolver call is idempotent: it auto-classifies orphan
+    # threads, verifies each, and rewrites comment-actions.json. Without this,
+    # resolves/reopens never enter the posting plan and the user has to invoke
+    # `adk pr-task resolve-comments` manually before re-running post_comments.
+    pr_comments_path = pr_review_file(task_dir, "pr-comments.json")
+    has_existing_comments = False
+    if pr_comments_path.exists():
+        cm_blob = read_json(pr_comments_path)
+        # Blob shape differs by host:
+        #   GitHub    → {"review_comments": [...], "issue_comments": [...]}
+        #   Bitbucket → {"comments": [...]}
+        # The earlier code checked only the GitHub keys, so Bitbucket PRs
+        # with existing comments never triggered the resolver-chain — and
+        # comment-actions.json stayed absent, which then forced
+        # approve_ready=False through _comment_actions_approve_ready.
+        has_existing_comments = bool(
+            (cm_blob.get("review_comments") or [])
+            or (cm_blob.get("issue_comments") or [])
+            or (cm_blob.get("comments") or [])
+        )
+    needs_resolver = has_existing_comments and (
+        not actions_path.exists()
+        or not any(a.get("verified") for a in actions if a.get("decision") in ("resolve", "reopen"))
+    )
+    if needs_resolver:
         resolver = Path(__file__).resolve().parent / "comment_resolver.py"
-        log.info("chaining comment_resolver.py (unverified actions, no resolver state)")
+        log.info("chaining comment_resolver.py (actions_path=%s, n_actions=%d, has_existing_comments=True)",
+                 "missing" if not actions_path.exists() else "unverified",
+                 len(actions))
         cp = subprocess.run(
             [sys.executable, str(resolver), "--task-dir", str(task_dir), "--json"],
             capture_output=True, text=True, check=False,
         )
         if cp.returncode != 0:
-            log.warning("comment_resolver.py failed (rc=%d) — continuing with unverified actions: %s",
+            log.warning("comment_resolver.py failed (rc=%d) — continuing without resolve/reopen steps: %s",
                         cp.returncode, (cp.stderr or "")[:200])
         else:
-            # Reload actions; resolver may have flipped verified flags.
+            # Reload actions; resolver wrote (or rewrote) comment-actions.json.
             actions = read_json(actions_path).get("actions", []) if actions_path.exists() else []
 
     # Build an MCP-first posting plan REGARDLESS of mode. The plan is the
@@ -599,18 +669,84 @@ def main() -> int:
 
 
 def _comment_actions_approve_ready(task_dir: Path) -> bool:
-    """Read comment-actions.json (if present) and return its approve_ready flag.
+    """Return whether the PR is approve-ready w.r.t. existing comment threads.
 
-    Defaults to False when absent — we don't approve a PR whose existing
-    threads haven't been classified at all.
+    Reads `comment-actions.json` when present and trusts its `approve_ready`
+    flag (computed by comment_resolver.py — no AI blockers AND no thread
+    needs reopen).
+
+    Default-when-missing behaviour (fixed 2026-05-22 per user policy):
+
+      - If `pr-comments.json` shows the PR has NO existing comments at all,
+        there's nothing for the resolver to classify, the file is legitimately
+        absent, and approve_ready is True — we should not block our approve
+        on a phantom thread that doesn't exist.
+      - If `pr-comments.json` shows the PR DOES have existing comments but
+        `comment-actions.json` is missing, the resolver hasn't run; we still
+        return False here (the resolver should run before we approve) — but
+        post_comments.py's main() auto-chains the resolver in this case, so
+        this branch should only fire in tests / odd states.
+      - If neither file exists (no prepare-time fetch), we default to False:
+        a fresh task_dir is not approve-ready by default.
     """
     p = pr_review_file(task_dir, "comment-actions.json")
-    if not p.exists():
+    if p.exists():
+        try:
+            return bool(json.loads(p.read_text(encoding="utf-8")).get("approve_ready", False))
+        except Exception:
+            return False
+    # No actions file. Decide based on whether there's anything to classify.
+    pc = pr_review_file(task_dir, "pr-comments.json")
+    if not pc.exists():
         return False
     try:
-        return bool(json.loads(p.read_text(encoding="utf-8")).get("approve_ready", False))
+        blob = json.loads(pc.read_text(encoding="utf-8"))
     except Exception:
         return False
+    # The blob shape differs by host. Both GitHub (review_comments +
+    # issue_comments) and Bitbucket (comments) keys are checked; if all are
+    # empty there's no thread to block our approve on.
+    has_any = bool(
+        (blob.get("review_comments") or [])
+        or (blob.get("issue_comments") or [])
+        or (blob.get("comments") or [])
+    )
+    return not has_any
+
+
+def _host_requested_changes(pr: dict) -> bool:
+    decision = pr.get("reviewDecision") or pr.get("review_decision")
+    return decision in {"CHANGES_REQUESTED", "REQUEST_CHANGES"}
+
+
+def _pr_status_lines(pr: dict) -> list[str]:
+    """Return Slack-safe status lines for merge conflicts and checks."""
+    lines: list[str] = []
+    mergeable = pr.get("mergeable")
+    merge_status = (pr.get("merge_status") or "").lower()
+    raw = pr.get("raw") or {}
+    raw_mergeable = raw.get("mergeable") if isinstance(raw, dict) else None
+    not_mergeable = (
+        mergeable is False
+        or raw_mergeable is False
+        or merge_status in {"conflicting", "cannot_be_merged", "not_mergeable"}
+    )
+    if not_mergeable:
+        lines.append(":warning: Mergeability: conflicts/not mergeable; author needs to resolve before merge.")
+
+    checks = pr.get("checks") or pr.get("status_checks") or {}
+    failing = checks.get("failing") or checks.get("failed") or []
+    pending = checks.get("pending") or []
+    state = (checks.get("state") or "").lower()
+    if failing or state in {"failed", "failing", "failure", "error"}:
+        sample = ", ".join(str(x) for x in failing[:3]) if failing else state
+        extra = "" if len(failing) <= 3 else f" (+{len(failing) - 3} more)"
+        lines.append(f":x: Checks: failing pipeline/status check(s): {sample}{extra}.")
+    elif pending or state in {"pending", "in_progress", "running"}:
+        sample = ", ".join(str(x) for x in pending[:3]) if pending else state
+        extra = "" if len(pending) <= 3 else f" (+{len(pending) - 3} more)"
+        lines.append(f":hourglass_flowing_sand: Checks: pending/running: {sample}{extra}.")
+    return lines
 
 
 def format_slack_summary(*, pr: dict, findings_blob: dict, approve_ready: bool,
@@ -627,17 +763,43 @@ def format_slack_summary(*, pr: dict, findings_blob: dict, approve_ready: bool,
     n_resolve = sum(1 for a in actions if a.get("verified") and a.get("decision") == "resolve")
     n_reopen = sum(1 for a in actions if a.get("verified") and a.get("decision") == "reopen")
 
-    if rec == "approve" and approve_ready:
-        verdict = ":white_check_mark: *APPROVE* — no changes required."
-    elif blockers:
-        verdict = f":octagonal_sign: *Changes requested* — {len(blockers)} blocking issue{'s' if len(blockers) != 1 else ''}."
-    elif issues:
-        verdict = f":speech_balloon: *Comments only* — {len(issues)} finding{'s' if len(issues) != 1 else ''}, none blocking."
+    # Verdict line. Policy (2026-05-22): every review takes a stance — approve
+    # or request_changes — there is no `comment_only` middle ground. `rec` is
+    # the source of truth; `approve_ready` only modulates the wording of the
+    # APPROVE message (whether the host approve actually fired).
+    host_request_changes = _host_requested_changes(pr)
+    if host_request_changes and (rec == "request_changes" or blockers):
+        n_block = len(blockers) if blockers else 1
+        verdict = (f":octagonal_sign: *Changes requested* — "
+                   f"{n_block} blocking issue{'s' if n_block != 1 else ''}.")
+    elif rec == "request_changes" or blockers:
+        n_block = len(blockers) if blockers else 1
+        verdict = (f":speech_balloon: *Blocking comments* — {n_block} issue"
+                   f"{'s' if n_block != 1 else ''}; PR is not marked Request Changes.")
+    elif rec == "approve" and approve_ready:
+        nis = len(issues)
+        if nis == 0:
+            verdict = ":white_check_mark: *APPROVE* — no issues found."
+        else:
+            verdict = (f":white_check_mark: *APPROVE* — {nis} non-blocking "
+                       f"comment{'s' if nis != 1 else ''} (see PR).")
+    elif rec == "approve":
+        # rec=approve but approve_ready=False — usually means existing comment
+        # threads couldn't be auto-classified. Surface the gap honestly.
+        verdict = (":white_check_mark: *APPROVE (LGTM)* — host approve held "
+                   "pending existing-comment classification.")
     else:
-        verdict = ":speech_balloon: *Comments only* — no issues, see PR."
+        # Unknown recommendations still get a readable summary when findings
+        # exist, but they do not trigger host approve/request-changes actions.
+        if issues:
+            verdict = (f":speech_balloon: *Comments only* — {len(issues)} "
+                       f"finding{'s' if len(issues) != 1 else ''}, none blocking.")
+        else:
+            verdict = ":speech_balloon: *Comments only* — no issues, see PR."
 
     lines = [f":robot_face: adk-pr-review · <{pr.get('url')}|{pr.get('repo')}#{pr.get('pr_number')}>",
              verdict]
+    lines.extend(_pr_status_lines(pr))
     if blockers:
         lines.append("Items to fix:")
         for f in blockers[:5]:
@@ -726,8 +888,8 @@ def build_posting_plan(*, pr: dict, findings_blob: dict, actions: list[dict],
                 "kind": "review_summary",
                 "mcp_tool": "mcp__adk-mcp-bitbucket__addPullRequestComment",
                 "mcp_args": {
-                    "workspace": owner, "repoSlug": repo, "pullRequestId": n,
-                    "content": {"raw": format_review_summary(findings_blob)},
+                    "workspace": owner, "repo_slug": repo, "pull_request_id": str(n),
+                    "content": format_review_summary(findings_blob),
                 },
                 "fallback": "POST /pullrequests/<n>/comments",
             })
@@ -736,8 +898,8 @@ def build_posting_plan(*, pr: dict, findings_blob: dict, actions: list[dict],
                     "kind": "inline_comment",
                     "mcp_tool": "mcp__adk-mcp-bitbucket__addPullRequestComment",
                     "mcp_args": {
-                        "workspace": owner, "repoSlug": repo, "pullRequestId": n,
-                        "content": {"raw": format_comment_body(f)},
+                        "workspace": owner, "repo_slug": repo, "pull_request_id": str(n),
+                        "content": format_comment_body(f),
                         "inline": {"path": f["file"],
                                    "to": int(f.get("line_end", f.get("line_start", 1)))},
                     },
@@ -775,8 +937,8 @@ def build_posting_plan(*, pr: dict, findings_blob: dict, actions: list[dict],
                 "subkind": "appreciation",
                 "mcp_tool": "mcp__adk-mcp-bitbucket__addPullRequestComment",
                 "mcp_args": {
-                    "workspace": owner, "repoSlug": repo, "pullRequestId": n,
-                    "content": {"raw": body},
+                    "workspace": owner, "repo_slug": repo, "pull_request_id": str(n),
+                    "content": body,
                     # NB: no `inline` field — that's what makes this a
                     # general (non-anchored) comment on Bitbucket.
                 },
@@ -819,18 +981,27 @@ def build_posting_plan(*, pr: dict, findings_blob: dict, actions: list[dict],
                     "reason": a.get("reason"),
                 })
             elif host == "bitbucket":
+                # adk-mcp-bitbucket resolveComment / reopenComment / approvePullRequest
+                # return HTTP 400 (observed 2026-05-22 on ecomm-ssr_pr-5252).
+                # Route these through REST directly until the MCP is fixed.
+                # 409 from REST means "already resolved/approved" — treat as success.
+                rest_method = "POST" if decision == "resolve" else "DELETE"
+                rest_path = (f"/2.0/repositories/{owner}/{repo}/pullrequests/{n}"
+                             f"/comments/{cid}/resolve")
                 steps.append({
                     "kind": decision,
-                    "mcp_tool": ("mcp__adk-mcp-bitbucket__resolveComment"
-                                  if decision == "resolve"
-                                  else "mcp__adk-mcp-bitbucket__reopenComment"),
-                    "mcp_args": {
-                        "workspace": owner, "repoSlug": repo, "pullRequestId": n,
-                        "commentID": cid,
+                    "transport": "rest",
+                    "rest": {
+                        "method": rest_method,
+                        "path": rest_path,
+                        "host": "https://api.bitbucket.org",
+                        "auth": "BITBUCKET_USERNAME + BITBUCKET_TOKEN_CRED (basic)",
+                        "treat_as_success": [200, 204, 409],  # 409 = already-resolved
                     },
-                    "fallback": ("PUT /pullrequests/<n>/comments/<id>/resolution"
-                                  if decision == "resolve"
-                                  else "DELETE /pullrequests/<n>/comments/<id>/resolution"),
+                    "mcp_broken": "mcp__adk-mcp-bitbucket__" + (
+                        "resolveComment" if decision == "resolve" else "reopenComment"
+                    ),
+                    "mcp_broken_reason": "returns HTTP 400 — see memory feedback_bitbucket_mcp_write_bugs.md",
                     "comment_id": cid,
                     "reason": a.get("reason"),
                 })
@@ -846,22 +1017,40 @@ def build_posting_plan(*, pr: dict, findings_blob: dict, actions: list[dict],
                 "note": "GitHub approves via the review's event field; no separate MCP call.",
             })
         elif host == "bitbucket":
+            # adk-mcp-bitbucket approvePullRequest returns HTTP 400 — use REST.
             steps.append({
                 "kind": "approve_pr",
-                "mcp_tool": "mcp__adk-mcp-bitbucket__approvePullRequest",
-                "mcp_args": {"workspace": owner, "repoSlug": repo, "pullRequestId": n},
-                "fallback": "POST /pullrequests/<n>/approve",
+                "transport": "rest",
+                "rest": {
+                    "method": "POST",
+                    "path": f"/2.0/repositories/{owner}/{repo}/pullrequests/{n}/approve",
+                    "host": "https://api.bitbucket.org",
+                    "auth": "BITBUCKET_USERNAME + BITBUCKET_TOKEN_CRED (basic)",
+                    "treat_as_success": [200, 409],  # 409 = already approved
+                },
+                "mcp_broken": "mcp__adk-mcp-bitbucket__approvePullRequest",
+                "mcp_broken_reason": "returns HTTP 400 — see memory feedback_bitbucket_mcp_write_bugs.md",
             })
 
-    # ---- Slack summary reply (when the queue carried a slack thread) ----
+    # ---- Slack summary replies (when the queue carried Slack threads) ----
     if slack_summary_enabled and queue_ctx:
-        slack = queue_ctx.get("slack") or {}
-        channel_id = slack.get("channel_id")
-        # Reply on the same thread `adk pr-scan` picked the PR from. message_ts
-        # may point at a reply (when link_origin == "reply"); thread_ts is the
-        # parent thread root.
-        thread_ts = slack.get("thread_ts") or slack.get("message_ts")
-        if channel_id and thread_ts:
+        slack_threads = slack_threads_for(queue_ctx)
+        if not slack_threads and isinstance(queue_ctx.get("slack"), dict):
+            slack_threads = [queue_ctx["slack"]]
+        text = format_slack_summary(
+            pr=pr, findings_blob=findings_blob,
+            approve_ready=approve_ready, actions=actions,
+        )
+        posted_any = False
+        for slack in slack_threads:
+            channel_id = slack.get("channel_id")
+            # Reply on every thread `adk pr-scan` found for the PR. message_ts
+            # may point at a reply (when link_origin == "reply"); thread_ts is
+            # the parent thread root.
+            thread_ts = slack.get("thread_ts") or slack.get("message_ts")
+            if not channel_id or not thread_ts:
+                continue
+            posted_any = True
             steps.append({
                 "kind": "slack_summary",
                 "mcp_tool": "mcp__adk-mcp-slack__conversations_add_message",
@@ -869,15 +1058,12 @@ def build_posting_plan(*, pr: dict, findings_blob: dict, actions: list[dict],
                     # MCP signature uses `channel_id`, not `channel`.
                     "channel_id": channel_id,
                     "thread_ts": thread_ts,
-                    "text": format_slack_summary(
-                        pr=pr, findings_blob=findings_blob,
-                        approve_ready=approve_ready, actions=actions,
-                    ),
+                    "text": text,
                 },
                 "fallback": "slack-sdk WebClient.chat_postMessage(channel, text, thread_ts=...)",
                 "note": "Posts a short verdict + items-to-fix in the existing review thread.",
             })
-        else:
+        if not posted_any:
             steps.append({
                 "kind": "slack_summary_skipped",
                 "reason": "no slack channel/thread_ts in queue context — PR was reviewed by URL or not in queue",

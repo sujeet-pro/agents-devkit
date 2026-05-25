@@ -39,8 +39,8 @@ def fake_repos_root(tmp_path, monkeypatch):
 
     The path helpers `repo_dir_for` / `repo_branch_dir` / etc. now live in
     `scripts/lib/adk_common.py` and read `adk_common.REPOS_ROOT` at call time.
-    Patch both bindings so legacy call sites (`repo.REPOS_ROOT`) and the
-    canonical helpers see the same tmp root.
+    Patch both bindings so direct module access (`repo.REPOS_ROOT`) and the
+    shared helpers see the same tmp root.
     """
     import adk_common
     monkeypatch.setattr(repo, "REPOS_ROOT", tmp_path)
@@ -172,6 +172,68 @@ def test_resolve_branches_for_update_all_branches_falls_back_when_catalog_empty(
     chosen = repo._resolve_branches_for_update("foo", args, "master",
                                                repo.get_logger("t"))
     assert chosen == ["master"]
+
+
+def test_ensure_worktree_avoids_fetching_into_checked_out_branch(tmp_path, monkeypatch):
+    bare = tmp_path / "bare.git"
+    worktree = tmp_path / "branch-develop" / "code"
+    (worktree / ".git").mkdir(parents=True)
+    calls: list[list[str]] = []
+
+    monkeypatch.setattr(repo, "_step", lambda cmd, log: calls.append(cmd))
+
+    repo._ensure_worktree(bare, worktree, "develop", repo.get_logger("t"))
+
+    assert calls[0] == ["git", "-C", str(bare), "fetch", "origin", "develop"]
+    assert calls[1] == ["git", "-C", str(worktree), "pull", "--ff-only", "origin", "develop"]
+    assert not any("refs/heads/develop" in part for cmd in calls for part in cmd)
+
+
+def test_ensure_worktree_adds_new_branch_from_fetch_head(tmp_path, monkeypatch):
+    bare = tmp_path / "bare.git"
+    worktree = tmp_path / "branch-develop" / "code"
+    calls: list[list[str]] = []
+
+    monkeypatch.setattr(repo, "_step", lambda cmd, log: calls.append(cmd))
+
+    repo._ensure_worktree(bare, worktree, "develop", repo.get_logger("t"))
+
+    assert calls[0] == ["git", "-C", str(bare), "fetch", "origin", "develop"]
+    assert calls[1] == [
+        "git", "-C", str(bare), "worktree", "add", "-B", "develop",
+        str(worktree), "FETCH_HEAD",
+    ]
+
+
+def test_auto_branch_add_rebuilds_tracked_branch_missing_index(fake_repos_root, monkeypatch, capsys):
+    monkeypatch.setattr(repo, "which", lambda *_: "/usr/bin/git")
+    name = "storefront-bff"
+    repo_dir = fake_repos_root / name
+    (repo_dir / "original-clone").mkdir(parents=True)
+    (repo_dir / "branch-develop").mkdir(parents=True)
+    calls: list[tuple] = []
+
+    monkeypatch.setattr(repo, "_index_one_branch", lambda *a, **kw: calls.append((a, kw)) or {
+        "branch": "develop",
+        "slug": "develop",
+        "head_sha": "a" * 40,
+        "indexed": "full",
+    })
+    monkeypatch.setattr(repo, "_rewrite_repo_catalog", lambda *a, **kw: None)
+
+    args = SimpleNamespace(
+        name=name,
+        branch="develop",
+        yes=False,
+        auto=True,
+        auto_reason="queued_prs=2",
+        embed_model="nomic-embed-text",
+    )
+    rc = repo.cmd_branch_add(args)
+
+    assert rc == 0
+    assert calls
+    assert calls[0][1]["created_by"] == "auto"
 
 
 def test_branch_remove_refuses_default_branch(fake_repos_root, monkeypatch, capsys):

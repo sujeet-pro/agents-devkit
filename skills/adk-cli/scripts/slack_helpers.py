@@ -80,6 +80,32 @@ def _get_token() -> tuple[str, str]:
 
 
 _MENTION_RE = re.compile(r"<@([UW][A-Z0-9]+)(?:\|[^>]*)?>")
+_SLACK_ACTOR_PREFIXES = ("U", "W", "B", "A")
+
+
+def _normalise_slack_name(value: str | None) -> str:
+    return re.sub(r"\s+", " ", (value or "").strip().replace("’", "'")).lower()
+
+
+def _slack_actor_ids_from_obj(obj: dict | None) -> set[str]:
+    if not isinstance(obj, dict):
+        return set()
+    profile = obj.get("profile") or {}
+    candidates = [
+        obj.get("id"),
+        obj.get("user"),
+        obj.get("bot_id"),
+        obj.get("app_id"),
+        obj.get("api_app_id"),
+        profile.get("bot_id"),
+        profile.get("app_id"),
+        profile.get("api_app_id"),
+    ]
+    out: set[str] = set()
+    for candidate in candidates:
+        if isinstance(candidate, str) and candidate.startswith(_SLACK_ACTOR_PREFIXES):
+            out.add(candidate)
+    return out
 
 
 def find_pr_urls(text: str, url_patterns: list[str]) -> list[str]:
@@ -120,6 +146,17 @@ def extract_mentioned_user_ids(text: str) -> list[str]:
     if not text:
         return []
     return list({m.group(1) for m in _MENTION_RE.finditer(text)})
+
+
+def extract_message_actor_ids(message: dict) -> list[str]:
+    """Return actor IDs referenced by or authored on a Slack message.
+
+    Human users normally appear as `user=U...`; Slack apps/bots may appear as
+    `bot_id=B...` and/or `app_id=A...`. Mentions in message text remain `U...`.
+    """
+    ids = _slack_actor_ids_from_obj(message)
+    ids.update(extract_mentioned_user_ids(message.get("text") or ""))
+    return list(ids)
 
 
 def days_ago_ts(days: int) -> str:
@@ -260,18 +297,18 @@ class SlackClient:
         self._user_cache[user_id] = d
         return d
 
-    def resolve_user_token(self, token: str) -> str | None:
+    def resolve_user_token_ids(self, token: str) -> set[str]:
         if not token:
-            return None
-        if token.startswith(("U", "W")) and token[1:].isalnum():
-            return token
+            return set()
+        if token.startswith(_SLACK_ACTOR_PREFIXES) and token[1:].isalnum():
+            return {token}
         bare = token.lstrip("@").strip()
-        bare_lower = bare.lower()
+        bare_key = _normalise_slack_name(bare)
         cursor = None
         while True:
             resp = self._call("users_list", {"limit": 200, "cursor": cursor})
             for u in resp.get("members", []):
-                if u.get("deleted") or u.get("is_bot"):
+                if u.get("deleted"):
                     continue
                 prof = u.get("profile") or {}
                 candidates = [
@@ -283,18 +320,27 @@ class SlackClient:
                     prof.get("real_name_normalized"),
                     prof.get("email"),
                 ]
-                if any((c or "").lower() == bare_lower for c in candidates):
+                if any(_normalise_slack_name(c) == bare_key for c in candidates):
+                    ids = _slack_actor_ids_from_obj(u)
                     uid = u.get("id")
-                    if uid:
+                    if isinstance(uid, str) and uid:
                         self._user_cache[uid] = {
                             "id": uid,
                             "name": u.get("name", bare),
                             "real_name": u.get("real_name", bare),
                         }
-                        return uid
+                    return ids
             cursor = resp.get("response_metadata", {}).get("next_cursor") or None
             if not cursor:
-                return None
+                return set()
+
+    def resolve_user_token(self, token: str) -> str | None:
+        ids = self.resolve_user_token_ids(token)
+        for prefix in _SLACK_ACTOR_PREFIXES:
+            for actor_id in sorted(ids):
+                if actor_id.startswith(prefix):
+                    return actor_id
+        return None
 
     # ----- reactions / posting -----
 

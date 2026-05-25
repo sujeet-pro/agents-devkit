@@ -1,16 +1,15 @@
 """adk_common.py — pure helpers shared across adk scripts.
 
-Hoisted from the three legacy "_common" modules so they stop drifting:
+Shared by:
 - `skills/adk-pr-review/scripts/_common.py` (PR-review skill)
 - `scripts/lib/code_index/_lib_common.py` (indexer/query lib)
 - `scripts/config_io.py` (config IO)
 
 This module owns the *pure* helpers — logging, subprocess, JSON IO, hashing,
 fcntl file locking, dict deep-merge — plus the two adk-level path constants
-(`ADK_HOME`, `REPOS_ROOT`) and the one path helper both legacy modules
-duplicated (`repo_dir_for`).
+(`ADK_HOME`, `REPOS_ROOT`) and the shared repo path helper (`repo_dir_for`).
 
-What stays in the legacy modules:
+What stays in the domain-specific modules:
 - `skills/adk-pr-review/scripts/_common.py`: PR-review path helpers
   (`task_dir_for`, `pr_review_dir`, `pr_lock_for`, `clone_lock_for`, …),
   state-file helpers (`read_state`, `write_state`, `mark_phase`),
@@ -20,8 +19,8 @@ What stays in the legacy modules:
   `get_cfg` that read `scripts/lib/code_index/defaults.yaml`.
 - `scripts/config_io.py`: the canonical config-layout loader.
 
-Each legacy module re-exports the shared names so its existing importers
-keep working (`from _common import get_logger, …` still works).
+Each domain-specific module re-exports the shared names it owns for local
+callers (`from _common import get_logger, ...`).
 """
 from __future__ import annotations
 
@@ -29,7 +28,6 @@ import contextlib
 import fcntl
 import hashlib
 import json
-import logging
 import os
 import subprocess
 import sys
@@ -83,23 +81,26 @@ def branch_meta_path_for(repo: str, branch_slug: str) -> Path:
 
 # ----- logging --------------------------------------------------------------
 
-def get_logger(name: str, task_dir: Path | None = None) -> logging.Logger:
-    log = logging.getLogger(name)
-    if log.handlers:
-        return log
-    log.setLevel(logging.INFO)
-    fmt = logging.Formatter("%(asctime)s %(levelname)s [%(name)s] %(message)s")
+from adk_log import (  # noqa: E402
+    RunDashboard,
+    RunEvent,
+    emit_event,
+    encode_event,
+    extract_failure_reason,
+    format_file_ref,
+    format_pr_ref,
+    get_logger as _shared_get_logger,
+    is_orchestrated,
+    is_verbose,
+    parse_event_line,
+    status_glyph,
+    summarize_items,
+    terminal_link,
+)
 
-    sh = logging.StreamHandler(sys.stderr)
-    sh.setFormatter(fmt)
-    log.addHandler(sh)
 
-    if task_dir:
-        task_dir.mkdir(parents=True, exist_ok=True)
-        fh = logging.FileHandler(task_dir / "review.log")
-        fh.setFormatter(fmt)
-        log.addHandler(fh)
-    return log
+def get_logger(name: str, task_dir: Path | None = None):
+    return _shared_get_logger(name, task_dir=task_dir)
 
 
 # ----- subprocess + PATH ----------------------------------------------------
@@ -162,7 +163,7 @@ def sha1_hex(s: str | bytes) -> str:
 def die(msg: str, code: int = 1, *, prefix: str = "adk") -> None:
     """Print `<prefix>: <msg>` to stderr and exit `code`.
 
-    Legacy modules wrap this with their own prefix:
+    Domain modules wrap this with their own prefix:
       - `skills/adk-pr-review/scripts/_common.py` → prefix="adk-pr-review"
       - `scripts/lib/code_index/_lib_common.py`   → prefix="code_index"
     """
@@ -283,6 +284,3 @@ def deep_merge(base: dict, over: dict) -> dict:
             out[k] = v
     return out
 
-
-# Back-compat alias — the legacy modules used a leading underscore.
-_deep_merge = deep_merge

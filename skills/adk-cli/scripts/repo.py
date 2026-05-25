@@ -342,19 +342,19 @@ def _incremental_index(worktree: Path, branch_dir: Path, changed: list[str],
 def _ensure_worktree(bare_clone: Path, worktree: Path, branch: str, log) -> None:
     """Make sure `worktree` is a worktree of `branch` checked out from
     `bare_clone`, refreshed to the latest remote head. Idempotent."""
-    # Fetch the branch into the bare clone so we have an up-to-date ref.
-    _step(["git", "-C", str(bare_clone), "fetch", "origin",
-           f"+refs/heads/{branch}:refs/heads/{branch}"], log)
+    # Do not fetch into refs/heads/<branch> directly: the branch may already be
+    # checked out by this managed worktree, and Git refuses that update.
+    _step(["git", "-C", str(bare_clone), "fetch", "origin", branch], log)
     if (worktree / ".git").exists():
-        # Existing worktree — reset to the freshly-fetched branch tip.
-        _step(["git", "-C", str(worktree), "reset", "--hard", branch], log)
+        # Existing worktree — fast-forward the checked-out branch in place.
+        _step(["git", "-C", str(worktree), "pull", "--ff-only", "origin", branch], log)
         return
     # No worktree yet. If the dir exists but isn't a worktree, clear it.
     if worktree.exists():
         shutil.rmtree(worktree)
     worktree.parent.mkdir(parents=True, exist_ok=True)
-    _step(["git", "-C", str(bare_clone), "worktree", "add",
-           str(worktree), branch], log)
+    _step(["git", "-C", str(bare_clone), "worktree", "add", "-B", branch,
+           str(worktree), "FETCH_HEAD"], log)
 
 
 def _index_one_branch(name: str, bare_clone: Path, branch: str,
@@ -524,7 +524,6 @@ def _update_one(name: str, args, log) -> dict:
     meta = _read_repo_meta(name)
     default_branch = meta.get("default_branch") or _detect_default_branch(bare_clone, log)
 
-    _step(["git", "-C", str(bare_clone), "fetch", "--all", "--prune"], log)
     branches = _resolve_branches_for_update(name, args, default_branch, log)
     results: list[dict] = []
     for br in branches:
@@ -590,9 +589,13 @@ def cmd_branch_add(args) -> int:
         die(f"invalid branch name {branch!r}")
     branch_dir = _branch_dir(name, slug)
     if branch_dir.exists() and not args.yes:
-        die(f"branch {branch!r} already tracked for {name}. "
-            f"Use `adk repo update {name} --branch {branch}` to refresh, "
-            f"or pass --yes to re-build from scratch.")
+        if getattr(args, "auto", False) and not (branch_dir / "code-index").exists():
+            log.info("auto branch %s/%s is tracked but missing code-index; rebuilding", name, branch)
+            args.yes = True
+        else:
+            die(f"branch {branch!r} already tracked for {name}. "
+                f"Use `adk repo update {name} --branch {branch}` to refresh, "
+                f"or pass --yes to re-build from scratch.")
 
     if branch_dir.exists() and args.yes:
         log.info("removing existing branch dir before re-add: %s", branch_dir)
@@ -1005,9 +1008,9 @@ def main(argv: list[str] | None = None) -> int:
     sp_ba.add_argument("--branch", required=True,
                        help="branch name to add (e.g. develop)")
     sp_ba.add_argument("--embed-model", default="nomic-embed-text")
-    sp_ba.add_argument("--rebuild", "-y", dest="yes", action="store_true",
+    sp_ba.add_argument("--rebuild", dest="yes", action="store_true",
                        help="if the branch is already tracked, rebuild its index "
-                            "from scratch. (`-y` is a deprecated alias for --rebuild.)")
+                            "from scratch.")
     sp_ba.add_argument("--auto", action="store_true",
                        help="v4 §5.4: mark this branch as auto-created (by pr-sync), "
                             "so the auto-base cleanup pass can tell it from user-added bases")

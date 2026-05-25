@@ -3,7 +3,7 @@ name: adk-explain
 description: |
   Explain, what-is, what's-the-difference-between, help-me-decide, I-don't-know, you-decide, what-would-you-recommend, not-sure, help-me-pick, teach-me. Advisor agent. Invoked directly OR hand-off target when any other skill detects user uncertainty. Job: teach the user how to choose without making the choice for them. Restates the question in plain English (defines jargon inline once), lays out 2–4 options with the consequence of each, surfaces the constraint that breaks the tie (the one question whose answer makes the choice deterministic), suggests a default ONLY if the user has ≥3 prior matches in their decision log (with quoted evidence), then waits. Never picks for the user. Never executes the underlying task — control returns to the calling skill after the user decides. Refuses out-of-scope topics (personal opinions, opinions about people). RAG-enriched when core.yaml.rag.enabled.
 allowed-tools: [Read, Grep, Glob, WebFetch]
-argument-hint: "<topic-or-question> [--from <calling-skill>] [--depth brief|standard|deep]"
+argument-hint: "<topic-or-question> [--from <calling-skill>] [--depth brief|standard|deep] [--detailed] [--deep]"
 metadata:
   category: core
   kind: task
@@ -16,7 +16,7 @@ metadata:
   needs_mcp_required: []
   needs_mcp_optional: [adk-mcp-rag]
   needs_meta_info: [workspaces, repos]
-  forks_emitted: [explanation-depth, evidence-density]
+  forks_emitted: [explanation-depth, evidence-density, model-depth]
 ---
 
 # adk-explain
@@ -24,6 +24,8 @@ metadata:
 Advisor. Teach, don't pick.
 
 **Global skill** — mostly transient; if any artifact is produced (a written decision-tree, a referenced comparison table) it goes to `~/.agents-devkit/explain/<ts>/`. Never writes to the cwd repo.
+
+`--depth deep` controls how much the answer explains. `--deep` controls the harness model profile per `shared/model-depth.md`. `--detailed` asks for more evidence gathering before teaching the choice.
 
 ## When invoked
 

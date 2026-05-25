@@ -26,7 +26,7 @@ Helper script generate-reference-docs.mjs.
 //   mcp/adk-mcp-<name>.json
 //   scripts/<name>.py (+ scripts/<name>.mjs)
 //   hooks/hooks.json + hooks/banner.sh
-//   shared/{constitution,advisor,question-first,decision-log-schema,edit-format,plan-act-mode}.md
+//   shared/{constitution,advisor,question-first,decision-log-schema,edit-format,plan-act-mode,model-depth}.md
 //   shared/{personas,workflows,input-classifiers,guidelines}/<name>.md
 //   agents-cursor/, agents-codex/, agents-junie/ (env wrappers)
 //
@@ -410,6 +410,7 @@ function generateSharedPages() {
     "decision-log-schema.md",
     "edit-format.md",
     "plan-act-mode.md",
+    "model-depth.md",
   ];
   for (const [i, f] of topLevel.entries()) {
     const full = join(sharedDir, f);

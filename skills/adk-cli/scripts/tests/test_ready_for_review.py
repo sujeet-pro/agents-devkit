@@ -25,7 +25,7 @@ def _iso(dt):
 
 
 def test_minimal_pending_row_is_ready():
-    """Back-compat: a row without prep_status fields is treated as ready."""
+    """A row without prep_status fields is treated as ready."""
     e = {"pr_url": "x", "status": STATUS_PENDING, "head_sha": "abc"}
     assert ready_for_review(e) is True
 

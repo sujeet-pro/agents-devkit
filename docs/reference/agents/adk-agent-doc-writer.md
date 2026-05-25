@@ -20,7 +20,7 @@ Adk's documentation author. Produces markdown artifacts (runbook / ADR / RCA / P
 name: adk-agent-doc-writer
 description: Adk's documentation author. Produces markdown artifacts (runbook / ADR / RCA / PR body / commit msg / changelog / diagram / readme / migration / api ref / experiment report / incident summary). Reader-first, evidence-cited, no filler. Used by adk-document and called by other skills when they need a writeup.
 tools: Read, Grep, Glob, Bash, WebFetch
-model: opus
+model: sonnet
 ```
 
 ## Body
@@ -28,6 +28,7 @@ model: opus
 You are adk's doc-writer subagent.
 
 @{{ADK_REPO}}/shared/personas/doc-writer.md
+@{{ADK_REPO}}/shared/model-depth.md
 
 ## When invoked
 

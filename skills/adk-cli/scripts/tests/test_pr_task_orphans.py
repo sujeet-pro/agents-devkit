@@ -43,10 +43,10 @@ def test_clean_orphans_keeps_queued_folders(fake_pr_reviews, capsys):
     args = SimpleNamespace(queue=str(queue), dry_run=True, yes=False)
     rc = pr_task.cmd_clean_orphans(args)
     assert rc == 0
-    out = json.loads(capsys.readouterr().out)
-    assert out["count"] == 1
-    assert any("foo_pr-1" in p for p in out["would_remove"])
-    assert not any("bar_pr-2" in p for p in out["would_remove"])
+    out = capsys.readouterr().out
+    assert "1 folder(s) would be removed" in out
+    assert "foo_pr-1" in out
+    assert "bar_pr-2" not in out
     # Nothing actually deleted in dry-run.
     assert (reviews / "foo_pr-1").exists()
 
@@ -63,8 +63,8 @@ def test_clean_orphans_removes_when_yes(fake_pr_reviews, capsys):
     args = SimpleNamespace(queue=str(queue), dry_run=False, yes=True)
     rc = pr_task.cmd_clean_orphans(args)
     assert rc == 0
-    out = json.loads(capsys.readouterr().out)
-    assert out["count"] == 1
+    out = capsys.readouterr().out
+    assert "removed: 1" in out
     assert not (reviews / "foo_pr-1").exists()
     assert (reviews / "bar_pr-2").exists()
 
@@ -96,8 +96,8 @@ def test_merged_row_folder_treated_as_orphan(fake_pr_reviews, capsys):
     ])
     args = SimpleNamespace(queue=str(queue), dry_run=True, yes=False)
     pr_task.cmd_clean_orphans(args)
-    out = json.loads(capsys.readouterr().out)
-    assert out["count"] == 1
+    out = capsys.readouterr().out
+    assert "1 folder(s) would be removed" in out
 
 
 def test_clean_orphans_no_op_when_all_queued(fake_pr_reviews, capsys):
@@ -110,9 +110,8 @@ def test_clean_orphans_no_op_when_all_queued(fake_pr_reviews, capsys):
     args = SimpleNamespace(queue=str(queue), dry_run=False, yes=True)
     rc = pr_task.cmd_clean_orphans(args)
     assert rc == 0
-    out = json.loads(capsys.readouterr().out)
-    assert out["count"] == 0
-    assert "no orphans" in out["reason"]
+    out = capsys.readouterr().out
+    assert "no orphan task folders" in out
 
 
 def test_prepare_all_skips_merged_rows(fake_pr_reviews, monkeypatch, capsys):
@@ -129,7 +128,7 @@ def test_prepare_all_skips_merged_rows(fake_pr_reviews, monkeypatch, capsys):
 
     calls: list[str] = []
 
-    def fake_prepare_one(pr_url, *, queue, rebuild, detailed, embed_model, log):
+    def fake_prepare_one(pr_url, *, queue, rebuild, detailed, deep, embed_model, log):
         calls.append(pr_url)
         return {"pr_url": pr_url, "action": "prepared", "head_sha": "abc"}
 
@@ -149,7 +148,7 @@ def test_prepare_all_continues_past_failures(fake_pr_reviews, monkeypatch, capsy
         {"pr_url": "u3", "status": STATUS_PENDING, "head_sha": "z"},
     ])
 
-    def fake_prepare_one(pr_url, *, queue, rebuild, detailed, embed_model, log):
+    def fake_prepare_one(pr_url, *, queue, rebuild, detailed, deep, embed_model, log):
         if pr_url == "u2":
             return {"pr_url": pr_url, "status": "failed", "reason": "boom"}
         return {"pr_url": pr_url, "action": "prepared"}
@@ -160,9 +159,10 @@ def test_prepare_all_continues_past_failures(fake_pr_reviews, monkeypatch, capsy
                         lambda url: {"repo": "fake", "pr_number": hash(url) % 1000})
     rc = pr_task.main(["prepare", "--all", "--queue", str(queue)])
     assert rc == 1  # one failure → rc=1
-    out = json.loads(capsys.readouterr().out)
-    assert out["count"] == 3
-    assert any(r.get("status") == "failed" for r in out["prepared"])
+    out = capsys.readouterr().out
+    assert "prepared: 2" in out
+    assert "failed: 1" in out
+    assert "boom" in out
 
 
 if __name__ == "__main__":

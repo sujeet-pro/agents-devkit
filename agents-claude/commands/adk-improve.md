@@ -1,6 +1,6 @@
 ---
 description: Self-improvement loop. Read decision logs + propose default updates; refresh metadata via MCP introspection.
-argument-hint: [--target defaults|metadata|both] [--since <date>] [--min-evidence N] [--dry-run]
+argument-hint: [--target defaults|metadata|both] [--since <date>] [--min-evidence N] [--dry-run] [--detailed] [--deep]
 ---
 
 Invoke the adk-improve skill at {{ADK_REPO}}/skills/adk-improve/SKILL.md.

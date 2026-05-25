@@ -26,7 +26,6 @@ from adk_common import (  # noqa: E402  (sys.path insertion above)
     ADK_HOME,
     REPOS_ROOT,
     deep_merge,
-    _deep_merge,  # back-compat alias for the legacy underscore name
     emit_json,
     get_logger,
     read_json,

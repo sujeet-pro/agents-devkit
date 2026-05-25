@@ -19,15 +19,19 @@ user doesn't have to remember the order:
   6. pr-task prepare --all   create/refresh task folders for remaining rows
                              (Phase 3 short-circuits when head_sha unchanged)
 
-Every step is opt-out (--no-scan, --no-prepare, --no-remind). Per-step
+Every step is opt-out (--no-scan, --no-prepare, --no-remind). `--detailed`
+forwards the detailed embedding path into `pr-task prepare`; `--deep` is
+accepted for PR-review flag symmetry. Per-step
 failures are surfaced but do not abort the rest of the pipeline. The final
-JSON summary reports per-step counts so you can spot stalls at a glance.
+terminal summary reports per-step status so you can spot stalls at a glance.
 
 Idempotent. Safe to wire into a launchd job, a cron, or `adk loop`.
 """
 from __future__ import annotations
 
 import argparse
+import contextlib
+import io
 import json
 import sys
 from pathlib import Path
@@ -42,7 +46,16 @@ sys.path.insert(0, str(SCRIPTS_ROOT))
 CODE_INDEX_LIB = SCRIPTS_ROOT / "lib" / "code_index"
 sys.path.insert(0, str(CODE_INDEX_LIB))
 
-from _common import get_logger, parse_pr_url  # noqa: E402
+from _common import (  # noqa: E402
+    RunEvent,
+    emit_event,
+    format_file_ref,
+    get_logger,
+    is_orchestrated,
+    parse_event_line,
+    parse_pr_url,
+    status_glyph,
+)
 from queue_io import DEFAULT_QUEUE_PATH, TERMINAL_STATUSES, read_queue  # noqa: E402
 from tui_plan import SyncPlanWriter  # noqa: E402
 
@@ -65,18 +78,8 @@ _PR_SYNC_STEPS = [
 #   "off"     — skip the audit entirely (--no-base-audit).
 _AUDIT_MODES = ("act", "ask", "preview", "off")
 
-# Legacy --audit-mode mapping (kept for one release, --audit-mode is hidden
-# from --help and emits a deprecation warning).
-_LEGACY_AUDIT_MODE_MAP = {
-    "auto": "act",
-    "warn": "preview",
-    "off": "off",
-}
-
-
 def _load_pr_sync_setting(key: str, default):
-    """Read one key under `pr_sync:` in adk-cli.json5 first, then fall back to
-    core.yaml (with deprecation warning), then `default`. Safe on fresh
+    """Read one key under `pr_sync:` in adk-cli.json5, then `default`. Safe on fresh
     installs — missing files return `default`."""
     try:
         from config_io import get_adk_cli  # noqa: WPS433
@@ -325,29 +328,101 @@ def _audit_base_indexes(queue_path: str, *, mode: str, embed_model: str | None,
 
 
 def _run_step(name: str, fn, log, *, plan: SyncPlanWriter | None = None,
-              plan_name: str | None = None) -> dict:
+              plan_name: str | None = None, quiet: bool = False) -> dict:
     """Run one pipeline step. Capture rc + a short status; never raise."""
-    log.info("=== step: %s ===", name)
+    if not quiet:
+        log.info("=== step: %s ===", name)
     pname = plan_name or name
     if plan is not None:
         plan.step_start(pname)
+    if quiet:
+        emit_event(RunEvent(kind="step_start", name=name, status="run",
+                            detail="starting"))
     try:
-        rc = fn()
+        child_done_event = None
+        if quiet:
+            buf = io.StringIO()
+            with contextlib.redirect_stdout(buf), contextlib.redirect_stderr(buf):
+                rc = fn()
+            captured = buf.getvalue().strip()
+            if captured:
+                detail_lines = []
+                for line in captured.splitlines():
+                    event = parse_event_line(line)
+                    if event is not None:
+                        if event.get("kind") == "step_done":
+                            child_done_event = event
+                        print(line, flush=True)
+                    else:
+                        detail_lines.append(line)
+                if detail_lines:
+                    log.info("%s output:\n%s", name, "\n".join(detail_lines))
+        else:
+            rc = fn()
         status = "ok" if rc == 0 else "warn"
         if plan is not None:
             plan.step_done(pname, status=status, rc=rc)
-        return {"step": name, "rc": rc, "status": status}
+        result = {"step": name, "rc": rc, "status": status}
+        if quiet and child_done_event is None:
+            emit_event(RunEvent(kind="step_done", name=name,
+                                status="done" if rc == 0 else "warn",
+                                detail=_step_detail(name, result)))
+        return result
     except SystemExit as e:
         # die() raises SystemExit; treat as a step-level failure, keep going.
         log.warning("%s: %s", name, e)
         if plan is not None:
             plan.step_done(pname, status="failed", rc=1)
-        return {"step": name, "rc": 1, "status": "failed", "reason": str(e)}
+        result = {"step": name, "rc": 1, "status": "failed", "reason": str(e)}
+        if quiet:
+            emit_event(RunEvent(kind="step_done", name=name, status="fail",
+                                detail=str(e)))
+            emit_event(RunEvent(kind="attention", name=name, status="fail",
+                                detail=f"{name} failed", reason=str(e)))
+        return result
     except Exception as e:
         log.warning("%s: unexpected %s", name, e)
         if plan is not None:
             plan.step_done(pname, status="failed", rc=1)
-        return {"step": name, "rc": 1, "status": "failed", "reason": str(e)}
+        result = {"step": name, "rc": 1, "status": "failed", "reason": str(e)}
+        if quiet:
+            emit_event(RunEvent(kind="step_done", name=name, status="fail",
+                                detail=str(e)))
+            emit_event(RunEvent(kind="attention", name=name, status="fail",
+                                detail=f"{name} failed", reason=str(e)))
+        return result
+
+
+def _step_detail(name: str, result: dict) -> str:
+    if result.get("reason"):
+        return str(result["reason"])
+    return f"rc={result.get('rc', 0)}"
+
+
+def _print_sync_summary(queue: str, results: list[dict]) -> None:
+    failed = [r for r in results if r.get("status") == "failed"]
+    warned = [r for r in results if r.get("status") == "warn"]
+    skipped = [r for r in results if r.get("status") == "skipped"]
+    print(f"\n{'✅' if not failed else '⚠️'} adk pr-sync complete")
+    print(f"   ├─ queue: {format_file_ref(queue)}")
+    print(f"   ├─ steps: {len(results)}")
+    print(f"   ├─ failed: {len(failed)}")
+    print(f"   ├─ warnings: {len(warned)}")
+    print(f"   └─ skipped: {len(skipped)}")
+    print("\n   Steps:")
+    for r in results:
+        status = r.get("status") or "ok"
+        line = f"   ├─ {status_glyph(status)} {r.get('step', '?')} · {status}"
+        if r.get("rc") is not None:
+            line += f" · rc={r.get('rc')}"
+        if r.get("reason"):
+            line += f" · {r.get('reason')}"
+        print(line)
+        audit = r.get("audit") or {}
+        if audit:
+            gaps = audit.get("gaps") or []
+            groups = audit.get("groups")
+            print(f"   │  └─ base indexes: groups={groups}, gaps={len(gaps)}, mode={audit.get('mode')}")
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -371,10 +446,6 @@ def main(argv: list[str] | None = None) -> int:
                     help="ask before each base-index fix command (promote / refresh). "
                          "Without -i, the audit acts on every actionable gap; "
                          "with --dry-run it previews; with --no-base-audit it skips.")
-    # Deprecated: --audit-mode is hidden from --help and maps to the new
-    # flags. Will be removed after one release.
-    ap.add_argument("--audit-mode", choices=("off", "warn", "auto"), default=None,
-                    help=argparse.SUPPRESS)
     ap.add_argument("--embed-model", default=None,
                     help="forwarded to `adk repo branch add` / `adk repo update` "
                          "during audit auto-mode (default: nomic-embed-text)")
@@ -396,6 +467,9 @@ def main(argv: list[str] | None = None) -> int:
                     help="hours since review before a reminder qualifies (default: 24)")
     ap.add_argument("--detailed", action="store_true",
                     help="forwarded to pr-task prepare: use bge-m3 embeddings")
+    ap.add_argument("--deep", action="store_true",
+                    help="forwarded to pr-task prepare for /adk-pr-review flag symmetry; "
+                         "model depth is selected by the review harness")
     ap.add_argument("--rebuild", action="store_true",
                     help="forwarded to pr-task prepare: force full re-index")
     ap.add_argument("--since-hours", type=float, default=0.0,
@@ -409,12 +483,15 @@ def main(argv: list[str] | None = None) -> int:
                          "destructive steps are actual-by-default")
     ap.add_argument("-v", "--verbose", action="store_true",
                     help="write a structured DEBUG log to ~/.agents-devkit/logs/")
+    ap.add_argument("--quiet", action="store_true",
+                    help=argparse.SUPPRESS)
     args = ap.parse_args(argv)
     if getattr(args, "verbose", False):
         from _verbose import setup_verbose  # type: ignore  # noqa: WPS433
         setup_verbose("pr-sync", enabled=True, argv=argv)
 
     log = get_logger("pr-sync")
+    quiet = bool(args.quiet or is_orchestrated())
     queue = args.queue
     results: list[dict] = []
     plan_writer = SyncPlanWriter(queue=queue, argv=list(argv or []),
@@ -424,6 +501,8 @@ def main(argv: list[str] | None = None) -> int:
     if not args.no_scan:
         from pr_scan import main as scan_main  # type: ignore[import-not-found]
         scan_argv = ["--queue", queue, "-y"]
+        if quiet:
+            scan_argv.append("--quiet")
         if args.since_hours:
             scan_argv += ["--since-hours", str(args.since_hours)]
         if args.since_days:
@@ -431,7 +510,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.channels:
             scan_argv += ["--channels", args.channels]
         results.append(_run_step("pr-scan", lambda: scan_main(scan_argv), log,
-                                 plan=plan_writer))
+                                 plan=plan_writer, quiet=quiet))
     else:
         plan_writer.step_done("pr-scan", status="skipped")
         results.append({"step": "pr-scan", "status": "skipped"})
@@ -443,6 +522,7 @@ def main(argv: list[str] | None = None) -> int:
         lambda: queue_main(["--queue", queue, "update", "--all"]),
         log,
         plan=plan_writer,
+        quiet=quiet,
     ))
 
     # 3. pr-queue clean (drop merged + their task folders; no --yes needed for
@@ -452,6 +532,7 @@ def main(argv: list[str] | None = None) -> int:
         lambda: queue_main(["--queue", queue, "clean"]),
         log,
         plan=plan_writer,
+        quiet=quiet,
     ))
 
     # 4. pr-task clean-orphans (drop on-disk folders with no queue row)
@@ -468,6 +549,7 @@ def main(argv: list[str] | None = None) -> int:
             log,
             plan=plan_writer,
             plan_name="pr-task clean-orphans",
+            quiet=quiet,
         ))
     else:
         plan_writer.step_done("pr-task clean-orphans", status="skipped")
@@ -485,6 +567,7 @@ def main(argv: list[str] | None = None) -> int:
             log,
             plan=plan_writer,
             plan_name="pr-queue remind",
+            quiet=quiet,
         ))
     else:
         plan_writer.step_done("pr-queue remind", status="skipped")
@@ -492,18 +575,13 @@ def main(argv: list[str] | None = None) -> int:
 
     # 5.5. base-index audit (per-(repo, target_branch) coverage).
     #
-    # Mode resolution (Model 1):
+    # Mode resolution:
     #   --no-base-audit              → "off"
     #   --dry-run                    → "preview"
     #   -i / --interactive           → "ask"
     #   (default)                    → "act"
-    # Legacy --audit-mode is still honored for one release with a warning.
     if not args.no_base_audit:
-        if args.audit_mode is not None:
-            log.warning("--audit-mode is deprecated and will be removed; "
-                        "use -i / --dry-run / --no-base-audit instead.")
-            mode = _LEGACY_AUDIT_MODE_MAP.get(args.audit_mode, "act")
-        elif args.dry_run:
+        if args.dry_run:
             mode = "preview"
         elif args.interactive:
             mode = "ask"
@@ -550,14 +628,47 @@ def main(argv: list[str] | None = None) -> int:
         # Don't go through _run_step here — we want the audit summary inline
         # in the step record, not a single rc.
         plan_writer.step_start("base-index audit")
+        if quiet:
+            emit_event(RunEvent(kind="step_start", name="base index",
+                                status="run", detail="checking branch coverage"))
         try:
-            _do_audit()
+            if quiet:
+                buf = io.StringIO()
+                with contextlib.redirect_stdout(buf), contextlib.redirect_stderr(buf):
+                    _do_audit()
+                captured = buf.getvalue().strip()
+                if captured:
+                    log.info("base-index audit output:\n%s", captured)
+            else:
+                _do_audit()
             plan_writer.step_done("base-index audit", status="ok", rc=0)
+            audit = results[-1].get("audit", {}) if results else {}
+            gaps = audit.get("gaps") or []
+            if quiet:
+                emit_event(RunEvent(
+                    kind="step_done",
+                    name="base index",
+                    status="done",
+                    detail=f"groups={audit.get('groups', 0)}, gaps={len(gaps)}, mode={audit.get('mode')}",
+                ))
+                for g in gaps:
+                    if g.get("command"):
+                        emit_event(RunEvent(
+                            kind="attention",
+                            name="base index",
+                            status="warn",
+                            detail=(f"{g.get('repo')}/{g.get('target_branch')} "
+                                    f"{g.get('kind')} ({g.get('queued_prs')} queued PRs)"),
+                            reason=g.get("command", ""),
+                        ))
         except Exception as e:
             log.warning("base-index audit: unexpected %s", e)
             plan_writer.step_done("base-index audit", status="failed", rc=1)
             results.append({"step": "base-index audit",
                             "status": "failed", "reason": str(e)})
+            if quiet:
+                emit_event(RunEvent(kind="step_done", name="base index",
+                                    status="fail", detail=str(e)))
     else:
         plan_writer.step_done("base-index audit", status="skipped")
         results.append({"step": "base-index audit", "status": "skipped"})
@@ -569,14 +680,17 @@ def main(argv: list[str] | None = None) -> int:
     # into pr-sync's top-level summary; the captured detail is attached to
     # the step record instead.
     if not args.no_auto_demote:
-        import contextlib, io
         from repo import cmd_auto_bases_clean  # noqa: WPS433
         ns = argparse.Namespace(
             queue=queue, dry_run=bool(args.dry_run), yes=True,
             force=False, name=None, branch=None,
         )
-        log.info("=== step: auto-base cleanup ===")
+        if not quiet:
+            log.info("=== step: auto-base cleanup ===")
         plan_writer.step_start("auto-base cleanup")
+        if quiet:
+            emit_event(RunEvent(kind="step_start", name="auto-base cleanup",
+                                status="run", detail="checking unused auto bases"))
         buf = io.StringIO()
         try:
             with contextlib.redirect_stdout(buf):
@@ -596,16 +710,26 @@ def main(argv: list[str] | None = None) -> int:
                 "status": status,
                 "detail": detail,
             })
+            if quiet:
+                emit_event(RunEvent(kind="step_done", name="auto-base cleanup",
+                                    status="done" if status == "ok" else "warn",
+                                    detail=f"rc={rc or 0}"))
         except SystemExit as e:
             log.warning("auto-base cleanup: SystemExit %s", e)
             plan_writer.step_done("auto-base cleanup", status="failed", rc=1)
             results.append({"step": "auto-base cleanup", "rc": 1,
                             "status": "failed", "reason": str(e)})
+            if quiet:
+                emit_event(RunEvent(kind="step_done", name="auto-base cleanup",
+                                    status="fail", detail=str(e)))
         except Exception as e:
             log.warning("auto-base cleanup: unexpected %s", e)
             plan_writer.step_done("auto-base cleanup", status="failed", rc=1)
             results.append({"step": "auto-base cleanup", "rc": 1,
                             "status": "failed", "reason": str(e)})
+            if quiet:
+                emit_event(RunEvent(kind="step_done", name="auto-base cleanup",
+                                    status="fail", detail=str(e)))
     else:
         plan_writer.step_done("auto-base cleanup", status="skipped")
         results.append({"step": "auto-base cleanup", "status": "skipped"})
@@ -615,25 +739,26 @@ def main(argv: list[str] | None = None) -> int:
         prep_argv = ["prepare", "--all", "--queue", queue]
         if args.detailed:
             prep_argv.append("--detailed")
+        if args.deep:
+            prep_argv.append("--deep")
         if args.rebuild:
             prep_argv.append("--rebuild")
+        if quiet:
+            prep_argv.append("--quiet")
         results.append(_run_step(
             "pr-task prepare --all",
             lambda: task_main(prep_argv),
             log,
             plan=plan_writer,
+            quiet=quiet,
         ))
     else:
         plan_writer.step_done("pr-task prepare --all", status="skipped")
         results.append({"step": "pr-task prepare --all", "status": "skipped"})
 
-    summary = {
-        "queue": queue,
-        "steps": results,
-        "failed": [r for r in results if r.get("status") == "failed"],
-    }
-    print(json.dumps(summary, indent=2, default=str))
-    rc_out = 1 if summary["failed"] else 0
+    if not quiet:
+        _print_sync_summary(queue, results)
+    rc_out = 1 if any(r.get("status") == "failed" for r in results) else 0
     plan_writer.finish(rc_out)
     return rc_out
 

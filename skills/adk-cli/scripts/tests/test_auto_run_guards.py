@@ -74,6 +74,7 @@ def test_dry_run_includes_guard_flags_in_output(tmp_path, monkeypatch):
         assert out["quiet_hours"] == "00-01"
         assert out["max_cost_usd"] == 100
         assert out["report_to_slack"] == "#test"
+        assert out["runner"] == "claude"
 
 
 def test_max_cost_aborts_when_estimate_exceeds(tmp_path, monkeypatch):
@@ -113,6 +114,27 @@ def test_max_cost_passes_when_estimate_below(tmp_path, monkeypatch):
     ])
     monkeypatch.undo()
     assert rc == 0
+
+
+def test_max_cost_uses_runner_cost_for_cursor(tmp_path, monkeypatch):
+    """3 eligible × $0.30/cursor = $0.90; --max-cost-usd 1 passes."""
+    qp = tmp_path / "q.json5"
+    qp.write_text(json.dumps({"prs": [
+        {"pr_url": f"u{i}", "status": "pending", "head_sha": f"s{i}"}
+        for i in range(3)
+    ]}))
+    monkeypatch.setattr(auto_run, "AUTO_RUNS_ROOT", tmp_path / "auto-runs")
+    captured = io.StringIO()
+    monkeypatch.setattr(sys, "stdout", captured)
+    rc = auto_run.main([
+        "--queue", str(qp), "--no-sync", "--dry-run",
+        "--runner", "cursor",
+        "--max-cost-usd", "1.00",
+    ])
+    monkeypatch.undo()
+    assert rc == 0
+    out = json.loads(captured.getvalue())
+    assert out["runner"] == "cursor"
 
 
 def test_quiet_hours_aborts_inside_window(tmp_path, monkeypatch):

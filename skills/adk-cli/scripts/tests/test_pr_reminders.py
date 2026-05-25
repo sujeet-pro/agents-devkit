@@ -138,6 +138,43 @@ def test_send_reminders_posts_and_stamps(tmp_path, monkeypatch):
     assert persisted["last_reminded_at"]
 
 
+def test_send_reminders_posts_to_every_slack_thread(tmp_path, monkeypatch):
+    q = _write(tmp_path, [_row(
+        pr_url="u1",
+        slack={"channel_id": "C123", "thread_ts": "1700000000.000123"},
+        slack_threads=[
+            {"channel_id": "C123", "thread_ts": "1700000000.000123"},
+            {"channel_id": "C456", "thread_ts": "1800000000.000456"},
+        ],
+    )])
+
+    posted: list[tuple[str, str, str]] = []
+
+    class FakeClient:
+        def __init__(self, *a, **kw):
+            pass
+
+        def post_thread_reply(self, channel_id, thread_ts, text):
+            posted.append((channel_id, thread_ts, text))
+            return f"{channel_id}-{thread_ts}-reply"
+
+    monkeypatch.setattr(pr_reminders, "load_slack_config", lambda: {})
+    import slack_helpers
+    monkeypatch.setattr(slack_helpers, "SlackClient", FakeClient)
+
+    out = pr_reminders.send_reminders(q, threshold_hours=24, now=NOW)
+
+    assert len(out["sent"]) == 1
+    assert [(c, t) for c, t, _ in posted] == [
+        ("C123", "1700000000.000123"),
+        ("C456", "1800000000.000456"),
+    ]
+    assert [r["reply_ts"] for r in out["sent"][0]["replies"]] == [
+        "C123-1700000000.000123-reply",
+        "C456-1800000000.000456-reply",
+    ]
+
+
 def test_send_reminders_collects_failures(tmp_path, monkeypatch):
     """One row fails to post → recorded in `failed`, others continue."""
     q = _write(tmp_path, [_row(pr_url="u1"), _row(pr_url="u2")])

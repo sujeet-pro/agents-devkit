@@ -45,6 +45,7 @@ in report.py at the tail of the review.
 Usage:
   python3 prepare_task.py [<pr-url>] [--auto] [--rebuild] [--no-post]
                                    [--no-resolve-existing]
+                                   [--detailed] [--deep]
                                    [--embed-model nomic-embed-text]
                                    [--scope all|security|correctness|tests]
                                    [--queue <path>]
@@ -62,7 +63,8 @@ from _common import (  # noqa: E402
     parse_pr_url, ensure_dirs, task_dir_for, repo_clone_for,
     pr_lock_for, try_file_lock, LockHeldError,
     read_state, mark_phase, write_state, write_json, read_json,
-    get_logger, die, run, which, get_cfg, pr_review_file,
+    format_file_ref, format_pr_ref, get_logger, die, run, which, get_cfg, pr_review_file,
+    narrate_banner, narrate_start, narrate_done, narrate_summary,
 )
 
 # CLI helpers live under skills/adk-cli/scripts/. Add to sys.path so we can
@@ -71,7 +73,7 @@ ADK_CLI_SCRIPTS = Path(__file__).resolve().parent.parent.parent / "adk-cli" / "s
 sys.path.insert(0, str(ADK_CLI_SCRIPTS))
 from queue_io import (  # noqa: E402
     DEFAULT_QUEUE_PATH, acquire_next_row, find_row, update_pr_entry,
-    TAKEN_LOCK_MAX_AGE_SECONDS, STATUS_IN_REVIEW,
+    TAKEN_LOCK_MAX_AGE_SECONDS, STATUS_IN_REVIEW, slack_threads_for,
 )
 
 # Decision-log helper — improvement #4 (decisions.jsonl was getting zero new
@@ -117,6 +119,38 @@ def step(cmd: list[str], log, env=None):
     if cp.returncode != 0:
         raise SystemExit(f"step failed (rc={cp.returncode}): {' '.join(cmd)}")
     return cp
+
+
+def _print_queue_empty(queue_path: Path) -> None:
+    print("\n📭 No eligible PRs in the queue")
+    print(f"   ├─ queue: {format_file_ref(queue_path)}")
+    print("   └─ next: run `adk pr-scan` to refresh, or pass a PR URL")
+
+
+def _print_prepare_summary(*, pr_url: str, task_dir: Path, head_sha: str,
+                           worktree: Path, precis: Path,
+                           status: str = "prepared") -> None:
+    print(f"\n✅ {status}: {format_pr_ref(pr_url)}")
+    print(f"   ├─ head: {head_sha[:12]}")
+    print(f"   ├─ task: {format_file_ref(task_dir)}")
+    print(f"   ├─ worktree: {format_file_ref(worktree)}")
+    print(f"   └─ precis: {format_file_ref(precis)}")
+
+
+def _print_review_handoff(*, pr_url: str, task_dir: Path, head_sha: str,
+                          worktree: Path, precis: Path,
+                          retrieval: dict, triage_mode: str,
+                          next_steps: list[str]) -> None:
+    print(f"\n✅ Ready for review: {format_pr_ref(pr_url)}")
+    print(f"   ├─ head: {head_sha[:12]}")
+    print(f"   ├─ task: {format_file_ref(task_dir)}")
+    print(f"   ├─ worktree: {format_file_ref(worktree)}")
+    print(f"   ├─ precis: {format_file_ref(precis)}")
+    print(f"   ├─ triage: {triage_mode}")
+    print(f"   └─ retrieval: hybrid={retrieval['hybrid']}, rerank={retrieval['rerank_enabled']}, model={retrieval['embed_model']}")
+    print("\n   Next:")
+    for step_text in next_steps:
+        print(f"   ├─ {step_text}")
 
 
 def diff_changed_files(repo_path: Path, old_oid: str | None, new_oid: str, log) -> list[str]:
@@ -173,6 +207,8 @@ def main() -> int:
     ap.add_argument("--detailed", action="store_true",
                     help="use the configured detailed embedder (default: bge-m3) instead of "
                          "the fast default (nomic-embed-text). Higher retrieval quality, ~4-5x slower indexing.")
+    ap.add_argument("--deep", action="store_true",
+                    help="accepted for /adk-pr-review CLI symmetry; model depth is chosen by the parent harness.")
     ap.add_argument("--embed-model",
                     help="explicit embed model name; overrides --detailed and config.embed.*")
     ap.add_argument("--no-hybrid", action="store_true",
@@ -278,11 +314,7 @@ def main() -> int:
             # to the in-memory primitive so the skill still functions.
             queue_row = acquire_next_row(queue_path)
         if queue_row is None:
-            print(json.dumps({
-                "action": "queue_empty",
-                "queue": str(queue_path),
-                "message": "no eligible rows in the queue. Run `adk pr-scan` to refresh, or pass a PR URL.",
-            }, indent=2))
+            _print_queue_empty(queue_path)
             return 0
         args.url = queue_row["pr_url"]
     else:
@@ -291,37 +323,49 @@ def main() -> int:
         existing = find_row(queue_path, args.url)
         if existing is not None:
             from datetime import datetime, timezone
+            import socket
+            self_host = socket.gethostname()
             taken_at = existing.get("taken_at")
+            taken_by = existing.get("taken_by")
+            lock_active = False
+            lock_remaining = 0
             if taken_at:
                 try:
                     iso = taken_at[:-1] + "+00:00" if taken_at.endswith("Z") else taken_at
                     ts = datetime.fromisoformat(iso)
                     age = (datetime.now(tz=timezone.utc) - ts).total_seconds()
                     if age < TAKEN_LOCK_MAX_AGE_SECONDS:
-                        if args.prepare_only:
-                            # Pre-warm should never wrestle with an active reviewer.
-                            # Surface and bail with rc=0 so `--all` can keep going.
-                            print(json.dumps({
-                                "action": "skipped",
-                                "pr_url": args.url,
-                                "reason": "locked by another reviewer",
-                                "taken_at": taken_at,
-                            }, indent=2))
-                            return 0
-                        die(
-                            f"queue row for {args.url} is locked by another reviewer "
-                            f"(taken_at={taken_at}, {int(TAKEN_LOCK_MAX_AGE_SECONDS - age)}s remaining). "
-                            f"Wait or `adk pr-queue release {args.url}` to override."
-                        )
+                        lock_active = True
+                        lock_remaining = int(TAKEN_LOCK_MAX_AGE_SECONDS - age)
                 except ValueError:
                     pass
-            # Prepare-only mode does NOT claim the queue lock — its job is to
-            # pre-warm cached state, not to begin a review session. A real
-            # reviewer must still be able to claim the row immediately after.
+            # Self-claim detection: a same-host lock is "ours" (the user typed
+            # the URL explicitly — likely they claimed in another terminal and
+            # then ran prepare here). Cross-host = real conflict, fail loud.
+            is_self_claim = lock_active and bool(taken_by) and taken_by == self_host
+            if lock_active and not is_self_claim:
+                if args.prepare_only:
+                    print(f"\n⏭️  Skipped {format_pr_ref(args.url)}")
+                    print("   ├─ reason: locked by another reviewer")
+                    print(f"   ├─ taken_at: {taken_at}")
+                    print(f"   └─ taken_by: {taken_by}")
+                    return 0
+                die(
+                    f"queue row for {args.url} is locked by another reviewer "
+                    f"(taken_at={taken_at}, taken_by={taken_by!r}, "
+                    f"{lock_remaining}s remaining). "
+                    f"Wait or `adk pr-queue release {args.url}` to override."
+                )
+            # Prepare-only does NOT claim — only pre-warms. Real review mode
+            # claims (or refreshes) the row so a parallel queue-mode picker
+            # won't steal it. Self-claim case: refresh `taken_at`; don't touch
+            # status (the prior claim already set it).
             if not args.prepare_only:
                 from queue_io import _now_iso  # type: ignore[attr-defined]
-                update_pr_entry(queue_path, args.url, {"taken_at": _now_iso(),
-                                                        "status": STATUS_IN_REVIEW})
+                updates = {"taken_at": _now_iso(), "taken_by": self_host}
+                if not is_self_claim:
+                    updates["status"] = STATUS_IN_REVIEW
+                update_pr_entry(queue_path, args.url, updates)
             queue_row = find_row(queue_path, args.url)
 
     parsed = parse_pr_url(args.url)
@@ -330,18 +374,25 @@ def main() -> int:
     task_dir.mkdir(parents=True, exist_ok=True)
     log = get_logger("orchestrator", task_dir)
     log.info("=== /adk-pr-review %s ===", args.url)
+    # User-visible banner — the `[narrate]` lines are quoted verbatim by
+    # SKILL.md instructions so the human running `claude -p /adk-pr-review`
+    # sees task_dir + log paths upfront and can `tail -f` for live progress.
+    narrate_banner(task_dir, url=args.url)
     if queue_row is not None:
+        slack_threads = slack_threads_for(queue_row)
         log.info("queue context: pr_url=%s, slack=%s, supporting_docs=%d",
                  queue_row.get("pr_url"),
-                 bool(queue_row.get("slack")),
+                 bool(slack_threads),
                  len(queue_row.get("supporting_docs") or []))
         # Write queue-context.json so report.py can pick up slack-info + queue_path
         # without re-parsing the queue at the end.
         write_json(pr_review_file(task_dir, "queue-context.json"), {
             "queue_path": str(queue_path),
             "pr_url": queue_row.get("pr_url"),
-            "slack": queue_row.get("slack"),
+            "slack": slack_threads[0] if slack_threads else queue_row.get("slack"),
+            "slack_threads": slack_threads,
             "supporting_docs": queue_row.get("supporting_docs") or [],
+            "related_pr_urls": queue_row.get("related_pr_urls") or [],
         })
         # Forced supporting docs — fetch_supporting_docs.py picks these up.
         forced = queue_row.get("supporting_docs") or []
@@ -361,7 +412,7 @@ def main() -> int:
         # Release the queue-row claim so it doesn't sit locked for 30 min.
         if queue_row is not None:
             try:
-                update_pr_entry(queue_path, args.url, {"taken_at": None})
+                update_pr_entry(queue_path, args.url, {"taken_at": None, "taken_by": None})
             except Exception:
                 pass
         die(str(e))
@@ -386,15 +437,19 @@ def _main_inner(args, parsed, task_dir, log) -> int:
 
     # ---------- Phase 0: prereqs ----------
     log.info("--- Phase 0: prereq ---")
+    narrate_start(task_dir, "0", "prereq (ollama + gh)")
     cp = run([PY, str(CODE_INDEX_LIB / "ensure_ollama.py"), "--model", args.embed_model, "--json"], check=False)
     if cp.returncode != 0:
         sys.stderr.write(cp.stdout + cp.stderr)
+        narrate_done(task_dir, "0", status="failed", note="ollama not ready")
         die("ollama not ready — see hint above")
     if host == "github" and not which("gh"):
+        narrate_done(task_dir, "0", status="failed", note="gh CLI missing")
         die("gh CLI required for GitHub PRs. brew install gh.")
     mark_phase(task_dir, "0_prereq", "done",
                url=args.url, host=host, owner=owner, repo=repo, pr_number=n,
                embed_model=args.embed_model)
+    narrate_done(task_dir, "0", note=f"embed={args.embed_model}")
     append_decision(
         skill="adk-pr-review", fork_id="embed_model", fork_type="inferred",
         default_offered=args.embed_model,
@@ -404,33 +459,44 @@ def _main_inner(args, parsed, task_dir, log) -> int:
 
     # ---------- Phase 2a: fetch PR (always — gets fresh head_sha) ----------
     log.info("--- Phase 2a: fetch PR (always; gets fresh head_sha) ---")
+    narrate_start(task_dir, "2a", "fetch PR (meta + diff + comments)")
     step([PY, str(THIS_DIR / "fetch_pr.py"),
           "--host", host, "--owner", owner, "--repo", repo,
           "--pr-number", str(n), "--task-dir", str(task_dir), "--json"], log)
     pr = read_json(pr_review_file(task_dir, "pr.json"))
     head_sha = pr.get("head_sha")
     if not head_sha:
+        narrate_done(task_dir, "2a", status="failed", note="no head_sha")
         die("fetch_pr.py did not populate head_sha")
     log.info("PR head_sha: %s (prior indexed: %s)", head_sha[:12], (prior_index_head or "<none>")[:12])
+    narrate_done(task_dir, "2a", note=f"head {head_sha[:12]}")
 
     # ---------- Phase 1: clone + worktree (ALWAYS — pulls latest) ----------
     log.info("--- Phase 1a: ensure repo clone (always fetch --all --prune) ---")
+    narrate_start(task_dir, "1a", "ensure repo clone (git fetch --all --prune)")
     step([PY, str(THIS_DIR / "ensure_repo_clone.py"),
           "--host", host, "--owner", owner, "--repo", repo, "--json"], log)
+    narrate_done(task_dir, "1a")
     log.info("--- Phase 1b: create/update worktree at %s (serialized) ---", head_sha[:12])
+    narrate_start(task_dir, "1b", f"worktree at {head_sha[:12]}")
     step([PY, str(THIS_DIR / "create_worktree.py"),
           "--repo", repo, "--pr-number", str(n), "--head-sha", head_sha,
+          "--host", host,
           "--json"] + (["--rebuild"] if args.rebuild else []), log)
+    narrate_done(task_dir, "1b")
     mark_phase(task_dir, "1_worktree", "done",
                worktree_path=str(task_dir / "code"), head_sha=head_sha)
 
     # ---------- Phase 2b: supporting docs scan (always) ----------
     log.info("--- Phase 2b: scan supporting docs ---")
+    narrate_start(task_dir, "2b", "scan linked Confluence / Jira / GDoc URLs")
     step([PY, str(THIS_DIR / "fetch_supporting_docs.py"),
           "--task-dir", str(task_dir), "--json"], log)
     mark_phase(task_dir, "2_fetch", "done", head_sha=head_sha)
+    narrate_done(task_dir, "2b")
 
     # ---------- Phase 3: index (full or incremental) ----------
+    narrate_start(task_dir, "3", "index (chunk + embed + SCIP)")
     code_index_dir = task_dir / "code-index"
     chunks_path = code_index_dir / "chunks.jsonl"
     has_prior_index = (code_index_dir / "meta.json").exists() and prior_index_head is not None
@@ -609,6 +675,19 @@ def _main_inner(args, parsed, task_dir, log) -> int:
                    head_sha_at_index=head_sha, incremental=False,
                    seeded_from_base=False, reason="head_sha moved but no resolvable diff")
 
+    # Close Phase 3 narration — read back what mark_phase wrote so the
+    # summary tag accurately reflects the branch we just took.
+    _idx_phase = (read_state(task_dir).get("phases") or {}).get("3_index") or {}
+    if _idx_phase.get("skipped"):
+        _idx_note = "skipped — head unchanged"
+    elif _idx_phase.get("seeded_from_base"):
+        _idx_note = f"seeded from base ({_idx_phase.get('files_changed', 0)} overlay files)"
+    elif _idx_phase.get("incremental"):
+        _idx_note = f"incremental ({_idx_phase.get('files_changed', 0)} files)"
+    else:
+        _idx_note = "full rebuild"
+    narrate_done(task_dir, "3", note=_idx_note)
+
     # Health check AFTER state write — a transient health-check failure no
     # longer orphans the index. The earlier mark_phase call captured what
     # actually landed on disk.
@@ -617,20 +696,25 @@ def _main_inner(args, parsed, task_dir, log) -> int:
 
     # ---------- Phase 4a: precis ----------
     log.info("--- Phase 4a: build precis.md ---")
+    narrate_start(task_dir, "4a", "build precis.md")
     precis = build_precis(task_dir, args.top_k_context, args.scope)
     (pr_review_file(task_dir, "precis.md")).write_text(precis, encoding="utf-8")
+    narrate_done(task_dir, "4a")
 
     # ---------- Prepare-only exit (no agent handoff) ----------
     if args.prepare_only:
         log.info("--prepare-only: phases 0-4a complete, skipping agent handoff")
-        print(json.dumps({
-            "action": "prepared",
-            "pr_url": args.url,
-            "task_dir": str(task_dir),
-            "head_sha": head_sha,
-            "worktree": str(task_dir / "code"),
-            "precis": str(pr_review_file(task_dir, "precis.md")),
-        }, indent=2))
+        narrate_summary(task_dir, status="prepared (orchestrator phases 0-4a)",
+                        head_sha=head_sha[:12],
+                        incremental=bool(_idx_phase.get("incremental")))
+        _print_prepare_summary(
+            pr_url=args.url,
+            task_dir=task_dir,
+            head_sha=head_sha,
+            worktree=task_dir / "code",
+            precis=pr_review_file(task_dir, "precis.md"),
+            status="Prepared inputs",
+        )
         return 0
 
     # ---------- Hand-off ----------
@@ -645,6 +729,7 @@ def _main_inner(args, parsed, task_dir, log) -> int:
         "rerank_enabled": not args.no_reranker and bool(get_cfg("reranker.enabled", default=True)),
         "embed_model": args.embed_model,
         "detailed": bool(args.detailed),
+        "deep": bool(args.deep),
     }
     next_steps = [
         f"agent: walk {task_dir / 'docs' / 'index.json'} — for each pending_mcp entry, fetch via the right MCP and write to its `path`.",
@@ -656,6 +741,12 @@ def _main_inner(args, parsed, task_dir, log) -> int:
             "agent (optional): if you've authored queries.json5, run "
             f"`python3 scripts/rerank.py --task-dir {task_dir} --build-queue --queries <q.json5> --out {task_dir}/rerank-queue.jsonl`, "
             f"score via your harness, then `--apply-scores ... --queue ... --out {task_dir}/rerank-final.jsonl`."
+        )
+    related = (queue_row or {}).get("related_pr_urls") or []
+    if related:
+        next_steps.append(
+            "agent: queue-context.json lists related_pr_urls from the same Slack thread; "
+            "inspect any existing related task dirs for cross-PR context before writing findings."
         )
     next_steps.append(f"python3 scripts/comment_resolver.py --task-dir {task_dir} --json")
     if triage_mode == "interactive":
@@ -692,23 +783,19 @@ def _main_inner(args, parsed, task_dir, log) -> int:
         )
     merge_flag = " --merge-if-approved" if args.merge_if_approved else ""
     next_steps.append(f"python3 scripts/report.py --task-dir {task_dir}{merge_flag}")
-    summary = {
-        "task_dir": str(task_dir),
-        "pr_url": args.url,
-        "host": host, "owner": owner, "repo": repo, "pr_number": n,
-        "head_sha": head_sha,
-        "worktree": str(task_dir / "code"),
-        "precis": str(pr_review_file(task_dir, "precis.md")),
-        "finding_template": str(THIS_DIR.parent / "finding.template.json"),
-        "skill_md": str(THIS_DIR.parent / "SKILL.md"),
-        "docs_index": str(task_dir / "docs" / "index.json"),
-        "incremental_reindex": bool(has_prior_index and changed_files),
-        "files_changed_since_last_index": len(changed_files),
-        "retrieval": retrieval_flags,
-        "triage_mode": triage_mode,
-        "next_steps": next_steps,
-    }
-    print(json.dumps(summary, indent=2))
+    narrate_summary(task_dir, status="ready for review (orchestrator phases 0-4a complete)",
+                    head_sha=head_sha[:12],
+                    incremental=bool(_idx_phase.get("incremental")))
+    _print_review_handoff(
+        pr_url=args.url,
+        task_dir=task_dir,
+        head_sha=head_sha,
+        worktree=task_dir / "code",
+        precis=pr_review_file(task_dir, "precis.md"),
+        retrieval=retrieval_flags,
+        triage_mode=triage_mode,
+        next_steps=next_steps,
+    )
     return 0
 
 
@@ -744,6 +831,8 @@ def build_precis(task_dir: Path, top_k: int, scope: str) -> str:
     scip = read_json(scip_meta_path) if scip_meta_path.exists() else None
     docs_idx_path = task_dir / "docs" / "index.json"
     docs_idx = read_json(docs_idx_path) if docs_idx_path.exists() else {"results": []}
+    queue_ctx_path = pr_review_file(task_dir, "queue-context.json")
+    queue_ctx = read_json(queue_ctx_path) if queue_ctx_path.exists() else {}
 
     # Changed files (best-effort: parse diff headers).
     changed_files: list[str] = []
@@ -828,6 +917,17 @@ def build_precis(task_dir: Path, top_k: int, scope: str) -> str:
     lines += ["",
               "**Before reviewing:** for every `pending_mcp` entry above, call the named MCP tool and write the result as markdown to the listed `path`. If the MCP is unreachable, mark `[mcp: skipped]` in the report.",
               ""]
+
+    related = queue_ctx.get("related_pr_urls") or []
+    if related:
+        lines += ["## Cross-PR context from the Slack thread"]
+        for u in related:
+            lines.append(f"- {u}")
+        lines += [
+            "",
+            "If a related task dir already exists under `~/.agents-devkit/skill-pr-review/`, inspect its `code/`, `diff.patch`, and `precis.md` only when the PRs appear to be the same feature, split PRs, or sync PRs.",
+            "",
+        ]
 
     lines += [f"## Existing comment threads ({len(threads)})"]
     for t in threads:

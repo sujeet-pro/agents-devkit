@@ -13,6 +13,9 @@ Rules:
     file using a structured template + the user's prs[] dumped clean.
   - Dedupe key: (host, repo, pr_number) — derived from pr_url. Different repos
     sharing a pr_number don't collide.
+  - Slack origin metadata is additive. `slack` keeps the first origin for
+    compatibility; `slack_threads` stores every distinct Slack thread for the
+    PR so downstream updates can fan out.
 
 Queue-row claim/release (for `/adk-pr-review` no-arg queue mode):
   - acquire_next_row(path) atomically picks the oldest non-terminal row whose
@@ -30,6 +33,7 @@ Public API:
   update_pr_entry(path, pr_url, updates: dict) → bool
   merge_scan_results(existing_queue, scanned_entries) → dict
   dedupe_key(pr_url) → (host, repo, pr_number)
+  slack_threads_for(entry) → list[dict]
   acquire_next_row(path) → dict | None
   release_row(path, pr_url, **post_updates) → bool
   find_row(path, pr_url) → dict | None
@@ -161,6 +165,77 @@ def _lock_path(path: Path) -> Path:
 
 def _now_iso() -> str:
     return datetime.now(tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def _slack_thread_key(slack: dict) -> tuple[str, str, str]:
+    """Stable identity for one Slack origin.
+
+    `thread_ts` is the fan-out target. When missing, fall back to `message_ts`
+    so legacy/incomplete rows still dedupe deterministically.
+    """
+    channel_id = str(slack.get("channel_id") or "")
+    thread_ts = str(slack.get("thread_ts") or slack.get("message_ts") or "")
+    permalink = str(slack.get("permalink") or "")
+    if channel_id or thread_ts:
+        return ("thread", channel_id, thread_ts)
+    if permalink:
+        return ("permalink", permalink, "")
+    return ("", "", "")
+
+
+def merge_slack_threads(
+    existing: list[dict] | None,
+    incoming: list[dict] | None,
+    *,
+    prefer_incoming: bool = False,
+) -> list[dict]:
+    """Merge Slack thread metadata preserving order and deduping by thread.
+
+    By default, existing user-edited values win and scanned values only fill
+    missing fields. `prefer_incoming=True` is for post-review updates such as
+    `slack_reply_ts`, where the fresh value must replace the stored one.
+    """
+    out: list[dict] = []
+    by_key: dict[tuple[str, str, str], dict] = {}
+
+    def add_one(item: dict | None, *, incoming_item: bool) -> None:
+        if not isinstance(item, dict) or not item:
+            return
+        copied = dict(item)
+        key = _slack_thread_key(copied)
+        if not any(key):
+            return
+        current = by_key.get(key)
+        if current is None:
+            out.append(copied)
+            by_key[key] = copied
+            return
+        if incoming_item and prefer_incoming:
+            current.update(copied)
+        else:
+            for sk, sv in copied.items():
+                current.setdefault(sk, sv)
+
+    for item in existing or []:
+        add_one(item, incoming_item=False)
+    for item in incoming or []:
+        add_one(item, incoming_item=True)
+    return out
+
+
+def slack_threads_for(entry: dict | None) -> list[dict]:
+    """Return all Slack origins for a row/context, including legacy `slack`."""
+    if not isinstance(entry, dict):
+        return []
+    explicit = entry.get("slack_threads")
+    threads = [dict(t) for t in explicit if isinstance(t, dict)] if isinstance(explicit, list) else []
+    legacy = entry.get("slack")
+    if isinstance(legacy, dict) and legacy:
+        if threads:
+            threads = merge_slack_threads(threads, [legacy])
+        else:
+            threads = [dict(legacy)]
+    return merge_slack_threads([], threads)
 
 
 def _parse_iso(ts: str | None) -> datetime | None:
@@ -298,6 +373,18 @@ def _apply_updates(entry: dict, updates: dict) -> None:
             cur = entry.get("slack") or {}
             cur.update(v)
             entry["slack"] = cur
+            entry["slack_threads"] = merge_slack_threads(
+                slack_threads_for(entry), [cur], prefer_incoming=True
+            )
+        elif k == "slack_threads" and isinstance(v, list):
+            threads = merge_slack_threads(
+                slack_threads_for(entry), v, prefer_incoming=True
+            )
+            if threads:
+                entry["slack_threads"] = threads
+                entry["slack"] = threads[0]
+            else:
+                entry.pop("slack_threads", None)
         elif k == "supporting_docs" and isinstance(v, list):
             cur = entry.get("supporting_docs") or []
             for url in v:
@@ -384,7 +471,9 @@ def acquire_next_row(path: Path) -> dict | None:
             return None
         eligible.sort(key=_pick_order_key)
         picked = eligible[0]
+        import socket
         picked["taken_at"] = _now_iso()
+        picked["taken_by"] = socket.gethostname()
         queue["prs"] = prs
         path.write_text(_dump_json5(queue), encoding="utf-8")
         return deepcopy(picked)
@@ -397,7 +486,7 @@ def release_row(path: Path, pr_url: str, **post_updates) -> bool:
         release_row(queue_path, pr_url,
                     status=STATUS_APPROVED, head_sha=..., last_checked_at=_now_iso())
     """
-    updates = {"taken_at": None, **post_updates}
+    updates = {"taken_at": None, "taken_by": None, **post_updates}
     return update_pr_entry(path, pr_url, updates)
 
 
@@ -432,9 +521,9 @@ def merge_scan_results(existing: dict, scanned: list[dict]) -> dict:
     Rules:
       - New PR (not in existing) → append as-is.
       - Existing PR + scanned-again:
-          - `slack`: if existing has no slack info, take scanned's. If both
-            present, prefer EXISTING (so a user-edited slack link wins) but
-            update missing fields from scanned (additive).
+          - `slack_threads`: append every distinct Slack thread. Existing
+            values win per thread; scanned values fill missing fields.
+          - `slack`: legacy alias for the first Slack thread.
           - `supporting_docs`: union (preserving order, existing first).
           - `status`, `last_checked_at`, `notes`, `taken_at`: PRESERVE existing.
           - `pr_url`: preserve existing (might be canonicalised differently).
@@ -472,8 +561,11 @@ def merge_scan_results(existing: dict, scanned: list[dict]) -> dict:
             }
             if sc.get("slack"):
                 new_entry["slack"] = sc["slack"]
+                new_entry["slack_threads"] = [dict(sc["slack"])]
             if sc.get("supporting_docs"):
                 new_entry["supporting_docs"] = list(sc["supporting_docs"])
+            if sc.get("related_pr_urls"):
+                new_entry["related_pr_urls"] = list(sc["related_pr_urls"])
             merged["prs"].append(new_entry)
             by_key[k] = new_entry
             added += 1
@@ -481,12 +573,14 @@ def merge_scan_results(existing: dict, scanned: list[dict]) -> dict:
             if existing_entry.get("status") == STATUS_MERGED:
                 skipped_merged += 1
                 continue
-            # Slack: keep existing, fill in any missing fields from scanned.
+            # Slack: keep every distinct origin, while preserving the legacy
+            # first-origin alias for older callers.
             if sc.get("slack"):
-                cur_slack = existing_entry.get("slack") or {}
-                for sk, sv in sc["slack"].items():
-                    cur_slack.setdefault(sk, sv)
-                existing_entry["slack"] = cur_slack
+                threads = merge_slack_threads(slack_threads_for(existing_entry),
+                                              [sc["slack"]])
+                if threads:
+                    existing_entry["slack_threads"] = threads
+                    existing_entry["slack"] = threads[0]
             # Supporting docs: union.
             if sc.get("supporting_docs"):
                 cur_docs = existing_entry.get("supporting_docs") or []
@@ -494,6 +588,12 @@ def merge_scan_results(existing: dict, scanned: list[dict]) -> dict:
                     if url not in cur_docs:
                         cur_docs.append(url)
                 existing_entry["supporting_docs"] = cur_docs
+            if sc.get("related_pr_urls"):
+                cur_related = existing_entry.get("related_pr_urls") or []
+                for url in sc["related_pr_urls"]:
+                    if url not in cur_related:
+                        cur_related.append(url)
+                existing_entry["related_pr_urls"] = cur_related
             refreshed += 1
 
     merged["_merge_summary"] = {"added": added, "refreshed": refreshed, "skipped_merged": skipped_merged}

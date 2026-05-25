@@ -35,7 +35,15 @@ sys.path.insert(0, str(THIS_DIR))
 ADK_PR_REVIEW_SCRIPTS = THIS_DIR.parent.parent / "adk-pr-review" / "scripts"
 sys.path.insert(0, str(ADK_PR_REVIEW_SCRIPTS))
 
-from _common import parse_pr_url, task_dir_for, die, get_logger  # noqa: E402
+from _common import (  # noqa: E402
+    die,
+    format_file_ref,
+    format_pr_ref,
+    get_logger,
+    parse_pr_url,
+    status_glyph,
+    task_dir_for,
+)
 from queue_io import (  # noqa: E402
     DEFAULT_QUEUE_PATH,
     read_queue, write_queue, update_pr_entry, find_row, merge_scan_results,
@@ -225,12 +233,15 @@ def cmd_clean(args) -> int:
     queue["prs"] = [e for e in prs if id(e) not in dropped_keys]
     write_queue(queue_path, queue)
 
-    print(json.dumps({
-        "dropped_rows": len(dropped_urls),
-        "removed_task_dirs": len(removed_dirs),
-        "failed_task_dirs": failed_dirs,
-        "queue": str(queue_path),
-    }, indent=2))
+    print(f"\n{'✅' if not failed_dirs else '⚠️'} pr-queue clean complete")
+    print(f"   ├─ queue: {format_file_ref(queue_path)}")
+    print(f"   ├─ dropped rows: {len(dropped_urls)}")
+    print(f"   ├─ removed task dirs: {len(removed_dirs)}")
+    print(f"   └─ failed task dirs: {len(failed_dirs)}")
+    for url in dropped_urls:
+        print(f"   ├─ 🧹 {format_pr_ref(url)}")
+    for failed in failed_dirs:
+        print(f"   ├─ ❌ {failed}")
     return 0
 
 
@@ -408,12 +419,52 @@ def _add_from_pr_url(pr_url: str, queue_path: Path, args, log) -> int:
     if find_row(queue_path, pr_url) is not None and not args.yes:
         print(f"{pr_url} already in queue. Re-run with -y to refresh in place.")
         return 2
-    merged = merge_scan_results(existing, [candidate])
+    slack_candidates, slack_lookup = _find_existing_slack_mentions(pr_url, log)
+    merged = merge_scan_results(existing, [candidate, *slack_candidates])
     merged.pop("_merge_summary", None)
     write_queue(queue_path, merged)
     print(json.dumps({"added": pr_url, "status": candidate["status"],
+                      "slack_lookup": slack_lookup,
                       "queue": str(queue_path)}, indent=2))
     return 0
+
+
+def _find_existing_slack_mentions(pr_url: str, log) -> tuple[list[dict], dict]:
+    """Best-effort Slack backfill for manually-added PR URLs.
+
+    Reuses the same configured channels/window/filter as `adk pr-scan`, then
+    keeps only candidates whose PR dedupe key matches the URL being added.
+    Slack/config/auth failures should not block a manual queue insert.
+    """
+    try:
+        from queue_io import dedupe_key, load_slack_config  # type: ignore[import-not-found]
+        from pr_scan import scan  # type: ignore[import-not-found]
+        from slack_helpers import days_ago_ts  # type: ignore[import-not-found]
+        target_key = dedupe_key(pr_url)
+        slack_cfg = load_slack_config(None)
+        if not slack_cfg.get("channels"):
+            return [], {"status": "skipped", "reason": "slack config has no channels"}
+        if not slack_cfg.get("url_patterns"):
+            return [], {"status": "skipped", "reason": "slack config has no url_patterns"}
+        default_days = int(slack_cfg.get("scan_days_default", 14))
+        candidates, stats = scan(slack_cfg, days_ago_ts(default_days), log)
+    except SystemExit as e:
+        return [], {"status": "skipped", "reason": str(e)}
+    except Exception as e:
+        return [], {"status": "skipped", "reason": str(e)}
+
+    matches: list[dict] = []
+    for candidate in candidates:
+        try:
+            if dedupe_key(candidate.get("pr_url", "")) == target_key:
+                matches.append(candidate)
+        except ValueError:
+            continue
+    return matches, {
+        "status": "matched" if matches else "not_found",
+        "matches": len(matches),
+        "scan": stats,
+    }
 
 
 def _add_from_slack_permalink(url: str, slack_info: dict, queue_path: Path, args, log) -> int:
@@ -456,6 +507,22 @@ def _add_from_slack_permalink(url: str, slack_info: dict, queue_path: Path, args
     main_prs = find_pr_urls(main_text, url_patterns)
     all_text = main_text + "\n" + "\n".join((r.get("text") or "") for r in replies)
     supporting = find_supporting_docs(all_text)
+    reply_pr_counts = [
+        len(find_pr_urls(r.get("text") or "", url_patterns))
+        for r in replies
+    ]
+    thread_pr_count = len(main_prs) + sum(reply_pr_counts)
+    thread_pr_urls: list[str] = []
+    for pr_url in main_prs:
+        if pr_url not in thread_pr_urls:
+            thread_pr_urls.append(pr_url)
+    for rep in replies:
+        for pr_url in find_pr_urls(rep.get("text") or "", url_patterns):
+            if pr_url not in thread_pr_urls:
+                thread_pr_urls.append(pr_url)
+
+    def related_pr_urls(pr_url: str) -> list[str]:
+        return [u for u in thread_pr_urls if u != pr_url]
 
     candidates: list[dict] = []
     main_permalink = client.get_message_permalink(cid, thread_ts)
@@ -463,10 +530,12 @@ def _add_from_slack_permalink(url: str, slack_info: dict, queue_path: Path, args
         candidates.append({
             "pr_url": pr_url,
             "supporting_docs": supporting,
+            "related_pr_urls": related_pr_urls(pr_url),
             "slack": _slack_for(
                 pr_url, channel_id=cid, message_ts=thread_ts, thread_ts=thread_ts,
                 thread_starter_user_id=main.get("user"), link_origin="main",
                 n_pr_links_in_message=len(main_prs), permalink=main_permalink,
+                thread_pr_count=thread_pr_count,
             ),
         })
     for rep in replies:
@@ -480,10 +549,12 @@ def _add_from_slack_permalink(url: str, slack_info: dict, queue_path: Path, args
             candidates.append({
                 "pr_url": pr_url,
                 "supporting_docs": supporting,
+                "related_pr_urls": related_pr_urls(pr_url),
                 "slack": _slack_for(
                     pr_url, channel_id=cid, message_ts=rep_ts, thread_ts=thread_ts,
                     thread_starter_user_id=main.get("user"), link_origin="reply",
                     n_pr_links_in_message=len(rep_prs), permalink=rep_permalink,
+                    thread_pr_count=thread_pr_count,
                 ),
             })
 
@@ -560,6 +631,30 @@ def _refresh_one(pr_url: str, entry: dict, *, queue_path: Path, log) -> dict:
     }
 
 
+def _print_update_all_summary(results: list[dict]) -> None:
+    unchanged = [r for r in results if r.get("head_unchanged") is True
+                 and not r.get("merged") and not r.get("closed")
+                 and r.get("status") != "failed"]
+    moved = [r for r in results if r.get("head_unchanged") is False
+             and not r.get("merged") and not r.get("closed")
+             and r.get("status") != "failed"]
+    merged = [r for r in results if r.get("merged")]
+    closed = [r for r in results if r.get("closed")]
+    failed = [r for r in results if r.get("status") == "failed"]
+
+    def urls(rows: list[dict]) -> str:
+        sample = [r.get("pr_url", "?") for r in rows[:3]]
+        extra = "" if len(rows) <= 3 else f"  (+{len(rows) - 3} more)"
+        return ("  " + "  ".join(sample) + extra) if sample else ""
+
+    print(f"{len(results)} rows refreshed")
+    print(f"  ✓  {len(unchanged)} unchanged{urls(unchanged)}")
+    print(f"  ↪  {len(moved)} head changed{urls(moved)}")
+    print(f"  ↪  {len(merged)} merged{urls(merged)}")
+    print(f"  ↪  {len(closed)} closed{urls(closed)}")
+    print(f"  ⚠  {len(failed)} failed{urls(failed)}")
+
+
 def cmd_update(args) -> int:
     queue_path = Path(args.queue).expanduser()
     log = get_logger("pr-queue-update")
@@ -572,9 +667,9 @@ def cmd_update(args) -> int:
         candidates = [e for e in prs
                       if (e.get("status") or STATUS_PENDING) not in TERMINAL_STATUSES]
         if not candidates:
-            print(json.dumps({"updated": [],
-                              "reason": "no rows to refresh (all merged or closed)"},
-                             indent=2))
+            print("\n✅ pr-queue update complete")
+            print(f"   ├─ queue: {format_file_ref(queue_path)}")
+            print("   └─ no rows to refresh (all merged or closed)")
             return 0
         log.info("refreshing %d row(s) (metadata only)", len(candidates))
         results: list[dict] = []
@@ -587,8 +682,11 @@ def cmd_update(args) -> int:
             if r.get("status") == "failed":
                 had_failure = True
             results.append(r)
-        print(json.dumps({"updated": results, "count": len(results)},
-                         indent=2, default=str))
+        if getattr(args, "json", False):
+            print(json.dumps({"updated": results, "count": len(results)},
+                             indent=2, default=str))
+        else:
+            _print_update_all_summary(results)
         return 1 if had_failure else 0
 
     if not args.pr_url:
@@ -659,7 +757,7 @@ def get_next_eligible(queue_path: Path, *, validate: bool = True,
         verdict = classify_pr_state(meta)
         if verdict in {"merged", "closed"}:
             # Release the claim we just took, then drop the row entirely.
-            update_pr_entry(queue_path, pr_url, {"taken_at": None})
+            update_pr_entry(queue_path, pr_url, {"taken_at": None, "taken_by": None})
             _drop_terminal_row(queue_path, pr_url, verdict, log)
             continue
         # Refresh head_sha so the row reflects the API's current view, then
@@ -684,7 +782,24 @@ def _cmd_remind(args) -> int:
         threshold_hours=args.threshold_hours,
         dry_run=args.dry_run,
     )
-    print(json.dumps(out, indent=2, default=str))
+    reminded = out.get("reminded") or out.get("posted") or []
+    skipped = out.get("skipped") or []
+    failed = out.get("failed") or []
+    mode = "dry run" if args.dry_run else "complete"
+    print(f"\n{'✅' if not failed else '⚠️'} pr-queue remind {mode}")
+    print(f"   ├─ reminded: {len(reminded)}")
+    print(f"   ├─ skipped: {len(skipped)}")
+    print(f"   └─ failed: {len(failed)}")
+    for item in reminded:
+        url = item.get("pr_url") if isinstance(item, dict) else str(item)
+        print(f"   ├─ 💬 {format_pr_ref(url)}")
+    for item in failed:
+        if isinstance(item, dict):
+            url = item.get("pr_url") or item.get("url") or ""
+            reason = item.get("reason") or item.get("error") or item
+            print(f"   ├─ ❌ {format_pr_ref(url)} · {reason}")
+        else:
+            print(f"   ├─ ❌ {item}")
     return 1 if out.get("failed") else 0
 
 
@@ -735,7 +850,8 @@ def cmd_claim(args) -> int:
     # Even with --force, never break a TRULY fresh lock (within the last minute).
     if _is_locked(entry, now) and args.force:
         log.warning("--force overriding active lock on %s", args.pr_url)
-    updates = {"taken_at": _now_iso()}
+    import socket
+    updates = {"taken_at": _now_iso(), "taken_by": socket.gethostname()}
     # Don't downgrade status if it's already in_review / past it.
     cur = entry.get("status") or ""
     if cur in {"pending", "reviewed", "comments", "reminded", "error", ""}:
@@ -786,7 +902,7 @@ def cmd_set_status(args) -> int:
 def cmd_release(args) -> int:
     """v4 §6.v: clear taken_at. Optionally set a terminal status with --status."""
     queue_path = Path(args.queue).expanduser()
-    updates = {"taken_at": None}
+    updates = {"taken_at": None, "taken_by": None}
     status = getattr(args, "status", None)
     if status:
         updates["status"] = status
@@ -836,6 +952,8 @@ def main(argv: list[str] | None = None) -> int:
     sp_upd.add_argument("--all", action="store_true",
                         help="refresh every non-terminal row in the queue; "
                              "continues past per-row failures and exits 1 if any failed")
+    sp_upd.add_argument("--json", action="store_true",
+                        help="emit full per-row refresh payload instead of a compact summary")
     sp_upd.add_argument("-y", "--yes", action="store_true")
     sp_upd.set_defaults(func=cmd_update)
 

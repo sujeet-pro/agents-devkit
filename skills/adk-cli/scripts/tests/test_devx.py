@@ -174,7 +174,36 @@ def test_slack_summary_blockers_listed(pc_mod):
     assert "Items to fix:" in out
     assert "Auth bypass" in out
     assert "SQL injection" in out
+    assert "Blocking comments" in out
+    assert "speech_balloon" in out
+    assert "Changes requested" not in out
+
+
+def test_slack_summary_says_changes_requested_only_when_host_state_matches(pc_mod):
+    pr = dict(_pr(), reviewDecision="CHANGES_REQUESTED")
+    out = pc_mod.format_slack_summary(
+        pr=pr,
+        findings_blob={"recommendation": "request_changes", "findings": [
+            {"severity": "blocker", "title": "Auth bypass", "file": "a.py", "line_start": 1},
+        ]},
+        approve_ready=False, actions=[],
+    )
+    assert "Changes requested" in out
     assert "octagonal_sign" in out
+
+
+def test_slack_summary_includes_mergeability_and_failing_checks(pc_mod):
+    pr = dict(_pr(), mergeable=False, checks={"state": "failing", "failing": ["build", "lint"]})
+    out = pc_mod.format_slack_summary(
+        pr=pr,
+        findings_blob={"recommendation": "approve", "findings": []},
+        approve_ready=True, actions=[],
+    )
+    assert "Mergeability" in out
+    assert "not mergeable" in out
+    assert "Checks" in out
+    assert "build" in out
+    assert "lint" in out
 
 
 def test_slack_summary_truncates_long_blocker_lists(pc_mod):

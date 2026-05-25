@@ -12,7 +12,8 @@
 3. **`~/.agents-devkit/config/core.yaml`** (user/company truth — workspaces, defaults, RAG config, learning state) + **`~/.agents-devkit/config/repos.md`** (repos) + **`~/.agents-devkit/config/connectors/*.md`** (one per data source) + **`~/.agents-devkit/config/links.json5`** (entity graph)
 4. **`<this-repo>/shared/constitution.md`** (universal hard rules)
 5. **The triggered skill's `SKILL.md`** (loaded after step 6 routes)
-6. **`<this-repo>/shared/guidelines/*.md`** — load only the guideline files relevant to the task type identified in step 6 below
+6. **`<this-repo>/shared/model-depth.md`** when the prompt or skill args mention `--detailed`, `--deep`, planning, ambiguous model choice, or large/complex work
+7. **`<this-repo>/shared/guidelines/*.md`** — load only the guideline files relevant to the task type identified in step 6 below
 
 Lower-priority statements never override higher-priority ones. When two sources conflict, prefer the more local one and surface the conflict in the final report.
 
@@ -176,6 +177,7 @@ The user's `--auto` flag does **not** waive these. They require a per-invocation
 - Advisor wrapper: `shared/advisor.md`
 - Question-first contract: `shared/question-first.md`
 - Decision-log schema: `shared/decision-log-schema.md`
+- Model depth: `shared/model-depth.md`
 - Personas: `shared/personas/*.md`
 - Workflows: `shared/workflows/*.md`
 - Input classifiers: `shared/input-classifiers/*.md`

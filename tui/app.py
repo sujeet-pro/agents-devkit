@@ -391,7 +391,6 @@ class AdkApp(App):
     def action_sync(self) -> None:
         busy = self._busy_label()
         if busy == "sync":
-            # Preserve legacy message for s-while-s-running (matches existing test).
             self.query_one(LogPane).write("(sync already running — wait or quit and restart)")
             return
         if busy is not None:

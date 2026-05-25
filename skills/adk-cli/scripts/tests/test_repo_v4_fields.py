@@ -47,7 +47,6 @@ def test_branch_meta_includes_v4_fields(tmp_path, monkeypatch):
     assert bm["created_at"] == "2026-05-21T09:00:00Z"
     assert bm["last_used_at"] == "2026-05-21T10:00:00Z"
     assert bm["last_indexed_sha"] == "abc123"
-    # Legacy alias also preserved for back-compat with pre-v4 readers.
     assert bm["last_indexed_oid"] == "abc123"
 
 

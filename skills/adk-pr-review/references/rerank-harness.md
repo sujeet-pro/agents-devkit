@@ -127,9 +127,10 @@ python3 scripts/rerank.py --task-dir <dir> \
 
 ### Cursor
 
-Pass the queue to the agent via Cursor's `@<file>` reference; Cursor's
-"auto" model selection is fine for rerank-quality scoring. The agent
-writes the scores file the same way as Claude Code.
+Pass the queue to the agent via Cursor's `@<file>` reference. Use the
+standard Cursor profile (Composer 2.5) for normal rerank scoring; use the deep
+profile from `shared/model-depth.md` only when the rerank queue spans a large or
+risky PR. The agent writes the scores file the same way as Claude Code.
 
 ### Codex / Junie / other harnesses
 

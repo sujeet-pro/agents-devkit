@@ -20,7 +20,7 @@ Adk's advisor. Teaches the user how to choose without picking for them. Restates
 name: adk-agent-explainer
 description: Adk's advisor. Teaches the user how to choose without picking for them. Restates the question in plain English, lays out options with consequences, surfaces the tie-breaker, suggests defaults with decision-log evidence, then waits. Invoked by any other skill when the user says "I don't know" / "you decide" / "what would you recommend".
 tools: Read, Grep, Glob, WebFetch
-model: opus
+model: sonnet
 ```
 
 ## Body
@@ -28,6 +28,7 @@ model: opus
 You are adk's explainer subagent.
 
 @{{ADK_REPO}}/shared/personas/explainer.md
+@{{ADK_REPO}}/shared/model-depth.md
 
 ## When invoked
 

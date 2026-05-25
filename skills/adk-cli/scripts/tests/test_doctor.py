@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import io
 from contextlib import redirect_stdout
+from pathlib import Path
 
 import pytest
 
@@ -63,6 +64,29 @@ def test_main_returns_1_on_warn_with_strict(monkeypatch):
     with redirect_stdout(buf):
         rc = doctor.main(["--strict", "--json"])
     assert rc == 1
+
+
+def test_completion_checks_include_zsh_file(monkeypatch, tmp_path):
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+    results = doctor.completion_checks()
+    labels = {r["label"] for r in results}
+    assert "zsh completion file" in labels
+    assert "zsh completion registered" in labels
+
+
+def test_main_completion_uses_completion_checks(monkeypatch):
+    monkeypatch.setattr(doctor, "completion_checks", lambda: [
+        {"status": doctor.PASS, "label": "completion-only", "detail": ""},
+    ])
+    monkeypatch.setattr(doctor, "all_checks", lambda: [
+        {"status": doctor.FAIL, "label": "full-check", "detail": ""},
+    ])
+    buf = io.StringIO()
+    with redirect_stdout(buf):
+        rc = doctor.main(["--completion", "--json"])
+    assert rc == 0
+    assert "completion-only" in buf.getvalue()
+    assert "full-check" not in buf.getvalue()
 
 
 if __name__ == "__main__":

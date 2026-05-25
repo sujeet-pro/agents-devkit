@@ -30,14 +30,22 @@ from adk_common import (  # noqa: E402  (sys.path insertion above)
     ADK_HOME,
     REPOS_ROOT,
     LockHeldError,
+    RunDashboard,
+    RunEvent,
     branch_meta_path_for,
     branch_worktree_for,
     clone_lock_for,
     deep_merge,
-    _deep_merge,  # back-compat alias for the legacy underscore name
+    emit_event,
     emit_json,
+    extract_failure_reason,
     file_lock,
+    format_file_ref,
+    format_pr_ref,
     get_logger,
+    is_orchestrated,
+    is_verbose,
+    parse_event_line,
     read_json,
     repo_branch_dir,
     repo_clone_for,
@@ -47,6 +55,9 @@ from adk_common import (  # noqa: E402  (sys.path insertion above)
     run_ok,
     sha1_hex,
     sha256_hex,
+    status_glyph,
+    summarize_items,
+    terminal_link,
     try_file_lock,
     which,
     write_json,
@@ -144,6 +155,91 @@ def mark_phase(task_dir: Path, phase: str, status: str, **extra: Any) -> None:
     entry.update(extra)
     phases[phase] = entry
     write_state(task_dir, state)
+
+
+# ----- narration ------------------------------------------------------------
+#
+# User-visible phase narration. The orchestrator (prepare_task.py) runs as a
+# single subprocess under `claude -p`, so the agent only sees the captured
+# stdout after the run finishes. We therefore emit narration to TWO places:
+#
+#   1. stdout — clean, prefix-tagged lines so the agent can quote them
+#      verbatim back to the user. Each line is its own row; the agent's
+#      The human summary at the end is separate from these progress lines.
+#   2. `<task_dir>/narration.log` — a small append-only sidecar the user
+#      can `tail -f` in another terminal to watch progress live.
+#
+# Both write the same content; the sidecar lets the user observe in real
+# time, the stdout copy survives in the Bash tool output so the agent can
+# relay it to the user at end of run.
+
+_NARRATE_PREFIX = "[narrate]"
+_PHASE_STARTS: dict[str, float] = {}  # phase_id -> monotonic start time
+
+
+def _narrate_write(task_dir: Path | None, line: str) -> None:
+    """Print to stdout AND append to task_dir/narration.log if available.
+    Flushes so users tail -f'ing the log see updates immediately."""
+    print(line, flush=True)
+    if task_dir is None:
+        return
+    try:
+        task_dir.mkdir(parents=True, exist_ok=True)
+        with (task_dir / "narration.log").open("a", encoding="utf-8") as fh:
+            fh.write(line + "\n")
+    except OSError:
+        # Sidecar is best-effort; never block the run on a write failure.
+        pass
+
+
+def narrate_banner(task_dir: Path, url: str | None = None) -> None:
+    """Header line emitted once at start of a run. Tells the agent (and any
+    human watching the sidecar) what's about to happen + where the full log
+    lives. Format is intentionally one line per piece of info so SKILL.md
+    can quote them verbatim without reflow."""
+    title = format_pr_ref(url) if url else str(task_dir)
+    _narrate_write(task_dir, f"{_NARRATE_PREFIX} 🔎 Working on {title}")
+    _narrate_write(task_dir, f"{_NARRATE_PREFIX}   ├─ 📁 task: {format_file_ref(task_dir)}")
+    _narrate_write(task_dir, f"{_NARRATE_PREFIX}   ├─ 📓 full log: {format_file_ref(task_dir / 'review.log')}")
+    _narrate_write(task_dir, f"{_NARRATE_PREFIX}   └─ 👀 live trace: {format_file_ref(task_dir / 'narration.log')}")
+
+
+def narrate_start(task_dir: Path, phase: str, desc: str) -> None:
+    """Emit a `phase-start` event. `phase` is the stable ID (e.g. `1a`); `desc`
+    is the human-readable name."""
+    _PHASE_STARTS[phase] = time.monotonic()
+    _narrate_write(task_dir, f"{_NARRATE_PREFIX}   ├─ ▶️  Phase {phase:<3} {desc}")
+
+
+def narrate_done(task_dir: Path, phase: str, *, status: str = "ok",
+                 note: str | None = None) -> None:
+    """Emit a `phase-done` event with duration. `status` is one of
+    ok / skipped / failed; `note` is an optional appendage like
+    `(incremental, 12 files)` or `(head a2ab692a4db6)`."""
+    started = _PHASE_STARTS.pop(phase, None)
+    if started is not None:
+        elapsed = time.monotonic() - started
+        dur = f"{elapsed:>4.0f}s" if elapsed >= 1.0 else f"{elapsed*1000:>3.0f}ms"
+    else:
+        dur = "    "
+    suffix = f"  ({note})" if note else ""
+    _narrate_write(
+        task_dir,
+        f"{_NARRATE_PREFIX}   │  {status_glyph(status)} Phase {phase:<3} {status:<7} {dur}{suffix}",
+    )
+
+
+def narrate_summary(task_dir: Path, *, status: str, head_sha: str | None = None,
+                    incremental: bool | None = None) -> None:
+    """Emit the closing block — exit verdict + reminder of where the full
+    log lives. The agent surfaces this verbatim to the user."""
+    _narrate_write(task_dir, f"{_NARRATE_PREFIX}   └─ 🧾 {status}")
+    if head_sha:
+        _narrate_write(task_dir, f"{_NARRATE_PREFIX}      ├─ head: {head_sha}")
+    if incremental is not None:
+        _narrate_write(task_dir, f"{_NARRATE_PREFIX}      ├─ index: "
+                                 f"{'incremental' if incremental else 'full'}")
+    _narrate_write(task_dir, f"{_NARRATE_PREFIX}      └─ log: {format_file_ref(task_dir / 'review.log')}")
 
 
 # ----- die ------------------------------------------------------------------

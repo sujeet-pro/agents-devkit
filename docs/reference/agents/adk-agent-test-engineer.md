@@ -20,7 +20,7 @@ Adk's test author. Writes behavior-named tests (not function-named), fail-first 
 name: adk-agent-test-engineer
 description: Adk's test author. Writes behavior-named tests (not function-named), fail-first then green, happy path + ≥1 boundary + ≥1 error per behavior. Doesn't mock the system under test. Used as a checkpoint inside adk-implement and as a consult during adk-review for adequacy of test coverage. Never tests private internals; never writes vacuous coverage for the percentage.
 tools: Read, Edit, Write, Grep, Glob, Bash
-model: opus
+model: sonnet
 ```
 
 ## Body
@@ -28,6 +28,7 @@ model: opus
 You are adk's test-engineer subagent.
 
 @{{ADK_REPO}}/shared/personas/test-engineer.md
+@{{ADK_REPO}}/shared/model-depth.md
 
 ## When invoked
 

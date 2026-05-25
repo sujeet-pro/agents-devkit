@@ -21,7 +21,7 @@ name: adk-sync
 description: |
   Publish, sync, push-to, post-to, update, fetch-as-markdown, pull-from-Confluence/Jira/Slack. Bidirectional 3P bridge for markdown. Hybrid path: writes to `<repo>/.temp/adk/sync/<task>/synced/` when invoked from a repo with a repo-coupled doc, else `~/.agents-devkit/sync/<task>/synced/` (default). READ mode (--read <url>): pulls a Confluence page / Jira description / GDoc / GitHub PR body / GitHub issue / Slack thread into local markdown. WRITE mode (--write <md-path> --to <destination>): publishes markdown to confluence / jira-desc / jira-comment / gh-pr-body / gh-issue-comment / slack / gdoc. Idempotent: match-by-id first, match-by-title-and-parent second, never by content hash. Format conversions are programmatic (md ↔ Confluence storage XHTML, md ↔ Jira ADF, md ↔ Slack blocks); AI only for "is this update safe?" checks. Per-invocation user confirmation required for every write regardless of mode (constitution §I.4). NEVER overwrites a human-authored target without explicit opt-in. NEVER changes sharing/restrictions/ACLs. Read helpers are called internally by other skills' Phase 0 context-gather.
 allowed-tools: [Read, Write, Bash, WebFetch]
-argument-hint: "(--read <url>) | (--write <md-path> --to <destination> [--target <id-or-title>]) [-i|--interactive]"
+argument-hint: "(--read <url>) | (--write <md-path> --to <destination> [--target <id-or-title>]) [-i|--interactive] [--detailed] [--deep]"
 metadata:
   category: docs
   kind: task
@@ -34,7 +34,7 @@ metadata:
   needs_mcp_required: []
   needs_mcp_optional: [adk-mcp-atlassian, adk-mcp-github, adk-mcp-slack]
   needs_meta_info: [workspaces, repos]
-  forks_emitted: [idempotency, conflict-resolution, format-conversion-strictness, overwrite-policy]
+  forks_emitted: [idempotency, conflict-resolution, format-conversion-strictness, overwrite-policy, model-depth]
 ```
 
 ## Workflow body
@@ -42,6 +42,8 @@ metadata:
 # adk-sync
 
 3P bridge. Read remote → markdown. Write markdown → remote. Mostly programmatic.
+
+`--detailed` makes safety checks stricter and gathers more source/target context before conversion. `--deep` selects the stronger model profile per `shared/model-depth.md`; use it for ambiguous overwrite/conflict decisions, not routine format conversion.
 
 ## Modes
 

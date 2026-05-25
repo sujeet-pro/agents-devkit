@@ -123,13 +123,25 @@ cd ~/code/agents-devkit
 
 The installer:
 
-1. Creates `~/.agents-devkit/config/` if missing. The conversational scaffolding (core.yaml, repos.md, connectors/*.md, links.json5, settings.json5) is then done by `/adk-setup --init` — see §4.
-2. Symlinks skills + agents + commands into each detected agent's config dir. Junie now gets the full `skills/adk-*` set under `~/.junie/skills/` (same auto-discovery model as Claude Code).
-3. **Replaces** each agent's MCP server list with the `mcp/*.json` adk set: Claude → `~/.claude.json`, Cursor → `~/.cursor/mcp.json`, Codex → `~/.codex/config.toml` (marker block), Junie → `~/.junie/mcp/mcp.json`. Any pre-configured user MCPs are stashed under `_adkRemovedMcpServers` and put back on `--uninstall`.
-4. Merges `shared/permissions/*` into each agent's settings file so all safe / read tool calls are auto-approved and only dangerous actions prompt. See `shared/permissions/README.md`.
-5. Appends a one-line reference to `AGENTS.md` in each agent's global guidelines file.
-6. Seeds `~/.agents-devkit/improve/learning/decisions.jsonl` with foundational design decisions (your earlier Q&A) so the first `/adk-improve` run has evidence.
-7. Prints a verification table.
+1. Enforces an ADK-only agent profile before installing fresh files. It removes non-ADK skills/rules/prompts/MCP descriptor caches from Cursor, Claude, Codex, and Junie; deletes non-ADK plugin/import caches; and quarantines legacy ADK v2/v3 state under `~/.agents-devkit/legacy/<timestamp>/`.
+2. Creates `~/.agents-devkit/config/` if missing. The conversational scaffolding (core.yaml, repos.md, connectors/*.md, links.json5, settings.json5) is then done by `/adk-setup --init` — see §4.
+3. Symlinks skills + agents + commands into each detected agent's config dir wherever the agent supports symlinks. Junie command files and JSON/TOML config are generated deterministically because those formats need rendered content.
+4. **Replaces** each agent's MCP server list with the `mcp/*.json` adk set: Claude → `~/.claude.json`, Cursor → `~/.cursor/mcp.json`, Codex → `~/.codex/config.toml` (marker block), Junie → `~/.junie/mcp/mcp.json`. Any pre-configured user MCPs are stashed under `_adkRemovedMcpServers` and put back on `--uninstall`.
+5. Merges `shared/permissions/*` into each agent's settings file so all safe / read tool calls are auto-approved and only dangerous actions prompt. See `shared/permissions/README.md`.
+6. Appends a one-line reference to `AGENTS.md` in each agent's global guidelines file.
+7. Seeds `~/.agents-devkit/improve/learning/decisions.jsonl` with foundational design decisions (your earlier Q&A) so the first `/adk-improve` run has evidence.
+8. Prints a JSON manifest of cleanup + install actions. In `--dry-run`, the same manifest is emitted with `would-*` statuses and no filesystem changes.
+
+### ADK-only cleanup and repeatability
+
+`install.sh` is safe to run repeatedly. Each run first clears stale/non-ADK agent integrations, then recreates the ADK state from `~/personal/agents-devkit`.
+
+- Cursor: keeps only `~/.cursor/rules/_adk.mdc` and `~/.cursor/rules/adk-*.mdc`, removes Cursor skill/plugin caches, clears per-project MCP descriptor caches, and rewrites `~/.cursor/mcp.json` from `mcp/adk-mcp-*.json`.
+- Claude: keeps only `adk-*` skills/agents/commands, removes plugin registries/caches/marketplaces, deduplicates ADK hooks, and rewrites `~/.claude.json` from `mcp/adk-mcp-*.json`.
+- Codex: keeps only `adk-*` prompts, removes bundled/imported plugin skill caches, removes non-ADK MCP blocks from `~/.codex/config.toml`, then rewrites the ADK marker blocks.
+- Junie: keeps only `adk-*` skills/commands, removes bundled/custom non-ADK skills, and rewrites `~/.junie/mcp/mcp.json`.
+
+The cleanup is allowlisted to agent config directories and explicitly avoids credential stores such as `~/.config/creds`.
 
 ### Tool-call permissions
 

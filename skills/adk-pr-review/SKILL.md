@@ -1,16 +1,16 @@
 ---
 name: adk-pr-review
 description: |
-  Deep PR review: tree-sitter AST chunking + ollama embeddings + LanceDB hybrid (vector + BM25) retrieval + SCIP cross-file symbols + harness-LLM reranker + feature-flow tracing + accept/reject/edit triage before posting. Triggers on a GitHub or Bitbucket Cloud pull-request URL OR no arg at all — when no URL is passed, the next eligible row from `~/.agents-devkit/config/pr-queue.json5` is atomically claimed (FIFO by last_checked_at, 30-min auto-expiring `taken_at` lock so two terminals review different PRs). Curate the queue via `adk pr-scan` (scans Slack threads for PR links — main message AND replies — and upserts rows). When a URL is passed and that PR is already in the queue, the row's `slack` + `supporting_docs` are merged into the review context. **Global skill** — runs from anywhere; isolates to `~/.agents-devkit/skill-pr-review/<repo>_pr-<n>/` (per `shared/paths.md`); never touches the cwd. Pipeline: clone+worktree at the PR head, tree-sitter chunker → ollama embed (`nomic-embed-text` default, `bge-m3` via `--detailed`) → LanceDB w/ FTS index, optional SCIP indices when scip-typescript/python/go/java are on PATH, hybrid query merge (vector + BM25) → optional harness-LLM rerank (JSONL queue contract; harness picks the model) → findings.json. Triage step before posting: in `-i`/`--interactive` mode the user walks each finding accept/reject/edit (edits go through an iterative LLM rewrite loop driven by the harness). Posts via adk-mcp-bitbucket / adk-mcp-github after explicit confirmation. At the tail of every review, the queue row is updated (status, head_sha, last_checked_at, taken_at cleared), Slack reactions are reconciled, and the cumulative `ready-to-merge` list is printed. Heavyweight. For lightweight review, use `/adk-review`.
+  Deep PR review: tree-sitter AST chunking + ollama embeddings + LanceDB hybrid (vector + BM25) retrieval + SCIP cross-file symbols + harness-LLM reranker + feature-flow tracing + accept/reject/edit triage before posting. Triggers on a GitHub or Bitbucket Cloud pull-request URL OR no arg at all — when no URL is passed, the next eligible row from `~/.agents-devkit/config/pr-queue.json5` is atomically claimed (FIFO by last_checked_at, 30-min auto-expiring `taken_at` lock so two terminals review different PRs). Curate the queue via `adk pr-scan` (scans Slack threads for PR links — main message AND replies — and upserts rows). When a URL is passed and that PR is already in the queue, the row's `slack` + `supporting_docs` are merged into the review context. **Global skill** — runs from anywhere; isolates to `~/.agents-devkit/skill-pr-review/<repo>_pr-<n>/` (per `shared/paths.md`); never touches the cwd. Pipeline: clone+worktree at the PR head, tree-sitter chunker → ollama embed (`nomic-embed-text` default, `bge-m3` via `--detailed`) → LanceDB w/ FTS index, optional SCIP indices when scip-typescript/python/go/java are on PATH, hybrid query merge (vector + BM25) → optional harness-LLM rerank (JSONL queue contract; harness picks the model) → findings.json. `--detailed` controls retrieval inputs; `--deep` controls the review model profile and may be auto-selected for large PRs. Triage step before posting: in `-i`/`--interactive` mode the user walks each finding accept/reject/edit (edits go through an iterative LLM rewrite loop driven by the harness). Posts via adk-mcp-bitbucket / adk-mcp-github after explicit confirmation. At the tail of every review, the queue row is updated (status, head_sha, last_checked_at, taken_at cleared), Slack reactions are reconciled, and the cumulative `ready-to-merge` list is printed. Heavyweight. For lightweight review, use `/adk-review`.
 allowed-tools: [Read, Grep, Glob, Bash, WebFetch, Agent]
-argument-hint: "[<pr-url>] [-i|--interactive] [--detailed] [--no-hybrid] [--no-reranker] [--no-triage] [--no-post] [--no-resolve-existing] [--embed-model <name>] [--scope security|correctness|tests|all] [--queue <path>]"
+argument-hint: "[<pr-url>] [-i|--interactive] [--detailed] [--deep] [--no-hybrid] [--no-reranker] [--no-triage] [--no-post] [--no-resolve-existing] [--embed-model <name>] [--scope security|correctness|tests|all] [--queue <path>]"
 metadata:
   category: code
   kind: task
   layer: 1
   paths: ["**/*.{ts,tsx,js,jsx,py,go,rs,java,rb,php,cs,kt,swift,c,cpp,h,hpp,sh,sql,yaml,yml,json,toml,md}"]
-  model: opus
-  effort: high
+  model: sonnet
+  effort: medium
   user-invocable: true
   disable-model-invocation: false
   needs_mcp_required: []
@@ -18,7 +18,7 @@ metadata:
   needs_meta_info: [workspaces, repos]
   needs_cli: [git, ollama, gh]
   needs_cli_optional: [scip-typescript, scip-python, scip-go, scip-java]
-  forks_emitted: [severity-bar, dimensions, scope, post-policy, resolve-policy, embed-model]
+  forks_emitted: [severity-bar, dimensions, scope, post-policy, resolve-policy, embed-model, model-depth]
 ---
 
 # adk-pr-review — heavyweight PR review with code context
@@ -30,6 +30,10 @@ metadata:
 - **Inputs**: either one GitHub / Bitbucket Cloud pull-request URL, or no argument (drains one row from the queue at `~/.agents-devkit/config/pr-queue.json5`). Bitbucket Server / GitLab / self-hosted forges are out of scope (constitution §VI.1).
 - **Output**: `findings.json` (schema in `finding.template.json`) + `findings.md` (human-readable) + `report.md` (1-page summary with PR link). On confirm, posts inline review comments via MCP; resolves/reopens existing review comments by classification. Tail of `report.py`: updates the queue row (status / head_sha / last_checked_at / clears `taken_at`), reconciles Slack reactions, and prints the cumulative ready-to-merge list.
 - **Working dir**: `~/.agents-devkit/skill-pr-review/<repo>_pr-<n>/` — owns a worktree of the PR head at `code/`, a LanceDB embeddings table at `code-index/chunks.lance/`, optional SCIP indices at `code-index/scip/<lang>/index.scip`, and the diff at `diff.patch`. Queue context (slack + supporting_docs) lives at `queue-context.json`.
+
+## Depth Flags
+
+Follow `shared/model-depth.md`. `--detailed` selects the detailed embedding/retrieval path (`bge-m3` by default). `--deep` selects the stronger reasoning model profile in the host harness. They are intentionally independent: use `--deep` without `--detailed` for a small but risky PR, and use `--detailed` without `--deep` when retrieval needs recall but the review itself is straightforward. Headless queue runners may auto-add `--deep` for large PRs.
 
 ## Queue flow
 
@@ -109,6 +113,17 @@ The orchestrator (`scripts/prepare_task.py`, also reachable as `adk pr-task prep
   - **SCIP index** at `code-index/scip/<lang>/index.scip` (protobuf). Produced by `scip-typescript` / `scip-python` / `scip-go` / `scip-java` when on PATH. May be absent for some languages — fall back to the chunk view's `parent_symbol` field.
 - Mirrored linked supporting docs (Confluence / Jira / GDoc / markdown URLs from the PR body and comments) → `docs/<adapter>/<id>.md`.
 - Pre-loaded the highest-relevance retrieval results into the `# Index context` section of the user prompt below: `summary` (one line per index component), `changed-files`, `related-chunks` (top-k per changed file), `symbols` (chunker matches for identifiers in the diff).
+- When the Slack thread contains multiple PR links, `queue-context.json.related_pr_urls` lists the other PRs from the same thread.
+
+## Cross-PR Context
+
+Use related PRs only when they plausibly describe the same feature: branch-name similarity, title overlap, split frontend/backend PRs, or sync PRs to different target branches. If they look unrelated, note that in your reasoning and do not use them as evidence.
+
+When a related task dir already exists under `~/.agents-devkit/skill-pr-review/`, you may inspect its `code/`, `diff.patch`, and `precis.md` for context. Cite only the PR under review for findings unless the related PR directly explains a cross-repo contract.
+
+## Supporting-Docs Evidence Requirement
+
+If supporting docs were fetched, read them before writing findings. For an approve recommendation with fetched docs, the summary or at least one finding should reference the relevant `docs/...` path, or explicitly say the fetched docs did not add requirements beyond the PR body.
 
 If the pre-loaded context is insufficient, fall back to `Read`, `Grep`, `Glob` against the worktree (already added via `--add-dir`):
 
@@ -123,6 +138,45 @@ You do **not** have write access to the worktree. Do not attempt to edit files i
 - **Auto mode** (no `-i`): every finding that survives triage (auto-accept) is **posted automatically** by `post_comments.py`. No additional confirmation prompt — the task explicitly calls for posting.
 - **Interactive mode** (`-i`): findings post **only after the user accepts them** in the triage walk. Rejected findings are dropped; edited findings post in their edited form once accepted.
 - **Rehearsal** (`--no-post`): the pipeline runs end-to-end but `post_comments.py` enters plan-only mode (no HTTP transmission). Use for previewing what would be posted.
+
+## Narration to the user (visible progress)
+
+The orchestrator (`prepare_task.py`) runs as a single subprocess. Under `claude -p /adk-pr-review <url>` the user can't see its stderr live — they only see the text **you** print. The orchestrator emits a small set of `[narrate]` lines on stdout for exactly this reason, and writes the same lines to `<task_dir>/narration.log` so the user can `tail -f` in another terminal.
+
+Your job: **relay these lines verbatim** so the user can follow along.
+
+- **At the start of the run** (right after `adk pr-task prepare <url>` returns, OR right after the prepare-block exits), find every line beginning with `[narrate]` in the captured output and print them to the user one-for-one, stripping the `[narrate] ` prefix. Don't paraphrase, don't reformat, don't reorder.
+- **Surface the banner first.** The first four narrate lines are the compact PR ref, task folder, full log, and live trace paths. Print them upfront so the user can `tail -f <task_dir>/narration.log` in another terminal if they want live progress.
+- **Surface the summary block at the end.** The closing summary line plus the log link tell the user where to read more. Always print them last, even if you go on to do a review afterwards.
+
+Example of what the user should see after a successful prepare:
+
+```
+🔎 Working on bb:ecomm-ssr#5597
+  ├─ 📁 task: /Users/<u>/.agents-devkit/skill-pr-review/ecomm-ssr_pr-5597
+  ├─ 📓 full log: .../ecomm-ssr_pr-5597/review.log
+  └─ 👀 live trace: .../ecomm-ssr_pr-5597/narration.log
+  ├─ ▶️  Phase 0   prereq (ollama + gh)
+  │  ✅ Phase 0   ok       55ms  (embed=nomic-embed-text)
+  ├─ ▶️  Phase 2a  fetch PR (meta + diff + comments)
+  │  ✅ Phase 2a  ok      812ms  (head a2ab692a4db6)
+  ├─ ▶️  Phase 1a  ensure repo clone (git fetch --all --prune)
+  │  ✅ Phase 1a  ok      3s
+  ├─ ▶️  Phase 1b  worktree at a2ab692a4db6
+  │  ✅ Phase 1b  ok      1s
+  ├─ ▶️  Phase 2b  scan linked Confluence / Jira / GDoc URLs
+  │  ✅ Phase 2b  ok      210ms
+  ├─ ▶️  Phase 3   index (chunk + embed + SCIP)
+  │  ✅ Phase 3   ok      8s  (incremental, 12 files)
+  ├─ ▶️  Phase 4a  build precis.md
+  │  ✅ Phase 4a  ok       89ms
+  └─ 🧾 ready for review (orchestrator phases 0-4a complete)
+     ├─ head: a2ab692a4db6
+     ├─ index: incremental
+     └─ log: .../ecomm-ssr_pr-5597/review.log
+```
+
+Then go on to your own narration of the review work (per `shared/narration.md` glyph rules). The orchestrator's block stays on top so the user sees progress before your findings narration begins.
 
 ## Process (do this in order)
 
@@ -323,7 +377,7 @@ If retrieval surfaces ~80 candidates and you need to compress to ~10 high-precis
 
 1. Author a small `queries.json5` with the 5-10 questions the diff actually raises.
 2. Run `python3 scripts/rerank.py --task-dir <dir> --build-queue --queries queries.json5 --out <dir>/rerank-queue.jsonl`.
-3. **Spawn a Haiku subagent** to score the queue against `references/rerank-harness.md`. Sonnet-inline works too but is wasteful at K=80×N queries.
+3. **Spawn a lightweight reranker subagent** to score the queue against `references/rerank-harness.md`. In Claude, prefer Haiku. In Cursor, leave the model unset unless the user requested one so Cursor's auto mode can choose the appropriate model.
 4. Run `python3 scripts/rerank.py --task-dir <dir> --apply-scores <dir>/rerank-scores.jsonl --queue <dir>/rerank-queue.jsonl --out <dir>/rerank-final.jsonl`.
 5. Read `rerank-final.jsonl` and use the top-N candidates as the context for writing findings.
 
@@ -352,6 +406,8 @@ When the queue row carries `slack.channel_id` + `slack.thread_ts` (populated by 
 You never post directly. Posting is `post_comments.py`'s job. In both auto and interactive modes the **default is to transmit** — constitution §I.4 explicitly names "adk-pr-review posting inline comments" as a task-required action, so no separate prompt fires. Pass `--no-post` (orchestrator) or `--plan-only` (post_comments.py) to inhibit.
 
 **Posting is MCP-first.** `post_comments.py` always writes `posting-plan.json` listing each step as an MCP tool + args (per `references/platform-mcp.md`). When `--use-mcp` is set (the path the host agent should take, since the agent has MCP access and the script doesn't), `post_comments.py` emits the plan and exits — YOU dispatch each step via the named `mcp__adk-mcp-{github,bitbucket}__*` tool. Direct-API mode stays for headless CI runs.
+
+**REST escape hatch when an MCP is broken.** A step may carry `transport: "rest"` with a `rest: { method, host, path, auth, treat_as_success: [...] }` block and an `mcp_broken` field naming the unusable MCP tool. When you see `transport: "rest"`, do NOT call `mcp_broken` — call the REST endpoint described in `rest` and treat any code in `treat_as_success` (e.g. 409 = "already resolved/approved by another reviewer") as a successful outcome, not a failure. As of 2026-05-22 this applies to Bitbucket `resolveComment` / `reopenComment` / `approvePullRequest` — see memory `feedback_bitbucket_mcp_write_bugs.md`.
 
 **Interactive mode: walk the posting plan before you dispatch.** `triage.py` only walks NEW findings; the bulk of posting volume (existing-comment resolutions, the approve, the slack summary) slides straight to `posting-plan.json` without per-item user review. Closing that gap is `walk_posting_plan.py`'s job. In `-i` mode, after `post_comments.py --use-mcp` writes the plan, run:
 

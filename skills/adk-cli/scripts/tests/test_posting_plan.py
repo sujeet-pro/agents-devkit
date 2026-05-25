@@ -109,6 +109,8 @@ def test_gh_review_summary_event_request_changes(pc_mod):
 # ---- Bitbucket: separate approve step -------------------------------------
 
 def test_bb_approve_pr_separate_step(pc_mod):
+    """approve_pr on Bitbucket goes through REST — the MCP approvePullRequest
+    is broken (returns 400). See feedback_bitbucket_mcp_write_bugs.md."""
     plan = pc_mod.build_posting_plan(
         pr=_bb_pr(),
         findings_blob={"findings": [], "recommendation": "approve",
@@ -117,8 +119,10 @@ def test_bb_approve_pr_separate_step(pc_mod):
     )
     approve = [s for s in plan["steps"] if s.get("kind") == "approve_pr"]
     assert len(approve) == 1
-    assert approve[0]["mcp_tool"] == "mcp__adk-mcp-bitbucket__approvePullRequest"
-    assert approve[0]["mcp_args"]["pullRequestId"] == 5521
+    assert approve[0]["transport"] == "rest"
+    assert approve[0]["rest"]["method"] == "POST"
+    assert "/pullrequests/5521/approve" in approve[0]["rest"]["path"]
+    assert approve[0]["mcp_broken"] == "mcp__adk-mcp-bitbucket__approvePullRequest"
 
 
 def test_bb_no_approve_when_not_approve_ready(pc_mod):
@@ -144,7 +148,9 @@ def test_no_approve_when_recommendation_not_approve(pc_mod):
 
 # ---- resolve / reopen MCP tools ------------------------------------------
 
-def test_bb_resolve_uses_resolveComment(pc_mod):
+def test_bb_resolve_uses_rest_not_mcp(pc_mod):
+    """Bitbucket resolveComment MCP returns 400 — plan routes through REST.
+    See feedback_bitbucket_mcp_write_bugs.md."""
     plan = pc_mod.build_posting_plan(
         pr=_bb_pr(),
         findings_blob={"findings": [], "recommendation": "comment_only"},
@@ -154,11 +160,16 @@ def test_bb_resolve_uses_resolveComment(pc_mod):
     )
     resolves = [s for s in plan["steps"] if s.get("kind") == "resolve"]
     assert len(resolves) == 1
-    assert resolves[0]["mcp_tool"] == "mcp__adk-mcp-bitbucket__resolveComment"
-    assert resolves[0]["mcp_args"]["commentID"] == "999"
+    assert resolves[0]["transport"] == "rest"
+    assert resolves[0]["rest"]["method"] == "POST"
+    assert "/pullrequests/5521/comments/999/resolve" in resolves[0]["rest"]["path"]
+    assert resolves[0]["mcp_broken"] == "mcp__adk-mcp-bitbucket__resolveComment"
+    # 409 = already resolved by another reviewer; treat as success.
+    assert 409 in resolves[0]["rest"]["treat_as_success"]
 
 
-def test_bb_reopen_uses_reopenComment(pc_mod):
+def test_bb_reopen_uses_rest_not_mcp(pc_mod):
+    """Reopen mirrors resolve — DELETE on /resolve via REST."""
     plan = pc_mod.build_posting_plan(
         pr=_bb_pr(),
         findings_blob={"findings": [], "recommendation": "comment_only"},
@@ -168,7 +179,9 @@ def test_bb_reopen_uses_reopenComment(pc_mod):
     )
     reopens = [s for s in plan["steps"] if s.get("kind") == "reopen"]
     assert len(reopens) == 1
-    assert reopens[0]["mcp_tool"] == "mcp__adk-mcp-bitbucket__reopenComment"
+    assert reopens[0]["transport"] == "rest"
+    assert reopens[0]["rest"]["method"] == "DELETE"
+    assert reopens[0]["mcp_broken"] == "mcp__adk-mcp-bitbucket__reopenComment"
 
 
 def test_gh_resolve_uses_reply(pc_mod):
@@ -219,6 +232,29 @@ def test_empty_findings_emits_skip_marker(pc_mod):
         actions=[], no_resolve_existing=False, approve_ready=False,
     )
     assert any(s.get("kind") == "review_summary_skipped" for s in plan["steps"])
+
+
+def test_slack_summary_fans_out_to_all_queue_threads(pc_mod):
+    plan = pc_mod.build_posting_plan(
+        pr=_gh_pr(),
+        findings_blob={"findings": [], "recommendation": "approve", "summary": "lgtm"},
+        actions=[],
+        no_resolve_existing=False,
+        approve_ready=True,
+        queue_ctx={
+            "slack": {"channel_id": "C1", "thread_ts": "100.000"},
+            "slack_threads": [
+                {"channel_id": "C1", "thread_ts": "100.000"},
+                {"channel_id": "C2", "thread_ts": "200.000"},
+            ],
+        },
+    )
+
+    summaries = [s for s in plan["steps"] if s.get("kind") == "slack_summary"]
+    assert [(s["mcp_args"]["channel_id"], s["mcp_args"]["thread_ts"]) for s in summaries] == [
+        ("C1", "100.000"),
+        ("C2", "200.000"),
+    ]
 
 
 if __name__ == "__main__":

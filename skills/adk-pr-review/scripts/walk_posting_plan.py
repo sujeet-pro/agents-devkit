@@ -61,15 +61,24 @@ def _step_id(idx: int) -> str:
     return f"s-{idx:03d}"
 
 
+def _first_line(s: str | None, limit: int) -> str:
+    """First line of `s`, truncated. Empty string when `s` is empty/None."""
+    if not s:
+        return ""
+    head, _, _ = s.partition("\n")
+    return head[:limit]
+
+
 def _step_summary(step: dict) -> str:
     """One-line summary used in --list. Pulls the most distinctive field per kind."""
     kind = step.get("kind", "?")
+    mcp_args = step.get("mcp_args") or {}
     if kind == "review_summary":
-        body = (step.get("mcp_args", {}).get("body") or "")[:80].replace("\n", " ")
-        event = step.get("mcp_args", {}).get("event", "")
+        body = _first_line(mcp_args.get("body"), 80)
+        event = mcp_args.get("event", "")
         return f"{kind} ({event}): {body}…"
     if kind == "general_comment":
-        body = (step.get("mcp_args", {}).get("body") or "").splitlines()[0][:80]
+        body = _first_line(mcp_args.get("body"), 80)
         return f"{kind} ({step.get('subkind', '')}): {body}"
     if kind == "resolve":
         return f"{kind} comment={step.get('comment_id', '?')}: {step.get('reason', '')[:100]}"
@@ -78,7 +87,7 @@ def _step_summary(step: dict) -> str:
     if kind == "approve_pr":
         return f"{kind} (via {step.get('via', '?')})"
     if kind == "slack_summary":
-        text = (step.get("mcp_args", {}).get("text") or "").splitlines()[0][:100]
+        text = _first_line(mcp_args.get("text"), 100)
         return f"{kind}: {text}"
     if kind == "slack_summary_skipped":
         return f"{kind}: {step.get('reason', '')}"
@@ -281,11 +290,20 @@ def _render_step(step: dict, task_dir: Path | None = None) -> str:
     claim (bug 3: LLM-backed re-validation happens during this walk).
     """
     kind = step.get("kind", "?")
-    mcp_tool = step.get("mcp_tool") or "(no MCP tool — bundled)"
+    transport = step.get("transport", "mcp")
+    if transport == "rest":
+        rest = step.get("rest") or {}
+        transport_line = (f"**Transport:** REST direct — `{rest.get('method', '?')} "
+                          f"{rest.get('host', '')}{rest.get('path', '')}` "
+                          f"(MCP `{step.get('mcp_broken', '?')}` is broken: "
+                          f"{step.get('mcp_broken_reason', 'see feedback memory')})")
+    else:
+        mcp_tool = step.get("mcp_tool") or "(no MCP tool — bundled)"
+        transport_line = f"**MCP tool:** `{mcp_tool}`"
     lines = [
         f"### Posting step — `{kind}`",
         "",
-        f"**MCP tool:** `{mcp_tool}`",
+        transport_line,
     ]
     if kind == "review_summary":
         a = step.get("mcp_args", {})
@@ -315,48 +333,49 @@ def _render_step(step: dict, task_dir: Path | None = None) -> str:
                 "**Re-validation context:**",
                 _finding_context(task_dir, step),
             ]
-    elif kind == "resolve":
-        a = step.get("mcp_args", {})
+    elif kind in ("resolve", "reopen"):
+        cid = step.get("comment_id", "?")
         lines += [
-            f"**Target:** {a.get('owner')}/{a.get('repo')} PR #{a.get('pullNumber')} comment `{step.get('comment_id', '?')}`",
+            f"**Comment:** `{cid}`",
             f"**Reason:** {step.get('reason', '')}",
-            "",
-            "**Reply body that will post:**",
-            "```markdown",
-            a.get("body") or "",
-            "```",
         ]
-        if task_dir is not None and step.get("comment_id"):
+        if step.get("transport") == "rest":
+            # Bitbucket — REST resolution toggle, no reply body.
+            pass
+        else:
+            # GitHub — posts a textual reply.
+            a = step.get("mcp_args", {})
             lines += [
                 "",
-                "**Re-validation context — does the worktree actually address the concern?**",
-                _existing_comment_context(task_dir, str(step["comment_id"])),
+                "**Reply body that will post:**",
+                "```markdown",
+                a.get("body") or "",
+                "```",
             ]
-    elif kind == "reopen":
-        a = step.get("mcp_args", {})
-        lines += [
-            f"**Target:** {a.get('owner')}/{a.get('repo')} PR #{a.get('pullNumber')} comment `{step.get('comment_id', '?')}`",
-            f"**Reason:** {step.get('reason', '')}",
-            "",
-            "**Reply body that will post:**",
-            "```markdown",
-            a.get("body") or "",
-            "```",
-        ]
-        if task_dir is not None and step.get("comment_id"):
-            lines += [
-                "",
-                "**Re-validation context — is the concern actually unresolved?**",
-                _existing_comment_context(task_dir, str(step["comment_id"])),
-            ]
+        if task_dir is not None and cid != "?":
+            heading = ("**Re-validation context — does the worktree actually address the concern?**"
+                       if kind == "resolve"
+                       else "**Re-validation context — is the concern actually unresolved?**")
+            lines += ["", heading, _existing_comment_context(task_dir, str(cid))]
     elif kind == "approve_pr":
-        lines += [
-            f"**Bundled via:** `{step.get('via', '?')}`",
-            "",
-            "**Note:** " + (step.get("note") or "GitHub bundles approve in review event field"),
-            "",
-            "Rejecting this step demotes the review_summary event from APPROVE to COMMENT.",
-        ]
+        if step.get("transport") == "rest":
+            rest = step.get("rest") or {}
+            lines += [
+                f"**Action:** `{rest.get('method')} {rest.get('host', '')}{rest.get('path', '')}`",
+                f"**Auth:** {rest.get('auth', '?')}",
+                f"**Success codes:** {rest.get('treat_as_success', [200])}",
+                "",
+                "**Note:** Routed through REST because the Bitbucket MCP "
+                f"`{step.get('mcp_broken', '?')}` returns 400.",
+            ]
+        else:
+            lines += [
+                f"**Bundled via:** `{step.get('via', '?')}`",
+                "",
+                "**Note:** " + (step.get("note") or "GitHub bundles approve in review event field"),
+                "",
+                "Rejecting this step demotes the review_summary event from APPROVE to COMMENT.",
+            ]
     elif kind == "slack_summary":
         a = step.get("mcp_args", {})
         lines += [

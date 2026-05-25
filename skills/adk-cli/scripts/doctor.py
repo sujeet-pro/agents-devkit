@@ -139,6 +139,40 @@ def _check_queue_readable() -> dict:
     return {"status": PASS, "label": "queue readable", "detail": f"{n} rows at {DEFAULT_QUEUE_PATH}"}
 
 
+def _check_file_present(path: Path, *, label: str, hint: str) -> dict:
+    if path.exists():
+        return {"status": PASS, "label": label, "detail": str(path)}
+    return {"status": FAIL, "label": label, "detail": hint}
+
+
+def _check_zsh_completion_registered() -> dict:
+    if not shutil.which("zsh"):
+        return {"status": WARN, "label": "zsh completion registered",
+                "detail": "zsh not found on PATH"}
+    cmd = (
+        "autoload -Uz compinit; "
+        "compinit -u >/dev/null 2>&1; "
+        "compdef -p adk >/dev/null 2>&1"
+    )
+    try:
+        cp = subprocess.run(["zsh", "-ic", cmd], capture_output=True, text=True, timeout=8)
+    except Exception as e:
+        return {"status": FAIL, "label": "zsh completion registered",
+                "detail": f"verification failed: {e}"}
+    if cp.returncode == 0:
+        return {"status": PASS, "label": "zsh completion registered",
+                "detail": "`compdef -p adk` returned a handler"}
+    return {
+        "status": FAIL,
+        "label": "zsh completion registered",
+        "detail": (
+            "Add this before `compinit` in ~/.zshrc, then open a new shell: "
+            '[[ -d "$HOME/.zsh/completions" ]] && '
+            'fpath=("$HOME/.zsh/completions" $fpath)'
+        ),
+    }
+
+
 # ----- check registry ------------------------------------------------------
 
 def all_checks() -> list[dict]:
@@ -181,6 +215,19 @@ def all_checks() -> list[dict]:
     # Queue file.
     results.append(_check_queue_readable())
     return results
+
+
+def completion_checks() -> list[dict]:
+    """Focused checks for `adk doctor --completion`."""
+    zsh_completion = Path.home() / ".zsh" / "completions" / "_adk"
+    return [
+        _check_file_present(
+            zsh_completion,
+            label="zsh completion file",
+            hint=f"Run `adk completion zsh > {zsh_completion}`",
+        ),
+        _check_zsh_completion_registered(),
+    ]
 
 
 # ----- rendering -----------------------------------------------------------
@@ -242,6 +289,8 @@ def main(argv: list[str] | None = None) -> int:
                     help="non-zero exit on warnings too")
     ap.add_argument("--json", action="store_true",
                     help="machine-readable output (overrides --tui)")
+    ap.add_argument("--completion", action="store_true",
+                    help="only check shell-completion wiring")
     ap.add_argument("-y", "--yes", action="store_true", help="no-op; accepted for uniformity")
     ap.add_argument("-v", "--verbose", action="store_true",
                     help="write a structured DEBUG log to ~/.agents-devkit/logs/")
@@ -250,7 +299,7 @@ def main(argv: list[str] | None = None) -> int:
         from _verbose import setup_verbose  # type: ignore  # noqa: WPS433
         setup_verbose("doctor", enabled=True, argv=argv)
 
-    results = all_checks()
+    results = completion_checks() if args.completion else all_checks()
     fails = [r for r in results if r["status"] == FAIL]
     warns = [r for r in results if r["status"] == WARN]
 

@@ -18,6 +18,7 @@ at install time.
 ```
 adk pr-scan       walk Slack channels → upsert PR rows into the queue
 adk pr-queue …    list / show / add / update / clean / ready-to-merge / release
+adk skill-run …   run any /adk-* skill in Claude / Cursor / Codex / custom harness
 adk repo …        add / update / list / branch / migrate — clone + per-branch index
 adk doctor        validate env, deps, MCPs, ollama server, token presence
 adk completion …  emit a bash | zsh | fish completion script
@@ -38,9 +39,8 @@ Every subcommand accepts `-y` / `--yes` for headless / smart-default operation
   and indexes each tracked branch at
   `~/.agents-devkit/repos/.indices/<name>/branches/<slug>/code-index/`.
   Default branch is auto-indexed by `add`; use `--branch X` (multi-arg) on
-  `add`/`update`, the `repo branch {add,remove,list}` subgroup to manage
-  branches, and `repo migrate` to lift legacy single-index repos into the
-  per-branch layout. Incremental reindex on `update` when HEAD has moved.
+  `add`/`update`, and the `repo branch {add,remove,list}` subgroup to manage
+  branches. Incremental reindex on `update` when HEAD has moved.
 - `doctor.py` — `adk doctor`. Plain-text table of pass/warn/fail per check.
   `--tui` uses textual when importable; falls back to plain text otherwise.
 - `completion.py` — `adk completion bash|zsh|fish`. Emits a static script.
@@ -50,6 +50,11 @@ Every subcommand accepts `-y` / `--yes` for headless / smart-default operation
 - `slack_helpers.py` — slack web-api client (read + reactions + thread reply).
 - `queue_release.py` — `release_after_review` called by `/adk-pr-review`'s
   report.py tail to update queue status + reconcile Slack reactions.
+- `agent_harness.py` — shared model-depth defaults and command builders for
+  Claude / Cursor / Codex / custom runners.
+- `skill_run.py` — `adk skill-run`, a generic harness launcher for any ADK
+  slash skill. `--detailed` forwards programmatic-detail intent; `--deep`
+  selects the runner's stronger model profile.
 
 ## Queue location
 

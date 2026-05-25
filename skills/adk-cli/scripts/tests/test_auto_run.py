@@ -1,4 +1,4 @@
-"""adk auto — headless review orchestrator tests."""
+"""adk pr-review-all — headless review orchestrator tests."""
 from __future__ import annotations
 
 import argparse
@@ -67,10 +67,9 @@ def test_dry_run_lists_eligible_without_spawning(tmp_path, monkeypatch):
     rc = auto_run.main(["--queue", str(qp), "--dry-run", "--no-sync"])
     monkeypatch.undo()
     assert rc == 0
-    out = json.loads(captured.getvalue())
-    assert out["action"] == "dry_run"
-    assert set(out["would_review"]) == {"u1", "u2"}
-    assert out["count"] == 2
+    out = captured.getvalue()
+    assert "Dry run" in out
+    assert "u1" in out and "u2" in out
 
 
 def test_max_reviews_caps_eligible_set(tmp_path, monkeypatch):
@@ -86,8 +85,9 @@ def test_max_reviews_caps_eligible_set(tmp_path, monkeypatch):
     rc = auto_run.main(["--queue", str(qp), "--dry-run", "--no-sync",
                         "--max-reviews", "2"])
     monkeypatch.undo()
-    out = json.loads(captured.getvalue())
-    assert out["count"] == 2
+    out = captured.getvalue()
+    assert "u1" in out and "u2" in out
+    assert "u3" not in out
 
 
 def test_no_eligible_returns_noop(tmp_path, monkeypatch):
@@ -100,8 +100,8 @@ def test_no_eligible_returns_noop(tmp_path, monkeypatch):
     monkeypatch.setattr(sys, "stdout", captured)
     rc = auto_run.main(["--queue", str(qp), "--no-sync"])
     monkeypatch.undo()
-    out = json.loads(captured.getvalue())
-    assert out["action"] == "noop"
+    out = captured.getvalue()
+    assert "No eligible PRs" in out
     assert rc == 0
 
 
@@ -116,6 +116,79 @@ def test_missing_agent_binary_records_failure(tmp_path, monkeypatch):
     )
     assert result["status"] == "failed"
     assert "not found" in result.get("error", "")
+
+
+def test_build_agent_cmd_claude_uses_print_prompt_shape():
+    cmd = auto_run._build_agent_cmd("https://example/pr/1", runner="claude", agent=None)
+
+    assert cmd == [
+        "claude", "-p", "/adk-pr-review https://example/pr/1",
+        "--model", "sonnet",
+    ]
+
+
+def test_build_agent_cmd_cursor_uses_cursor_agent_print_composer_model():
+    cmd = auto_run._build_agent_cmd("https://example/pr/1", runner="cursor", agent=None)
+
+    assert cmd[:7] == [
+        "cursor", "agent", "--print", "--output-format", "text", "--force", "--trust",
+    ]
+    assert "--approve-mcps" in cmd
+    assert "--sandbox" in cmd
+    assert "disabled" in cmd
+    assert "--model" in cmd
+    assert "composer-2.5-fast" in cmd
+    assert cmd[-1] == "/adk-pr-review https://example/pr/1"
+
+
+def test_build_agent_cmd_cursor_can_pin_model():
+    cmd = auto_run._build_agent_cmd(
+        "https://example/pr/1",
+        runner="cursor",
+        agent=None,
+        model="gpt-5",
+    )
+
+    assert "--model" in cmd
+    assert "gpt-5" in cmd
+
+
+def test_build_agent_cmd_deep_adds_prompt_flag_and_opus_model():
+    cmd = auto_run._build_agent_cmd(
+        "https://example/pr/1",
+        runner="claude",
+        agent=None,
+        deep=True,
+    )
+
+    assert cmd == [
+        "claude", "-p", "/adk-pr-review https://example/pr/1 --deep",
+        "--model", "opus",
+    ]
+
+
+def test_build_agent_cmd_detailed_only_controls_prompt_embedding_flag():
+    cmd = auto_run._build_agent_cmd(
+        "https://example/pr/1",
+        runner="claude",
+        agent=None,
+        detailed=True,
+    )
+
+    assert cmd == [
+        "claude", "-p", "/adk-pr-review https://example/pr/1 --detailed",
+        "--model", "sonnet",
+    ]
+
+
+def test_auto_deep_complexity_uses_prepared_pr_stats():
+    args = argparse.Namespace(deep=False, auto_deep=True)
+    row = {"pr_url": "https://example/pr/1", "changed_files": 25}
+
+    auto_run._annotate_depth([row], args)
+
+    assert row["_adk_deep"] is True
+    assert "25 files" in row["_adk_deep_reason"]
 
 
 def test_report_md_written(tmp_path):
@@ -134,3 +207,18 @@ def test_report_md_written(tmp_path):
     assert "u1" in body and "u2" in body
     assert "ok: 1" in body and "failed: 1" in body
     assert "boom" in body
+
+
+def test_review_result_prints_failure_reason(capsys):
+    auto_run._print_review_result({
+        "pr_url": "https://github.com/acme/foo/pull/42",
+        "status": "failed",
+        "exit_code": 1,
+        "elapsed_s": 3.0,
+        "reason": "RuntimeError: missing model",
+        "log": "/tmp/foo.log",
+    })
+
+    out = capsys.readouterr().out
+    assert "gh:foo#42" in out
+    assert "RuntimeError: missing model" in out

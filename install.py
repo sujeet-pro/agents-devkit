@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
-"""install.py — adk v3 installer.
+"""install.py — adk installer.
 
 What it does (per agent target):
+  - Enforces an ADK-only agent profile by deleting non-ADK skills/rules/MCP
+    caches and quarantining legacy ADK v2/v3 state.
   - Symlinks skills/adk-* into the agent's skill dir (where supported).
   - Symlinks agents-<agent>/agents/* into the agent's agents dir.
   - Symlinks agents-<agent>/commands/* (or rules/) into the agent's commands dir.
@@ -27,8 +29,9 @@ import re
 import shutil
 import subprocess
 import sys
+from datetime import datetime
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any, Callable, Iterable
 
 MARKER_MD_START = "<!-- adk-marker:start -->"
 MARKER_MD_END = "<!-- adk-marker:end -->"
@@ -61,6 +64,14 @@ NON_SLASH_SKILLS: set[str] = {"adk-cli"}
 
 # Where the `adk` CLI binary lives (symlinked at install time).
 ADK_BIN_TARGET = Path.home() / ".local" / "bin" / "adk"
+
+ADK_ZSH_COMPLETION_START = "# >>> adk completion (managed by adk install) >>>"
+ADK_ZSH_COMPLETION_END = "# <<< adk completion <<<"
+ADK_ZSH_COMPLETION_BLOCK = (
+    f"{ADK_ZSH_COMPLETION_START}\n"
+    '[[ -d "$HOME/.zsh/completions" ]] && fpath=("$HOME/.zsh/completions" $fpath)\n'
+    f"{ADK_ZSH_COMPLETION_END}\n"
+)
 
 
 # ----------------------------------------------------------------------------
@@ -184,11 +195,357 @@ def strip_marker(target: Path, marker_start: str, marker_end: str, dry_run: bool
     if dry_run:
         return "would-remove"
     # Greedy on .* so we consume all duplicate markers between the first start
-    # and the last end (cleanup for legacy buggy-install corruption).
+    # and the last end (cleanup for earlier buggy-install corruption).
     pattern = re.compile(rf"{re.escape(marker_start)}.*{re.escape(marker_end)}\n?", re.DOTALL)
     new_text = pattern.sub("", existing, count=1)
     target.write_text(new_text, encoding="utf-8")
     return "removed"
+
+
+# ----------------------------------------------------------------------------
+# ADK-only cleanup helpers
+# ----------------------------------------------------------------------------
+
+def _is_relative_to(child: Path, parent: Path) -> bool:
+    try:
+        child.relative_to(parent)
+        return True
+    except ValueError:
+        return False
+
+
+def _safe_path(p: Path) -> Path:
+    # Use lexical absolute paths for cleanup authorization. `resolve()` follows
+    # symlinks, which would incorrectly block removal of a symlink stored inside
+    # an allowlisted agent directory when its target points back to this repo.
+    return Path(os.path.abspath(os.fspath(p.expanduser())))
+
+
+def _cleanup_allowed(path: Path) -> tuple[bool, str]:
+    """Return whether install.py is allowed to remove/quarantine `path`.
+
+    The ADK-only cleanup intentionally deletes agent integration caches, so keep
+    the guard boring and explicit. Credential stores are never in scope.
+    """
+    home = Path.home().resolve(strict=False)
+    target = _safe_path(path)
+    allowed_roots = [
+        home / ".cursor",
+        home / ".claude",
+        home / ".codex",
+        home / ".junie",
+        home / ".agents-devkit",
+        home / ".config" / "adk",
+    ]
+    forbidden_roots = [
+        home / ".config" / "creds",
+        home / ".ssh",
+        home / ".gnupg",
+    ]
+    if any(_is_relative_to(target, forbidden) for forbidden in forbidden_roots):
+        return False, "blocked (credential/sensitive path)"
+    if any(target == root or _is_relative_to(target, root) for root in allowed_roots):
+        return True, "ok"
+    return False, "blocked (outside ADK cleanup allowlist)"
+
+
+def _manifest_entry(path: Path, status: str, reason: str, **extra: Any) -> dict[str, Any]:
+    entry: dict[str, Any] = {
+        "path": str(path),
+        "status": status,
+        "reason": reason,
+    }
+    entry.update(extra)
+    return entry
+
+
+def _remove_path(path: Path, dry_run: bool, reason: str) -> dict[str, Any]:
+    allowed, why = _cleanup_allowed(path)
+    if not allowed:
+        return _manifest_entry(path, why, reason)
+    if not path.exists() and not path.is_symlink():
+        return _manifest_entry(path, "absent", reason)
+    if dry_run:
+        return _manifest_entry(path, "would-delete", reason)
+    try:
+        if path.is_symlink() or path.is_file():
+            path.unlink()
+        else:
+            shutil.rmtree(path)
+        return _manifest_entry(path, "deleted", reason)
+    except OSError as e:
+        return _manifest_entry(path, f"error: {e}", reason)
+
+
+def _legacy_dest_for(path: Path, quarantine_root: Path) -> Path:
+    home = Path.home().resolve(strict=False)
+    source = _safe_path(path)
+    try:
+        rel = source.relative_to(home)
+    except ValueError:
+        rel = Path(source.name)
+    name = "__".join(rel.parts).replace(".", "dot-")
+    dest = quarantine_root / name
+    if not dest.exists():
+        return dest
+    for i in range(2, 1000):
+        candidate = quarantine_root / f"{name}-{i}"
+        if not candidate.exists():
+            return candidate
+    return quarantine_root / f"{name}-{os.getpid()}"
+
+
+def _quarantine_path(path: Path, quarantine_root: Path, dry_run: bool,
+                     reason: str) -> dict[str, Any]:
+    allowed, why = _cleanup_allowed(path)
+    if not allowed:
+        return _manifest_entry(path, why, reason)
+    if not path.exists() and not path.is_symlink():
+        return _manifest_entry(path, "absent", reason)
+    dest = _legacy_dest_for(path, quarantine_root)
+    if dry_run:
+        return _manifest_entry(path, "would-quarantine", reason, dest=str(dest))
+    try:
+        quarantine_root.mkdir(parents=True, exist_ok=True)
+        shutil.move(str(path), str(dest))
+        return _manifest_entry(path, "quarantined", reason, dest=str(dest))
+    except OSError as e:
+        return _manifest_entry(path, f"error: {e}", reason, dest=str(dest))
+
+
+def _clean_directory_children(root: Path, keep: Callable[[Path], bool],
+                              dry_run: bool, reason: str) -> dict[str, Any]:
+    if not root.exists():
+        return {"path": str(root), "status": "absent", "removed": []}
+    removed: list[dict[str, Any]] = []
+    kept = 0
+    for child in sorted(root.iterdir(), key=lambda p: p.name):
+        if keep(child):
+            kept += 1
+            continue
+        removed.append(_remove_path(child, dry_run, reason))
+    return {"path": str(root), "status": "scanned", "kept": kept, "removed": removed}
+
+
+def _keep_adk_prefixed(path: Path) -> bool:
+    return path.name.startswith("adk-")
+
+
+def _keep_cursor_rule(path: Path) -> bool:
+    return path.name == "_adk.mdc" or path.name.startswith("adk-")
+
+
+def _clean_claude_enabled_plugins(dry_run: bool) -> dict[str, Any]:
+    settings = Path.home() / ".claude" / "settings.json"
+    if not settings.exists():
+        return {"path": str(settings), "status": "absent"}
+    current = read_json(settings)
+    enabled = current.get("enabledPlugins")
+    if not isinstance(enabled, dict):
+        return {"path": str(settings), "status": "no-enabledPlugins"}
+    kept = {k: v for k, v in enabled.items() if "adk" in str(k).lower()}
+    removed = sorted(str(k) for k in enabled if k not in kept)
+    if not removed:
+        return {"path": str(settings), "status": "unchanged", "kept": sorted(kept)}
+    if dry_run:
+        return {"path": str(settings), "status": "would-filter",
+                "kept": sorted(kept), "removed": removed}
+    current["enabledPlugins"] = kept
+    write_json(settings, current, dry_run=False)
+    return {"path": str(settings), "status": "filtered",
+            "kept": sorted(kept), "removed": removed}
+
+
+def _sanitize_codex_non_adk_mcp_blocks(dry_run: bool) -> dict[str, Any]:
+    config = Path.home() / ".codex" / "config.toml"
+    if not config.exists():
+        return {"path": str(config), "status": "absent", "removed": []}
+    text = config.read_text(encoding="utf-8")
+    lines = text.splitlines(keepends=True)
+    removed: list[str] = []
+    out: list[str] = []
+    i = 0
+    table_re = re.compile(r'^\s*\[mcp_servers\.("?)([^"\].]+)\1(?:\.[^\]]+)?\]\s*$')
+    any_table_re = re.compile(r"^\s*\[[^\]]+\]\s*$")
+    while i < len(lines):
+        m = table_re.match(lines[i])
+        if not m:
+            out.append(lines[i])
+            i += 1
+            continue
+        name = m.group(2)
+        block = [lines[i]]
+        i += 1
+        while i < len(lines) and not any_table_re.match(lines[i]):
+            block.append(lines[i])
+            i += 1
+        if name.startswith(ADK_MCP_NAME_PREFIX):
+            out.extend(block)
+        else:
+            removed.append(name)
+    if not removed:
+        return {"path": str(config), "status": "unchanged", "removed": []}
+    if dry_run:
+        return {"path": str(config), "status": "would-remove-non-adk-mcps",
+                "removed": sorted(set(removed))}
+    config.write_text("".join(out), encoding="utf-8")
+    return {"path": str(config), "status": "removed-non-adk-mcps",
+            "removed": sorted(set(removed))}
+
+
+def _clear_cursor_project_mcp_caches(dry_run: bool) -> list[dict[str, Any]]:
+    projects = Path.home() / ".cursor" / "projects"
+    if not projects.exists():
+        return [_manifest_entry(projects, "absent", "Cursor project MCP cache root")]
+    out: list[dict[str, Any]] = []
+    for mcp_dir in sorted(projects.glob("*/mcps"), key=lambda p: str(p)):
+        if not mcp_dir.exists():
+            continue
+        for child in sorted(mcp_dir.iterdir(), key=lambda p: p.name):
+            out.append(_remove_path(child, dry_run, "clear Cursor project MCP descriptor cache"))
+    return out
+
+
+def cleanup_cursor_adk_only(dry_run: bool) -> dict[str, Any]:
+    cursor = Path.home() / ".cursor"
+    return {
+        "rules": _clean_directory_children(
+            cursor / "rules", _keep_cursor_rule, dry_run,
+            "remove non-ADK Cursor rules",
+        ),
+        "skills_cursor": _remove_path(
+            cursor / "skills-cursor", dry_run,
+            "remove non-ADK Cursor built-in skill pack",
+        ),
+        "public_plugin_cache": _remove_path(
+            cursor / "plugins" / "cache" / "cursor-public", dry_run,
+            "remove non-ADK Cursor marketplace plugin cache",
+        ),
+        "project_mcp_caches": _clear_cursor_project_mcp_caches(dry_run),
+    }
+
+
+def cleanup_claude_adk_only(quarantine_root: Path, dry_run: bool) -> dict[str, Any]:
+    claude = Path.home() / ".claude"
+    return {
+        "skills": _clean_directory_children(
+            claude / "skills", _keep_adk_prefixed, dry_run,
+            "remove non-ADK Claude skills",
+        ),
+        "agents": _clean_directory_children(
+            claude / "agents", _keep_adk_prefixed, dry_run,
+            "remove non-ADK Claude agents",
+        ),
+        "commands": _clean_directory_children(
+            claude / "commands", _keep_adk_prefixed, dry_run,
+            "remove non-ADK Claude commands",
+        ),
+        "enabled_plugins": _clean_claude_enabled_plugins(dry_run),
+        "legacy_adk_plugin_cache": _quarantine_path(
+            claude / "plugins" / "cache" / "adk", quarantine_root, dry_run,
+            "quarantine legacy ADK Claude plugin cache",
+        ),
+        "plugin_state": _remove_path(
+            claude / "plugins", dry_run,
+            "remove non-ADK Claude plugin registries/caches/marketplaces",
+        ),
+    }
+
+
+def cleanup_codex_adk_only(dry_run: bool) -> dict[str, Any]:
+    codex = Path.home() / ".codex"
+    return {
+        "prompts": _clean_directory_children(
+            codex / "prompts", _keep_adk_prefixed, dry_run,
+            "remove non-ADK Codex prompts",
+        ),
+        "plugin_cache": _remove_path(
+            codex / ".tmp" / "plugins", dry_run,
+            "remove non-ADK Codex bundled plugin cache",
+        ),
+        "vendor_skills": _remove_path(
+            codex / "vendor_imports" / "skills", dry_run,
+            "remove non-ADK Codex imported skill packs",
+        ),
+        "config_non_adk_mcps": _sanitize_codex_non_adk_mcp_blocks(dry_run),
+    }
+
+
+def cleanup_junie_adk_only(dry_run: bool) -> dict[str, Any]:
+    junie = Path.home() / ".junie"
+    return {
+        "skills": _clean_directory_children(
+            junie / "skills", _keep_adk_prefixed, dry_run,
+            "remove non-ADK Junie skills",
+        ),
+        "commands": _clean_directory_children(
+            junie / "commands", _keep_adk_prefixed, dry_run,
+            "remove non-ADK Junie commands",
+        ),
+        "bundled_skills": _remove_path(
+            junie / "1588.21" / "skills", dry_run,
+            "remove non-ADK Junie bundled skill cache",
+        ),
+        "allowlist": _remove_junie_non_adk_allowlist(dry_run),
+    }
+
+
+def _remove_junie_non_adk_allowlist(dry_run: bool) -> dict[str, Any]:
+    allowlist = Path.home() / ".junie" / "allowlist.json"
+    if not allowlist.exists():
+        return _manifest_entry(
+            allowlist, "absent",
+            "remove existing Junie allowlist so ADK can rewrite managed permissions",
+        )
+    try:
+        data = json.loads(allowlist.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return _remove_path(
+            allowlist, dry_run,
+            "remove invalid Junie allowlist so ADK can rewrite managed permissions",
+        )
+    if isinstance(data, dict) and data.get("_adk_managed"):
+        return _manifest_entry(
+            allowlist, "kept",
+            "ADK-managed Junie allowlist will be refreshed by install",
+        )
+    return _remove_path(
+        allowlist, dry_run,
+        "remove existing Junie allowlist so ADK can rewrite managed permissions",
+    )
+
+
+def cleanup_legacy_adk_state(quarantine_root: Path, dry_run: bool) -> dict[str, Any]:
+    return {
+        "config_adk": _quarantine_path(
+            Path.home() / ".config" / "adk", quarantine_root, dry_run,
+            "quarantine legacy ADK v2/v3 config state without migration",
+        ),
+    }
+
+
+def cleanup_adk_only(repo_root: Path, targets: list[str], dry_run: bool) -> dict[str, Any]:
+    """Delete non-ADK integrations/caches and quarantine legacy ADK state."""
+    stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    quarantine_root = Path.home() / ".agents-devkit" / "legacy" / stamp
+    out: dict[str, Any] = {
+        "mode": "adk-only",
+        "quarantine_root": str(quarantine_root),
+        "repo_root": str(repo_root),
+    }
+    if "cursor" in targets:
+        out["cursor"] = cleanup_cursor_adk_only(dry_run)
+    if "claude" in targets:
+        out["claude"] = cleanup_claude_adk_only(quarantine_root, dry_run)
+    if "codex" in targets:
+        out["codex"] = cleanup_codex_adk_only(dry_run)
+    if "junie" in targets:
+        out["junie"] = cleanup_junie_adk_only(dry_run)
+    # Legacy ADK state is global, not target-specific. Quarantine it on every
+    # normal install so the v4 ~/.agents-devkit tree is the only active ADK
+    # runtime state.
+    out["legacy_adk"] = cleanup_legacy_adk_state(quarantine_root, dry_run)
+    return out
 
 
 # ----------------------------------------------------------------------------
@@ -431,38 +788,172 @@ def _toml_key(k: str) -> str:
     return json.dumps(k)
 
 
-def _translate_mcp_entry_codex(cfg: dict[str, Any]) -> str:
-    """Translate adk schema → a Codex `[[mcp_servers]]` TOML block string.
+# Codex 0.43+ requires `mcp_servers` to be a TOML map (`[mcp_servers.NAME]`),
+# not an array of tables (`[[mcp_servers]]`). Older Codex builds accepted the
+# array form; the loader was tightened (see openai/codex codex-rs/config/src/
+# mcp_edit.rs::load_global_mcp_servers — it does `value.try_into::<BTreeMap>`).
+# Codex also does NOT shell-expand `${VAR}` in TOML values, so we wrap stdio
+# servers whose env values reference env vars in `sh -c` and forward those
+# vars via `env_vars` (Codex inherits them from the host process — see
+# codex-rs/rmcp-client/src/utils.rs::create_env_for_mcp_server).
 
-    Output shape:
-      - http servers: `url`, plus either `authorization_token_env` (when the
-        only header is `Authorization: Bearer ${VAR}`) or `[[mcp_servers.headers]]`.
-      - stdio servers: `command`, `args`, optional `[mcp_servers.env]`.
+
+_SHELL_REF_RE = re.compile(r"\$\{([A-Z_][A-Z0-9_]*)(?::-[^}]*)?\}|\$([A-Z_][A-Z0-9_]*)")
+
+
+def _ref_vars(s: str) -> set[str]:
+    """Return the set of shell env var names referenced as ${VAR}, ${VAR:-default}, or $VAR."""
+    out: set[str] = set()
+    if not isinstance(s, str):
+        return out
+    for m in _SHELL_REF_RE.finditer(s):
+        out.add(m.group(1) or m.group(2))
+    return out
+
+
+def _expand_url_install_time(url: str) -> str:
+    """Expand `${VAR}` / `${VAR:-default}` in a URL at install time.
+
+    URLs are not secrets (constitution §VII applies to credential values, not
+    endpoint hostnames). Variables that are unset and have no default become
+    empty strings — callers must already skip unreachable MCPs (see
+    `merge_mcp_into_codex` skipping `adk-mcp-rag` when `RAG_MCP_URL` is unset).
     """
-    lines: list[str] = ["[[mcp_servers]]", f'name = {json.dumps(cfg["name"])}']
+    def repl(m: re.Match[str]) -> str:
+        if m.group(1):
+            var, default = m.group(1), None
+            inner = m.group(0)[2:-1]  # strip ${ ... }
+            if ":-" in inner:
+                _, default = inner.split(":-", 1)
+            return os.environ.get(var, default if default is not None else "")
+        var = m.group(2)
+        return os.environ.get(var, "")
+    return _SHELL_REF_RE.sub(repl, url)
+
+
+def _shell_dquote(s: str) -> str:
+    """Wrap a string in double quotes for sh, preserving `$VAR` expansion."""
+    return '"' + s.replace("\\", "\\\\").replace('"', '\\"') + '"'
+
+
+def _shell_arg(s: str) -> str:
+    """Quote an arg for sh without expanding anything inside it."""
+    if not s:
+        return "''"
+    if re.fullmatch(r"[A-Za-z0-9_./@:=+-]+", s):
+        return s
+    return "'" + s.replace("'", "'\\''") + "'"
+
+
+def _translate_mcp_entry_codex(cfg: dict[str, Any]) -> str:
+    """Translate adk schema → a Codex `[mcp_servers.NAME]` TOML block.
+
+    Shape (per openai/codex codex-rs/config/src/mcp_edit.rs):
+      HTTP:  url; bearer_token_env_var (Bearer-only auth); [.http_headers]
+             (literal values); [.env_http_headers] (value = env var name).
+      stdio: command + args + [.env] (literal values) + env_vars (forwarded
+             from host by name).
+    Env values that reference `${VAR}` are moved into an `sh -c` wrapper so
+    the shell — not Codex — expands them at launch time; the referenced var
+    names are added to `env_vars` so Codex forwards them from the host.
+    """
+    name = cfg["name"]
+    section = f"[mcp_servers.{_toml_key(name)}]"
     if "url" in cfg:
-        lines.append(f'url = {json.dumps(cfg["url"])}')
-        headers = cfg.get("headers", {}) or {}
-        auth = headers.get("Authorization", "") if isinstance(headers, dict) else ""
-        m = re.fullmatch(r"Bearer \$\{(\w+)\}", auth) if isinstance(auth, str) else None
-        if m and len(headers) == 1:
-            lines.append(f'authorization_token_env = "{m.group(1)}"')
-        elif headers:
-            lines.append("")
-            lines.append("[[mcp_servers.headers]]")
-            for k, v in headers.items():
-                lines.append(f"{_toml_key(k)} = {json.dumps(v)}")
-    elif "command" in cfg:
-        lines.append(f'command = {json.dumps(cfg["command"])}')
-        if "args" in cfg:
-            args_repr = ", ".join(json.dumps(a) for a in cfg["args"])
-            lines.append(f"args = [{args_repr}]")
-        env = cfg.get("env", {}) or {}
-        if env:
-            lines.append("")
-            lines.append("[mcp_servers.env]")
-            for k, v in env.items():
-                lines.append(f"{_toml_key(k)} = {json.dumps(v)}")
+        return _codex_http_block(name, cfg, section)
+    if "command" in cfg:
+        return _codex_stdio_block(name, cfg, section)
+    return section
+
+
+def _codex_http_block(name: str, cfg: dict[str, Any], section: str) -> str:
+    lines: list[str] = [section]
+    url = _expand_url_install_time(cfg["url"])
+    lines.append(f"url = {json.dumps(url)}")
+
+    headers = cfg.get("headers", {}) or {}
+    bearer_env: str | None = None
+    env_headers: dict[str, str] = {}
+    literal_headers: dict[str, str] = {}
+    for k, v in headers.items():
+        if not isinstance(v, str):
+            literal_headers[k] = v
+            continue
+        m_bearer = re.fullmatch(r"Bearer \$\{(\w+)\}", v)
+        m_envonly = re.fullmatch(r"\$\{(\w+)(?::-[^}]*)?\}", v) or re.fullmatch(r"\$(\w+)", v)
+        if k.lower() == "authorization" and m_bearer:
+            bearer_env = m_bearer.group(1)
+        elif m_envonly:
+            env_headers[k] = m_envonly.group(1)
+        else:
+            literal_headers[k] = v
+
+    if bearer_env:
+        lines.append(f"bearer_token_env_var = {json.dumps(bearer_env)}")
+    if literal_headers:
+        lines.append("")
+        lines.append(f"[mcp_servers.{_toml_key(name)}.http_headers]")
+        for k, v in literal_headers.items():
+            lines.append(f"{_toml_key(k)} = {json.dumps(v)}")
+    if env_headers:
+        lines.append("")
+        lines.append(f"[mcp_servers.{_toml_key(name)}.env_http_headers]")
+        for k, v in env_headers.items():
+            lines.append(f"{_toml_key(k)} = {json.dumps(v)}")
+    return "\n".join(lines)
+
+
+def _codex_stdio_block(name: str, cfg: dict[str, Any], section: str) -> str:
+    command: str = cfg["command"]
+    args: list[str] = list(cfg.get("args", []) or [])
+    env: dict[str, str] = dict(cfg.get("env", {}) or {})
+
+    # Collect every env var name referenced in args + env values. Codex needs
+    # these listed in `env_vars` so it forwards them from the host into the
+    # MCP subprocess (see codex-rs/rmcp-client/src/utils.rs).
+    env_var_refs: set[str] = set()
+    for a in args:
+        env_var_refs |= _ref_vars(a)
+
+    # Partition env into shell-expanded (has `$`) vs literal.
+    shell_env: dict[str, str] = {}
+    literal_env: dict[str, str] = {}
+    for k, v in env.items():
+        if isinstance(v, str) and "$" in v:
+            shell_env[k] = v
+            env_var_refs |= _ref_vars(v)
+        else:
+            literal_env[k] = v
+
+    if shell_env:
+        # Wrap (or splice into existing `sh -c`) so the shell expands env values.
+        if command == "sh" and args and args[0] == "-c" and len(args) >= 2:
+            inner = args[1]
+            exports = "\n".join(
+                f"export {k}={_shell_dquote(v)}" for k, v in shell_env.items()
+            )
+            command = "sh"
+            args = ["-c", exports + "\n" + inner]
+        else:
+            env_exports = " ".join(
+                f"{k}={_shell_dquote(v)}" for k, v in shell_env.items()
+            )
+            inner_cmd = " ".join([_shell_arg(command)] + [_shell_arg(a) for a in args])
+            command = "sh"
+            args = ["-c", f"exec env {env_exports} {inner_cmd}"]
+
+    lines: list[str] = [section, f"command = {json.dumps(command)}"]
+    if args:
+        lines.append("args = [" + ", ".join(json.dumps(a) for a in args) + "]")
+    if env_var_refs:
+        lines.append(
+            "env_vars = [" + ", ".join(json.dumps(v) for v in sorted(env_var_refs)) + "]"
+        )
+    if literal_env:
+        lines.append("")
+        lines.append(f"[mcp_servers.{_toml_key(name)}.env]")
+        for k, v in literal_env.items():
+            lines.append(f"{_toml_key(k)} = {json.dumps(v)}")
     return "\n".join(lines)
 
 
@@ -552,9 +1043,9 @@ def merge_mcp_into_junie(repo_root: Path, dry_run: bool) -> dict[str, str]:
 
 
 def merge_mcp_into_codex(repo_root: Path, dry_run: bool) -> dict[str, str]:
-    """Generate `[[mcp_servers]]` TOML blocks from mcp/adk-mcp-*.json and write
-    them into `~/.codex/config.toml` between the `# adk-marker:start` / `:end`
-    markers.
+    """Generate `[mcp_servers.NAME]` TOML blocks from mcp/adk-mcp-*.json and
+    write them into `~/.codex/config.toml` between the `# adk-marker:start` /
+    `:end` markers.
 
     Idempotent: re-running replaces the block; uninstall strips it via the
     same marker.
@@ -571,7 +1062,12 @@ def merge_mcp_into_codex(repo_root: Path, dry_run: bool) -> dict[str, str]:
     header = (
         "# adk v3 MCP servers — generated by install.py from "
         "mcp/adk-mcp-*.json. Do NOT edit by hand; edit the JSON sources and "
-        "re-run install.sh."
+        "re-run install.sh.\n#\n"
+        "# Codex requires the map form `[mcp_servers.NAME]` (see openai/codex\n"
+        "# codex-rs/config/src/mcp_edit.rs). It does not shell-expand `${VAR}`\n"
+        "# in TOML values, so stdio entries with `${VAR}` env values are wrapped\n"
+        "# in `sh -c` and the referenced var names are listed under `env_vars`\n"
+        "# so Codex forwards them from the host process."
     )
     content = header + "\n\n" + "\n\n".join(blocks)
     status = append_with_marker(
@@ -579,6 +1075,47 @@ def merge_mcp_into_codex(repo_root: Path, dry_run: bool) -> dict[str, str]:
     )
     results["_marker_status"] = status
     return results
+
+
+def _pop_marker_block(text: str, marker_start: str, marker_end: str) -> tuple[str, str | None]:
+    """Remove and return a marker block from a text file."""
+    start = text.find(marker_start)
+    if start == -1:
+        return text, None
+    end = text.find(marker_end, start)
+    if end == -1:
+        return text, None
+    end += len(marker_end)
+    if end < len(text) and text[end] == "\n":
+        end += 1
+    block = text[start:end].strip()
+    return text[:start] + text[end:], block
+
+
+def _reorder_codex_config_blocks(config_path: Path) -> None:
+    """Keep top-level Codex settings before generated MCP tables.
+
+    TOML table headers stay active until the next table header, so top-level
+    settings written after the MCP marker would otherwise attach to the final
+    `[mcp_servers.*]` section.
+    """
+    if not config_path.exists():
+        return
+    original = config_path.read_text(encoding="utf-8")
+    without_mcp, mcp_block = _pop_marker_block(original, MARKER_HASH_START, MARKER_HASH_END)
+    without_blocks, permissions_block = _pop_marker_block(
+        without_mcp, MARKER_PERMS_HASH_START, MARKER_PERMS_HASH_END,
+    )
+    if not mcp_block and not permissions_block:
+        return
+    parts = [p for p in (
+        without_blocks.strip(),
+        permissions_block,
+        mcp_block,
+    ) if p]
+    reordered = "\n\n".join(parts).rstrip() + "\n"
+    if reordered != original:
+        config_path.write_text(reordered, encoding="utf-8")
 
 
 # ----------------------------------------------------------------------------
@@ -600,6 +1137,12 @@ def set_statusline_in_claude(dry_run: bool) -> dict[str, str]:
     write_json(settings_path, current, dry_run)
     return {"status": "ok" if not dry_run else "dry-run",
             "script": "/Users/sujeet/.claude/statusline-command.sh"}
+
+
+def _hook_signature(entry: Any) -> str:
+    if isinstance(entry, dict):
+        entry = {k: v for k, v in entry.items() if k != "_adk_managed"}
+    return json.dumps(entry, sort_keys=True)
 
 
 def merge_hooks_into_claude(repo_root: Path, dry_run: bool) -> dict[str, Any]:
@@ -640,8 +1183,14 @@ def merge_hooks_into_claude(repo_root: Path, dry_run: bool) -> dict[str, Any]:
             actions[event] = "pruned (no longer in hooks.json)"
     # Phase 2: append fresh adk-managed entries from src.
     for event, src_entries in src_hooks.items():
+        src_sigs = {_hook_signature(e) for e in src_entries}
         current["hooks"].setdefault(event, [])
-        current["hooks"][event] = current["hooks"][event] + src_entries
+        # Older installs wrote the same hooks without `_adk_managed`. Drop
+        # exact untagged duplicates before appending the fresh managed entries.
+        current["hooks"][event] = [
+            e for e in current["hooks"][event]
+            if _hook_signature(e) not in src_sigs
+        ] + src_entries
         actions[event] = f"merged ({len(src_entries)} entries)"
     write_json(settings, current, dry_run)
     return {"status": "ok", "events": actions}
@@ -676,6 +1225,19 @@ def cleanup_stale_adk_symlinks(dest_dir: Path, dry_run: bool) -> list[str]:
                 warn(f"could not remove stale symlink {p}: {e}")
                 continue
         removed.append(p.name)
+    return removed
+
+
+def cleanup_unlisted_adk_entries(dest_dir: Path, expected_names: set[str],
+                                 dry_run: bool, reason: str) -> list[dict[str, Any]]:
+    """Remove adk-* entries that are no longer emitted by this repo version."""
+    if not dest_dir.exists():
+        return []
+    removed: list[dict[str, Any]] = []
+    for p in sorted(dest_dir.glob("adk-*"), key=lambda x: x.name):
+        if p.name in expected_names:
+            continue
+        removed.append(_remove_path(p, dry_run, reason))
     return removed
 
 
@@ -894,6 +1456,131 @@ def install_deps(repo_root: Path, dry_run: bool, results: dict[str, Any],
     results["deps"] = out
 
 
+def _zsh_completion_insert(text: str) -> tuple[str, int | None, str]:
+    """Return zshrc text with the managed fpath block inserted before compinit.
+
+    The returned line number is the 1-based insertion point. It is intentionally
+    enough for a sanitized diff without surfacing shell-init file contents.
+    """
+    if ADK_ZSH_COMPLETION_START in text and ADK_ZSH_COMPLETION_END in text:
+        return text, None, "present"
+
+    lines = text.splitlines(keepends=True)
+    insert_at = 0
+    status = "prepended"
+    for i, line in enumerate(lines):
+        stripped = line.strip()
+        if stripped.startswith("#"):
+            continue
+        if re.search(r"(?:^|[;&|\s])compinit(?:[\s;&|]|$)", line):
+            insert_at = i
+            status = "inserted-before-compinit"
+            break
+
+    block = ADK_ZSH_COMPLETION_BLOCK
+    if lines and insert_at > 0 and not lines[insert_at - 1].endswith("\n"):
+        block = "\n" + block
+    if lines and insert_at < len(lines) and insert_at > 0:
+        block = block + ("\n" if lines[insert_at - 1].strip() else "")
+
+    new_lines = lines[:insert_at] + [block] + lines[insert_at:]
+    if not lines:
+        return block, 1, "created"
+    return "".join(new_lines), insert_at + 1, status
+
+
+def _zsh_completion_diff(zshrc: Path, line_no: int | None, status: str) -> str:
+    if line_no is None:
+        return f"{zshrc}: adk completion block already present"
+    header = f"@@ {status} at line {line_no} (context redacted) @@"
+    added = "".join("+" + line for line in ADK_ZSH_COMPLETION_BLOCK.splitlines(True)).rstrip()
+    return f"--- {zshrc}\n+++ {zshrc}\n{header}\n{added}"
+
+
+def _verify_zsh_completion_registered() -> dict[str, str]:
+    if not shutil.which("zsh"):
+        return {
+            "status": "warn",
+            "detail": "zsh not found on PATH; cannot verify `compdef -p adk`",
+        }
+    cmd = (
+        "autoload -Uz compinit; "
+        "compinit -u >/dev/null 2>&1; "
+        "compdef -p adk >/dev/null 2>&1"
+    )
+    try:
+        cp = subprocess.run(["zsh", "-ic", cmd], capture_output=True, text=True, timeout=8)
+    except Exception as e:
+        return {"status": "fail", "detail": f"zsh verification failed: {e}"}
+    if cp.returncode == 0:
+        return {"status": "pass", "detail": "`compdef -p adk` returned a handler"}
+    return {
+        "status": "fail",
+        "detail": (
+            "adk completion is not registered in a fresh zsh. Add "
+            '`[[ -d "$HOME/.zsh/completions" ]] && fpath=("$HOME/.zsh/completions" $fpath)` '
+            "before `compinit` in ~/.zshrc, then open a new shell."
+        ),
+    }
+
+
+def _wire_zsh_fpath(*, dry_run: bool) -> dict[str, Any]:
+    """Offer to add ~/.zsh/completions to fpath before compinit.
+
+    The prompt shows a context-free diff so secret shell-init content never
+    enters stdout/stderr. Non-interactive installs skip the write and print the
+    same manual remediation.
+    """
+    zshrc = Path.home() / ".zshrc"
+    existing = zshrc.read_text(encoding="utf-8") if zshrc.exists() else ""
+    new_text, line_no, status = _zsh_completion_insert(existing)
+    if status == "present":
+        return {"status": "present", "verify": _verify_zsh_completion_registered()}
+
+    diff = _zsh_completion_diff(zshrc, line_no, status)
+    print("\nProposed zsh completion wiring:")
+    print(diff)
+
+    if dry_run:
+        return {"status": f"would-{status}", "path": str(zshrc)}
+    if not sys.stdin.isatty():
+        warn(
+            "not modifying ~/.zshrc because install is running non-interactively. "
+            "Add the managed block shown above before `compinit`, then run "
+            "`adk doctor --completion`."
+        )
+        return {"status": "skipped-needs-approval", "path": str(zshrc)}
+
+    answer = input("Apply this ~/.zshrc change? [y/N] ").strip().lower()
+    if answer not in {"y", "yes"}:
+        return {"status": "skipped-by-user", "path": str(zshrc)}
+
+    zshrc.parent.mkdir(parents=True, exist_ok=True)
+    zshrc.write_text(new_text, encoding="utf-8")
+    verify = _verify_zsh_completion_registered()
+    return {"status": status, "path": str(zshrc), "verify": verify}
+
+
+def bash_completion_warning() -> dict[str, str]:
+    shell = Path(os.environ.get("SHELL", "")).name
+    if shell != "bash":
+        return {"status": "not-bash", "detail": f"SHELL={shell or 'unknown'}"}
+
+    bashrc = Path.home() / ".bashrc"
+    text = bashrc.read_text(encoding="utf-8") if bashrc.exists() else ""
+    if "bash_completion" in text or "bash-completion" in text:
+        return {"status": "present", "detail": f"{bashrc} appears to source bash-completion"}
+
+    detail = (
+        "bash completion file was written, but bash-completion@2 is not sourced. "
+        "On macOS: `brew install bash-completion@2`, then add "
+        '`[[ -r "$(brew --prefix)/etc/profile.d/bash_completion.sh" ]] && '
+        'source "$(brew --prefix)/etc/profile.d/bash_completion.sh"` to ~/.bashrc.'
+    )
+    warn(detail)
+    return {"status": "warn", "detail": detail}
+
+
 def install_completions(dry_run: bool, results: dict[str, Any]) -> None:
     """Install shell completion scripts to the conventional user paths.
 
@@ -934,6 +1621,8 @@ def install_completions(dry_run: bool, results: dict[str, Any]) -> None:
             out[shell] = {"status": "written", "dst": str(dst)}
         except Exception as e:
             out[shell] = {"status": "failed", "error": str(e), "dst": str(dst)}
+    out["zsh_fpath"] = _wire_zsh_fpath(dry_run=dry_run)
+    out["bash_warning"] = bash_completion_warning()
     results["completions"] = out
 
 
@@ -981,18 +1670,36 @@ def install_claude(repo_root: Path, dry_run: bool, results: dict[str, Any]) -> N
     stale_cmds = cleanup_stale_adk_symlinks(home_claude / "commands", dry_run)
     # skills
     skill_results = {}
-    for skill_dir in sorted((repo_root / "skills").glob("adk-*")):
+    skill_sources = [
+        p for p in sorted((repo_root / "skills").glob("adk-*"))
+        if p.is_dir() and p.name not in NON_SLASH_SKILLS
+    ]
+    obsolete_skills = cleanup_unlisted_adk_entries(
+        home_claude / "skills", {p.name for p in skill_sources}, dry_run,
+        "remove obsolete ADK Claude skill",
+    )
+    for skill_dir in skill_sources:
         if skill_dir.is_dir() and skill_dir.name not in NON_SLASH_SKILLS:
             dst = home_claude / "skills" / skill_dir.name
             skill_results[skill_dir.name] = make_symlink(skill_dir, dst, dry_run)
     # agents
     agent_results = {}
-    for agent_file in sorted((repo_root / "agents-claude" / "agents").glob("adk-agent-*.md")):
+    agent_sources = sorted((repo_root / "agents-claude" / "agents").glob("adk-agent-*.md"))
+    obsolete_agents = cleanup_unlisted_adk_entries(
+        home_claude / "agents", {p.name for p in agent_sources}, dry_run,
+        "remove obsolete ADK Claude agent",
+    )
+    for agent_file in agent_sources:
         dst = home_claude / "agents" / agent_file.name
         agent_results[agent_file.name] = make_symlink(agent_file, dst, dry_run)
     # commands
     cmd_results = {}
-    for cmd_file in sorted((repo_root / "agents-claude" / "commands").glob("adk-*.md")):
+    cmd_sources = sorted((repo_root / "agents-claude" / "commands").glob("adk-*.md"))
+    obsolete_cmds = cleanup_unlisted_adk_entries(
+        home_claude / "commands", {p.name for p in cmd_sources}, dry_run,
+        "remove obsolete ADK Claude command",
+    )
+    for cmd_file in cmd_sources:
         dst = home_claude / "commands" / cmd_file.name
         cmd_results[cmd_file.name] = make_symlink(cmd_file, dst, dry_run)
     # global CLAUDE.md append
@@ -1012,6 +1719,7 @@ def install_claude(repo_root: Path, dry_run: bool, results: dict[str, Any]) -> N
     results["claude"] = {
         "skills": skill_results, "agents": agent_results, "commands": cmd_results,
         "stale_removed": {"skills": stale_skills, "agents": stale_agents, "commands": stale_cmds},
+        "obsolete_removed": {"skills": obsolete_skills, "agents": obsolete_agents, "commands": obsolete_cmds},
         "claude_md_append": append_result, "mcp_merge": mcp_results, "hooks": hooks_result,
         "permissions": perms_result, "statusline": statusline_result,
     }
@@ -1024,7 +1732,12 @@ def install_cursor(repo_root: Path, dry_run: bool, results: dict[str, Any]) -> N
     stale_rules = cleanup_stale_adk_symlinks(rules_dir, dry_run)
     # rules
     rule_results = {}
-    for rule_file in sorted((repo_root / "agents-cursor" / "rules").glob("adk-*.mdc")):
+    rule_sources = sorted((repo_root / "agents-cursor" / "rules").glob("adk-*.mdc"))
+    obsolete_rules = cleanup_unlisted_adk_entries(
+        rules_dir, {p.name for p in rule_sources}, dry_run,
+        "remove obsolete ADK Cursor rule",
+    )
+    for rule_file in rule_sources:
         dst = rules_dir / rule_file.name
         rule_results[rule_file.name] = make_symlink(rule_file, dst, dry_run)
     # global always-rule (the AGENTS.md pointer).
@@ -1045,6 +1758,7 @@ def install_cursor(repo_root: Path, dry_run: bool, results: dict[str, Any]) -> N
     perms_result = merge_permissions_into_cursor(repo_root, dry_run)
     results["cursor"] = {
         "rules": rule_results, "stale_removed": {"rules": stale_rules},
+        "obsolete_removed": {"rules": obsolete_rules},
         "always_rule_append": append_result, "mcp_merge": mcp_results,
         "permissions": perms_result,
     }
@@ -1055,7 +1769,12 @@ def install_codex(repo_root: Path, dry_run: bool, results: dict[str, Any]) -> No
     codex_dir = Path.home() / ".codex"
     ensure_dir(codex_dir / "prompts", dry_run)
     prompt_results = {}
-    for prompt_file in sorted((repo_root / "agents-codex" / "prompts").glob("adk-*.md")):
+    prompt_sources = sorted((repo_root / "agents-codex" / "prompts").glob("adk-*.md"))
+    obsolete_prompts = cleanup_unlisted_adk_entries(
+        codex_dir / "prompts", {p.name for p in prompt_sources}, dry_run,
+        "remove obsolete ADK Codex prompt",
+    )
+    for prompt_file in prompt_sources:
         dst = codex_dir / "prompts" / prompt_file.name
         prompt_results[prompt_file.name] = make_symlink(prompt_file, dst, dry_run)
     # MCP merge — generated from mcp/adk-mcp-*.json (single source of truth
@@ -1063,6 +1782,12 @@ def install_codex(repo_root: Path, dry_run: bool, results: dict[str, Any]) -> No
     mcp_results = merge_mcp_into_codex(repo_root, dry_run)
     # Permissions merge (approval_policy / sandbox_mode)
     perms_result = merge_permissions_into_codex(repo_root, dry_run)
+    # TOML has no explicit "end of section" — top-level keys written after a
+    # `[mcp_servers.NAME]` block silently belong to that section. Reorder so
+    # the permissions block (which contains top-level keys) sits before the
+    # mcp_servers marker block.
+    if not dry_run:
+        _reorder_codex_config_blocks(codex_dir / "config.toml")
     # Global instructions pointer
     instructions = codex_dir / "instructions.md"
     pointer = f"For every prompt, follow the routing in @{repo_root}/AGENTS.md."
@@ -1071,6 +1796,7 @@ def install_codex(repo_root: Path, dry_run: bool, results: dict[str, Any]) -> No
     )
     results["codex"] = {
         "prompts": prompt_results,
+        "obsolete_removed": {"prompts": obsolete_prompts},
         "mcp_merge": mcp_results,
         "permissions": perms_result,
         "instructions_append": instructions_append,
@@ -1091,17 +1817,29 @@ def install_junie(repo_root: Path, dry_run: bool, results: dict[str, Any]) -> No
     # Symlink skills/adk-* into ~/.junie/skills/ — Junie auto-discovers skills
     # with a SKILL.md in each subdir, same as Claude Code.
     skill_results: dict[str, str] = {}
-    for skill_dir in sorted((repo_root / "skills").glob("adk-*")):
-        if skill_dir.is_dir() and skill_dir.name not in NON_SLASH_SKILLS:
-            dst = junie_dir / "skills" / skill_dir.name
-            skill_results[skill_dir.name] = make_symlink(skill_dir, dst, dry_run)
+    skill_sources = [
+        p for p in sorted((repo_root / "skills").glob("adk-*"))
+        if p.is_dir() and p.name not in NON_SLASH_SKILLS
+    ]
+    obsolete_skills = cleanup_unlisted_adk_entries(
+        junie_dir / "skills", {p.name for p in skill_sources}, dry_run,
+        "remove obsolete ADK Junie skill",
+    )
+    for skill_dir in skill_sources:
+        dst = junie_dir / "skills" / skill_dir.name
+        skill_results[skill_dir.name] = make_symlink(skill_dir, dst, dry_run)
     # Slash commands: Junie skills are auto-invoked by description match, not
     # by typing `/adk-…`. To make `/adk-*` appear in the slash menu, write
     # rendered command Markdowns (re-used from agents-claude/commands) into
     # ~/.junie/commands/. Junie command format (YAML frontmatter w/
     # `description:` + body) is compatible with Claude's.
     cmd_results: dict[str, str] = {}
-    for cmd_file in sorted((repo_root / "agents-claude" / "commands").glob("adk-*.md")):
+    cmd_sources = sorted((repo_root / "agents-claude" / "commands").glob("adk-*.md"))
+    obsolete_cmds = cleanup_unlisted_adk_entries(
+        junie_dir / "commands", {p.name for p in cmd_sources}, dry_run,
+        "remove obsolete ADK Junie command",
+    )
+    for cmd_file in cmd_sources:
         dst = junie_dir / "commands" / cmd_file.name
         rendered = cmd_file.read_text(encoding="utf-8").replace("{{ADK_REPO}}", str(repo_root))
         if dry_run:
@@ -1129,6 +1867,7 @@ def install_junie(repo_root: Path, dry_run: bool, results: dict[str, Any]) -> No
         "guidelines_append": guidelines_append,
         "skills": skill_results,
         "commands": cmd_results,
+        "obsolete_removed": {"skills": obsolete_skills, "commands": obsolete_cmds},
         "mcp_merge": mcp_results,
         "mcp_snippet_written": str(mcp_snippet_path) if not dry_run else "(dry-run)",
         "permissions": perms_result,
@@ -1393,7 +2132,7 @@ def bootstrap_user_dir(repo_root: Path, dry_run: bool) -> dict[str, str]:
 # ----------------------------------------------------------------------------
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description="adk v3 installer")
+    ap = argparse.ArgumentParser(description="adk installer (ADK-only agent profile)")
     ap.add_argument("--repo-root", required=True, type=Path)
     ap.add_argument("--target", default=None, help="comma-separated; or 'all'")
     ap.add_argument("--uninstall", action="store_true")
@@ -1448,6 +2187,15 @@ def main() -> int:
             results["adk_bin"] = uninstall_adk_bin(dry_run)
         print(json.dumps(results, indent=2))
         return 0
+
+    # Enforce the ADK-only machine profile before writing fresh ADK artifacts.
+    # This makes install.sh repeatable: every run first removes stale/non-ADK
+    # integrations and then recreates the desired state from this repo.
+    try:
+        results["adk_only_cleanup"] = cleanup_adk_only(repo_root, targets, dry_run)
+    except Exception as e:
+        err(f"ADK-only cleanup failed: {e}")
+        results["adk_only_cleanup"] = {"error": str(e)}
 
     # Always bootstrap ~/.agents-devkit/config/
     results["user_dir"] = bootstrap_user_dir(repo_root, dry_run)

@@ -25,6 +25,10 @@ list                 Names of every task folder under
 Internals: prepare delegates to skills/adk-pr-review/scripts/prepare_task.py
 --prepare-only. This module is a stable wrapper — the skill (and any
 external caller) doesn't need to know that path.
+
+Depth flags: `--detailed` controls the embedding/retrieval path. `--deep` is
+accepted and forwarded for symmetry with `/adk-pr-review`; the parent harness
+chooses the actual review model.
 """
 from __future__ import annotations
 
@@ -42,7 +46,20 @@ sys.path.insert(0, str(SCRIPTS_ROOT))
 ADK_PR_REVIEW_SCRIPTS = THIS_DIR.parent.parent / "adk-pr-review" / "scripts"
 sys.path.insert(0, str(ADK_PR_REVIEW_SCRIPTS))
 
-from _common import parse_pr_url, task_dir_for, die, get_logger, ADK_HOME, read_state  # noqa: E402
+from _common import (  # noqa: E402
+    ADK_HOME,
+    RunEvent,
+    die,
+    emit_event,
+    format_file_ref,
+    format_pr_ref,
+    get_logger,
+    is_orchestrated,
+    parse_pr_url,
+    read_state,
+    status_glyph,
+    task_dir_for,
+)
 from queue_io import (  # noqa: E402
     DEFAULT_QUEUE_PATH, STATUS_MERGED, STATUS_PENDING,
     TERMINAL_STATUSES, read_queue,
@@ -50,9 +67,10 @@ from queue_io import (  # noqa: E402
 
 
 def _default_prepare_jobs() -> int:
-    """Read `pr_sync.prepare_jobs` from adk-cli.json5 (with legacy core.yaml
-    fallback). Returns 1 when the file/key is absent. The bound is enforced
-    at the cmd_prepare seam — this helper just resolves the default.
+    """Read `pr_sync.prepare_jobs` from adk-cli.json5.
+
+    Returns 1 when the file/key is absent. The bound is enforced at
+    `cmd_prepare`; this helper just resolves the default.
     """
     try:
         from config_io import get_adk_cli  # noqa: WPS433
@@ -100,7 +118,164 @@ def _task_dir_for(pr_url: str) -> Path:
 
 # ----- prepare -------------------------------------------------------------
 
+def _extract_trailing_json(text: str) -> dict | None:
+    """Pull the last balanced `{...}` block out of `text`.
+
+    Retained for callers that need to parse output from explicitly
+    machine-readable subcommands; the default prepare path now renders a human
+    terminal summary instead of a trailing JSON object.
+    """
+    if not text:
+        return None
+    end = text.rfind("}")
+    if end < 0:
+        return None
+    depth = 0
+    in_str = False
+    esc = False
+    start = -1
+    # Walk backwards from the closing brace until brace depth returns to 0.
+    for i in range(end, -1, -1):
+        ch = text[i]
+        if esc:
+            esc = False
+            continue
+        if ch == "\\":
+            esc = True
+            continue
+        if ch == '"':
+            in_str = not in_str
+            continue
+        if in_str:
+            continue
+        if ch == "}":
+            depth += 1
+        elif ch == "{":
+            depth -= 1
+            if depth == 0:
+                start = i
+                break
+    if start < 0:
+        return None
+    block = text[start:end + 1]
+    try:
+        obj = json.loads(block)
+    except json.JSONDecodeError:
+        return None
+    return obj if isinstance(obj, dict) else None
+
+
+def _extract_error_reason(stderr: str, stdout: str) -> str:
+    """Produce a one-line reason from a failed subprocess output.
+
+    `prepare_task.py` re-raises with `SystemExit(f"step failed (rc=…): <cmd>")`
+    after logging a Python traceback to stderr. The previous code took
+    `stderr[-400:]` which sliced mid-line — producing `"ise RuntimeError(…)"`
+    (the tail of `raise`). We instead prefer, in order:
+
+      1. the SystemExit line — the orchestrator's own framing of the failure,
+      2. the last RuntimeError/Exception line in the traceback,
+      3. the last non-empty stderr line,
+      4. the last non-empty stdout line,
+      5. "<no output>".
+    """
+    def _scan(text: str, prefix: str) -> str | None:
+        out: str | None = None
+        for line in (text or "").splitlines():
+            ln = line.strip()
+            if ln.startswith(prefix):
+                out = ln
+        return out
+
+    err = stderr or ""
+    # 1. orchestrator's framing
+    for ln in reversed(err.splitlines()):
+        s = ln.strip()
+        if s.startswith("step failed (rc="):
+            return s
+    # 2. last exception line
+    for prefix in ("RuntimeError:", "ValueError:", "FileNotFoundError:",
+                   "PermissionError:", "TimeoutError:", "subprocess.CalledProcessError:",
+                   "Exception:", "AssertionError:"):
+        hit = _scan(err, prefix)
+        if hit:
+            return hit
+    # 3. last non-empty stderr line
+    for ln in reversed(err.splitlines()):
+        s = ln.strip()
+        if s:
+            return s
+    # 4. last non-empty stdout line
+    for ln in reversed((stdout or "").splitlines()):
+        s = ln.strip()
+        if s:
+            return s
+    return "<no output>"
+
+
+def _prepared_result(pr_url: str) -> dict:
+    """Build a small result object from files on disk after prepare succeeds."""
+    try:
+        task_dir = _task_dir_for(pr_url)
+        state = read_state(task_dir)
+        idx = (state.get("phases") or {}).get("3_index") or {}
+        head = idx.get("head_sha_at_index")
+        return {
+            "pr_url": pr_url,
+            "status": "prepared",
+            "task_dir": str(task_dir),
+            "head_sha": head,
+            "incremental": bool(idx.get("incremental")),
+            "skipped": bool(idx.get("skipped")),
+        }
+    except Exception:
+        return {"pr_url": pr_url, "status": "prepared"}
+
+
+def _prepare_summary_detail(results: list[dict]) -> str:
+    failed = [r for r in results if r.get("status") == "failed"]
+    prepared = len(results) - len(failed)
+    incremental = sum(1 for r in results if r.get("incremental"))
+    unchanged = sum(1 for r in results if r.get("skipped"))
+    parts = [f"{prepared} ready"]
+    if unchanged:
+        parts.append(f"{unchanged} unchanged")
+    if incremental:
+        parts.append(f"{incremental} incremental")
+    if failed:
+        parts.append(f"{len(failed)} failed")
+    return ", ".join(parts)
+
+
+def _print_prepare_results(results: list[dict], *, queue: str) -> None:
+    failed = [r for r in results if r.get("status") == "failed"]
+    print(f"\n{'✅' if not failed else '⚠️'} pr-task prepare complete")
+    print(f"   ├─ queue: {format_file_ref(queue)}")
+    print(f"   ├─ prepared: {len(results) - len(failed)}")
+    print(f"   └─ failed: {len(failed)}")
+    if not results:
+        return
+    print("\n   PRs:")
+    for r in results:
+        status = r.get("status")
+        ref = format_pr_ref(r.get("pr_url", ""))
+        details = []
+        if r.get("head_sha"):
+            details.append(f"head {str(r['head_sha'])[:12]}")
+        if r.get("skipped"):
+            details.append("index unchanged")
+        elif r.get("incremental"):
+            details.append("incremental index")
+        if r.get("reason"):
+            details.append(str(r["reason"])[:160])
+        print(f"   ├─ {status_glyph(status)} {ref}"
+              f"{' · ' + ' · '.join(details) if details else ''}")
+        if r.get("task_dir"):
+            print(f"   │  └─ task: {format_file_ref(r['task_dir'])}")
+
+
 def _prepare_one(pr_url: str, *, queue: str, rebuild: bool, detailed: bool,
+                 deep: bool,
                  embed_model: str | None, log) -> dict:
     """Spawn prepare_task.py --prepare-only for one PR. Returns a structured
     dict so the --all caller can aggregate. Never raises."""
@@ -110,6 +285,8 @@ def _prepare_one(pr_url: str, *, queue: str, rebuild: bool, detailed: bool,
         cmd.append("--rebuild")
     if detailed:
         cmd.append("--detailed")
+    if deep:
+        cmd.append("--deep")
     if embed_model:
         cmd += ["--embed-model", embed_model]
     cmd.append(pr_url)
@@ -121,18 +298,13 @@ def _prepare_one(pr_url: str, *, queue: str, rebuild: bool, detailed: bool,
         return {"pr_url": pr_url, "status": "failed", "reason": str(e)}
     if cp.returncode != 0:
         return {"pr_url": pr_url, "status": "failed",
-                "reason": (cp.stderr or cp.stdout or "")[-400:]}
-    last_line = (cp.stdout or "").strip().splitlines()[-1:] or [""]
-    try:
-        body = json.loads(last_line[0])
-        return {"pr_url": pr_url, **body}
-    except Exception:
-        return {"pr_url": pr_url, "status": "prepared",
-                "raw": last_line[0][-200:]}
+                "reason": _extract_error_reason(cp.stderr or "", cp.stdout or "")}
+    return _prepared_result(pr_url)
 
 
 def cmd_prepare(args) -> int:
     log = get_logger("pr-task-prepare")
+    quiet = bool(getattr(args, "quiet", False) or is_orchestrated())
     if not PREPARE_TASK.exists():
         die(f"prepare_task.py not found at {PREPARE_TASK} — check your install")
 
@@ -141,20 +313,32 @@ def cmd_prepare(args) -> int:
             die("pass either <pr-url> or --all, not both")
         queued = _queued_task_dirs(Path(args.queue).expanduser())
         if not queued:
-            print(json.dumps({"prepared": [], "reason": "no non-merged rows"},
-                             indent=2))
+            if quiet:
+                emit_event(RunEvent(kind="step_done", name="prepare tasks",
+                                    status="done", detail="no active rows"))
+            else:
+                _print_prepare_results([], queue=args.queue)
             return 0
         urls = list(queued)
         jobs = args.jobs if args.jobs is not None else _default_prepare_jobs()
         jobs = max(1, min(jobs, len(urls)))
-        log.info("preparing %d task folder(s) (jobs=%d)", len(urls), jobs)
+        if not quiet:
+            log.info("preparing %d task folder(s) (jobs=%d)", len(urls), jobs)
+        else:
+            emit_event(RunEvent(kind="step_start", name="prepare tasks",
+                                status="run", detail=f"0/{len(urls)} ready"))
         results: list[dict] = []
         had_failure = False
 
         if jobs == 1:
             for url in urls:
+                if quiet:
+                    emit_event(RunEvent(kind="step_progress", name="prepare tasks",
+                                        status="run",
+                                        detail=f"{len(results)}/{len(urls)} ready; preparing {format_pr_ref(url)}"))
                 r = _prepare_one(url, queue=args.queue, rebuild=args.rebuild,
                                  detailed=args.detailed,
+                                 deep=args.deep,
                                  embed_model=args.embed_model, log=log)
                 if r.get("status") == "failed":
                     had_failure = True
@@ -172,6 +356,7 @@ def cmd_prepare(args) -> int:
                     ex.submit(_prepare_one, url,
                               queue=args.queue, rebuild=args.rebuild,
                               detailed=args.detailed,
+                              deep=args.deep,
                               embed_model=args.embed_model, log=log): url
                     for url in urls
                 }
@@ -185,14 +370,23 @@ def cmd_prepare(args) -> int:
                              "reason": f"worker exception: {e}"}
                     if r.get("status") == "failed":
                         had_failure = True
-                        log.warning("(%d/%d) failed %s: %s", done, total, url,
-                                    (r.get("reason") or "")[:200])
+                        if not quiet:
+                            log.warning("(%d/%d) failed %s: %s", done, total, url,
+                                        (r.get("reason") or "")[:200])
                     else:
-                        log.info("(%d/%d) prepared %s", done, total, url)
+                        if not quiet:
+                            log.info("(%d/%d) prepared %s", done, total, url)
                     results.append(r)
 
-        print(json.dumps({"prepared": results, "count": len(results)},
-                         indent=2, default=str))
+        if quiet:
+            emit_event(RunEvent(
+                kind="step_done",
+                name="prepare tasks",
+                status="done" if not had_failure else "warn",
+                detail=_prepare_summary_detail(results),
+            ))
+        else:
+            _print_prepare_results(results, queue=args.queue)
         return 1 if had_failure else 0
 
     if not args.pr_url:
@@ -206,6 +400,8 @@ def cmd_prepare(args) -> int:
         cmd.append("--rebuild")
     if args.detailed:
         cmd.append("--detailed")
+    if args.deep:
+        cmd.append("--deep")
     if args.embed_model:
         cmd += ["--embed-model", args.embed_model]
     cmd.append(args.pr_url)
@@ -250,7 +446,8 @@ def cmd_clean_orphans(args) -> int:
     log = get_logger("pr-task-clean-orphans")
     root = PR_REVIEW_ROOT
     if not root.exists():
-        print(json.dumps({"removed": [], "reason": "no task folders"}, indent=2))
+        print("\n✅ pr-task clean-orphans complete")
+        print("   └─ no task folders found")
         return 0
 
     queued = _queued_task_dirs(Path(args.queue).expanduser())
@@ -265,13 +462,14 @@ def cmd_clean_orphans(args) -> int:
         candidates.append(d)
 
     if not candidates:
-        print(json.dumps({"removed": [], "count": 0, "reason": "no orphans"},
-                         indent=2))
+        print("\n✅ pr-task clean-orphans complete")
+        print("   └─ no orphan task folders")
         return 0
 
     if args.dry_run:
-        print(json.dumps({"would_remove": [str(d) for d in candidates],
-                          "count": len(candidates)}, indent=2))
+        print(f"\n🧪 pr-task clean-orphans dry run: {len(candidates)} folder(s) would be removed")
+        for d in candidates:
+            print(f"   ├─ {format_file_ref(d)}")
         return 0
 
     if not args.yes:
@@ -292,8 +490,13 @@ def cmd_clean_orphans(args) -> int:
             failed.append({"path": str(d), "error": str(e)})
             log.warning("failed to remove %s: %s", d, e)
 
-    print(json.dumps({"removed": removed, "failed": failed,
-                      "count": len(removed)}, indent=2))
+    print(f"\n{'✅' if not failed else '⚠️'} pr-task clean-orphans complete")
+    print(f"   ├─ removed: {len(removed)}")
+    print(f"   └─ failed: {len(failed)}")
+    for path in removed:
+        print(f"   ├─ 🗑️  {format_file_ref(path)}")
+    for item in failed:
+        print(f"   ├─ ❌ {format_file_ref(item['path'])} · {item['error']}")
     return 1 if failed else 0
 
 
@@ -491,6 +694,8 @@ def main(argv: list[str] | None = None) -> int:
                          help="force a full index rebuild even if head_sha is unchanged")
     sp_prep.add_argument("--detailed", action="store_true",
                          help="use the detailed embed model (bge-m3) for higher recall")
+    sp_prep.add_argument("--deep", action="store_true",
+                         help="accepted for /adk-pr-review symmetry; model depth is selected by the review harness")
     sp_prep.add_argument("--embed-model", default=None,
                          help="override embed model (default from config)")
     sp_prep.add_argument("--jobs", type=int, default=None,
@@ -498,6 +703,7 @@ def main(argv: list[str] | None = None) -> int:
                               "core.yaml pr_sync.prepare_jobs, fallback 1). "
                               "Effective parallelism is capped by the per-repo "
                               "clone lock and OLLAMA_NUM_PARALLEL.")
+    sp_prep.add_argument("--quiet", action="store_true", help=argparse.SUPPRESS)
     sp_prep.add_argument("-y", "--yes", action="store_true")
     sp_prep.set_defaults(func=cmd_prepare)
 
