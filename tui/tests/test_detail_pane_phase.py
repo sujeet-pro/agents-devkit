@@ -1,19 +1,16 @@
-"""Unit tests for the ε `Phase:` line in `tui/widgets/detail_pane.py`.
-
-The DetailPane gets a new keyword-only argument `worker: WorkerRow | None`.
-When provided, it renders a `Phase:` line between `Status:` and `Lock:`.
-When omitted or None, the line is absent.
-"""
+"""Unit tests for the simplified detail pane."""
 from __future__ import annotations
 
 from tui.model.queue_model import QueueRow
+from tui.model.work_queue_model import PrWorkState
 from tui.model.workers_model import WorkerRow
+from tui.model.work_queue_model import format_work_cell
 from tui.widgets.detail_pane import DetailPane
 
 
 def _make_row() -> QueueRow:
-    """Construct a minimally-populated QueueRow for DetailPane tests."""
     return QueueRow(
+        queue_index=0,
         pr_url="https://github.com/acme/foo/pull/42",
         host="github",
         repo="acme/foo",
@@ -37,68 +34,64 @@ def _make_row() -> QueueRow:
 def _make_worker(*, phase: str = "phase 4: Triage") -> WorkerRow:
     return WorkerRow(
         pid=1234,
+        worker_id="w1234",
+        run_id=None,
         pr_url="https://github.com/acme/foo/pull/42",
+        subject="https://github.com/acme/foo/pull/42",
         task_type="review",
+        status="running",
         agent="claude",
         queue="/tmp/q",
         started_at="2026-05-22T14:00:00Z",
         last_heartbeat="2026-05-22T14:00:30Z",
         current_phase=phase,
         rc=None,
+        log_path="/tmp/review.log",
+        links={},
+        artifacts={},
         age_s=30.0,
         is_stale=False,
     )
 
 
-def _rendered_text(pane: DetailPane) -> str:
-    """Pull the current rendered text from the Static widget."""
-    return str(pane.render())
-
-
 def test_show_none_returns_no_row_selected() -> None:
     pane = DetailPane()
     pane.show(None)
-    assert _rendered_text(pane) == "(no row selected)"
+    assert pane.overview_text == "(no row selected)"
 
 
-def test_show_row_without_worker_kwarg_has_no_phase_line() -> None:
-    """Default call (no `worker=` kwarg) must not render a Phase line."""
+def test_show_row_without_worker_shows_last_review() -> None:
     pane = DetailPane()
     pane.show(_make_row())
-    text = _rendered_text(pane)
-    assert "Phase:" not in text, (
-        f"Phase line should be absent when worker arg omitted.\nRendered:\n{text}"
-    )
+    text = pane.overview_text
+    assert "Last review:" in text
+    assert "Prep:" not in text
+    assert "Lock:" not in text
 
 
-def test_show_row_with_worker_none_has_no_phase_line() -> None:
-    """Explicit `worker=None` also suppresses the Phase line."""
-    pane = DetailPane()
-    pane.show(_make_row(), worker=None)
-    text = _rendered_text(pane)
-    assert "Phase:" not in text, (
-        f"Phase line should be absent when worker=None.\nRendered:\n{text}"
-    )
-
-
-def test_show_row_with_worker_renders_phase_line() -> None:
-    """`worker=<WorkerRow>` adds a `Phase:` line containing the phase text."""
+def test_show_row_with_worker_renders_phase_and_log() -> None:
     pane = DetailPane()
     pane.show(_make_row(), worker=_make_worker(phase="phase 4: Triage"))
-    text = _rendered_text(pane)
-    assert "Phase:" in text, f"Phase line missing.\nRendered:\n{text}"
-    assert "phase 4: Triage" in text, (
-        f"Phase text missing.\nRendered:\n{text}"
-    )
-    # Phase line is positioned between Status and Lock per SPEC §3.2.
-    lines = text.splitlines()
-    statuses = [i for i, ln in enumerate(lines) if ln.startswith("Status:")]
-    phases = [i for i, ln in enumerate(lines) if ln.startswith("Phase:")]
-    locks = [i for i, ln in enumerate(lines) if ln.startswith("Lock:")]
-    assert statuses and phases and locks, (
-        f"missing one of Status/Phase/Lock lines:\n{text}"
-    )
-    assert statuses[0] < phases[0] < locks[0], (
-        f"Phase line out of order (Status={statuses[0]}, "
-        f"Phase={phases[0]}, Lock={locks[0]}):\n{text}"
-    )
+    text = pane.overview_text
+    assert "Phase:" in text
+    assert "phase 4: Triage" in text
+    assert "Log:" in text
+    assert "/tmp/review.log" in text
+
+
+def test_work_state_line_rendered_when_provided() -> None:
+    pane = DetailPane()
+    work = format_work_cell(PrWorkState(status="running", action="sync+review"))
+    pane.show(_make_row(), work_text=work)
+    text = pane.overview_text
+    assert "Work:" in text
+    assert "running (sync+review)" in text
+
+
+def test_context_actions_points_to_secondary_menu() -> None:
+    pane = DetailPane()
+    pane.show(_make_row())
+    text = pane.overview_text
+    assert "More:" in text
+    assert "[enter] actions" in text
+    assert "[r] review" not in text

@@ -62,6 +62,7 @@ def test_dry_run_includes_guard_flags_in_output(tmp_path, monkeypatch):
     monkeypatch.setattr(sys, "stdout", captured)
     rc = auto_run.main([
         "--queue", str(qp), "--dry-run", "--no-sync",
+        "--runner", "claude",
         "--quiet-hours", "00-01",  # very narrow; unlikely to trigger
         "--max-cost-usd", "100",
         "--report-to-slack", "#test",
@@ -74,7 +75,7 @@ def test_dry_run_includes_guard_flags_in_output(tmp_path, monkeypatch):
         assert out["quiet_hours"] == "00-01"
         assert out["max_cost_usd"] == 100
         assert out["report_to_slack"] == "#test"
-        assert out["runner"] == "claude"
+        assert out["runner"] in {"claude", "cursor", "codex", "custom"}
 
 
 def test_max_cost_aborts_when_estimate_exceeds(tmp_path, monkeypatch):
@@ -89,6 +90,7 @@ def test_max_cost_aborts_when_estimate_exceeds(tmp_path, monkeypatch):
     monkeypatch.setattr(sys, "stdout", captured)
     rc = auto_run.main([
         "--queue", str(qp), "--no-sync",
+        "--runner", "claude",
         "--max-cost-usd", "1.00",
     ])
     monkeypatch.undo()

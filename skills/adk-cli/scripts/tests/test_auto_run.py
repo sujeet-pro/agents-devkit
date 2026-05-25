@@ -42,6 +42,17 @@ def test_eligible_rows_filters_excluded_urls(tmp_path):
     assert [r["pr_url"] for r in rows] == ["u2"]
 
 
+def test_eligible_rows_preserves_queue_order(tmp_path):
+    qp = _write_queue(tmp_path / "q.json5", [
+        {"pr_url": "u-newer", "status": "pending", "head_sha": "abc",
+         "last_checked_at": "2026-05-21T17:15:00Z"},
+        {"pr_url": "u-older", "status": "pending", "head_sha": "def",
+         "last_checked_at": "2026-05-21T15:00:00Z"},
+    ])
+    rows = auto_run._eligible_rows(qp, exclude=set())
+    assert [r["pr_url"] for r in rows] == ["u-newer", "u-older"]
+
+
 def test_eligible_rows_filters_already_reviewed_at_head(tmp_path):
     """When head_sha == last_reviewed_head_sha, the row is excluded."""
     qp = _write_queue(tmp_path / "q.json5", [
@@ -52,6 +63,38 @@ def test_eligible_rows_filters_already_reviewed_at_head(tmp_path):
     ])
     rows = auto_run._eligible_rows(qp, exclude=set())
     assert [r["pr_url"] for r in rows] == ["u2"]
+    assert rows[0]["_adk_work_mode"] == "code"
+
+
+def test_eligible_rows_includes_comment_only_change(tmp_path):
+    qp = _write_queue(tmp_path / "q.json5", [
+        {"pr_url": "u1", "status": "comments", "head_sha": "abc",
+         "last_reviewed_head_sha": "abc",
+         "comment_activity_hash": "new",
+         "last_reviewed_comment_activity_hash": "old"},
+    ])
+    rows = auto_run._eligible_rows(qp, exclude=set())
+    assert [r["pr_url"] for r in rows] == ["u1"]
+    assert rows[0]["_adk_work_mode"] == "comments"
+
+
+def test_eligible_rows_includes_failed_attempt_resume(tmp_path):
+    qp = _write_queue(tmp_path / "q.json5", [
+        {"pr_url": "u1", "status": "comments", "head_sha": "abc",
+         "last_reviewed_head_sha": "abc",
+         "last_review_attempt_status": "failed",
+         "last_review_attempt_at": "2026-05-25T00:00:00Z"},
+    ])
+    rows = auto_run._eligible_rows(qp, exclude=set())
+    assert [r["pr_url"] for r in rows] == ["u1"]
+    assert rows[0]["_adk_work_mode"] == "resume"
+
+
+def test_parse_phase_marker_accepts_agent_prefixed_lines():
+    assert auto_run._parse_phase_marker("[claude] phase 3: feature-flow") == (
+        "phase 3: feature-flow"
+    )
+    assert auto_run._parse_phase_marker("ordinary log line") is None
 
 
 def test_dry_run_lists_eligible_without_spawning(tmp_path, monkeypatch):
@@ -103,6 +146,23 @@ def test_no_eligible_returns_noop(tmp_path, monkeypatch):
     out = captured.getvalue()
     assert "No eligible PRs" in out
     assert rc == 0
+
+
+def test_cfg_reads_pr_review_all_from_adk_cli_json5(tmp_path, monkeypatch):
+    adk_home = tmp_path / ".agents-devkit"
+    cfg_dir = adk_home / "config"
+    cfg_dir.mkdir(parents=True)
+    (cfg_dir / "adk-cli.json5").write_text(
+        json.dumps({"pr_review_all": {"runner": "cursor"}}),
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("ADK_HOME", str(adk_home))
+    sys.modules.pop("config_io", None)
+
+    try:
+        assert auto_run._cfg("runner", "claude") == "cursor"
+    finally:
+        sys.modules.pop("config_io", None)
 
 
 def test_missing_agent_binary_records_failure(tmp_path, monkeypatch):
@@ -177,6 +237,34 @@ def test_build_agent_cmd_detailed_only_controls_prompt_embedding_flag():
 
     assert cmd == [
         "claude", "-p", "/adk-pr-review https://example/pr/1 --detailed",
+        "--model", "sonnet",
+    ]
+
+
+def test_build_agent_cmd_rebuild_adds_prompt_flag():
+    cmd = auto_run._build_agent_cmd(
+        "https://example/pr/1",
+        runner="claude",
+        agent=None,
+        rebuild=True,
+    )
+
+    assert cmd == [
+        "claude", "-p", "/adk-pr-review https://example/pr/1 --rebuild",
+        "--model", "sonnet",
+    ]
+
+
+def test_build_agent_cmd_comments_only_adds_prompt_flag():
+    cmd = auto_run._build_agent_cmd(
+        "https://example/pr/1",
+        runner="claude",
+        agent=None,
+        work_mode="comments",
+    )
+
+    assert cmd == [
+        "claude", "-p", "/adk-pr-review https://example/pr/1 --comments-only",
         "--model", "sonnet",
     ]
 

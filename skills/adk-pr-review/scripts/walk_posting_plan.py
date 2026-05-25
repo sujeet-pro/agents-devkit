@@ -84,6 +84,9 @@ def _step_summary(step: dict) -> str:
         return f"{kind} comment={step.get('comment_id', '?')}: {step.get('reason', '')[:100]}"
     if kind == "reopen":
         return f"{kind} comment={step.get('comment_id', '?')}: {step.get('reason', '')[:100]}"
+    if kind == "resolve_pre_reply":
+        body = _first_line((step.get("mcp_args") or {}).get("body"), 80)
+        return f"{kind} comment={step.get('comment_id', '?')}: {body}"
     if kind == "approve_pr":
         return f"{kind} (via {step.get('via', '?')})"
     if kind == "slack_summary":
@@ -333,6 +336,18 @@ def _render_step(step: dict, task_dir: Path | None = None) -> str:
                 "**Re-validation context:**",
                 _finding_context(task_dir, step),
             ]
+    elif kind == "resolve_pre_reply":
+        cid = step.get("comment_id", "?")
+        a = step.get("mcp_args", {})
+        lines += [
+            f"**Comment:** `{cid}`",
+            f"**Note:** {step.get('note', '')}",
+            "",
+            "**Reply body that will post (before resolve):**",
+            "```markdown",
+            a.get("body") or a.get("content") or "",
+            "```",
+        ]
     elif kind in ("resolve", "reopen"):
         cid = step.get("comment_id", "?")
         lines += [

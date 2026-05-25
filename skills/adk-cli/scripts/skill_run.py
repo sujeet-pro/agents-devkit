@@ -11,6 +11,7 @@ THIS_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(THIS_DIR))
 
 from agent_harness import build_agent_cmd, resolve_runner_model  # noqa: E402
+from skill_preflight import preflight  # noqa: E402
 
 
 def _normalize_skill(name: str) -> str:
@@ -45,8 +46,8 @@ def main(argv: list[str] | None = None) -> int:
                     default="claude")
     ap.add_argument("--agent", default=None,
                     help="override runner binary")
-    ap.add_argument("--agent-model", default=None,
-                    help="explicit model override for harnesses that support --model")
+    ap.add_argument("--agent-model", default="inherit",
+                    help="explicit model override for harnesses that support --model; default inherits harness choice")
     ap.add_argument("--workspace", default=str(Path.cwd()),
                     help="workspace passed to Cursor/Codex harnesses")
     ap.add_argument("--detailed", action="store_true",
@@ -68,6 +69,17 @@ def main(argv: list[str] | None = None) -> int:
         detailed=args.detailed,
         deep=args.deep,
     )
+    pf = preflight(
+        args.skill,
+        runner=args.runner,
+        agent=args.agent,
+        model=args.agent_model,
+        deep=args.deep,
+    )
+    if pf["status"] == "blocked":
+        print("adk skill-run: preflight blocked", file=sys.stderr)
+        print(pf, file=sys.stderr)
+        return 2
     model = resolve_runner_model(
         runner=args.runner,
         explicit_model=args.agent_model,

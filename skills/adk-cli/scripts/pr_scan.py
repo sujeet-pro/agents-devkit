@@ -263,7 +263,8 @@ def scan(slack_cfg: dict, oldest_ts: str, log) -> tuple[list[dict], dict]:
         "rows_from_main": 0, "rows_from_replies": 0,
     }
 
-    for ch in channels:
+    total_channels = len(channels)
+    for idx, ch in enumerate(channels, start=1):
         try:
             cid = client.resolve_channel(ch)
         except SystemExit:
@@ -272,14 +273,45 @@ def scan(slack_cfg: dict, oldest_ts: str, log) -> tuple[list[dict], dict]:
         stats["channels_scanned"] += 1
         if not quiet:
             log.info("channel %s → %s", ch, cid)
+        else:
+            emit_event(RunEvent(
+                kind="step_progress",
+                name="pr-scan",
+                status="run",
+                detail=f"channel {idx}/{total_channels} {ch}: starting",
+            ))
 
+        channel_messages = 0
+        channel_threads = 0
         for msg in client.iter_channel_messages(cid, oldest_ts):
             stats["messages_seen"] += 1
+            channel_messages += 1
+            if quiet and channel_messages % 25 == 0:
+                emit_event(RunEvent(
+                    kind="step_progress",
+                    name="pr-scan",
+                    status="run",
+                    detail=(
+                        f"channel {idx}/{total_channels} {ch}: "
+                        f"{channel_messages} messages, {channel_threads} PR threads"
+                    ),
+                ))
             text = msg.get("text") or ""
             main_prs = find_pr_urls(text, url_patterns)
             if not main_prs:
                 continue
             stats["threads_with_main_pr"] += 1
+            channel_threads += 1
+            if quiet:
+                emit_event(RunEvent(
+                    kind="step_progress",
+                    name="pr-scan",
+                    status="run",
+                    detail=(
+                        f"channel {idx}/{total_channels} {ch}: "
+                        f"found PR thread {channel_threads} after {channel_messages} messages"
+                    ),
+                ))
             main_ts = msg.get("ts")
             thread_ts = msg.get("thread_ts", main_ts)
             thread_user = msg.get("user")
@@ -362,6 +394,17 @@ def scan(slack_cfg: dict, oldest_ts: str, log) -> tuple[list[dict], dict]:
                         ),
                     })
                 stats["rows_from_replies"] += len(rep_prs)
+
+        if quiet:
+            emit_event(RunEvent(
+                kind="step_progress",
+                name="pr-scan",
+                status="run",
+                detail=(
+                    f"channel {idx}/{total_channels} {ch}: "
+                    f"done, {channel_messages} messages, {channel_threads} PR threads"
+                ),
+            ))
 
     return candidates, stats
 

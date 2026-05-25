@@ -56,13 +56,14 @@ from _common import (  # noqa: E402
     get_logger,
     is_orchestrated,
     parse_pr_url,
+    pr_review_file,
     read_state,
     status_glyph,
     task_dir_for,
 )
 from queue_io import (  # noqa: E402
     DEFAULT_QUEUE_PATH, STATUS_MERGED, STATUS_PENDING,
-    TERMINAL_STATUSES, read_queue,
+    TERMINAL_STATUSES, read_queue, find_row,
 )
 
 
@@ -670,6 +671,66 @@ def cmd_resolve_comments(args) -> int:
     return _forward(RESOLVER_PY, ["--task-dir", str(td)])
 
 
+def cmd_review_comments(args) -> int:
+    """Refresh comments, resolve/reopen acceptable threads, and release queue."""
+    parsed = parse_pr_url(args.pr_url)
+    td = _task_dir_for(args.pr_url)
+    td.mkdir(parents=True, exist_ok=True)
+
+    fetch = ADK_PR_REVIEW_SCRIPTS / "fetch_pr.py"
+    fetch_rc = _forward(fetch, [
+        "--host", parsed["host"],
+        "--owner", parsed["owner"],
+        "--repo", parsed["repo"],
+        "--pr-number", str(parsed["pr_number"]),
+        "--task-dir", str(td),
+        "--json",
+    ])
+    if fetch_rc != 0:
+        return fetch_rc
+
+    findings_path = pr_review_file(td, "findings-final.json")
+    original_findings = findings_path.read_text(encoding="utf-8") if findings_path.exists() else None
+    row = find_row(Path(args.queue).expanduser(), args.pr_url) or {}
+    try:
+        if original_findings:
+            try:
+                findings = json.loads(original_findings)
+            except json.JSONDecodeError:
+                findings = {}
+        else:
+            findings = {}
+        findings["findings"] = []
+        findings["recommendation"] = row.get("recommendation") or findings.get("recommendation") or "approve"
+        findings["summary"] = "Comment activity reviewed; no code review rerun because the PR head is unchanged."
+        findings_path.write_text(json.dumps(findings, indent=2), encoding="utf-8")
+
+        resolver_rc = _forward(RESOLVER_PY, ["--task-dir", str(td), "--json"])
+        if resolver_rc != 0:
+            return resolver_rc
+
+        post_args = ["--task-dir", str(td), "--comments-only", "--json"]
+        if args.no_post:
+            post_args.append("--plan-only")
+        if args.no_slack_summary:
+            post_args.append("--no-slack-summary")
+        post_rc = _forward(POST_PY, post_args)
+        if post_rc != 0:
+            return post_rc
+
+        try:
+            from pr_queue import main as queue_main  # type: ignore
+            queue_main(["--queue", args.queue, "update", args.pr_url])
+        except Exception:
+            pass
+
+        report_rc = _forward(REPORT_PY, ["--task-dir", str(td)])
+        return report_rc
+    finally:
+        if original_findings is not None:
+            findings_path.write_text(original_findings, encoding="utf-8")
+
+
 # ----- entrypoint ----------------------------------------------------------
 
 def main(argv: list[str] | None = None) -> int:
@@ -787,6 +848,16 @@ def main(argv: list[str] | None = None) -> int:
                            help="walk prior PR comments and decide resolve/reopen/leave (delegates to comment_resolver.py)")
     sp_rc.add_argument("pr_url")
     sp_rc.set_defaults(func=cmd_resolve_comments)
+
+    sp_cr = sub.add_parser("review-comments",
+                           help="comment-only review: refresh comments, resolve/reopen, approve if ready")
+    sp_cr.add_argument("pr_url")
+    sp_cr.add_argument("--queue", default=str(DEFAULT_QUEUE_PATH))
+    sp_cr.add_argument("--no-post", action="store_true",
+                       help="plan only; do not call host APIs")
+    sp_cr.add_argument("--no-slack-summary", action="store_true",
+                       help="suppress Slack summary")
+    sp_cr.set_defaults(func=cmd_review_comments)
 
     args = ap.parse_args(argv)
     if getattr(args, "verbose", False):

@@ -11,7 +11,7 @@ from tui.agent_registry import list_agents
 
 
 class AgentPickerScreen(ModalScreen[str | None]):
-    """Modal picker for the agent registry. Dismiss with the picked name
+    """Modal picker for the runner registry. Dismiss with the picked name
     on enter; dismiss with None on escape."""
 
     BINDINGS = [Binding("escape", "cancel", show=False)]
@@ -44,7 +44,7 @@ class AgentPickerScreen(ModalScreen[str | None]):
     def compose(self) -> ComposeResult:
         with Container():
             yield Static(
-                f"Pick agent (current: {self._current})",
+                f"Pick runner (current: {self._current})",
                 markup=False,
             )
             opts = [

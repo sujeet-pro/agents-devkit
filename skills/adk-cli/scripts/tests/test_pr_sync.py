@@ -193,6 +193,55 @@ def test_quiet_mode_emits_events_and_forwards_quiet(stubbed_steps, capsys):
     assert "adk pr-sync complete" not in out
 
 
+def test_quiet_step_forwards_child_events_before_return(capsys):
+    import logging
+
+    def child():
+        print("ordinary child output")
+        pr_sync.emit_event({
+            "kind": "step_progress",
+            "name": "child",
+            "status": "run",
+            "detail": "halfway",
+        })
+        pr_sync.emit_event({
+            "kind": "step_done",
+            "name": "child",
+            "status": "done",
+            "detail": "finished",
+        })
+        return 0
+
+    result = pr_sync._run_step("child", child, logging.getLogger("test"), quiet=True)
+
+    out = capsys.readouterr().out
+    assert result["status"] == "ok"
+    assert "ADK_EVENT" in out
+    assert "halfway" in out
+    assert "finished" in out
+    assert "ordinary child output" not in out
+
+
+def test_base_index_audit_emits_progress_when_quiet(tmp_path, capsys):
+    import logging
+
+    queue = tmp_path / "q.json5"
+    queue.write_text(json.dumps({"prs": []}), encoding="utf-8")
+
+    result = pr_sync._audit_base_indexes(
+        str(queue),
+        mode="off",
+        embed_model=None,
+        log=logging.getLogger("test"),
+        emit_progress=True,
+    )
+
+    out = capsys.readouterr().out
+    assert result["groups"] == 0
+    assert "ADK_EVENT" in out
+    assert "checking 0 branch group" in out
+
+
 def test_sync_continues_past_step_failures(stubbed_steps, monkeypatch, capsys):
     """If one step exits with rc=1, the rest still run and pr-sync exits 1."""
     import pr_queue

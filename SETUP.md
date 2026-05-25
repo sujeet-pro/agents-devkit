@@ -125,7 +125,7 @@ The installer:
 
 1. Enforces an ADK-only agent profile before installing fresh files. It removes non-ADK skills/rules/prompts/MCP descriptor caches from Cursor, Claude, Codex, and Junie; deletes non-ADK plugin/import caches; and quarantines legacy ADK v2/v3 state under `~/.agents-devkit/legacy/<timestamp>/`.
 2. Creates `~/.agents-devkit/config/` if missing. The conversational scaffolding (core.yaml, repos.md, connectors/*.md, links.json5, settings.json5) is then done by `/adk-setup --init` — see §4.
-3. Symlinks skills + agents + commands into each detected agent's config dir wherever the agent supports symlinks. Junie command files and JSON/TOML config are generated deterministically because those formats need rendered content.
+3. Symlinks skills + agents + commands into each detected agent's config dir wherever the agent supports symlinks. Cursor requestable rules, Junie command files, and JSON/TOML config are generated deterministically because those formats need rendered absolute paths/content.
 4. **Replaces** each agent's MCP server list with the `mcp/*.json` adk set: Claude → `~/.claude.json`, Cursor → `~/.cursor/mcp.json`, Codex → `~/.codex/config.toml` (marker block), Junie → `~/.junie/mcp/mcp.json`. Any pre-configured user MCPs are stashed under `_adkRemovedMcpServers` and put back on `--uninstall`.
 5. Merges `shared/permissions/*` into each agent's settings file so all safe / read tool calls are auto-approved and only dangerous actions prompt. See `shared/permissions/README.md`.
 6. Appends a one-line reference to `AGENTS.md` in each agent's global guidelines file.

@@ -1,4 +1,4 @@
-"""Tests for queue_io.acquire_next_row / release_row + the 30-min auto-expire."""
+"""Tests for queue_io.acquire_next_row / release_row + the lock auto-expire."""
 from __future__ import annotations
 
 import json
@@ -19,7 +19,7 @@ def _iso(dt: datetime) -> str:
     return dt.strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
-def test_acquire_next_row_picks_oldest_first(tmp_path):
+def test_acquire_next_row_picks_first_queue_row(tmp_path):
     qp = tmp_path / "pr-queue.json5"
     old_ts = _iso(datetime.now(tz=timezone.utc) - timedelta(hours=5))
     newer_ts = _iso(datetime.now(tz=timezone.utc) - timedelta(hours=1))
@@ -32,14 +32,14 @@ def test_acquire_next_row_picks_oldest_first(tmp_path):
 
     row = queue_io.acquire_next_row(qp)
     assert row is not None
-    assert row["pr_url"].endswith("/pull/2"), "oldest last_checked_at should win"
+    assert row["pr_url"].endswith("/pull/1"), "queue file order should win"
     # The persisted row should have taken_at set.
     persisted = json.loads(qp.read_text())["prs"]
-    pr2 = next(e for e in persisted if e["pr_url"].endswith("/pull/2"))
-    assert pr2["taken_at"] is not None
+    pr1 = next(e for e in persisted if e["pr_url"].endswith("/pull/1"))
+    assert pr1["taken_at"] is not None
 
 
-def test_acquire_next_row_prefers_never_reviewed(tmp_path):
+def test_acquire_next_row_does_not_promote_never_reviewed(tmp_path):
     qp = tmp_path / "pr-queue.json5"
     old_ts = _iso(datetime.now(tz=timezone.utc) - timedelta(days=30))
     _write_queue(qp, [
@@ -51,7 +51,7 @@ def test_acquire_next_row_prefers_never_reviewed(tmp_path):
 
     row = queue_io.acquire_next_row(qp)
     assert row is not None
-    assert row["pr_url"].endswith("/pull/2"), "null last_checked_at sorts before any timestamp"
+    assert row["pr_url"].endswith("/pull/1"), "queue file order should win"
 
 
 def test_acquire_next_row_skips_locked_rows(tmp_path):

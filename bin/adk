@@ -36,7 +36,7 @@ if not CLI_SCRIPTS.exists():
     sys.exit(2)
 sys.path.insert(0, str(CLI_SCRIPTS))
 
-_TUI_VALUE_FLAGS = ("--queue-path", "--poll-interval")
+_TUI_VALUE_FLAGS = ("--queue-path", "--poll-interval", "--runner")
 _TUI_BOOL_FLAGS = ("--ascii",)
 
 
@@ -65,7 +65,8 @@ USAGE = """\
 adk — agents-devkit CLI
 
 Usage:
-  adk                                         launch the interactive TUI (read-only queue view)
+  adk [--runner claude|cursor|codex|opencode|headless]
+                                              launch the interactive TUI (read-only queue view)
   adk pr-sync [--no-scan] [--no-clean-orphans] [--no-remind] [--no-prepare] [--dry-run]
                                               one-stop sync: scan → refresh → drop merged/closed →
                                               clean orphans → remind stale reviews → prepare task folders
@@ -87,6 +88,11 @@ Usage:
   adk pr-queue get-next [--no-validate]       claim + return the next eligible row (validates via origin API)
   adk pr-queue remind [--threshold-hours N] [--dry-run]
                                               Slack-thread reminders for stale reviews
+  adk pr open <pr-url> [--target pr|slack|report|findings|task-dir]
+                                              open PR-related links in the browser / OS opener
+  adk pr context-refresh <pr-url>             refresh origin metadata + Slack/docs context + prepare
+  adk pr merge-status <pr-url>                report whether approval/comments/checks allow merge now
+  adk pr merge <pr-url> --yes                 guarded provider-API merge (disabled unless configured)
   adk pr-task prepare <pr-url> [--rebuild]    Phase 1: create/refresh the task folder
   adk pr-task prepare --all                   Phase 1 for every non-merged queue row (short-circuits)
   adk pr-task validate <pr-url>               Phase 3: gate findings.json on anchor + suggested-fix
@@ -117,6 +123,8 @@ Usage:
                                               run any /adk-* skill in a selected agent harness.
                                               Defaults: Claude/Sonnet, Cursor/Composer 2.5;
                                               --deep selects Opus for Claude and GPT 5.5 for Cursor.
+  adk skill-preflight <skill> [--runner inherit|claude|cursor|codex|custom]
+                                              validate skill CLIs/MCP descriptors/runner availability
   adk pr-review-all [--max-reviews N] [--parallel N] [--runner claude|cursor|codex|custom]
            [--agent X] [--agent-model M] [--exclude URL] [--no-sync]
            [--detailed] [--deep] [--no-auto-deep] [--dry-run]
@@ -165,6 +173,9 @@ def main(argv: list[str]) -> int:
     if cmd == "pr-queue":
         from pr_queue import main as f  # type: ignore[import-not-found]
         return f(rest)
+    if cmd == "pr":
+        from pr import main as f  # type: ignore[import-not-found]
+        return f(rest)
     if cmd == "repo":
         from repo import main as f  # type: ignore[import-not-found]
         return f(rest)
@@ -182,6 +193,9 @@ def main(argv: list[str]) -> int:
         return f(rest)
     if cmd == "skill-run":
         from skill_run import main as f  # type: ignore[import-not-found]
+        return f(rest)
+    if cmd == "skill-preflight":
+        from skill_preflight import main as f  # type: ignore[import-not-found]
         return f(rest)
     if cmd == "pr-review-all":
         from auto_run import main as f  # type: ignore[import-not-found]

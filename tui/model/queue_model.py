@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import sys
+import json
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
+from os import environ
 from pathlib import Path
 from typing import Callable, Literal
 
@@ -12,17 +14,25 @@ if str(_CLI_SCRIPTS) not in sys.path:
 
 import queue_io  # noqa: E402
 
+_ADK_HOME = Path(environ.get("ADK_HOME", Path.home() / ".agents-devkit"))
+_PR_REVIEW_ROOT = _ADK_HOME / "skill-pr-review"
+
 
 FilterMode = Literal["all", "open", "ready", "reviewed", "terminal"]
-SortMode = Literal["fifo", "newest", "repo"]
+SortMode = Literal["queue", "fifo", "newest", "repo"]
 
 
-_TERMINAL_STATUSES = {"merged", "closed"}
+# Single source of truth for terminal queue statuses.
+# Used by widgets and screens; keep public so they can import without
+# triggering the full queue_io import chain themselves.
+TERMINAL_STATUSES: frozenset[str] = frozenset({"merged", "closed"})
+_TERMINAL_STATUSES = TERMINAL_STATUSES  # backward-compat alias
 _REVIEWED_STATUSES = {"reviewed", "approved", "comments", "reminded"}
 
 
 @dataclass(frozen=True)
 class QueueRow:
+    queue_index: int
     pr_url: str
     host: str
     repo: str
@@ -55,7 +65,7 @@ class QueueSnapshot:
     now: datetime
 
 
-def _row_from_entry(entry: dict, now: datetime) -> QueueRow | None:
+def _row_from_entry(entry: dict, now: datetime, *, queue_index: int) -> QueueRow | None:
     pr_url = entry.get("pr_url")
     if not pr_url:
         return None
@@ -67,12 +77,15 @@ def _row_from_entry(entry: dict, now: datetime) -> QueueRow | None:
     slack = entry.get("slack") or {}
     slack_permalink = slack.get("permalink") if isinstance(slack, dict) else None
 
+    title = entry.get("title") or _title_from_task_dir(repo, number)
+
     return QueueRow(
+        queue_index=queue_index,
         pr_url=pr_url,
         host=host,
         repo=repo,
         number=number,
-        title=entry.get("title"),
+        title=title,
         author=entry.get("author"),
         target_branch=entry.get("target_branch"),
         head_sha=entry.get("head_sha"),
@@ -86,6 +99,28 @@ def _row_from_entry(entry: dict, now: datetime) -> QueueRow | None:
         ready_for_review=queue_io.ready_for_review(entry, now=now),
         slack_permalink=slack_permalink,
     )
+
+
+def _title_from_task_dir(repo: str, number: int) -> str | None:
+    """Best-effort title fallback for older queue rows without `title`.
+
+    Existing prepared PR folders usually have `pr.json` even when the queue row
+    predates title capture. Reading one small JSON file keeps the TUI useful
+    without forcing a full queue refresh.
+    """
+    task_dir = _PR_REVIEW_ROOT / f"{repo}_pr-{number}"
+    for rel in ("pr.json", "pr-review/pr.json"):
+        path = task_dir / rel
+        if not path.exists():
+            continue
+        try:
+            raw = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        title = raw.get("title")
+        if isinstance(title, str) and title.strip():
+            return title.strip()
+    return None
 
 
 def _passes_filter(row: QueueRow, filter_mode: FilterMode) -> bool:
@@ -113,10 +148,8 @@ def _parse_iso(ts: str | None) -> datetime | None:
         return None
 
 
-def _sort_key_fifo(row: QueueRow) -> tuple[int, str]:
-    if not row.last_checked_at:
-        return (0, "")
-    return (1, row.last_checked_at)
+def _sort_key_fifo(row: QueueRow) -> int:
+    return row.queue_index
 
 
 def _sort_key_newest(row: QueueRow) -> tuple[int, str]:
@@ -126,7 +159,7 @@ def _sort_key_newest(row: QueueRow) -> tuple[int, str]:
 
 
 def _sort_rows(rows: list[QueueRow], sort_mode: SortMode) -> list[QueueRow]:
-    if sort_mode == "fifo":
+    if sort_mode in {"queue", "fifo"}:
         return sorted(rows, key=_sort_key_fifo)
     if sort_mode == "newest":
         # Rows with a last_checked_at come first (bucket 0), sorted descending
@@ -183,7 +216,7 @@ class QueueModel:
         self,
         *,
         filter_mode: FilterMode = "all",
-        sort_mode: SortMode = "fifo",
+        sort_mode: SortMode = "queue",
     ) -> QueueSnapshot:
         now = self._now_fn()
         if not self.queue_path.exists():
@@ -209,10 +242,10 @@ class QueueModel:
 
         entries = queue.get("prs") or []
         all_rows: list[QueueRow] = []
-        for entry in entries:
+        for idx, entry in enumerate(entries):
             if not isinstance(entry, dict):
                 continue
-            row = _row_from_entry(entry, now)
+            row = _row_from_entry(entry, now, queue_index=idx)
             if row is not None:
                 all_rows.append(row)
 

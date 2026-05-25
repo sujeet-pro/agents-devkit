@@ -167,13 +167,13 @@ async def _poll_until(predicate, *, pilot, timeout_s: float = 6.0,
     return False
 
 
-def test_batch_run_pushes_recap_screen(
+def test_sync_review_all_pushes_recap_screen(
     eligible_multi_queue: Path,
     fake_claude_script: Path,
     fake_adk_script: Path,
     worker_heartbeat_dir: Path,
 ) -> None:
-    """After `R` finishes, a RecapScreen is pushed onto the screen stack."""
+    """After Sync + Review all finishes, a RecapScreen is pushed onto the stack."""
     app = AdkApp(
         queue_path=eligible_multi_queue,
         agent_bin=fake_claude_script,
@@ -186,23 +186,13 @@ def test_batch_run_pushes_recap_screen(
     async def _run() -> None:
         async with app.run_test() as pilot:
             await pilot.pause()
-            # Select two rows.
-            await pilot.press("space")
-            await pilot.pause()
-            await pilot.press("j")
-            await pilot.pause()
-            await pilot.press("space")
-            await pilot.pause()
-            assert len(app._selection_order) == 2
-
-            await pilot.press("R")
+            await pilot.press("A")
             ok = await _poll_until(
                 lambda: isinstance(app.screen, RecapScreen),
-                pilot=pilot, timeout_s=8.0,
+                pilot=pilot, timeout_s=30.0,
             )
-            assert ok, "RecapScreen never appeared after batch"
-            # Recap should carry both PR URLs.
+            assert ok, "RecapScreen never appeared after Sync + Review all"
             text = str(app.screen.query_one(Static).render())
-            assert "Batch recap — 2 rows" in text
+            assert "Batch recap — 3 rows" in text
 
     asyncio.run(_run())

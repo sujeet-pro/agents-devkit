@@ -234,6 +234,27 @@ def test_empty_findings_emits_skip_marker(pc_mod):
     assert any(s.get("kind") == "review_summary_skipped" for s in plan["steps"])
 
 
+def test_comment_only_suppresses_duplicate_review_but_keeps_resolves_and_bb_approve(pc_mod):
+    plan = pc_mod.build_posting_plan(
+        pr=_bb_pr(),
+        findings_blob={"findings": [{"id": "f-1", "severity": "should-have",
+                                      "file": "a.py", "line_start": 1,
+                                      "title": "old"}],
+                       "recommendation": "approve"},
+        actions=[{"comment_id": "999", "decision": "resolve",
+                  "verified": True, "reason": "acceptable reply"}],
+        no_resolve_existing=False,
+        approve_ready=True,
+        suppress_review=True,
+    )
+
+    kinds = [s.get("kind") for s in plan["steps"]]
+    assert "review_summary" not in kinds
+    assert "inline_comment" not in kinds
+    assert "resolve" in kinds
+    assert "approve_pr" in kinds
+
+
 def test_slack_summary_fans_out_to_all_queue_threads(pc_mod):
     plan = pc_mod.build_posting_plan(
         pr=_gh_pr(),

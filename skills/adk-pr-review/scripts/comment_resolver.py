@@ -132,6 +132,69 @@ def host_of(pr: dict) -> str:
     return pr.get("host", "unknown")
 
 
+def _extract_general_comments(comments_blob: dict, host: str) -> list[dict]:
+    """Extract non-inline (PR-level general) comments from the comments blob.
+
+    GitHub  → ``issue_comments`` list (no path/line anchors).
+    Bitbucket → items in ``comments`` whose ``inline.path`` is absent/empty.
+    Each returned item is normalised to ``{id, body, user, parent_id|None}``.
+    """
+    out: list[dict] = []
+    if host == "github":
+        for c in (comments_blob.get("issue_comments") or []):
+            out.append({
+                "id": str(c.get("id")),
+                "body": c.get("body") or "",
+                "user": (c.get("user") or {}).get("login"),
+                "parent_id": None,
+            })
+    elif host == "bitbucket":
+        for c in (comments_blob.get("comments") or []):
+            inline = c.get("inline") or {}
+            if not inline.get("path"):
+                parent = c.get("parent") or {}
+                out.append({
+                    "id": str(c.get("id")),
+                    "body": ((c.get("content") or {}).get("raw") or ""),
+                    "user": (c.get("user") or {}).get("display_name"),
+                    "parent_id": str(parent["id"]) if parent.get("id") else None,
+                })
+    return out
+
+
+def scan_general_comments_for_signals(general_comments: list[dict]) -> list[dict]:
+    """Scan general (non-inline) PR comments for acceptable-reply patterns.
+
+    Returns a list of signal dicts for any comment that carries a recognised
+    disposition marker::
+
+        {id, user, body_snippet, kind, detail}
+
+    ``kind`` is one of ``"offline"``, ``"jira"``, ``"synced"`` — the same values
+    ``classify_reply`` returns for thread replies.
+
+    General-comment signals are treated as lower-confidence than a direct reply
+    to the thread, but they are still actionable: a PR-level "agreed offline,
+    we'll fix in a follow-up" from the author is a valid disposition for ALL
+    open inline threads.
+    """
+    signals: list[dict] = []
+    for c in general_comments:
+        body = c.get("body") or ""
+        if not body.strip():
+            continue
+        kind, detail = classify_reply(body)
+        if kind:
+            signals.append({
+                "id": c.get("id"),
+                "user": c.get("user"),
+                "body_snippet": body.strip().split("\n", 1)[0][:160],
+                "kind": kind,
+                "detail": detail,
+            })
+    return signals
+
+
 def _gh_thread_state(c: dict) -> dict:
     # GitHub review-comments are individual; threads are grouped by `in_reply_to_id`.
     return {
@@ -257,7 +320,8 @@ def _line_touch_evidence(path: str | None, line: int | None,
 
 
 def verify_action(action: dict, threads: dict, touched: dict, log,
-                  deleted: set[str] | None = None) -> dict:
+                  deleted: set[str] | None = None,
+                  general_signals: list[dict] | None = None) -> dict:
     cid = str(action.get("comment_id"))
     decision = action.get("decision", "leave-as-is")
     reason = action.get("reason", "")
@@ -287,6 +351,8 @@ def verify_action(action: dict, threads: dict, touched: dict, log,
 
     result["thread_root"] = thread_root
     result["thread_currently_resolved"] = thread_state.get("resolved", False)
+    first_comment = thread_state["thread"][0] if thread_state.get("thread") else {}
+    result["actionable"] = bool(first_comment.get("path"))
 
     # Verify acceptable-reply independently — broader than the original
     # offline-only check. Acceptable replies (any kind) mean "leave alone":
@@ -314,8 +380,29 @@ def verify_action(action: dict, threads: dict, touched: dict, log,
     # Apply state-transition rules (see references/comment-resolution.md).
     currently_resolved = thread_state.get("resolved", False)
     if valid_reply_kind:
-        result["decision"] = "leave-as-is"
-        result["verifier_note"] += f" | acceptable-reply ({valid_reply_kind}), leaving as-is"
+        if currently_resolved:
+            result["decision"] = "leave-as-is"
+            result["verifier_note"] += f" | acceptable-reply ({valid_reply_kind}), already resolved"
+        else:
+            result["decision"] = "resolve"
+            result["verifier_note"] += f" | acceptable-reply ({valid_reply_kind}), resolving thread"
+        result["verified"] = True
+        return result
+
+    # No direct-reply signal — check if any general PR comment carries an
+    # acceptable-reply marker that applies to this inline thread.
+    if general_signals and not currently_resolved:
+        gen_sig = general_signals[0]  # use the first (most recent scan order) signal
+        result["verifier_note"] += (
+            f" | general-comment signal ({gen_sig['kind']})"
+            f" from comment {gen_sig['id']}"
+        )
+        result["decision"] = "resolve"
+        result["resolved_via_general_comment"] = True
+        result["general_comment_id"] = gen_sig["id"]
+        result["general_comment_user"] = gen_sig.get("user")
+        result["general_comment_snippet"] = gen_sig["body_snippet"]
+        result["general_comment_signal_kind"] = gen_sig["kind"]
         result["verified"] = True
         return result
 
@@ -385,13 +472,26 @@ def main() -> int:
     else:
         touched, deleted = {}, set()
 
+    # Extract PR-level general comments (GitHub issue_comments / Bitbucket
+    # non-inline comments) and scan them for acceptable-reply patterns.
+    # These are passed to verify_action and _auto_classify_thread as an
+    # additional signal source so that a PR-level "agreed offline, handling
+    # in a follow-up" can drive resolution of all open inline threads.
+    host = host_of(pr)
+    general_comments = _extract_general_comments(comments_blob, host)
+    general_signals = scan_general_comments_for_signals(general_comments)
+
     proposed: list[dict] = []
     findings_blob: dict = {}
     if findings.exists():
         findings_blob = read_json(findings)
         proposed = findings_blob.get("existing_comment_actions", [])
 
-    verified = [verify_action(a, threads, touched, log, deleted=deleted) for a in proposed]
+    verified = [
+        verify_action(a, threads, touched, log, deleted=deleted,
+                      general_signals=general_signals or None)
+        for a in proposed
+    ]
 
     # Auto-classify orphan threads — every thread the model did NOT name in
     # existing_comment_actions[] still needs a decision (user requirement:
@@ -403,7 +503,8 @@ def main() -> int:
         thread_ids = {c["id"] for c in t["thread"]}
         if thread_ids & addressed_ids:
             continue  # at least one comment in this thread already addressed
-        auto = _auto_classify_thread(t, touched, deleted=deleted)
+        auto = _auto_classify_thread(t, touched, deleted=deleted,
+                                     general_signals=general_signals or None)
         auto["auto_classified"] = True
         verified.append(auto)
 
@@ -417,12 +518,31 @@ def main() -> int:
         v for v in verified
         if v.get("decision") == "reopen" and v.get("verified")
     ]
-    approve_ready = (not has_blocker) and (not unresolved_blocking_threads)
+    unresolved_ambiguous_threads = [
+        v for v in verified
+        if v.get("decision") == "leave-as-is"
+        and v.get("verified")
+        and v.get("actionable")
+        and not v.get("thread_currently_resolved")
+        and not v.get("valid_reply")
+    ]
+    approve_ready = (
+        (not has_blocker)
+        and (not unresolved_blocking_threads)
+        and (not unresolved_ambiguous_threads)
+    )
 
+    n_resolved_via_general = sum(
+        1 for v in verified if v.get("resolved_via_general_comment")
+    )
     out = {
         "task_dir": str(task_dir),
         "host": pr.get("host"),
         "n_threads": len(threads),
+        "n_general_comments": len(general_comments),
+        "n_general_signals": len(general_signals),
+        "n_resolved_via_general_comment": n_resolved_via_general,
+        "general_signals": general_signals,
         "n_actions_proposed": len(proposed),
         "n_actions_auto_classified": sum(1 for v in verified if v.get("auto_classified")),
         "n_actions_verified": sum(1 for v in verified if v.get("verified")),
@@ -430,27 +550,37 @@ def main() -> int:
         "approve_ready_reason": (
             "no blocker/critical findings AND no thread requires reopen"
             if approve_ready
-            else f"has_blocker={has_blocker}, threads_to_reopen={len(unresolved_blocking_threads)}"
+            else (
+                f"has_blocker={has_blocker}, "
+                f"threads_to_reopen={len(unresolved_blocking_threads)}, "
+                f"ambiguous_open_threads={len(unresolved_ambiguous_threads)}"
+            )
         ),
         "actions": verified,
     }
     write_json(pr_review_file(task_dir, "comment-actions.json"), out)
     if args.json:
         return emit_json(out)
-    log.info("verified %d/%d actions (%d auto-classified) · approve_ready=%s",
+    log.info("verified %d/%d actions (%d auto-classified, %d via general-comment) · "
+             "approve_ready=%s · general_signals=%d",
              out["n_actions_verified"], out["n_actions_proposed"],
-             out["n_actions_auto_classified"], approve_ready)
+             out["n_actions_auto_classified"], n_resolved_via_general,
+             approve_ready, len(general_signals))
     return 0
 
 
 def _auto_classify_thread(thread_state: dict, touched: dict,
-                            deleted: set[str] | None = None) -> dict:
+                            deleted: set[str] | None = None,
+                            general_signals: list[dict] | None = None) -> dict:
     """Classify an orphan thread (no model action) using the same rules.
 
     Same shape as verify_action's return, but with a leading auto-pass:
     - acceptable reply present → leave-as-is
     - currently OPEN + diff addresses anchor (touched, near anchor, or
       file deleted) → resolve
+    - currently OPEN + general-comment signal present → resolve (with
+      ``resolved_via_general_comment`` flag so the posting plan prepends a
+      reply before marking the thread resolved)
     - currently RESOLVED + diff did not address anchor + no acceptable reply
       → reopen
     - everything else → leave-as-is (ambiguous)
@@ -478,18 +608,38 @@ def _auto_classify_thread(thread_state: dict, touched: dict,
         "comment_id": cid,
         "thread_root": root_id,
         "thread_currently_resolved": currently_resolved,
+        "actionable": bool(path),
         "verified": True,
         "verifier_evidence": evidence,
         "valid_reply": ({"kind": valid_reply_kind, "detail": valid_reply_detail}
                          if valid_reply_kind else None),
     }
     if valid_reply_kind:
-        result["decision"] = "leave-as-is"
-        result["reason"] = f"acceptable reply ({valid_reply_kind}): {valid_reply_detail or '-'}"
+        if currently_resolved:
+            result["decision"] = "leave-as-is"
+            result["reason"] = f"acceptable reply ({valid_reply_kind}): {valid_reply_detail or '-'}"
+        else:
+            result["decision"] = "resolve"
+            result["reason"] = f"acceptable reply ({valid_reply_kind}): {valid_reply_detail or '-'}"
         return result
     if not currently_resolved and diff_addresses:
         result["decision"] = "resolve"
         result["reason"] = evidence
+        return result
+    # No direct-reply signal and diff didn't touch the anchor — check if a
+    # general PR comment carries a resolution marker applicable to this thread.
+    if not currently_resolved and general_signals:
+        gen_sig = general_signals[0]
+        result["decision"] = "resolve"
+        result["reason"] = (
+            f"general-comment signal ({gen_sig['kind']})"
+            f" from comment {gen_sig['id']}: {gen_sig['body_snippet']}"
+        )
+        result["resolved_via_general_comment"] = True
+        result["general_comment_id"] = gen_sig["id"]
+        result["general_comment_user"] = gen_sig.get("user")
+        result["general_comment_snippet"] = gen_sig["body_snippet"]
+        result["general_comment_signal_kind"] = gen_sig["kind"]
         return result
     if currently_resolved and not diff_addresses:
         result["decision"] = "reopen"

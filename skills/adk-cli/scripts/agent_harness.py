@@ -40,8 +40,10 @@ def resolve_runner_model(
     planning: bool = False,
 ) -> str | None:
     """Return the model to pass to a harness CLI for the requested depth."""
-    if explicit_model:
+    if explicit_model and explicit_model != "inherit":
         return explicit_model
+    if explicit_model == "inherit":
+        return None
     profile = RUNNER_MODEL_DEFAULTS.get(runner, RUNNER_MODEL_DEFAULTS["custom"])
     if deep:
         return profile.get("deep")

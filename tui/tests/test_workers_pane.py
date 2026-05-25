@@ -24,14 +24,21 @@ def _row(
 ) -> WorkerRow:
     return WorkerRow(
         pid=pid,
+        worker_id=str(pid),
+        run_id=None,
         pr_url=pr_url,
+        subject=pr_url,
         task_type=task_type,
+        status="running",
         agent=agent,
         queue="/tmp/q",
         started_at="2026-05-22T14:00:00Z",
         last_heartbeat="2026-05-22T14:00:00Z",
         current_phase=current_phase,
         rc=None,
+        log_path=None,
+        links={},
+        artifacts={},
         age_s=age_s,
         is_stale=is_stale,
     )

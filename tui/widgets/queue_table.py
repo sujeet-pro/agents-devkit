@@ -3,20 +3,26 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
+from textual import events
+from textual.message import Message
 from textual.widgets import DataTable
 
 if TYPE_CHECKING:
     from tui.model.queue_model import QueueRow, QueueSnapshot
+    from tui.model.work_queue_model import PrWorkState
+    from tui.model.workers_model import WorkerRow
 
 
 _COLUMNS: tuple[tuple[str, int], ...] = (
-    ("", 5),
-    ("#", 8),
     ("repo", 24),
+    ("pr", 8),
     ("title", 40),
+    ("task", 18),
+    ("current", 26),
     ("branch", 18),
     ("age", 8),
 )
+PR_NUMBER_COLUMN = 1
 
 
 def _format_age(iso_str: str | None, now: datetime) -> str:
@@ -48,6 +54,11 @@ def _format_age(iso_str: str | None, now: datetime) -> str:
 
 
 class QueueTable(DataTable):
+    class PrNumberClicked(Message):
+        def __init__(self, pr_url: str) -> None:
+            super().__init__()
+            self.pr_url = pr_url
+
     def __init__(self) -> None:
         super().__init__(zebra_stripes=True)
         self.cursor_type = "row"
@@ -66,9 +77,11 @@ class QueueTable(DataTable):
         snapshot: QueueSnapshot,
         *,
         ascii_only: bool = False,
-        selected_order: list[str] | None = None,
+        work_states: dict[str, "PrWorkState"] | None = None,
+        workers_by_url: dict[str, WorkerRow] | None = None,
     ) -> None:
         from tui.model.row_state import derive
+        from tui.model.work_queue_model import format_work_cell
 
         self._ensure_columns()
         prev_url = self.selected_pr_url()
@@ -84,28 +97,32 @@ class QueueTable(DataTable):
                 f"(queue: {snapshot.queue_path})",
                 "—",
                 "—",
+                "—",
             )
             self._row_urls.append(None)
             return
 
-        selected_order = selected_order or []
-        sel_pos: dict[str, int] = {url: i + 1 for i, url in enumerate(selected_order)}
+        work_states = work_states or {}
+        workers_by_url = workers_by_url or {}
 
         for row in snapshot.rows:
             state = derive(row, ascii_only=ascii_only, now=snapshot.now)
             branch = row.target_branch or "—"
             title = row.title or "—"
-            pos = sel_pos.get(row.pr_url)
-            if pos is not None:
-                marker_label = f"[{min(pos, 9)}]"
-                icon_cell = f"{marker_label}{state.icon}"
+            worker = workers_by_url.get(row.pr_url)
+            pr_status = _format_pr_status(row, worker)
+            work_state = work_states.get(row.pr_url)
+            if work_state is not None:
+                prefix = "▶ " if work_state.status == "running" else ""
+                current = f"{prefix}{format_work_cell(work_state)}"
             else:
-                icon_cell = f"   {state.icon}"
+                current = _format_current_status(state.icon, state.label, worker)
             self.add_row(
-                icon_cell,
-                str(row.number),
                 row.repo,
+                str(row.number),
                 title,
+                pr_status,
+                current,
                 branch,
                 _format_age(row.last_checked_at, snapshot.now),
             )
@@ -118,6 +135,48 @@ class QueueTable(DataTable):
         if not self._row_urls:
             return None
         idx = self.cursor_row
-        if idx is None or idx < 0 or idx >= len(self._row_urls):
+        return self.pr_url_for_row(idx)
+
+    def pr_url_for_row(self, idx: int | None) -> str | None:
+        if idx is None:
+            return None
+        if not self._row_urls:
+            return None
+        if idx < 0 or idx >= len(self._row_urls):
             return None
         return self._row_urls[idx]
+
+    @staticmethod
+    def is_pr_number_column(column: int | None) -> bool:
+        return column == PR_NUMBER_COLUMN
+
+    def on_click(self, event: events.Click) -> None:
+        coordinate = self.hover_coordinate
+        if coordinate is None or not self.is_pr_number_column(coordinate.column):
+            return
+        pr_url = self.pr_url_for_row(coordinate.row)
+        if pr_url is None:
+            return
+        event.stop()
+        self.post_message(self.PrNumberClicked(pr_url))
+
+
+def _format_pr_status(row: "QueueRow", worker: "WorkerRow | None" = None) -> str:
+    """Return the developer-facing task_status for this PR row.
+
+    Uses ``derive_task_status`` from the pr_status model so the column shows
+    richer lifecycle state (indexing / reviewing / needs_re_review / …)
+    rather than the raw queue status string.  The worker is passed in so that
+    live heartbeat state (syncing / reviewing / posting …) is reflected
+    immediately without waiting for a queue-file write.
+    """
+    from tui.model.pr_status import derive_task_status
+    workers = [worker] if worker is not None else None
+    return derive_task_status(row, workers)
+
+
+def _format_current_status(icon: str, label: str, worker: WorkerRow | None) -> str:
+    if worker is None:
+        return f"{icon} {label}"
+    phase = worker.current_phase or worker.status
+    return f"{icon} {phase}"

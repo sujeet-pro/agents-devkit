@@ -17,8 +17,10 @@ import textwrap
 # Top-level subcommands and their nested subcommands.
 SUBCMDS = {
     "skill-run":   [],
+    "skill-preflight": [],
     "pr-sync":    [],
     "pr-scan":    [],
+    "pr":         ["open", "context-refresh", "merge-status", "merge"],
     "pr-queue":   ["list", "show", "add", "update", "clean", "ready-to-merge",
                    "release", "get-next", "remind"],
     "pr-task":    ["prepare", "info", "list", "validate", "clean-orphans"],

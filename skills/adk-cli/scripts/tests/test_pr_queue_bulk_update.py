@@ -196,12 +196,24 @@ def test_update_full_flag_removed(tmp_path):
 
 
 def test_refresh_one_metadata_only(tmp_path, monkeypatch):
-    """`_refresh_one` no longer accepts a `full=` kwarg. It refreshes the
-    queue row's metadata and returns — no subprocess spawning."""
+    """`_refresh_one` refreshes queue row metadata (head_sha, status, comment
+    activity) without touching the worktree or the review index.
+    Subprocess calls from comment_activity are mocked out."""
     import pr_scan
     monkeypatch.setattr(pr_scan, "cheap_pr_meta",
                         lambda url, log: {"head_sha": "newhead", "merged_at": None,
                                           "state": "OPEN"})
+    # pr_queue imports fetch_comment_activity at module level, so patch it
+    # on pr_queue directly to prevent gh api subprocess calls.
+    monkeypatch.setattr(
+        pr_queue, "fetch_comment_activity",
+        lambda url, *args, **kwargs: {
+            "comment_activity_hash": "abc123",
+            "comment_count": 2,
+            "unresolved_comment_count": 0,
+            "comment_activity_updated_at": "2026-05-25T00:00:00Z",
+        },
+    )
     queue_path = _write_queue(tmp_path, [
         {"pr_url": "https://github.com/acme/foo/pull/1", "status": STATUS_PENDING,
          "head_sha": "oldhead"},
@@ -218,11 +230,12 @@ def test_refresh_one_metadata_only(tmp_path, monkeypatch):
         "https://github.com/acme/foo/pull/1", entry,
         queue_path=queue_path, log=log,
     )
-    # No subprocess: update is metadata-only by contract.
-    assert spawned == []
+    # No subprocess spawning: metadata + comment activity are in-process.
+    assert spawned == [], f"Unexpected subprocess calls: {spawned}"
     assert out["refreshed"] == "meta"
     assert out["head_sha"] == "newhead"
     assert out["head_unchanged"] is False
+    assert out["comment_activity_hash"] == "abc123"
 
 
 if __name__ == "__main__":

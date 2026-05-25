@@ -16,6 +16,7 @@ def test_resolve_runner_model_defaults():
     assert agent_harness.resolve_runner_model(runner="claude", deep=True) == "opus"
     assert agent_harness.resolve_runner_model(runner="cursor") == "composer-2.5-fast"
     assert agent_harness.resolve_runner_model(runner="cursor", deep=True) == "gpt-5.5-extra-high"
+    assert agent_harness.resolve_runner_model(runner="cursor", explicit_model="inherit") is None
 
 
 def test_skill_prompt_forwards_depth_flags():
@@ -29,7 +30,7 @@ def test_skill_prompt_forwards_depth_flags():
     assert prompt == "/adk-implement build x --detailed --deep"
 
 
-def test_skill_run_dry_run_uses_cursor_composer(capsys):
+def test_skill_run_dry_run_inherits_cursor_model_by_default(capsys):
     rc = skill_run.main([
         "--runner", "cursor",
         "--dry-run",
@@ -41,5 +42,5 @@ def test_skill_run_dry_run_uses_cursor_composer(capsys):
     assert rc == 0
     out = capsys.readouterr().out
     assert "cursor agent" in out
-    assert "--model composer-2.5-fast" in out
+    assert "--model" not in out
     assert "'/adk-review .'" in out or "/adk-review ." in out

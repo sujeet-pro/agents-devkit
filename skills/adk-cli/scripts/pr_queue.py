@@ -52,6 +52,7 @@ from queue_io import (  # noqa: E402
     STATUS_PENDING, STATUS_IN_REVIEW,
     TERMINAL_STATUSES, TAKEN_LOCK_MAX_AGE_SECONDS, _now_iso,
 )
+from comment_activity import fetch_comment_activity  # noqa: E402
 
 
 def _load_defaults() -> dict:
@@ -269,10 +270,17 @@ def print_summary(prs: list[dict]) -> None:
     """
     approved_clean = [e for e in prs if (e.get("status") or "") == STATUS_APPROVED]
     comments = [e for e in prs if (e.get("status") or "") == STATUS_COMMENTS]
-    approved_with_comments = [e for e in comments if e.get("approved_host")]
+    approved_resolvable = [
+        e for e in comments
+        if e.get("approved_host") and e.get("approve_ready") is True
+    ]
+    approved_with_comments = [
+        e for e in comments
+        if e.get("approved_host") and e.get("approve_ready") is not True
+    ]
     reviewed_with_comments = [e for e in comments if not e.get("approved_host")]
 
-    if not approved_clean and not approved_with_comments and not reviewed_with_comments:
+    if not approved_clean and not approved_resolvable and not approved_with_comments and not reviewed_with_comments:
         print("Ready to merge: none.")
         return
 
@@ -280,6 +288,10 @@ def print_summary(prs: list[dict]) -> None:
     print("==============")
     print(f"Approved (no open comments)   · {len(approved_clean)}")
     for e in approved_clean:
+        print(f"  - {e.get('pr_url')}")
+    print()
+    print(f"Approved (comments resolvable) · {len(approved_resolvable)}")
+    for e in approved_resolvable:
         print(f"  - {e.get('pr_url')}")
     print()
     print(f"Approved (open comments)      · {len(approved_with_comments)}")
@@ -616,6 +628,21 @@ def _refresh_one(pr_url: str, entry: dict, *, queue_path: Path, log) -> dict:
         updates["status"] = STATUS_MERGED
     elif verdict == "closed":
         updates["status"] = STATUS_CLOSED
+    comment_activity = fetch_comment_activity(pr_url, log)
+    comment_error = None
+    if comment_activity.get("error"):
+        comment_error = comment_activity["error"]
+        updates["comment_activity_error"] = comment_error
+    else:
+        for key in (
+            "comment_activity_hash",
+            "comment_count",
+            "unresolved_comment_count",
+            "comment_activity_updated_at",
+            "comment_activity_error",
+        ):
+            if key in comment_activity:
+                updates[key] = comment_activity[key]
     update_pr_entry(queue_path, pr_url, updates)
     prev_head = entry.get("head_sha")
     head_unchanged = (prev_head == new_head) if prev_head else None
@@ -627,6 +654,8 @@ def _refresh_one(pr_url: str, entry: dict, *, queue_path: Path, log) -> dict:
         "closed": verdict == "closed",
         "status": updates.get("status", entry.get("status")),
         "head_unchanged": head_unchanged,
+        "comment_activity_hash": updates.get("comment_activity_hash"),
+        "comment_activity_error": comment_error,
         "refreshed": "meta",
     }
 
@@ -641,6 +670,7 @@ def _print_update_all_summary(results: list[dict]) -> None:
     merged = [r for r in results if r.get("merged")]
     closed = [r for r in results if r.get("closed")]
     failed = [r for r in results if r.get("status") == "failed"]
+    comment_failed = [r for r in results if r.get("comment_activity_error")]
 
     def urls(rows: list[dict]) -> str:
         sample = [r.get("pr_url", "?") for r in rows[:3]]
@@ -653,6 +683,8 @@ def _print_update_all_summary(results: list[dict]) -> None:
     print(f"  ↪  {len(merged)} merged{urls(merged)}")
     print(f"  ↪  {len(closed)} closed{urls(closed)}")
     print(f"  ⚠  {len(failed)} failed{urls(failed)}")
+    if comment_failed:
+        print(f"  ⚠  {len(comment_failed)} comment activity refresh failed{urls(comment_failed)}")
 
 
 def cmd_update(args) -> int:
@@ -981,6 +1013,7 @@ def main(argv: list[str] | None = None) -> int:
     sp_rel = sub.add_parser("release",
                             help="clear `taken_at` (optionally set a terminal status)")
     sp_rel.add_argument("pr_url")
+    sp_rel.add_argument("--queue", default=str(DEFAULT_QUEUE_PATH), help=argparse.SUPPRESS)
     sp_rel.add_argument("--status", default=None,
                         help="optionally set the row's status while releasing "
                              "(e.g. 'reviewed', 'approved', 'comments')")
@@ -989,6 +1022,7 @@ def main(argv: list[str] | None = None) -> int:
     sp_claim = sub.add_parser("claim",
                               help="v4 §6.v: atomically set taken_at + status=in_review")
     sp_claim.add_argument("pr_url")
+    sp_claim.add_argument("--queue", default=str(DEFAULT_QUEUE_PATH), help=argparse.SUPPRESS)
     sp_claim.add_argument("--force", action="store_true",
                           help="override an active lock (use only if you're sure)")
     sp_claim.set_defaults(func=cmd_claim)
@@ -996,6 +1030,7 @@ def main(argv: list[str] | None = None) -> int:
     sp_hb = sub.add_parser("heartbeat",
                            help="v4 §6.v: bump taken_at to now (call every ~5 min during a long review)")
     sp_hb.add_argument("pr_url")
+    sp_hb.add_argument("--queue", default=str(DEFAULT_QUEUE_PATH), help=argparse.SUPPRESS)
     sp_hb.set_defaults(func=cmd_heartbeat)
 
     sp_ss = sub.add_parser("set-status",
@@ -1003,6 +1038,7 @@ def main(argv: list[str] | None = None) -> int:
     sp_ss.add_argument("pr_url")
     sp_ss.add_argument("status",
                        help="new status (pending|in_review|reviewed|comments|approved|merged|closed|error|reminded)")
+    sp_ss.add_argument("--queue", default=str(DEFAULT_QUEUE_PATH), help=argparse.SUPPRESS)
     sp_ss.set_defaults(func=cmd_set_status)
 
     sp_rem = sub.add_parser("remind",

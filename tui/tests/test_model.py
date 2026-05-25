@@ -8,6 +8,7 @@ from pathlib import Path
 
 import pytest
 
+from tui.model import queue_model
 from tui.model.queue_model import QueueModel
 
 
@@ -36,15 +37,12 @@ def test_snapshot_filter_ready_is_subset(fake_queue_path, frozen_now):
     assert all(r.ready_for_review for r in snap.rows)
 
 
-def test_snapshot_sort_fifo_oldest_first(fake_queue_path, frozen_now):
+def test_snapshot_sort_queue_preserves_queue_file_order(fake_queue_path, frozen_now):
     snap = _model(fake_queue_path, frozen_now).snapshot(
-        filter_mode="all", sort_mode="fifo"
+        filter_mode="all", sort_mode="queue"
     )
-    # All fixture rows carry last_checked_at, so they should be in ascending order.
-    timestamps = [r.last_checked_at for r in snap.rows]
-    assert all(t is not None for t in timestamps)
-    for prev, nxt in zip(timestamps, timestamps[1:]):
-        assert prev <= nxt
+    assert [r.number for r in snap.rows] == [100, 101, 99, 5550, 42, 5551]
+    assert [r.queue_index for r in snap.rows] == list(range(6))
 
 
 def test_snapshot_sort_repo_groups(fake_queue_path, frozen_now):
@@ -97,3 +95,23 @@ def test_ready_count_matches_helper(fake_queue_path, frozen_now):
 def test_platform_summary_mixed(fake_queue_path, frozen_now):
     snap = _model(fake_queue_path, frozen_now).snapshot()
     assert snap.platform_summary == "github+bitbucket"
+
+
+def test_title_falls_back_to_prepared_task_pr_json(tmp_path, frozen_now, monkeypatch):
+    queue = tmp_path / "q.json5"
+    queue.write_text(json.dumps({
+        "prs": [{
+            "pr_url": "https://github.com/acme/foo/pull/42",
+            "status": "pending",
+            "head_sha": "abc",
+        }]
+    }))
+    task_root = tmp_path / "skill-pr-review"
+    task_dir = task_root / "foo_pr-42"
+    task_dir.mkdir(parents=True)
+    (task_dir / "pr.json").write_text(json.dumps({"title": "Fallback title from task"}))
+    monkeypatch.setattr(queue_model, "_PR_REVIEW_ROOT", task_root)
+
+    snap = _model(queue, frozen_now).snapshot()
+
+    assert snap.rows[0].title == "Fallback title from task"

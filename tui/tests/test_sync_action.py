@@ -112,7 +112,7 @@ def test_sync_footer_shows_running_label_mid_run(
             # While the subprocess is still alive (sleeping), the footer must
             # show the (running…) label.
             footer = _footer_text(app)
-            assert "[s] sync (running…)" in footer, (
+            assert "[s] Sync all (running…)" in footer, (
                 f"expected running label in footer, got: {footer!r}"
             )
             # Wait for clean exit so the test doesn't leave a child hanging.
@@ -165,7 +165,7 @@ def test_sync_idempotent_when_already_running(
             # Press `s` again while still running.
             await pilot.press("s")
             ok2 = await _poll_until(
-                lambda: "already running" in _log_text(app),
+                lambda: "Sync all already running" in _log_text(app),
                 pilot=pilot,
                 timeout_s=2.0,
             )

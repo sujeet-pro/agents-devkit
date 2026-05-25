@@ -31,6 +31,8 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
+import selectors
 import shlex
 import subprocess
 import sys
@@ -43,6 +45,8 @@ sys.path.insert(0, str(THIS_DIR))
 # _common.py lives in the adk-pr-review skill, not adk-cli.
 ADK_PR_REVIEW_SCRIPTS = THIS_DIR.parent.parent / "adk-pr-review" / "scripts"
 sys.path.insert(0, str(ADK_PR_REVIEW_SCRIPTS))
+SCRIPTS_ROOT = THIS_DIR.parent.parent.parent / "scripts"
+sys.path.insert(0, str(SCRIPTS_ROOT))
 
 from _common import die, get_logger  # type: ignore  # noqa: E402
 from _common import parse_pr_url, pr_review_file, task_dir_for  # type: ignore  # noqa: E402
@@ -56,8 +60,21 @@ from adk_log import (  # type: ignore  # noqa: E402
 )
 from agent_harness import build_agent_cmd, resolve_runner_model  # noqa: E402
 from queue_io import (  # noqa: E402
-    DEFAULT_QUEUE_PATH, read_queue, ready_for_review, TERMINAL_STATUSES,
+    DEFAULT_QUEUE_PATH, read_queue, review_work_needed, TERMINAL_STATUSES,
+    WORK_COMMENTS, WORK_NONE, REVIEW_ATTEMPT_STARTED, REVIEW_ATTEMPT_FAILED,
+    find_row, update_pr_entry,
 )
+from run_state import (  # noqa: E402
+    complete_worker,
+    file_link,
+    run_id as make_run_state_id,
+    update_run,
+    update_worker,
+    worker_id as make_worker_state_id,
+    write_run,
+    write_worker,
+)
+from skill_preflight import preflight  # noqa: E402
 
 PY = sys.executable
 ADK_HOME = Path(os.environ.get("ADK_HOME", Path.home() / ".agents-devkit"))
@@ -119,7 +136,7 @@ def _ts_for_run() -> str:
 def _eligible_rows(queue_path: Path, *, exclude: set[str]) -> list[dict]:
     """Return non-terminal rows passing ready_for_review, minus excluded URLs.
 
-    FIFO order: oldest last_checked_at first; null (never reviewed) first.
+    FIFO order follows the queue file order exactly.
     """
     q = read_queue(queue_path)
     prs = q.get("prs", []) or []
@@ -129,15 +146,31 @@ def _eligible_rows(queue_path: Path, *, exclude: set[str]) -> list[dict]:
             continue
         if e.get("pr_url") in exclude:
             continue
-        if not ready_for_review(e):
+        work_mode = review_work_needed(e)
+        if work_mode == WORK_NONE:
             continue
+        e["_adk_work_mode"] = work_mode
         eligible.append(e)
-    # Sort: nulls first, then by last_checked_at ascending.
-    def _key(row):
-        lc = row.get("last_checked_at")
-        return (1, str(lc)) if lc else (0, "")
-    eligible.sort(key=_key)
     return eligible
+
+
+_PHASE_RE = re.compile(
+    r"^[\s\-#*>]*"
+    r"(?:\[[^\]]+\]\s*)?"
+    r"[Pp]hase\s+"
+    r"([0-9]+[a-zA-Z]?)"
+    r"(?:\s*[:—\-]\s*([^.\n*:]{1,60}))?"
+)
+
+
+def _parse_phase_marker(text: str) -> str | None:
+    m = _PHASE_RE.match(text)
+    if m is None:
+        return None
+    num = m.group(1)
+    desc = (m.group(2) or "").strip().rstrip("- ").rstrip()
+    label = f"phase {num}: {desc}" if desc else f"phase {num}"
+    return label[:80]
 
 
 def _runner_cost_key(runner: str, agent: str) -> str:
@@ -199,12 +232,17 @@ def _annotate_depth(rows: list[dict], args) -> None:
 
 def _build_agent_cmd(pr_url: str, *, runner: str, agent: str | None,
                      model: str | None = None, detailed: bool = False,
-                     deep: bool = False) -> list[str]:
+                     deep: bool = False, work_mode: str | None = None,
+                     rebuild: bool = False) -> list[str]:
     flags = []
     if detailed:
         flags.append("--detailed")
     if deep:
         flags.append("--deep")
+    if rebuild:
+        flags.append("--rebuild")
+    if work_mode == WORK_COMMENTS:
+        flags.append("--comments-only")
     prompt = " ".join(["/adk-pr-review", pr_url] + flags)
     resolved_model = resolve_runner_model(
         runner=runner,
@@ -236,6 +274,7 @@ def _print_dry_run(eligible: list[dict], args, run_dir: Path) -> None:
     print(f"   ├─ default model: {resolve_runner_model(runner=args.runner, explicit_model=args.agent_model, deep=False) or 'harness-default'}")
     print(f"   ├─ deep model: {resolve_runner_model(runner=args.runner, explicit_model=args.agent_model, deep=True) or 'harness-default'}")
     print(f"   ├─ detailed embeddings: {args.detailed}")
+    print(f"   ├─ rebuild: {args.rebuild}")
     print(f"   ├─ auto deep: {args.auto_deep}")
     print(f"   ├─ parallel: {args.parallel}")
     print(f"   ├─ max reviews: {args.max_reviews}")
@@ -252,7 +291,8 @@ def _print_dry_run(eligible: list[dict], args, run_dir: Path) -> None:
         depth = "deep" if row.get("_adk_deep") else "standard"
         reason = row.get("_adk_deep_reason")
         suffix = f" ({reason})" if reason else ""
-        print(f"   ├─ {format_pr_ref(row.get('pr_url', ''))} · {depth}{suffix}")
+        work = row.get("_adk_work_mode") or "code"
+        print(f"   ├─ {format_pr_ref(row.get('pr_url', ''))} · {work} · {depth}{suffix}")
 
 
 def _print_review_result(result: dict) -> None:
@@ -273,10 +313,37 @@ def _print_review_result(result: dict) -> None:
         print(f"   │  └─ log: {format_file_ref(log)}")
 
 
+def _mark_review_attempt(queue: str, pr_url: str, status: str, *,
+                         work_mode: str | None = None, error: str | None = None) -> None:
+    queue_path = Path(queue).expanduser()
+    try:
+        row = find_row(queue_path, pr_url)
+        if row is None:
+            return
+        updates = {
+            "last_review_attempt_at": _now_iso(),
+            "last_review_attempt_status": status,
+            "last_review_attempt_work_mode": work_mode,
+            "last_review_attempt_head_sha": row.get("head_sha"),
+            "last_review_attempt_comment_activity_hash": row.get("comment_activity_hash"),
+        }
+        if error is not None:
+            updates["last_review_attempt_error"] = error
+            updates["taken_at"] = None
+            updates["taken_by"] = None
+        update_pr_entry(queue_path, pr_url, updates)
+    except Exception:
+        return
+
+
 def _spawn_review(pr_url: str, agent: str | None, run_dir: Path, log,
                   *, runner: str = "claude", model: str | None = None,
                   detailed: bool = False, deep: bool = False,
-                  deep_reason: str | None = None) -> dict:
+                  rebuild: bool = False,
+                  deep_reason: str | None = None,
+                  run_state_id: str | None = None,
+                  queue: str = str(DEFAULT_QUEUE_PATH),
+                  work_mode: str | None = None) -> dict:
     """Spawn one agent for one PR. Captures stdout/stderr to a log file
     under run_dir; returns a summary dict.
     """
@@ -294,52 +361,207 @@ def _spawn_review(pr_url: str, agent: str | None, run_dir: Path, log,
         model=model,
         detailed=detailed,
         deep=deep,
+        rebuild=rebuild,
+        work_mode=work_mode,
     )
+    if work_mode == WORK_COMMENTS:
+        cmd = [
+            PY, str(ADK_BIN), "pr-task", "review-comments", pr_url,
+            "--queue", queue,
+        ]
     if os.environ.get("ADK_VERBOSE") == "1":
         log.info("review %s", format_pr_ref(pr_url))
         log.info("$ %s", " ".join(shlex.quote(c) for c in cmd))
+    worker_state_id = make_worker_state_id(run_state_id, pr_url) if run_state_id else None
+    links = {
+        "pr": pr_url,
+        "log": file_link(log_path),
+    }
     started = time.time()
+    _mark_review_attempt(queue, pr_url, REVIEW_ATTEMPT_STARTED, work_mode=work_mode)
     try:
         with open(log_path, "w", encoding="utf-8") as fh:
-            cp = subprocess.run(
-                cmd, stdout=fh, stderr=subprocess.STDOUT,
-                text=True, check=False,
+            if worker_state_id:
+                write_worker(worker_state_id, {
+                    "run_id": run_state_id,
+                    "pid": os.getpid(),
+                    "task_type": "review",
+                    "subject": pr_url,
+                    "pr_url": pr_url,
+                    "status": "running",
+                    "current_phase": "context refresh",
+                    "agent": runner,
+                    "model": resolved_model,
+                    "queue": queue,
+                    "started_at": _now_iso(),
+                    "log_path": str(log_path),
+                    "links": links,
+                    "artifacts": {},
+                })
+            if work_mode != WORK_COMMENTS:
+                refresh_cmd = [
+                    PY, str(ADK_BIN), "pr", "--queue", queue,
+                    "context-refresh", pr_url, "--no-prepare",
+                ]
+                fh.write("$ " + " ".join(shlex.quote(c) for c in refresh_cmd) + "\n")
+                fh.flush()
+                refresh = subprocess.run(
+                    refresh_cmd, stdout=fh, stderr=subprocess.STDOUT,
+                    text=True, check=False,
+                )
+                if refresh.returncode != 0:
+                    fh.write(f"(context-refresh exited rc={refresh.returncode}; continuing)\n")
+                    fh.flush()
+            if worker_state_id:
+                update_worker(worker_state_id, {
+                    "status": "running",
+                    "current_phase": "review agent starting",
+                })
+            proc = subprocess.Popen(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                bufsize=1,
             )
+            if worker_state_id:
+                update_worker(worker_state_id, {
+                    "run_id": run_state_id,
+                    "pid": proc.pid,
+                    "task_type": "review",
+                    "subject": pr_url,
+                    "pr_url": pr_url,
+                    "status": "running",
+                    "current_phase": "spawned review agent",
+                    "agent": runner,
+                    "model": resolved_model,
+                    "queue": queue,
+                    "started_at": _now_iso(),
+                    "log_path": str(log_path),
+                    "links": links,
+                    "artifacts": {},
+                })
+            next_heartbeat = time.time()
+            current_phase = "spawned review agent"
+            selector = selectors.DefaultSelector()
+            if proc.stdout is not None:
+                selector.register(proc.stdout, selectors.EVENT_READ)
+            while proc.poll() is None:
+                for key, _ in selector.select(timeout=0.2):
+                    line = key.fileobj.readline()
+                    if not line:
+                        continue
+                    fh.write(line)
+                    fh.flush()
+                    phase = _parse_phase_marker(line)
+                    if worker_state_id and phase is not None:
+                        current_phase = phase
+                        update_worker(worker_state_id, {
+                            "status": "running",
+                            "current_phase": phase,
+                        })
+                if worker_state_id and time.time() >= next_heartbeat:
+                    update_worker(worker_state_id, {
+                        "status": "running",
+                        "current_phase": current_phase,
+                    })
+                    next_heartbeat = time.time() + 5
+            if proc.stdout is not None:
+                for line in proc.stdout:
+                    fh.write(line)
+                    fh.flush()
+                    phase = _parse_phase_marker(line)
+                    if worker_state_id and phase is not None:
+                        current_phase = phase
+                        update_worker(worker_state_id, {
+                            "status": "running",
+                            "current_phase": phase,
+                        })
+            selector.close()
         elapsed = time.time() - started
+        exit_code = proc.returncode
+        if exit_code != 0:
+            _mark_review_attempt(
+                queue, pr_url, REVIEW_ATTEMPT_FAILED,
+                work_mode=work_mode,
+                error=extract_failure_reason(str(log_path)) or f"exit_code={exit_code}",
+            )
+        if worker_state_id:
+            complete_worker(
+                worker_state_id,
+                status="ok" if exit_code == 0 else "failed",
+                rc=exit_code,
+                outcome="ok" if exit_code == 0 else "failed",
+                current_phase="completed",
+                links=links,
+            )
         return {
             "pr_url": pr_url,
-            "exit_code": cp.returncode,
+            "exit_code": exit_code,
             "elapsed_s": round(elapsed, 1),
             "log": str(log_path),
+            "worker_id": worker_state_id,
             "model": resolved_model,
             "deep": deep,
             "deep_reason": deep_reason,
             "detailed": detailed,
-            "status": "ok" if cp.returncode == 0 else "failed",
+            "work_mode": work_mode,
+            "status": "ok" if exit_code == 0 else "failed",
         }
     except FileNotFoundError:
+        if worker_state_id:
+            complete_worker(
+                worker_state_id,
+                status="failed",
+                rc=-1,
+                outcome="spawn-error",
+                current_phase="spawn error",
+                error=f"agent binary '{cmd[0]}' not found on PATH",
+                links=links,
+            )
+        _mark_review_attempt(
+            queue, pr_url, REVIEW_ATTEMPT_FAILED,
+            work_mode=work_mode,
+            error=f"agent binary '{cmd[0]}' not found on PATH",
+        )
         return {
             "pr_url": pr_url,
             "exit_code": -1,
             "status": "failed",
             "error": f"agent binary '{cmd[0]}' not found on PATH",
             "log": str(log_path),
+            "worker_id": worker_state_id,
             "model": resolved_model,
             "deep": deep,
             "deep_reason": deep_reason,
             "detailed": detailed,
+            "work_mode": work_mode,
         }
     except Exception as e:
+        _mark_review_attempt(queue, pr_url, REVIEW_ATTEMPT_FAILED,
+                             work_mode=work_mode, error=str(e))
+        if worker_state_id:
+            complete_worker(
+                worker_state_id,
+                status="failed",
+                rc=-1,
+                outcome="error",
+                current_phase="error",
+                error=str(e),
+                links=links,
+            )
         return {
             "pr_url": pr_url,
             "exit_code": -1,
             "status": "failed",
             "error": str(e),
             "log": str(log_path),
+            "worker_id": worker_state_id,
             "model": resolved_model,
             "deep": deep,
             "deep_reason": deep_reason,
             "detailed": detailed,
+            "work_mode": work_mode,
         }
 
 
@@ -499,15 +721,17 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--agent", default=_cfg("agent", None),
                     help="override runner binary. Defaults: claude, cursor, codex. "
                          "With --runner custom, receives '-p /adk-pr-review <url>'.")
-    ap.add_argument("--agent-model", default=_cfg("agent_model", None),
+    ap.add_argument("--agent-model", default=_cfg("agent_model", "inherit"),
                     help="optional model passed to runners that support it. "
-                         "Overrides the runner profile selected by --deep/auto-deep.")
+                         "Use 'inherit' (default) to omit --model and let the harness choose.")
     ap.add_argument("--detailed", action="store_true",
                     help="forward --detailed to /adk-pr-review; controls programmatic "
                          "retrieval detail such as the PR embed model.")
     ap.add_argument("--deep", action="store_true",
                     help="force the deep model profile for every spawned review "
                          "(Claude=Opus, Cursor=GPT 5.5 by default).")
+    ap.add_argument("--rebuild", "--fresh", action="store_true",
+                    help="force a fresh full rerun/reindex instead of resuming cached prep")
     ap.add_argument("--no-auto-deep", dest="auto_deep", action="store_false",
                     default=_cfg_bool("auto_deep", True),
                     help="disable automatic --deep for large or high-risk PRs.")
@@ -539,6 +763,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("-v", "--verbose", action="store_true",
                     help="write a structured DEBUG log to ~/.agents-devkit/logs/")
     args = ap.parse_args(argv)
+    guard_json = bool(args.quiet_hours or args.max_cost_usd is not None or args.report_to_slack)
     if getattr(args, "verbose", False):
         from _verbose import setup_verbose  # type: ignore  # noqa: WPS433
         setup_verbose("pr-review-all", enabled=True, argv=argv)
@@ -547,6 +772,7 @@ def main(argv: list[str] | None = None) -> int:
     log = get_logger("pr-review-all")
     started_ts = _now_iso()
     run_id = _ts_for_run()
+    state_run_id = make_run_state_id("pr-review-all")
     run_dir = AUTO_RUNS_ROOT / run_id
     run_dir.mkdir(parents=True, exist_ok=True)
     dashboard = RunDashboard(
@@ -557,30 +783,94 @@ def main(argv: list[str] | None = None) -> int:
         selected=0,
         run_dir=run_dir,
     )
-    dashboard.print_snapshot()
+    write_run(state_run_id, {
+        "task_type": "pr-review-all",
+        "status": "running",
+        "started_by": "cli",
+        "queue": args.queue,
+        "runner": args.runner,
+        "agent": args.agent,
+        "model_mode": args.agent_model or ("deep" if args.deep else "inherit"),
+        "model": resolve_runner_model(
+            runner=args.runner,
+            explicit_model=args.agent_model,
+            deep=args.deep,
+        ),
+        "parallel": args.parallel,
+        "started_at": started_ts,
+        "run_dir": str(run_dir),
+        "links": {"run_dir": file_link(run_dir)},
+        "steps": [{"name": "start", "status": "ok", "completed_at": started_ts}],
+        "workers": [],
+    })
+    pf = preflight(
+        "adk-pr-review",
+        runner=args.runner,
+        agent=args.agent,
+        model=args.agent_model,
+        deep=args.deep,
+    )
+    update_run(state_run_id, {"preflight": pf})
+    if not guard_json:
+        dashboard.print_snapshot()
 
     # Quiet hours guard — refuse to spawn if we're inside the window.
     if args.quiet_hours:
         try:
             if _in_quiet_hours(args.quiet_hours):
-                _print_attention(
-                    "Run paused by quiet hours",
-                    reason=f"inside quiet-hours window ({args.quiet_hours})",
-                    run_dir=run_dir,
-                    status="skipped",
-                )
+                if guard_json:
+                    print(json.dumps({
+                        "action": "aborted",
+                        "reason": f"quiet-hours {args.quiet_hours}",
+                        "quiet_hours": args.quiet_hours,
+                    }))
+                else:
+                    _print_attention(
+                        "Run paused by quiet hours",
+                        reason=f"inside quiet-hours window ({args.quiet_hours})",
+                        run_dir=run_dir,
+                        status="skipped",
+                    )
+                update_run(state_run_id, {
+                    "status": "skipped",
+                    "completed_at": _now_iso(),
+                    "steps": [{"name": "quiet-hours", "status": "skipped"}],
+                })
                 return 2
         except ValueError as e:
-            _print_attention("Run aborted", reason=str(e), run_dir=run_dir)
+            if guard_json:
+                print(json.dumps({"action": "aborted", "reason": str(e)}))
+            else:
+                _print_attention("Run aborted", reason=str(e), run_dir=run_dir)
+            update_run(state_run_id, {
+                "status": "failed",
+                "completed_at": _now_iso(),
+                "error": str(e),
+            })
             return 2
 
     # Step 1: pr-sync (optional).
     ran_sync = False
     if not args.no_sync and not args.dry_run:
+        update_run(state_run_id, {
+            "steps": [{
+                "name": "pr-sync",
+                "status": "running",
+                "started_at": _now_iso(),
+                "log_path": str(run_dir / "pr-sync.log"),
+            }],
+        })
         rc = _run_pr_sync(queue=args.queue, run_dir=run_dir,
                           dashboard=dashboard, log=log, args=args)
         if rc != 0:
             log.warning("pr-sync exited rc=%d; continuing anyway", rc)
+        update_run(state_run_id, {
+            "steps": [{"name": "pr-sync",
+                       "status": "ok" if rc == 0 else "warn",
+                       "rc": rc,
+                       "log_path": str(run_dir / "pr-sync.log"),
+                       "completed_at": _now_iso()}],
+        })
         ran_sync = True
 
     # Step 2: enumerate eligible rows.
@@ -607,6 +897,10 @@ def main(argv: list[str] | None = None) -> int:
         if len(eligible) > args.max_reviews:
             eligible = eligible[:args.max_reviews]
     _annotate_depth(eligible, args)
+    update_run(state_run_id, {
+        "eligible": len(eligible),
+        "selected": len(eligible),
+    })
 
     # Cost guard — pre-flight estimate × eligible count.
     if args.max_cost_usd is not None and eligible:
@@ -617,26 +911,69 @@ def main(argv: list[str] | None = None) -> int:
         estimated = sum(cost_per * (2.0 if e.get("_adk_deep") else 1.0)
                         for e in eligible)
         if estimated > args.max_cost_usd:
-            _print_attention(
-                "Run aborted by cost guard",
-                reason=(f"estimated ${estimated:.2f} exceeds cap "
-                        f"${args.max_cost_usd:.2f}; runner={args.runner}, "
-                        f"agent={args.agent or args.runner}, "
-                        f"per_review=${cost_per:.2f}, eligible={len(eligible)}, "
-                        f"deep={sum(1 for e in eligible if e.get('_adk_deep'))}"),
-                run_dir=run_dir,
-            )
+            reason = (f"max-cost-usd: estimated ${estimated:.2f} exceeds cap "
+                      f"${args.max_cost_usd:.2f}; runner={args.runner}, "
+                      f"agent={args.agent or args.runner}, "
+                      f"per_review=${cost_per:.2f}, eligible={len(eligible)}, "
+                      f"deep={sum(1 for e in eligible if e.get('_adk_deep'))}")
+            if guard_json:
+                print(json.dumps({"action": "aborted", "reason": reason,
+                                  "runner": args.runner,
+                                  "max_cost_usd": args.max_cost_usd}))
+            else:
+                _print_attention("Run aborted by cost guard", reason=reason, run_dir=run_dir)
+            update_run(state_run_id, {
+                "status": "failed",
+                "completed_at": _now_iso(),
+                "error": "cost guard exceeded",
+            })
             return 2
 
     if args.dry_run:
         dashboard.selected = len(eligible)
-        _print_dry_run(eligible, args, run_dir)
+        if guard_json:
+            print(json.dumps({
+                "action": "dry_run",
+                "runner": args.runner,
+                "quiet_hours": args.quiet_hours,
+                "max_cost_usd": args.max_cost_usd,
+                "report_to_slack": args.report_to_slack,
+                "eligible": [e.get("pr_url") for e in eligible],
+                "parallel": args.parallel,
+                "max_reviews": args.max_reviews,
+            }))
+        else:
+            _print_dry_run(eligible, args, run_dir)
+        update_run(state_run_id, {
+            "status": "dry-run",
+            "completed_at": _now_iso(),
+            "selected": len(eligible),
+        })
         return 0
 
     if not eligible:
         _print_attention("No eligible PRs", reason="queue has nothing ready for review",
                          run_dir=run_dir, status="skipped")
+        update_run(state_run_id, {
+            "status": "skipped",
+            "completed_at": _now_iso(),
+            "selected": 0,
+        })
         return 0
+
+    if pf["status"] == "blocked":
+        _print_attention(
+            "Run aborted by preflight",
+            reason=", ".join(item.get("name") or item.get("detail", "gap")
+                             for item in pf.get("blockers", [])),
+            run_dir=run_dir,
+        )
+        update_run(state_run_id, {
+            "status": "failed",
+            "completed_at": _now_iso(),
+            "error": "preflight blocked",
+        })
+        return 2
 
     dashboard.selected = len(eligible)
     for e in eligible:
@@ -656,8 +993,12 @@ def main(argv: list[str] | None = None) -> int:
                 e["pr_url"], args.agent, run_dir, log,
                 runner=args.runner, model=args.agent_model,
                 detailed=args.detailed,
+                rebuild=args.rebuild,
                 deep=bool(e.get("_adk_deep")),
                 deep_reason=e.get("_adk_deep_reason"),
+                run_state_id=state_run_id,
+                queue=args.queue,
+                work_mode=e.get("_adk_work_mode"),
             )
             if result.get("status") == "ok":
                 dashboard.apply({"kind": "pr_done", "pr_url": e["pr_url"],
@@ -681,8 +1022,12 @@ def main(argv: list[str] | None = None) -> int:
                     _spawn_review, e["pr_url"], args.agent, run_dir, log,
                     runner=args.runner, model=args.agent_model,
                     detailed=args.detailed,
+                    rebuild=args.rebuild,
                     deep=bool(e.get("_adk_deep")),
                     deep_reason=e.get("_adk_deep_reason"),
+                    run_state_id=state_run_id,
+                    queue=args.queue,
+                    work_mode=e.get("_adk_work_mode"),
                 ): e for e in eligible
             }
             for e in eligible:
@@ -714,6 +1059,17 @@ def main(argv: list[str] | None = None) -> int:
     report_path = _write_report(run_dir, results, started_ts, ended_ts,
                                 ran_sync, dry_run=False)
     n_fail = sum(1 for r in results if r.get("status") == "failed")
+    update_run(state_run_id, {
+        "status": "failed" if n_fail else "ok",
+        "completed_at": ended_ts,
+        "workers": [r.get("worker_id") for r in results if r.get("worker_id")],
+        "results": results,
+        "artifacts": {"report": str(report_path)},
+        "links": {
+            "run_dir": file_link(run_dir),
+            "report": file_link(report_path),
+        },
+    })
     slack_summary = None
 
     # Step 5: optional Slack summary post.

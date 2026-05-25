@@ -510,6 +510,7 @@ def _release_and_print_tail(task_dir: Path, pr: dict, findings_blob: dict, log) 
     approved_host = (review_decision == "APPROVED")
     host_requested_changes = review_decision in {"CHANGES_REQUESTED", "REQUEST_CHANGES"}
     approve_ready = False
+    actions_path = pr_review_file(task_dir, "comment-actions.json")
     if actions_path.exists():
         try:
             approve_ready = bool(read_json(actions_path).get("approve_ready", False))

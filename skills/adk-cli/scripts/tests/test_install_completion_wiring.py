@@ -1,4 +1,4 @@
-"""Tests for install.py shell-completion wiring helpers."""
+"""Tests for install.py helper behavior."""
 from __future__ import annotations
 
 import importlib.util
@@ -49,6 +49,35 @@ def test_zsh_completion_diff_redacts_existing_shell_content():
     assert "context redacted" in diff
     assert install.ADK_ZSH_COMPLETION_START in diff
     assert "export SECRET" not in diff
+
+
+def test_cursor_http_url_defaults_expand_without_touching_secret_headers(monkeypatch):
+    install = _load_install_module()
+    monkeypatch.delenv("DATADOG_MCP_URL", raising=False)
+    cfg = {
+        "url": "${DATADOG_MCP_URL:-https://mcp.datadoghq.com/api/unstable/mcp-server/mcp}?toolsets=core",
+        "headers": {
+            "DD_API_KEY": "${DATADOG_API_KEY_CRED}",
+            "DD_APPLICATION_KEY": "${DATADOG_APP_KEY_CRED}",
+        },
+    }
+
+    translated = install._translate_mcp_entry_generic(cfg)
+
+    assert translated["url"] == "https://mcp.datadoghq.com/api/unstable/mcp-server/mcp?toolsets=core"
+    assert translated["headers"] == cfg["headers"]
+
+
+def test_cursor_http_url_defaults_prefer_environment_override(monkeypatch):
+    install = _load_install_module()
+    monkeypatch.setenv("DATADOG_MCP_URL", "https://mcp.datadoghq.eu/api/unstable/mcp-server/mcp")
+    cfg = {
+        "url": "${DATADOG_MCP_URL:-https://mcp.datadoghq.com/api/unstable/mcp-server/mcp}?toolsets=core",
+    }
+
+    translated = install._translate_mcp_entry_generic(cfg)
+
+    assert translated["url"] == "https://mcp.datadoghq.eu/api/unstable/mcp-server/mcp?toolsets=core"
 
 
 if __name__ == "__main__":

@@ -62,9 +62,17 @@ Parse the user's prompt against this table. **A single prompt can route to multi
 
 ---
 
-## 3. Use non-adk skills when they exist
+## 3. ADK-only routing and tool ownership
 
-If the agent has installed skills from outside adk that match the task better (e.g. a `frontend-design` skill, a `db-migration` skill, a `terraform-plan` skill), **prefer them for the slice they specialize in**. adk skills are generalists; specialized third-party skills usually have deeper rules. Compose: hand the data-fetching to adk (the MCPs and overrides), and the specialized step to the third-party skill.
+This installation is ADK-only. If the host agent exposes non-ADK skills, plugins, commands, or MCP servers from a marketplace, built-in cache, previous install, or project cache, treat them as unavailable unless the user explicitly asks to bypass ADK for that single invocation.
+
+Rules:
+
+1. Route every task through the `/adk-*` skill table above or the shared ADK guidance files in this repo.
+2. Prefer ADK subagents named `adk-agent-*` for delegated work. Do not choose non-ADK agents when an ADK persona exists for the task.
+3. Prefer MCP servers configured from `mcp/adk-mcp-*.json`. In Cursor these may appear in the project descriptor cache as `user-adk-mcp-*`; those are the ADK-backed servers. Do not call plugin MCP servers such as `plugin-*` when an ADK MCP covers the same source.
+4. If an ADK-required MCP is missing or unhealthy, stop and report the gap. Do not silently fall back to a plugin MCP, browser workflow, or direct API unless the user explicitly approves that fallback.
+5. Built-in agent utilities that are not domain skills (for example file editing, shell execution, reading files, browser control, or mode switching) may still be used when they are the host tool surface needed to execute ADK workflows.
 
 ---
 

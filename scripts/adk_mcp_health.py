@@ -22,6 +22,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tomllib
 from pathlib import Path
 from typing import Any
 
@@ -97,6 +98,10 @@ NORMALIZED_HOST_VARS: set[str] = {"ATLASSIAN_SITE"}
 ALIASES: dict[str, str] = {}
 
 VAR_REF_RE = re.compile(r"\$\{([A-Z_][A-Z0-9_]*)(?::-[^}]*)?\}")
+VAR_REF_WITH_DEFAULT_RE = re.compile(r"\$\{([A-Z_][A-Z0-9_]*)(?::-(.*?))?\}")
+ADK_MCP_PREFIX = "adk-mcp-"
+CURSOR_ADK_DESCRIPTOR_PREFIX = "user-adk-mcp-"
+CURSOR_BUILTIN_DESCRIPTOR_PREFIX = "cursor-"
 
 
 def _creds_cmd() -> str | None:
@@ -170,6 +175,14 @@ def mcp_to_service(name: str) -> str | None:
     return svc
 
 
+def mcp_disabled(cfg: dict[str, Any]) -> str | None:
+    """Return the disabled reason for MCPs that are intentionally not loaded."""
+    name = cfg.get("name")
+    if name == "adk-mcp-rag" and not os.environ.get("RAG_MCP_URL"):
+        return "disabled (RAG_MCP_URL unset)"
+    return None
+
+
 def env_status(var: str) -> str:
     val = os.environ.get(var)
     if val:
@@ -187,6 +200,21 @@ def env_status(var: str) -> str:
     if var in VARS_WITH_DEFAULTS:
         return "unset (using default)"
     return "MISSING"
+
+
+def expand_env_refs(s: str) -> str:
+    """Expand ${VAR} and ${VAR:-default} for probes without printing values."""
+    def repl(m: re.Match[str]) -> str:
+        var = m.group(1)
+        default = m.group(2)
+        val = os.environ.get(var)
+        if val is not None:
+            return val
+        alias = ALIASES.get(var)
+        if alias and os.environ.get(alias) is not None:
+            return os.environ[alias]
+        return default if default is not None else ""
+    return VAR_REF_WITH_DEFAULT_RE.sub(repl, s)
 
 
 def read_mcp_configs() -> list[dict[str, Any]]:
@@ -212,25 +240,17 @@ def probe_http(url: str, headers: dict[str, str] | None) -> tuple[int | None, st
     if not shutil.which("curl"):
         return None, "curl not installed"
     headers = headers or {}
+    expanded_url = expand_env_refs(url)
     cmd = ["curl", "-sS", "-o", "/dev/null", "-w", "%{http_code}", "-X", "POST",
            "-H", "Accept: application/json, text/event-stream",
            "-H", "Content-Type: application/json"]
     for k, v in headers.items():
-        # interpolate ${VAR}
-        for m in VAR_REF_RE.finditer(v):
-            var = m.group(1)
-            val = os.environ.get(var)
-            if val is None:
-                # try alias
-                alias = ALIASES.get(var)
-                if alias:
-                    val = os.environ.get(alias)
-            if val is None:
-                v = v.replace(m.group(0), "")
-            else:
-                v = v.replace(m.group(0), val)
-        cmd.extend(["-H", f"{k}: {v}"])
-    cmd.extend(["--data", '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{}}}', url.split("?")[0]])
+        cmd.extend(["-H", f"{k}: {expand_env_refs(v)}"])
+    cmd.extend([
+        "--data",
+        '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{}}}',
+        expanded_url,
+    ])
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=15, check=False)
         code = int(result.stdout.strip()) if result.stdout.strip().isdigit() else None
@@ -241,10 +261,131 @@ def probe_http(url: str, headers: dict[str, str] | None) -> tuple[int | None, st
         return None, str(e)
 
 
+def expected_enabled_mcp_names(mcps: list[dict[str, Any]]) -> set[str]:
+    names: set[str] = set()
+    for cfg in mcps:
+        if "_error" in cfg or mcp_disabled(cfg):
+            continue
+        names.add(str(cfg.get("name") or Path(cfg["_path"]).stem))
+    return names
+
+
+def _inspect_json_mcp_config(path: Path, expected: set[str]) -> dict[str, Any]:
+    item: dict[str, Any] = {"path": str(path), "status": "absent"}
+    if not path.exists():
+        return item
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as e:
+        item.update({"status": "invalid-json", "error": str(e)})
+        return item
+    servers = data.get("mcpServers", {}) or {}
+    if not isinstance(servers, dict):
+        item.update({"status": "invalid-shape", "error": "mcpServers is not an object"})
+        return item
+    names = set(map(str, servers))
+    non_adk = sorted(n for n in names if not n.startswith(ADK_MCP_PREFIX))
+    missing = sorted(expected - names)
+    item.update({
+        "status": "ok" if not non_adk and not missing else "fail",
+        "server_count": len(names),
+        "non_adk": non_adk,
+        "missing_adk": missing,
+    })
+    return item
+
+
+def _inspect_codex_config(path: Path, expected: set[str]) -> dict[str, Any]:
+    item: dict[str, Any] = {"path": str(path), "status": "absent"}
+    if not path.exists():
+        return item
+    try:
+        data = tomllib.loads(path.read_text(encoding="utf-8"))
+    except tomllib.TOMLDecodeError as e:
+        item.update({"status": "invalid-toml", "error": str(e)})
+        return item
+    servers = data.get("mcp_servers", {}) or {}
+    if not isinstance(servers, dict):
+        item.update({"status": "invalid-shape", "error": "mcp_servers is not a table"})
+        return item
+    names = set(map(str, servers))
+    non_adk = sorted(n for n in names if not n.startswith(ADK_MCP_PREFIX))
+    missing = sorted(expected - names)
+    item.update({
+        "status": "ok" if not non_adk and not missing else "fail",
+        "server_count": len(names),
+        "non_adk": non_adk,
+        "missing_adk": missing,
+    })
+    return item
+
+
+def _inspect_cursor_descriptor_caches() -> dict[str, Any]:
+    projects = Path.home() / ".cursor" / "projects"
+    item: dict[str, Any] = {"path": str(projects), "status": "absent", "projects": []}
+    if not projects.exists():
+        return item
+    bad: list[dict[str, Any]] = []
+    for mcp_dir in sorted(projects.glob("*/mcps"), key=lambda p: str(p)):
+        if not mcp_dir.exists():
+            continue
+        names = sorted(p.name for p in mcp_dir.iterdir() if p.is_dir())
+        non_adk = [
+            n for n in names
+            if not n.startswith(CURSOR_ADK_DESCRIPTOR_PREFIX)
+            and not n.startswith(CURSOR_BUILTIN_DESCRIPTOR_PREFIX)
+        ]
+        row = {
+            "project": mcp_dir.parent.name,
+            "descriptor_count": len(names),
+            "non_adk": non_adk,
+        }
+        item["projects"].append(row)
+        if non_adk:
+            bad.append(row)
+    item["status"] = "ok" if not bad else "fail"
+    item["non_adk_projects"] = bad
+    return item
+
+
+def inspect_agent_configs(expected: set[str]) -> dict[str, Any]:
+    return {
+        "claude": _inspect_json_mcp_config(Path.home() / ".claude.json", expected),
+        "cursor": _inspect_json_mcp_config(Path.home() / ".cursor" / "mcp.json", expected),
+        "junie": _inspect_json_mcp_config(Path.home() / ".junie" / "mcp" / "mcp.json", expected),
+        "codex": _inspect_codex_config(Path.home() / ".codex" / "config.toml", expected),
+        "cursor_descriptor_caches": _inspect_cursor_descriptor_caches(),
+    }
+
+
+def collect_failures(report: dict[str, Any], *, require_creds: bool, strict_probe: bool) -> list[str]:
+    failures: list[str] = []
+    for m in report.get("mcps", []):
+        name = m.get("name", "<unknown>")
+        if m.get("status") not in {"env-ok", "disabled"}:
+            failures.append(f"{name}: {m.get('status')}")
+        if require_creds and "creds_validate" in m and m["creds_validate"] not in {"OK", "SKIPPED"}:
+            failures.append(f"{name}: creds {m['creds_validate']}")
+        if strict_probe and "probe" in m:
+            probe = m["probe"]
+            if probe.get("error") or not probe.get("http_code"):
+                failures.append(f"{name}: probe {probe.get('error') or probe.get('http_code')}")
+    for agent, cfg in (report.get("agent_configs") or {}).items():
+        if cfg.get("status") == "absent":
+            continue
+        if cfg.get("status") != "ok":
+            failures.append(f"{agent}: {cfg.get('status')}")
+    return failures
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--json", action="store_true", help="JSON output")
     ap.add_argument("--probe", action="store_true", help="curl-probe http MCPs (read-only init call)")
+    ap.add_argument("--check-agent-configs", action="store_true",
+                    help="Verify Claude/Cursor/Codex/Junie MCP configs contain only enabled adk-mcp-* entries.")
+    ap.add_argument("--strict", action="store_true",
+                    help="Exit nonzero if env, creds, probe, or agent-config checks fail.")
     ap.add_argument(
         "--no-creds",
         action="store_true",
@@ -263,6 +404,12 @@ def main() -> int:
         }
         if "_error" in cfg:
             item["status"] = f"invalid-json: {cfg['_error']}"
+            report["mcps"].append(item)
+            continue
+        disabled = mcp_disabled(cfg)
+        if disabled:
+            item["status"] = "disabled"
+            item["disabled_reason"] = disabled
             report["mcps"].append(item)
             continue
         refs = referenced_env_vars(cfg)
@@ -303,19 +450,32 @@ def main() -> int:
                 m["creds_service"] = svc
                 m["creds_validate"] = "no-validator"
 
+    if args.check_agent_configs:
+        report["agent_configs"] = inspect_agent_configs(expected_enabled_mcp_names(mcps))
+
+    failures = collect_failures(
+        report,
+        require_creds=bool(creds_data),
+        strict_probe=args.probe,
+    )
+    if failures:
+        report["failure_summary"] = failures
+
     if args.json:
         print(json.dumps(report, indent=2))
-        return 0
+        return 1 if args.strict and failures else 0
 
     # Pretty print
     print(f"[adk_mcp_health] reading {MCP_DIR.relative_to(REPO)}/")
     print()
     print("MCPs:")
     for m in report["mcps"]:
-        marker = {"env-ok": "✓", "env-missing": "✗"}.get(m["status"], "!")
+        marker = {"env-ok": "✓", "env-missing": "✗", "disabled": "·"}.get(m["status"], "!")
         line = f"  {marker} {m['name']:24} {m['status']}"
         if "missing_env_vars" in m:
             line += f"  (missing: {', '.join(m['missing_env_vars'])})"
+        if "disabled_reason" in m:
+            line += f"  ({m['disabled_reason']})"
         if "probe" in m:
             p = m["probe"]
             line += f"  [probe: {p.get('http_code') or p.get('error')}]"
@@ -353,7 +513,25 @@ def main() -> int:
                 if msg:
                     line += f"  — {msg}"
                 print(line)
-    return 0
+    if "agent_configs" in report:
+        print()
+        print("agent MCP configs:")
+        for agent, cfg in report["agent_configs"].items():
+            marker = {"ok": "✓", "absent": "·"}.get(cfg.get("status"), "✗")
+            detail = ""
+            if cfg.get("non_adk"):
+                detail += f" non-adk={','.join(cfg['non_adk'])}"
+            if cfg.get("missing_adk"):
+                detail += f" missing={','.join(cfg['missing_adk'])}"
+            if agent == "cursor_descriptor_caches" and cfg.get("non_adk_projects"):
+                detail += f" non-adk-projects={len(cfg['non_adk_projects'])}"
+            print(f"  {marker} {agent:24} {cfg.get('status')}{detail}")
+    if failures:
+        print()
+        print("failures:")
+        for f in failures:
+            print(f"  - {f}")
+    return 1 if args.strict and failures else 0
 
 
 if __name__ == "__main__":

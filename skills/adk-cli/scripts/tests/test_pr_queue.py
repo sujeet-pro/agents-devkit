@@ -25,18 +25,22 @@ def test_three_buckets_with_approved_host_signal():
     """
     prs = [
         {"pr_url": "u1", "status": STATUS_APPROVED},  # clean approval
-        {"pr_url": "u2", "status": STATUS_COMMENTS, "approved_host": True},
+        {"pr_url": "u2", "status": STATUS_COMMENTS, "approved_host": True,
+         "approve_ready": True},
+        {"pr_url": "u2b", "status": STATUS_COMMENTS, "approved_host": True},
         {"pr_url": "u3", "status": STATUS_COMMENTS, "approved_host": False},
         {"pr_url": "u4", "status": STATUS_COMMENTS},  # missing field == not approved
     ]
     out = _capture(prs)
     assert "Approved (no open comments)" in out
+    assert "Approved (comments resolvable)" in out
     assert "Approved (open comments)" in out
     assert "Reviewed (open comments)" in out
     # u1: clean approval
     assert "u1" in out
     # u2: approved + has comments (legit "approved with comments")
     assert "u2" in out
+    assert "u2b" in out
     # u3, u4: reviewed-with-comments — neither approved
     assert "u3" in out
     assert "u4" in out
@@ -60,13 +64,15 @@ def test_counts_match_bucket_membership():
     prs = [
         {"pr_url": "u1", "status": STATUS_APPROVED},
         {"pr_url": "u2", "status": STATUS_APPROVED},
-        {"pr_url": "u3", "status": STATUS_COMMENTS, "approved_host": True},
+        {"pr_url": "u3", "status": STATUS_COMMENTS, "approved_host": True,
+         "approve_ready": True},
         {"pr_url": "u4", "status": STATUS_COMMENTS, "approved_host": False},
     ]
     out = _capture(prs)
-    # 2 approved-clean, 1 approved-with-comments, 1 reviewed-with-comments.
+    # 2 approved-clean, 1 approved-resolvable, 1 reviewed-with-comments.
     assert "Approved (no open comments)   · 2" in out
-    assert "Approved (open comments)      · 1" in out
+    assert "Approved (comments resolvable) · 1" in out
+    assert "Approved (open comments)      · 0" in out
     assert "Reviewed (open comments)      · 1" in out
 
 

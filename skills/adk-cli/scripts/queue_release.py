@@ -31,7 +31,7 @@ from queue_io import (  # noqa: E402
     find_row, update_pr_entry,
     merge_slack_threads, slack_threads_for,
     STATUS_APPROVED, STATUS_COMMENTS, STATUS_REVIEWED, STATUS_MERGED,
-    TERMINAL_OR_POSITIVE,
+    TERMINAL_OR_POSITIVE, REVIEW_ATTEMPT_SUCCEEDED,
 )
 
 REQUEST_CHANGES_STATUS = "request_changes"
@@ -278,13 +278,23 @@ def release_after_review(
         "status": new_status,
         "last_checked_at": now,
         "taken_at": None,
+        "taken_by": None,
         "approved_host": bool(approved_host),
         "recommendation": recommendation,
+        "approve_ready": bool(approve_ready),
         "last_reviewed_at": now,
+        "last_successful_review_at": now,
+        "last_review_attempt_at": now,
+        "last_review_attempt_status": REVIEW_ATTEMPT_SUCCEEDED,
+        "last_review_attempt_error": None,
     }
     if head_sha:
         updates["head_sha"] = head_sha
         updates["last_reviewed_head_sha"] = head_sha
+        updates["last_review_attempt_head_sha"] = head_sha
+    if entry.get("comment_activity_hash"):
+        updates["last_reviewed_comment_activity_hash"] = entry.get("comment_activity_hash")
+        updates["last_review_attempt_comment_activity_hash"] = entry.get("comment_activity_hash")
     if merged_slack_threads:
         updates["slack_threads"] = merged_slack_threads
         updates["slack"] = merged_slack_threads[0]

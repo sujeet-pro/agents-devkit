@@ -458,6 +458,8 @@ def main() -> int:
                     help="skip re-fetching pr-comments.json before posting. By default "
                          "we refresh so the resolver sees comments that may have been "
                          "resolved by another reviewer between prepare and post.")
+    ap.add_argument("--comments-only", action="store_true",
+                    help="apply existing-comment actions/approval only; suppress duplicate review comments.")
     ap.add_argument("--json", action="store_true")
     args = ap.parse_args()
 
@@ -571,6 +573,7 @@ def main() -> int:
         approve_ready=approve_ready,
         slack_summary_enabled=not args.no_slack_summary,
         queue_ctx=queue_ctx,
+        suppress_review=args.comments_only,
     )
     write_json(pr_review_file(task_dir, "posting-plan.json"), plan)
     log.info("posting-plan.json: %d step(s) — %s",
@@ -609,9 +612,12 @@ def main() -> int:
     all_findings = findings.get("findings", []) or []
     appreciations = [f for f in all_findings if f.get("severity") == "appreciation"]
     issues_only = [f for f in all_findings if f.get("severity") != "appreciation"]
+    if args.comments_only:
+        appreciations = []
+        issues_only = []
     issues_blob = dict(findings)
     issues_blob["findings"] = issues_only
-    post_review = should_post_review(issues_blob)
+    post_review = False if args.comments_only else should_post_review(issues_blob)
     if not post_review and not appreciations:
         out["skipped_review"] = {
             "reason": "n_findings=0 (no issues, no appreciations) and recommendation is not 'approve'",
@@ -630,12 +636,14 @@ def main() -> int:
             # recommendation == "approve" — no separate approve call.
             if recommendation == "approve" and approve_ready:
                 out["approved"] = {"status": "ok", "via": "review_event=APPROVE"}
-        # Appreciations always post as general PR comments.
-        for f in appreciations:
-            out["appreciations_posted"].append(gh_post_general_comment(
-                pr["owner"], pr["repo"], pr["pr_number"],
-                format_appreciation_body(f), log,
-            ))
+        # Appreciations always post as general PR comments, except in
+        # comment-only mode where prior review output must not be duplicated.
+        if not args.comments_only:
+            for f in appreciations:
+                out["appreciations_posted"].append(gh_post_general_comment(
+                    pr["owner"], pr["repo"], pr["pr_number"],
+                    format_appreciation_body(f), log,
+                ))
         if not args.no_resolve_existing:
             for a in actions:
                 if a.get("verified") and a.get("decision") in ("resolve", "reopen"):
@@ -647,11 +655,12 @@ def main() -> int:
             res = bb_post_inline(pr["owner"], pr["repo"], pr["pr_number"],
                                  issues_only, findings, log)
             out["posted"].append(res)
-        for f in appreciations:
-            out["appreciations_posted"].append(bb_post_general_comment(
-                pr["owner"], pr["repo"], pr["pr_number"],
-                format_appreciation_body(f), log,
-            ))
+        if not args.comments_only:
+            for f in appreciations:
+                out["appreciations_posted"].append(bb_post_general_comment(
+                    pr["owner"], pr["repo"], pr["pr_number"],
+                    format_appreciation_body(f), log,
+                ))
         if not args.no_resolve_existing:
             for a in actions:
                 if a.get("verified") and a.get("decision") in ("resolve", "reopen"):
@@ -823,7 +832,8 @@ def format_slack_summary(*, pr: dict, findings_blob: dict, approve_ready: bool,
 def build_posting_plan(*, pr: dict, findings_blob: dict, actions: list[dict],
                        no_resolve_existing: bool, approve_ready: bool,
                        slack_summary_enabled: bool = True,
-                       queue_ctx: dict | None = None) -> dict:
+                       queue_ctx: dict | None = None,
+                       suppress_review: bool = False) -> dict:
     """Translate the post-step intent into a list of MCP-tool invocations.
 
     Each step carries:
@@ -855,7 +865,7 @@ def build_posting_plan(*, pr: dict, findings_blob: dict, actions: list[dict],
     issues_only = [f for f in findings if f.get("severity") != "appreciation"]
     issues_blob = dict(findings_blob)
     issues_blob["findings"] = issues_only
-    post_review = should_post_review(issues_blob)
+    post_review = False if suppress_review else should_post_review(issues_blob)
     steps: list[dict] = []
 
     # ---- Review summary + inline comments (issues only) ----
@@ -906,18 +916,22 @@ def build_posting_plan(*, pr: dict, findings_blob: dict, actions: list[dict],
                     "fallback": "POST /pullrequests/<n>/comments (with inline.path/to)",
                     "finding_id": f.get("id"),
                 })
-    elif not appreciations:
+    elif suppress_review or not appreciations:
         # No issues AND no appreciations → nothing to post but resolves/approve.
         steps.append({
             "kind": "review_summary_skipped",
-            "reason": "n_findings=0 (no issues, no appreciations) and recommendation is not 'approve'",
+            "reason": (
+                "comment-only review suppresses duplicate review summary"
+                if suppress_review
+                else "n_findings=0 (no issues, no appreciations) and recommendation is not 'approve'"
+            ),
         })
 
     # ---- Appreciations as general PR comments (both platforms, always post) ----
     # General comments have no resolve/reopen state — exactly what we want for
     # positive feedback. GitHub: add_issue_comment. Bitbucket: addPullRequestComment
     # without `inline`. Triage cannot reject these (they auto-accept at --init).
-    for f in appreciations:
+    for f in ([] if suppress_review else appreciations):
         body = format_appreciation_body(f)
         if host == "github":
             steps.append({
@@ -955,6 +969,57 @@ def build_posting_plan(*, pr: dict, findings_blob: dict, actions: list[dict],
             if decision not in ("resolve", "reopen"):
                 continue
             cid = a.get("comment_id")
+
+            # When this resolve was driven by a general PR comment (not a
+            # direct thread reply), post an explanatory reply FIRST so the
+            # thread participants know WHY it is being closed.
+            if decision == "resolve" and a.get("resolved_via_general_comment"):
+                gen_user = a.get("general_comment_user") or ""
+                gen_snippet = a.get("general_comment_snippet") or ""
+                gen_kind = a.get("general_comment_signal_kind") or "general-comment"
+                gen_evidence = a.get("verifier_evidence") or ""
+                attribution = f"@{gen_user}: \"{gen_snippet}\"" if gen_user else f"\"{gen_snippet}\""
+                pre_reply_body = (
+                    f"[adk-pr-review] Resolving this thread based on a general PR comment "
+                    f"from {attribution} ({gen_kind})."
+                )
+                if gen_evidence:
+                    pre_reply_body += f" The diff also addresses this concern: {gen_evidence}."
+
+                if host == "github":
+                    try:
+                        cid_int = int(cid)
+                    except (TypeError, ValueError):
+                        cid_int = cid
+                    steps.append({
+                        "kind": "resolve_pre_reply",
+                        "mcp_tool": "mcp__adk-mcp-github__add_reply_to_pull_request_comment",
+                        "mcp_args": {
+                            "owner": owner, "repo": repo, "pullNumber": n,
+                            "commentId": cid_int,
+                            "body": pre_reply_body,
+                        },
+                        "fallback": "POST /pulls/<n>/comments/<id>/replies",
+                        "comment_id": cid,
+                        "note": "explanatory reply before general-comment-driven resolve",
+                    })
+                elif host == "bitbucket":
+                    # Post a reply comment (child of the thread root) on Bitbucket
+                    # before marking the thread resolved via REST.
+                    steps.append({
+                        "kind": "resolve_pre_reply",
+                        "mcp_tool": "mcp__adk-mcp-bitbucket__addPullRequestComment",
+                        "mcp_args": {
+                            "workspace": owner, "repo_slug": repo,
+                            "pull_request_id": str(n),
+                            "content": pre_reply_body,
+                            "parent_id": str(cid),
+                        },
+                        "fallback": "POST /pullrequests/<n>/comments (with parent.id)",
+                        "comment_id": cid,
+                        "note": "explanatory reply before general-comment-driven resolve",
+                    })
+
             if host == "github":
                 # GraphQL is the only API that flips thread state; the script's
                 # current fallback posts a reply. The MCP tool is also a reply.
@@ -1009,13 +1074,19 @@ def build_posting_plan(*, pr: dict, findings_blob: dict, actions: list[dict],
     # ---- Approve PR when mergeable ----
     if recommendation == "approve" and approve_ready:
         if host == "github":
-            # GitHub: APPROVE is encoded in the review_summary step's `event`.
-            # No separate step; surface that the approval is bundled.
-            steps.append({
-                "kind": "approve_pr",
-                "via": "bundled_in_review_summary_event=APPROVE",
-                "note": "GitHub approves via the review's event field; no separate MCP call.",
-            })
+            if any(s.get("kind") == "review_summary" for s in steps):
+                # GitHub: APPROVE is encoded in the review_summary step's `event`.
+                # No separate step; surface that the approval is bundled.
+                steps.append({
+                    "kind": "approve_pr",
+                    "via": "bundled_in_review_summary_event=APPROVE",
+                    "note": "GitHub approves via the review's event field; no separate MCP call.",
+                })
+            else:
+                steps.append({
+                    "kind": "approve_pr_skipped",
+                    "reason": "GitHub approval requires a review event; comment-only mode suppressed it.",
+                })
         elif host == "bitbucket":
             # adk-mcp-bitbucket approvePullRequest returns HTTP 400 — use REST.
             steps.append({

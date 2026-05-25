@@ -11,8 +11,10 @@ THIS_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(THIS_DIR.parent))
 
 from queue_io import (
-    ready_for_review, PREP_READY, PREP_PREPARING, PREP_FAILED, PREP_PENDING,
+    ready_for_review, review_work_needed,
+    PREP_READY, PREP_PREPARING, PREP_FAILED, PREP_PENDING,
     STATUS_PENDING, STATUS_REVIEWED, STATUS_MERGED, STATUS_CLOSED,
+    WORK_CODE, WORK_COMMENTS, WORK_BOTH, WORK_RESUME, WORK_NONE,
 )
 
 
@@ -83,6 +85,7 @@ def test_already_reviewed_at_head_is_not_ready():
          "prep_status": PREP_READY, "prep_head_sha": "abc",
          "last_reviewed_head_sha": "abc"}
     assert ready_for_review(e) is False
+    assert review_work_needed(e) == WORK_NONE
 
 
 def test_new_commits_after_review_make_row_ready_again():
@@ -90,6 +93,7 @@ def test_new_commits_after_review_make_row_ready_again():
          "prep_status": PREP_READY, "prep_head_sha": "new",
          "last_reviewed_head_sha": "old"}
     assert ready_for_review(e) is True
+    assert review_work_needed(e) == WORK_CODE
 
 
 def test_reviewed_status_with_new_commits_is_ready():
@@ -98,3 +102,29 @@ def test_reviewed_status_with_new_commits_is_ready():
          "prep_status": PREP_READY, "prep_head_sha": "new",
          "last_reviewed_head_sha": "old"}
     assert ready_for_review(e) is True
+
+
+def test_comment_activity_after_review_makes_row_ready_for_comment_review():
+    e = {"pr_url": "x", "status": STATUS_REVIEWED, "head_sha": "abc",
+         "last_reviewed_head_sha": "abc",
+         "comment_activity_hash": "new",
+         "last_reviewed_comment_activity_hash": "old"}
+    assert ready_for_review(e) is True
+    assert review_work_needed(e) == WORK_COMMENTS
+
+
+def test_code_and_comment_changes_need_both():
+    e = {"pr_url": "x", "status": STATUS_PENDING, "head_sha": "new",
+         "last_reviewed_head_sha": "old",
+         "comment_activity_hash": "new-comments",
+         "last_reviewed_comment_activity_hash": "old-comments"}
+    assert review_work_needed(e) == WORK_BOTH
+
+
+def test_failed_attempt_at_same_head_needs_resume():
+    e = {"pr_url": "x", "status": STATUS_PENDING, "head_sha": "abc",
+         "last_reviewed_head_sha": "abc",
+         "last_review_attempt_status": "failed",
+         "last_review_attempt_at": _iso(_now())}
+    assert ready_for_review(e) is True
+    assert review_work_needed(e) == WORK_RESUME

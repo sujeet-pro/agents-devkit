@@ -12,8 +12,8 @@ class WorkersPane(Static):
         super().__init__("(no active workers)", markup=False)
 
     def update_workers(self, rows: list[WorkerRow], *, ascii_only: bool = False) -> None:
-        # Stale rows are hidden by default (the user only sees live workers).
-        live = [r for r in rows if not r.is_stale]
+        # Stale and completed rows are hidden by default (the user sees live workers).
+        live = [r for r in rows if not r.is_stale and r.status in {"starting", "running"}]
         if not live:
             self.update("(no active workers)")
             return
@@ -26,7 +26,8 @@ def _format_row(row: WorkerRow, *, ascii_only: bool) -> str:
     pr_short = _shorten(row.pr_url)
     age = _format_age(row.age_s)
     glyph = "⚙↻" if not ascii_only else "~"
-    return f"  {glyph}  {pr_short}  ·  {row.task_type}/{row.current_phase}  ·  {row.agent}  ·  {age}"
+    run = f"  ·  {row.run_id}" if row.run_id else ""
+    return f"  {glyph}  {pr_short}  ·  {row.task_type}/{row.current_phase}  ·  {row.agent}  ·  {age}{run}"
 
 
 def _shorten(pr_url: str) -> str:

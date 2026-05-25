@@ -6,7 +6,7 @@
 
 - **MCP servers**: Codex CLI reads `[[mcp_servers]]` blocks from `~/.codex/config.toml`. `install.sh --target codex` auto-generates one block per `mcp/adk-mcp-*.json` (the shared source-of-truth used by Claude / Cursor / Junie too) and writes them between `# adk-marker:start` / `# adk-marker:end`. Re-running install replaces the block; uninstall strips it.
 - **Custom prompts**: Codex supports `~/.codex/prompts/<name>.md` for invokable prompt templates. `install.sh` symlinks our `agents-codex/prompts/*.md` there.
-- **Global instructions**: `~/.codex/instructions.md` gets a one-line append pointing at `AGENTS.md`.
+- **Global instructions**: `~/.codex/instructions.md` gets an ADK-only marker block and `~/.codex/AGENTS.md` is fully regenerated to point every session at `AGENTS.md`, `adk-*` prompts, and `adk-mcp-*` servers.
 
 ## What's partial / unsupported
 

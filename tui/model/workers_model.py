@@ -10,14 +10,21 @@ from typing import Callable
 @dataclass(frozen=True)
 class WorkerRow:
     pid: int
+    worker_id: str
+    run_id: str | None
     pr_url: str
+    subject: str
     task_type: str
+    status: str
     agent: str
     queue: str
     started_at: str
     last_heartbeat: str
     current_phase: str
     rc: int | None
+    log_path: str | None
+    links: dict
+    artifacts: dict
     age_s: float
     is_stale: bool
 
@@ -154,14 +161,21 @@ class WorkersModel:
         try:
             return WorkerRow(
                 pid=int(raw.get("pid", 0)),
+                worker_id=str(raw.get("worker_id") or p.stem),
+                run_id=(str(raw.get("run_id")) if raw.get("run_id") else None),
                 pr_url=str(raw.get("pr_url", "")),
+                subject=str(raw.get("subject") or raw.get("pr_url") or ""),
                 task_type=str(raw.get("task_type", "")),
+                status=str(raw.get("status") or ("running" if raw.get("rc") is None else "done")),
                 agent=str(raw.get("agent", "")),
                 queue=str(raw.get("queue", "")),
                 started_at=str(raw.get("started_at", "")),
                 last_heartbeat=str(raw.get("last_heartbeat", "")),
                 current_phase=str(raw.get("current_phase", "")),
                 rc=raw.get("rc"),
+                log_path=(str(raw.get("log_path")) if raw.get("log_path") else None),
+                links=raw.get("links") if isinstance(raw.get("links"), dict) else {},
+                artifacts=raw.get("artifacts") if isinstance(raw.get("artifacts"), dict) else {},
                 age_s=age,
                 is_stale=is_stale,
             )

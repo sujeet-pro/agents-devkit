@@ -18,7 +18,7 @@ Rules:
     PR so downstream updates can fan out.
 
 Queue-row claim/release (for `/adk-pr-review` no-arg queue mode):
-  - acquire_next_row(path) atomically picks the oldest non-terminal row whose
+  - acquire_next_row(path) atomically picks the first queued non-terminal row whose
     `taken_at` is either null OR older than TAKEN_LOCK_MAX_AGE_SECONDS (30 min).
     It sets `taken_at = now_iso` and returns the row dict. Returns None if no
     eligible row exists. The acquire is atomic — concurrent invocations from
@@ -96,41 +96,97 @@ PREP_FAILED = "failed"
 PREP_SKIPPED = "skipped"
 PREP_WAITING_FOR_BASE = "waiting_for_base"  # tier-1 in §5 DAG; base index is building
 
+REVIEW_ATTEMPT_STARTED = "attempt_started"
+REVIEW_ATTEMPT_PREPARED = "prepared"
+REVIEW_ATTEMPT_REVIEWING = "reviewing"
+REVIEW_ATTEMPT_POSTING = "posting"
+REVIEW_ATTEMPT_SUCCEEDED = "succeeded"
+REVIEW_ATTEMPT_FAILED = "failed"
+
+WORK_CODE = "code"
+WORK_COMMENTS = "comments"
+WORK_BOTH = "both"
+WORK_RESUME = "resume"
+WORK_NONE = "none"
+
 
 def ready_for_review(entry: dict, *, now=None) -> bool:
-    """v4 §6.u eligibility predicate — single source of truth.
+    """Return True when any review work is pending for this row.
 
-    A PR can be reviewed iff EVERY condition holds:
-      1. status not in TERMINAL_STATUSES (merged, closed).
-      2. taken_at is null OR older than TAKEN_LOCK_MAX_AGE_SECONDS.
-      3. prep_status == "ready".
-      4. prep_head_sha == head_sha (prep is for the current commit).
-      5. head_sha != last_reviewed_head_sha (this commit not yet reviewed).
-
-    Used by `adk pr-queue get-next`, `adk pr-queue claim`, and (later) the TUI.
+    Compatibility wrapper for callers that only need a boolean. Use
+    `review_work_needed()` when the caller needs to distinguish code review,
+    comment-only review, and failed-attempt resume.
     """
-    if now is None:
-        now = datetime.now(tz=timezone.utc)
-    # 1. terminal
-    if (entry.get("status") or "") in TERMINAL_STATUSES:
-        return False
-    # 2. lock
-    if _is_locked(entry, now):
-        return False
-    # 3. prep_status — rows without the field are treated as ready
-    # (newly-synced rows don't carry it until pr-sync stamps them).
+    return review_work_needed(entry, now=now) != WORK_NONE
+
+
+def _prep_ready_for_code_review(entry: dict) -> bool:
+    """True when prep metadata does not block a code/resume review."""
     prep_status = entry.get("prep_status")
     if prep_status is not None and prep_status != PREP_READY:
         return False
-    # 4. prep_head_sha matches head_sha when both are present.
     head = entry.get("head_sha")
     prep_head = entry.get("prep_head_sha")
     if prep_head is not None and head and prep_head != head:
         return False
-    # 5. not already reviewed at this head.
-    if head and entry.get("last_reviewed_head_sha") == head:
+    return True
+
+
+def _base_review_blocked(entry: dict, now: datetime) -> bool:
+    if (entry.get("status") or "") in TERMINAL_STATUSES:
+        return True
+    return _is_locked(entry, now)
+
+
+def code_review_needed(entry: dict) -> bool:
+    """True when the current head has not completed a successful code review."""
+    head = entry.get("head_sha")
+    if not head:
+        return not bool(entry.get("last_reviewed_head_sha"))
+    return entry.get("last_reviewed_head_sha") != head
+
+
+def comment_review_needed(entry: dict) -> bool:
+    """True when host comment activity changed since the last comment review."""
+    current = entry.get("comment_activity_hash")
+    if not current:
+        return False
+    return entry.get("last_reviewed_comment_activity_hash") != current
+
+
+def review_attempt_failed(entry: dict) -> bool:
+    """True when the newest review attempt failed after the last success."""
+    if entry.get("last_review_attempt_status") != REVIEW_ATTEMPT_FAILED:
+        return False
+    attempt_at = _parse_iso(entry.get("last_review_attempt_at"))
+    success_at = _parse_iso(entry.get("last_successful_review_at"))
+    if attempt_at is not None and success_at is not None and attempt_at <= success_at:
         return False
     return True
+
+
+def review_work_needed(entry: dict, *, now=None) -> str:
+    """Return one of: code, comments, both, resume, none."""
+    if now is None:
+        now = datetime.now(tz=timezone.utc)
+    if _base_review_blocked(entry, now):
+        return WORK_NONE
+
+    code_needed = code_review_needed(entry)
+    comments_needed = comment_review_needed(entry)
+    failed_attempt = review_attempt_failed(entry)
+
+    if code_needed and not _prep_ready_for_code_review(entry):
+        return WORK_NONE
+    if failed_attempt and not (code_needed or comments_needed):
+        return WORK_RESUME if _prep_ready_for_code_review(entry) else WORK_NONE
+    if code_needed and comments_needed:
+        return WORK_BOTH
+    if code_needed:
+        return WORK_CODE
+    if comments_needed:
+        return WORK_COMMENTS
+    return WORK_NONE
 
 
 DEFAULT_QUEUE_PATH = Path.home() / ".agents-devkit" / "config" / "pr-queue.json5"
@@ -424,17 +480,8 @@ def _is_already_reviewed_at_head(entry: dict) -> bool:
     """
     head = entry.get("head_sha")
     last_reviewed = entry.get("last_reviewed_head_sha")
-    return bool(head) and bool(last_reviewed) and head == last_reviewed
-
-
-def _pick_order_key(entry: dict) -> tuple[int, str]:
-    """Sort key for FIFO acquire: rows never reviewed (null last_checked_at) first,
-    then by last_checked_at ascending (oldest first).
-    """
-    lc = entry.get("last_checked_at")
-    if not lc:
-        return (0, "")
-    return (1, str(lc))
+    return bool(head) and bool(last_reviewed) and head == last_reviewed \
+        and not comment_review_needed(entry) and not review_attempt_failed(entry)
 
 
 def acquire_next_row(path: Path) -> dict | None:
@@ -445,7 +492,8 @@ def acquire_next_row(path: Path) -> dict | None:
       - status not in TERMINAL_STATUSES                 (merged + closed)
       - taken_at is null OR older than TAKEN_LOCK_MAX_AGE_SECONDS  (not active)
       - head_sha != last_reviewed_head_sha              (new commits since last review)
-    Order: FIFO by last_checked_at ascending; null (never reviewed) first.
+    Order: the queue file order. Operators can reorder the queue to determine
+    priority; timestamps do not reshuffle it.
 
     `last_reviewed_head_sha` is written by `release_after_review`; explicit
     URL-mode review (`/adk-pr-review <pr-url>`) bypasses this filter because
@@ -461,15 +509,9 @@ def acquire_next_row(path: Path) -> dict | None:
         queue = read_queue(path)
         prs = queue.get("prs", []) or []
         now = datetime.now(tz=timezone.utc)
-        eligible = [
-            e for e in prs
-            if e.get("status") not in TERMINAL_STATUSES
-            and not _is_locked(e, now)
-            and not _is_already_reviewed_at_head(e)
-        ]
+        eligible = [e for e in prs if review_work_needed(e, now=now) != WORK_NONE]
         if not eligible:
             return None
-        eligible.sort(key=_pick_order_key)
         picked = eligible[0]
         import socket
         picked["taken_at"] = _now_iso()

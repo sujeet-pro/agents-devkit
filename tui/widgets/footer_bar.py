@@ -1,6 +1,11 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from textual.widgets import Static
+
+if TYPE_CHECKING:
+    from tui.model.queue_model import QueueRow
 
 
 class FooterBar(Static):
@@ -12,24 +17,42 @@ class FooterBar(Static):
         filter_mode: str,
         sort_mode: str,
         *,
-        sync_running: bool = False,
-        review_running: bool = False,
-        selected_count: int = 0,
-        parallel_n: int = 4,
+        sync_all_running: bool = False,
+        work_running: bool = False,
         agent: str | None = None,
+        runner: str | None = None,
+        row: "QueueRow | None" = None,  # noqa: ARG002 — kept for call-site compat
     ) -> None:
-        sync_label = "[s] sync (running…)" if sync_running else "[s] sync"
-        review_label = "[r] review (running…)" if review_running else "[r] review"
-        sel_label = f"sel:{selected_count}" if selected_count else "sel:0"
-        par_label = f"par:{parallel_n}"
-        agent_label = f"agent:{agent}" if agent else ""
-        extras = f"  ·  {sel_label}  {par_label}"
-        if agent_label:
-            extras += f"  {agent_label}"
-        text = (
-            f"[?] help  [f] filter:{filter_mode}  [S] sort:{sort_mode}"
-            f"  [j/k] nav  [q] quit"
-            f"  ·  {sync_label}  {review_label}  [R] run-sel  [space] sel  [p] par  [a] agent"
-            f"{extras}"
-        )
-        self.update(text)
+        runner_name = runner or agent
+
+        parts = [
+            "[?] help",
+            f"[f] filter:{filter_mode}",
+            f"[S] sort:{sort_mode}",
+            "[j/k] nav",
+            "[q] quit",
+            "·",
+            "[1] Sync PR",
+            "[2] Sync+Review",
+        ]
+
+        if sync_all_running:
+            parts.append("[s] Sync all (running…)")
+        else:
+            parts.append("[s] Sync all")
+
+        if work_running:
+            parts.append("[A] Sync+Review all (running…)")
+        else:
+            parts.append("[A] Sync+Review all")
+
+        parts.extend([
+            "·",
+            "[enter] actions",
+            "[a] runner",
+        ])
+
+        if runner_name:
+            parts.append(f"runner:{runner_name}")
+
+        self.update("  ".join(parts))

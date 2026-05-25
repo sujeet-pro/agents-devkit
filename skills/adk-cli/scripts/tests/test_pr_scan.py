@@ -142,6 +142,31 @@ def test_message_without_pr_link_skipped(monkeypatch):
     assert stats["threads_with_main_pr"] == 0
 
 
+def test_orchestrated_scan_emits_channel_progress(monkeypatch, capsys):
+    messages = [
+        {"ts": f"{100 + i}.000", "user": "U_alice", "text": "no link", "reply_count": 0}
+        for i in range(25)
+    ]
+    messages.append({
+        "ts": "200.000",
+        "user": "U_alice",
+        "text": "Please review https://github.com/acme/foo/pull/1",
+        "reply_count": 0,
+    })
+    fake = FakeSlackClient({"C1": (messages, {})})
+    monkeypatch.setattr(pr_scan, "SlackClient", lambda: fake)
+    monkeypatch.setenv("ADK_ORCHESTRATED", "1")
+
+    candidates, stats = pr_scan.scan(_slack_cfg(), oldest_ts="0", log=logging.getLogger("test"))
+
+    out = capsys.readouterr().out
+    assert len(candidates) == 1
+    assert stats["messages_seen"] == 26
+    assert "ADK_EVENT" in out
+    assert "channel 1/1 C1: 25 messages" in out
+    assert "found PR thread 1 after 26 messages" in out
+
+
 def test_gentle_reminder_posts_once_for_unrelated_multi_pr_thread(monkeypatch):
     fake = FakeSlackClient({"C1": ([], {})})
     monkeypatch.setattr(pr_scan, "SlackClient", lambda: fake)

@@ -147,6 +147,29 @@ def make_symlink(src: Path, dst: Path, dry_run: bool) -> str:
     return "created"
 
 
+def write_rendered_file(src: Path, dst: Path, repo_root: Path, dry_run: bool) -> str:
+    """Write a rendered ADK-managed file, replacing old symlink installs."""
+    rendered = src.read_text(encoding="utf-8").replace("{{ADK_REPO}}", str(repo_root))
+    if dry_run:
+        if not dst.exists() and not dst.is_symlink():
+            return "would-create"
+        if dst.is_symlink():
+            return "would-replace-symlink"
+        try:
+            return "kept" if dst.read_text(encoding="utf-8") == rendered else "would-update"
+        except OSError:
+            return "would-update"
+    if dst.exists() or dst.is_symlink():
+        if dst.is_symlink():
+            dst.unlink()
+        elif dst.read_text(encoding="utf-8") == rendered:
+            return "kept"
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    existed = dst.exists()
+    dst.write_text(rendered, encoding="utf-8")
+    return "updated" if existed else "created"
+
+
 def append_with_marker(target: Path, content: str, marker_start: str, marker_end: str,
                        dry_run: bool, repo_root: Path) -> str:
     """Append `content` to `target` between markers. If markers already present, replace
@@ -765,11 +788,25 @@ def _translate_mcp_entry_claude(cfg: dict[str, Any]) -> dict[str, Any]:
     return entry
 
 
+_URL_DEFAULT_REF_RE = re.compile(r"\$\{([A-Z_][A-Z0-9_]*):-(.*?)\}")
+
+
+def _expand_url_defaults_install_time(url: str) -> str:
+    """Expand only `${VAR:-default}` URL placeholders at install time.
+
+    Cursor's MCP loader does not reliably shell-expand default expressions in
+    remote HTTP URLs, so a literal `${VAR:-...}` can prevent tool discovery.
+    Endpoint hostnames are not credential values; secret-bearing headers stay as
+    env placeholders.
+    """
+    return _URL_DEFAULT_REF_RE.sub(lambda m: os.environ.get(m.group(1), m.group(2)), url)
+
+
 def _translate_mcp_entry_generic(cfg: dict[str, Any]) -> dict[str, Any]:
     """Translate adk schema → Cursor/Junie-style `mcpServers.<name>` schema."""
     entry: dict[str, Any] = {}
     if "url" in cfg:
-        entry["url"] = cfg["url"]
+        entry["url"] = _expand_url_defaults_install_time(cfg["url"])
         if "headers" in cfg:
             entry["headers"] = cfg["headers"]
     elif "command" in cfg:
@@ -1730,7 +1767,9 @@ def install_cursor(repo_root: Path, dry_run: bool, results: dict[str, Any]) -> N
     rules_dir = Path.home() / ".cursor" / "rules"
     ensure_dir(rules_dir, dry_run)
     stale_rules = cleanup_stale_adk_symlinks(rules_dir, dry_run)
-    # rules
+    # Requestable Cursor rules need rendered absolute @ paths. They used to be
+    # symlinks, but Cursor does not expand `{{ADK_REPO}}` inside symlinked rule
+    # sources.
     rule_results = {}
     rule_sources = sorted((repo_root / "agents-cursor" / "rules").glob("adk-*.mdc"))
     obsolete_rules = cleanup_unlisted_adk_entries(
@@ -1739,7 +1778,7 @@ def install_cursor(repo_root: Path, dry_run: bool, results: dict[str, Any]) -> N
     )
     for rule_file in rule_sources:
         dst = rules_dir / rule_file.name
-        rule_results[rule_file.name] = make_symlink(rule_file, dst, dry_run)
+        rule_results[rule_file.name] = write_rendered_file(rule_file, dst, repo_root, dry_run)
     # global always-rule (the AGENTS.md pointer).
     # _adk.mdc is FULLY adk-managed — Cursor needs frontmatter at the file top
     # (not inside HTML comments), so we overwrite rather than merge-by-marker.
@@ -1762,6 +1801,22 @@ def install_cursor(repo_root: Path, dry_run: bool, results: dict[str, Any]) -> N
         "always_rule_append": append_result, "mcp_merge": mcp_results,
         "permissions": perms_result,
     }
+
+
+def _codex_global_instructions(repo_root: Path) -> str:
+    return f"""# ADK global routing
+
+This file is fully managed by agents-devkit. Re-run `{repo_root}/install.sh --target codex` to refresh it.
+
+For every prompt:
+
+1. Read `{repo_root}/AGENTS.md` for intent-to-skill routing.
+2. Use only ADK prompt wrappers from `~/.codex/prompts/adk-*.md`.
+3. Apply `{repo_root}/shared/constitution.md` and `{repo_root}/shared/question-first.md` before any skill workflow.
+4. Use MCP servers generated from `{repo_root}/mcp/adk-mcp-*.json` in `~/.codex/config.toml`.
+5. Treat non-ADK Codex plugins, imported skills, prompts, and MCP servers as unavailable unless the user explicitly asks to bypass ADK for this invocation.
+6. Log every non-trivial decision to `~/.agents-devkit/improve/learning/decisions.jsonl` via `{repo_root}/scripts/decision_logger.py`.
+"""
 
 
 def install_codex(repo_root: Path, dry_run: bool, results: dict[str, Any]) -> None:
@@ -1790,16 +1845,26 @@ def install_codex(repo_root: Path, dry_run: bool, results: dict[str, Any]) -> No
         _reorder_codex_config_blocks(codex_dir / "config.toml")
     # Global instructions pointer
     instructions = codex_dir / "instructions.md"
-    pointer = f"For every prompt, follow the routing in @{repo_root}/AGENTS.md."
+    pointer = (
+        f"For every prompt, follow the routing in @{repo_root}/AGENTS.md. "
+        "Use only ADK prompt wrappers (`adk-*`) and ADK MCP servers "
+        "(`adk-mcp-*`) unless the user explicitly asks to bypass ADK."
+    )
     instructions_append = append_with_marker(
         instructions, pointer, MARKER_MD_START, MARKER_MD_END, dry_run, repo_root,
     )
+    agents_md = codex_dir / "AGENTS.md"
+    codex_agents_status = "would-overwrite" if dry_run else "overwritten"
+    if not dry_run:
+        agents_md.parent.mkdir(parents=True, exist_ok=True)
+        agents_md.write_text(_codex_global_instructions(repo_root), encoding="utf-8")
     results["codex"] = {
         "prompts": prompt_results,
         "obsolete_removed": {"prompts": obsolete_prompts},
         "mcp_merge": mcp_results,
         "permissions": perms_result,
         "instructions_append": instructions_append,
+        "agents_md": codex_agents_status,
         "gaps": "see agents-codex/README.md for the capability table",
     }
 

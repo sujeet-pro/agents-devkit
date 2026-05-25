@@ -12,12 +12,11 @@ _HELP_TEXT = """adk TUI · keys
   ?              this help
   f              cycle filter
   S              cycle sort
-  s              start `adk pr-sync` (streams into log pane)
-  r              start a review on the highlighted row (claim+prepare+claude)
-  R              run all selected rows as a batch (parallel cap)
-  space          toggle selection on the highlighted row
-  p              cycle parallel cap (1 → 2 → 4 → 8)
-  a              pick agent (claude / codex / cursor / headless ...)
+  1              Sync PR — update + prepare/index selected PR
+  2              Sync + Review — sync selected PR, then review it
+  s              Sync all — discover/sync sources + prepare all PRs
+  A              Sync + Review all — sync all, then review eligible PRs sequentially
+  a              pick runner (claude / codex / cursor / headless ...)
   +              add PR (modal — URL, owner/repo#N, or number)
   b              switch to repos screen (manage repos + branches)
   t              cycle theme (dark / light / nord / gruvbox / dracula)
@@ -25,7 +24,9 @@ _HELP_TEXT = """adk TUI · keys
   k / up         move cursor up
   g / home       jump to first row
   G / end        jump to last row
-  enter          (read-only — no action yet)
+  enter          secondary actions for highlighted PR (open, logs, merge, …)
+  click PR #     open that PR in browser
+  l / L          show selected PR logs / latest run logs
   escape         close this help
 """
 

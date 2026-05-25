@@ -117,7 +117,8 @@ def _remote_tip(repo: str, branch: str) -> str | None:
 
 def _audit_base_indexes(queue_path: str, *, mode: str, embed_model: str | None,
                         log, promote_threshold: int = 2,
-                        refresh_min_age_hours: float = 1.0) -> dict:
+                        refresh_min_age_hours: float = 1.0,
+                        emit_progress: bool = False) -> dict:
     """Group queued non-merged rows by (repo, target_branch) and decide
     promote / refresh / nothing for each group.
 
@@ -144,6 +145,11 @@ def _audit_base_indexes(queue_path: str, *, mode: str, embed_model: str | None,
 
     Never blocks downstream steps — returns rc=0 regardless of gaps.
     """
+    def progress(detail: str) -> None:
+        if emit_progress:
+            emit_event(RunEvent(kind="step_progress", name="base index",
+                                status="run", detail=detail))
+
     try:
         from base_index import (  # noqa: WPS433
             get_branch_index, is_fresh, pick_base_index,
@@ -177,9 +183,12 @@ def _audit_base_indexes(queue_path: str, *, mode: str, embed_model: str | None,
         key = (p["repo"], target_branch)
         groups.setdefault(key, []).append(link)
 
+    progress(f"checking {len(groups)} branch group(s)")
     gaps: list[dict] = []
-    for (repo, target_branch), links in sorted(groups.items()):
+    sorted_groups = sorted(groups.items())
+    for group_idx, ((repo, target_branch), links) in enumerate(sorted_groups, start=1):
         count = len(links)
+        progress(f"group {group_idx}/{len(sorted_groups)} {repo}/{target_branch}: checking index")
         exact = get_branch_index(repo, target_branch)
         if exact is None:
             if count < promote_threshold:
@@ -213,6 +222,7 @@ def _audit_base_indexes(queue_path: str, *, mode: str, embed_model: str | None,
         drift_remote = None
         drifted = False
         if age_hours >= refresh_min_age_hours:
+            progress(f"group {group_idx}/{len(sorted_groups)} {repo}/{target_branch}: checking remote tip")
             drift_remote = _remote_tip(repo, target_branch)
             if drift_remote and drift_remote != exact.indexed_sha:
                 drifted = True
@@ -308,9 +318,11 @@ def _audit_base_indexes(queue_path: str, *, mode: str, embed_model: str | None,
                         g["fix_status"] = "declined"
                         continue
                 try:
+                    progress(f"{mode}: {cmdline}")
                     rc = repo_main(argv)
                     g["fix_rc"] = rc
                     g["fix_status"] = "ok" if rc == 0 else f"rc={rc}"
+                    progress(f"finished {cmdline} rc={rc}")
                     if rc != 0:
                         log.warning("base-index audit: command failed (rc=%d): %s",
                                     rc, cmdline)
@@ -318,6 +330,7 @@ def _audit_base_indexes(queue_path: str, *, mode: str, embed_model: str | None,
                     g["fix_rc"] = 1
                     g["fix_status"] = "error"
                     g["fix_error"] = str(e)
+                    progress(f"failed {cmdline}: {e}")
                     log.warning("base-index audit: command failed: %s: %s", cmdline, e)
 
     return {"audited": True, "groups": len(groups), "gaps": gaps,
@@ -325,6 +338,50 @@ def _audit_base_indexes(queue_path: str, *, mode: str, embed_model: str | None,
             "promote_threshold": promote_threshold,
             "refresh_min_age_hours": refresh_min_age_hours,
             "mode": mode}
+
+
+class _LiveEventBuffer:
+    """Capture normal child output while forwarding ADK_EVENT lines live."""
+
+    def __init__(self, event_stream) -> None:
+        self.event_stream = event_stream
+        self._pending = ""
+        self._detail_lines: list[str] = []
+        self.events: list[dict] = []
+
+    def write(self, text: str) -> int:
+        if not text:
+            return 0
+        self._pending += text
+        while "\n" in self._pending:
+            line, self._pending = self._pending.split("\n", 1)
+            self._handle_line(line)
+        return len(text)
+
+    def flush(self) -> None:
+        flush = getattr(self.event_stream, "flush", None)
+        if callable(flush):
+            flush()
+
+    def captured_text(self) -> str:
+        if self._pending:
+            self._handle_line(self._pending)
+            self._pending = ""
+        return "\n".join(self._detail_lines).strip()
+
+    def last_event(self, kind: str) -> dict | None:
+        for event in reversed(self.events):
+            if event.get("kind") == kind:
+                return event
+        return None
+
+    def _handle_line(self, line: str) -> None:
+        event = parse_event_line(line)
+        if event is not None:
+            print(line, file=self.event_stream, flush=True)
+            self.events.append(event)
+        elif line.strip():
+            self._detail_lines.append(line)
 
 
 def _run_step(name: str, fn, log, *, plan: SyncPlanWriter | None = None,
@@ -341,22 +398,13 @@ def _run_step(name: str, fn, log, *, plan: SyncPlanWriter | None = None,
     try:
         child_done_event = None
         if quiet:
-            buf = io.StringIO()
+            buf = _LiveEventBuffer(sys.stdout)
             with contextlib.redirect_stdout(buf), contextlib.redirect_stderr(buf):
                 rc = fn()
-            captured = buf.getvalue().strip()
+            captured = buf.captured_text()
+            child_done_event = buf.last_event("step_done")
             if captured:
-                detail_lines = []
-                for line in captured.splitlines():
-                    event = parse_event_line(line)
-                    if event is not None:
-                        if event.get("kind") == "step_done":
-                            child_done_event = event
-                        print(line, flush=True)
-                    else:
-                        detail_lines.append(line)
-                if detail_lines:
-                    log.info("%s output:\n%s", name, "\n".join(detail_lines))
+                log.info("%s output:\n%s", name, captured)
         else:
             rc = fn()
         status = "ok" if rc == 0 else "warn"
@@ -617,6 +665,7 @@ def main(argv: list[str] | None = None) -> int:
                 queue, mode=mode, embed_model=args.embed_model, log=log,
                 promote_threshold=promote_threshold,
                 refresh_min_age_hours=refresh_min_age_hours,
+                emit_progress=quiet,
             )
             # Surface a tally so the final pr-sync JSON shows the audit result.
             results.append({
@@ -633,10 +682,10 @@ def main(argv: list[str] | None = None) -> int:
                                 status="run", detail="checking branch coverage"))
         try:
             if quiet:
-                buf = io.StringIO()
+                buf = _LiveEventBuffer(sys.stdout)
                 with contextlib.redirect_stdout(buf), contextlib.redirect_stderr(buf):
                     _do_audit()
-                captured = buf.getvalue().strip()
+                captured = buf.captured_text()
                 if captured:
                     log.info("base-index audit output:\n%s", captured)
             else:

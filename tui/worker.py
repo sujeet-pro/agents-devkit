@@ -48,6 +48,7 @@ sys.path.insert(0, str(REPO_ROOT / "skills" / "adk-cli" / "scripts"))
 from _common import parse_pr_url  # noqa: E402
 
 from tui.agent_registry import default_agent, get_agent, list_agents  # noqa: E402
+from run_state import worker_id as make_worker_id  # noqa: E402
 
 try:
     from queue_io import DEFAULT_QUEUE_PATH  # noqa: E402
@@ -189,7 +190,10 @@ async def _drive(args: argparse.Namespace) -> int:
     except NotImplementedError:  # pragma: no cover
         pass
 
-    if await _run_streamed([adk_bin, "pr-queue", "claim", args.pr_url, "--queue", queue]) != 0:
+    claim_cmd = [adk_bin, "pr-queue", "claim", args.pr_url, "--queue", queue]
+    if args.force:
+        claim_cmd.append("--force")
+    if await _run_streamed(claim_cmd) != 0:
         _emit("(error: claim failed — row may be locked by another reviewer)")
         return 2
     _emit(f"(claimed: {args.pr_url})")
@@ -211,11 +215,18 @@ async def _drive(args: argparse.Namespace) -> int:
 
     hb_path = Path(args.heartbeat_dir).expanduser() / f"{os.getpid()}.json"
     started = _now_iso()
+    worker_state_id = args.worker_id or make_worker_id(args.run_id or f"tui-{os.getpid()}", args.pr_url)
     payload = {
-        "pid": os.getpid(), "pr_url": args.pr_url, "task_type": "review",
+        "version": 1,
+        "worker_id": worker_state_id,
+        "run_id": args.run_id,
+        "pid": os.getpid(), "pr_url": args.pr_url, "subject": args.pr_url,
+        "task_type": "review",
+        "status": "running",
         "agent": agent_name, "queue": queue,
         "started_at": started, "last_heartbeat": started,
         "current_phase": "phase 0", "rc": None,
+        "links": {"pr": args.pr_url},
     }
     _write_heartbeat(hb_path, payload)
 
@@ -295,9 +306,13 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
     ap.add_argument("--adk-bin", default=None)
     ap.add_argument("--no-prepare", action="store_true")
+    ap.add_argument("--force", action="store_true",
+                    help="force claim/re-review when a row is already locked")
     ap.add_argument("--heartbeat-bump-interval-s", type=float, default=300.0)
     ap.add_argument("--heartbeat-file-interval-s", type=float, default=5.0)
     ap.add_argument("--heartbeat-dir", default=str(Path.home() / ".agents-devkit" / "tui" / "workers"))
+    ap.add_argument("--run-id", default=None)
+    ap.add_argument("--worker-id", default=None)
     return ap.parse_args(argv)
 
 
