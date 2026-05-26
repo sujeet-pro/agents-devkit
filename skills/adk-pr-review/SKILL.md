@@ -18,7 +18,7 @@ metadata:
   needs_meta_info: [workspaces, repos]
   needs_cli: [git, ollama, gh]
   needs_cli_optional: [scip-typescript, scip-python, scip-go, scip-java]
-  forks_emitted: [severity-bar, dimensions, scope, post-policy, resolve-policy, embed-model, model-depth]
+  forks_emitted: [severity-bar, dimensions, scope, post-policy, resolve-policy, embed-model, model-depth, import-source, sync-scope, index-mode, review-depth, validate-strict]
 ---
 
 # adk-pr-review — heavyweight PR review with code context
@@ -64,21 +64,34 @@ CLI surface for queue management — all via the `adk` binary:
 
 ## The pipeline — what runs, who runs it
 
-`/adk-pr-review` is a six-phase pipeline. Scripts handle every phase except the actual review (Phase 2), which is **you**. Every phase has a stable CLI entry point so the contract doesn't drift as the internals change.
+`/adk-pr-review` is a six-stage pipeline. Scripts handle every stage except Review (stage 4), which is **you**. Every stage has a stable CLI entry point so the contract doesn't drift as the internals change.
 
-| # | Phase | Who runs it | CLI entry | Output artifact |
+| # | Stage | Who runs it | CLI entry | Output |
 |---|---|---|---|---|
-| 0 | **Claim** — pick the next eligible PR (FIFO, origin-API validated; skips merged/closed/locked/already-reviewed-at-head). Auto-drops merged/closed rows when discovered. | script | `adk pr-queue get-next` | `taken_at` set on the row |
-| 1 | **Prepare** — fetch PR meta + diff + comments, sync clone, materialise worktree at the PR head, build chunk + SCIP indexes, mirror supporting docs, build `precis.md`. Idempotent: re-runs short-circuit when `head_sha == last_indexed_head`. **Does NOT review.** | script | `adk pr-task prepare <url>` (or `prepare_task.py --prepare-only <url>`) | `pr.json`, `pr-comments.json`, `diff.patch`, `code/`, `code-index/`, `docs/`, `precis.md` |
-| 2 | **Review** — read precis + diff + supporting docs + index; produce findings per the rubric below. You may spawn child agents via the Agent tool for independent passes (security pass, tests pass, feature-flow pass). Output one JSON object matching `finding.template.json`. | **YOU** (the parent agent) | n/a | `findings.json` |
-| 3 | **Validate** — gate each finding on two cheap checks: the `file:line_start..line_end` anchor still resolves in the worktree, and a non-trivial `suggestion` is present (except for `question` / `appreciation`). Findings that fail either check stay in the audit trail but are **not** posted. The user's rule: "If the fix can not be identified, we will not have it in the finding comments." | script | `adk pr-task validate <url>` | `validated-findings.json` (full audit) + `initial-findings.json` (subset to post) + `validation-report.json` |
-| 4 | **Triage** — auto (default) or interactive (`-i`). Auto: `posted-comments` = `initial-findings`. Interactive: you walk each finding accept / reject / edit via `AskUserQuestion`; edits go through an iterative LLM rewrite loop. | script + you (in `-i`) | `python3 scripts/triage.py --init --finalize` | `triage.json`, then `posted-comments.json` |
-| 5 | **Post** — render each accepted finding as an inline review comment via the host MCP (`adk-mcp-github` / `adk-mcp-bitbucket`). Also: resolve / reopen / reply to existing PR comments per `existing_comment_actions[]`. Posts a Slack summary in the queue row's thread if one is wired. | script (you dispatch MCP calls) | `python3 scripts/post_comments.py` | `posting-plan.json`, posted comments on the PR |
-| 6 | **Disposition** — set the host review state: `approve` (no blockers/criticals), `request_changes` (blockers/criticals present), or leave as `comment_only`. Constitution §I.3 forbids merging: even with `--merge-if-approved` the script **only prints** `MERGEABLE — click to merge: <pr-url>`. The human clicks. | script | `python3 scripts/report.py` | `report.md`, `state.json` |
+| 1 | **Import** — fetch PR metadata (title, author, head_sha, target_branch, additions, deletions). Enriches queue row. <2s. | script | `adk pr-task import <url>` | queue row `title`, `last_imported_at` |
+| 2 | **Sync** — fetch PR full body, comments, diff, supporting docs; clone fetch; worktree at head. | script | `adk pr-task sync <url>` | `pr.json`, `pr-comments.json`, `diff.patch`, `code/`, `docs/`, `precis.md` |
+| 3 | **Index** — chunk + embed + SCIP. Seed-from-base + overlay where possible. | script | `adk pr-task index <url> [--rebuild]` | `code-index/chunks.lance/`, `code-index/scip/`, `code-index/meta.json` |
+| 4 | **Review** — you read precis + diff + index, produce `findings.json`. | **YOU** | `adk pr-task review <url>` (coupled with Validate+Post by default) | `findings.json` |
+| 5 | **Validate** — gate findings on anchor + suggested-fix. | script | `adk pr-task validate <url>` | `validated-findings.json`, `initial-findings.json` |
+| 6 | **Post** — render to inline review comments; resolve/reopen existing; Slack reply; queue update. | script | `adk pr-task post <url>` | inline comments + Slack thread + queue row update |
+
+Note that the first-pass coupling (Review+Validate+Post run together) is invoked via `adk pr-review <url>` (the legacy verb keeps working) or `adk pr-task review <url>` (which chains into validate+post automatically when `-i` is not set).
+
+See `references/stages.md` for per-stage approach forks and re-run semantics.
+
+## Pipelined execution
+
+Multiple PRs can be at different stages concurrently. Each stage has its own semaphore so the index bottleneck (one slot) does not block Sync or Post. Default parallelism config in `adk-cli.json5`:
+
+```
+pr_pipeline = { import_parallel: 4, sync_parallel: 2, index_parallel: 1, review_parallel: <--parallel>, validate_parallel: 4, post_parallel: 2 }
+```
+
+Disabling: set `pr_pipeline.enabled = false` in `adk-cli.json5` to revert to the legacy single-executor path.
 
 ## Posting policy (constitution §I.4 names PR reviewing as a task-required action — auto-post is the default)
 
-- **Auto mode** (no `-i`): every finding that survives Phase 3 + Phase 4 auto-accept is **posted automatically** by `post_comments.py`. No additional confirmation prompt — the task explicitly calls for posting.
+- **Auto mode** (no `-i`): every finding that survives Validate + auto-accept is **posted automatically** by `post_comments.py`. No additional confirmation prompt — the task explicitly calls for posting.
 - **Interactive mode** (`-i`): findings post **only after the user accepts them** in the triage walk. Rejected findings are dropped; edited findings post in their edited form once accepted.
 - **Rehearsal** (`--no-post`): the pipeline runs end-to-end but `post_comments.py` enters plan-only mode (no HTTP transmission). Use for previewing what would be posted.
 
@@ -88,13 +101,13 @@ Never merge a PR. Even if the user passes `--merge-if-approved` AND every gate i
 
 ## Incremental contract
 
-Every phase is idempotent. Re-running the same command (e.g. after a crashed terminal) is safe and fast:
+Every stage is idempotent. Re-running the same command (e.g. after a crashed terminal) is safe and fast:
 
-- **Phase 1 prepare** consults `state.json:phases.3_index.head_sha_at_index`. If the PR's current `head_sha` matches what was last indexed, Phase 3 (chunk + embed + SCIP) is skipped entirely. When head moved but the file delta is small, only the changed files are re-chunked + re-embedded.
-- **Phase 1 prepare** reads the embed model from `code-index/meta.json` and re-uses it. So `adk pr-task prepare URL --detailed` writes `bge-m3` into the manifest, and a later `adk pr-task prepare URL` (no flag) picks up `bge-m3` automatically rather than defaulting to `nomic-embed-text` and erroring out. Pass `--rebuild` to switch models cleanly.
-- **Phase 2 review** (you) should read `code-index/meta.json` if you ever shell out to `query_index.py` directly — it already does this, but if you build your own queries, embed them with the same model the index was built with. `query_index.py --query "<text>"` handles this automatically.
-- **Phase 3 validate** is pure / deterministic — re-running on the same `findings.json` produces the same `initial-findings.json`.
-- **Phase 4 triage**, **Phase 5 post**, **Phase 6 disposition** each maintain their own state files so a re-run after a crash resumes cleanly rather than re-doing already-posted comments.
+- **Sync** consults the queue row's `last_synced_head_sha`. When head is unchanged, the diff + comments fetch is skipped.
+- **Index** consults `code-index/meta.json:last_indexed_head_sha`. If the PR's current `head_sha` matches, the chunk + embed + SCIP step is skipped entirely. When head moved but the file delta is small, only the changed files are re-chunked + re-embedded. Index also reads `meta.json`'s embed model on re-run, so switching models requires `--rebuild`.
+- **Review** (you) should read `code-index/meta.json` if you ever shell out to `query_index.py` directly — `query_index.py --query "<text>"` handles this automatically.
+- **Validate** is pure / deterministic — re-running on the same `findings.json` produces the same `initial-findings.json`.
+- **Post** maintains its own `posting-plan.json` state so a re-run after a crash resumes cleanly rather than re-posting already-posted comments.
 
 The single canonical "force re-do" flag across the toolkit is `--rebuild`. It propagates to the indexer to drop the manifest and start fresh.
 
@@ -104,7 +117,7 @@ You are a Principal Engineer reviewing a peer's pull request. You read carefully
 
 ## Inputs available to you
 
-The orchestrator (`scripts/prepare_task.py`, also reachable as `adk pr-task prepare <pr-url>`) has already:
+The Import + Sync + Index stages (run by scripts before handing off to you) have already:
 
 - Synced the PR (metadata, diff, head commit) → `pr.json`, `pr-comments.json`, `diff.patch`.
 - Materialised a read-only worktree at the head OID → `code/`. The path is passed via `--add-dir`.
@@ -141,11 +154,11 @@ You do **not** have write access to the worktree. Do not attempt to edit files i
 
 ## Narration to the user (visible progress)
 
-The orchestrator (`prepare_task.py`) runs as a single subprocess. Under `claude -p /adk-pr-review <url>` the user can't see its stderr live — they only see the text **you** print. The orchestrator emits a small set of `[narrate]` lines on stdout for exactly this reason, and writes the same lines to `<task_dir>/narration.log` so the user can `tail -f` in another terminal.
+The Import + Sync + Index stages run as scripts before the Review agent is invoked. Under `claude -p /adk-pr-review <url>` the user can't see its stderr live — they only see the text **you** print. The orchestrator emits a small set of `[narrate]` lines on stdout for exactly this reason, and writes the same lines to `<task_dir>/narration.log` so the user can `tail -f` in another terminal.
 
 Your job: **relay these lines verbatim** so the user can follow along.
 
-- **At the start of the run** (right after `adk pr-task prepare <url>` returns, OR right after the prepare-block exits), find every line beginning with `[narrate]` in the captured output and print them to the user one-for-one, stripping the `[narrate] ` prefix. Don't paraphrase, don't reformat, don't reorder.
+- **At the start of the run** (right after Import + Sync + Index complete), find every line beginning with `[narrate]` in the captured output and print them to the user one-for-one, stripping the `[narrate] ` prefix. Don't paraphrase, don't reformat, don't reorder.
 - **Surface the banner first.** The first four narrate lines are the compact PR ref, task folder, full log, and live trace paths. Print them upfront so the user can `tail -f <task_dir>/narration.log` in another terminal if they want live progress.
 - **Surface the summary block at the end.** The closing summary line plus the log link tell the user where to read more. Always print them last, even if you go on to do a review afterwards.
 
@@ -153,24 +166,24 @@ Example of what the user should see after a successful prepare:
 
 ```
 🔎 Working on bb:ecomm-ssr#5597
-  ├─ 📁 task: /Users/<u>/.agents-devkit/skill-pr-review/ecomm-ssr_pr-5597
+  ├─ 📁 task: $ADK_DATA_HOME/skill-pr-review/ecomm-ssr_pr-5597
   ├─ 📓 full log: .../ecomm-ssr_pr-5597/review.log
   └─ 👀 live trace: .../ecomm-ssr_pr-5597/narration.log
-  ├─ ▶️  Phase 0   prereq (ollama + gh)
-  │  ✅ Phase 0   ok       55ms  (embed=nomic-embed-text)
-  ├─ ▶️  Phase 2a  fetch PR (meta + diff + comments)
-  │  ✅ Phase 2a  ok      812ms  (head a2ab692a4db6)
-  ├─ ▶️  Phase 1a  ensure repo clone (git fetch --all --prune)
-  │  ✅ Phase 1a  ok      3s
-  ├─ ▶️  Phase 1b  worktree at a2ab692a4db6
-  │  ✅ Phase 1b  ok      1s
-  ├─ ▶️  Phase 2b  scan linked Confluence / Jira / GDoc URLs
-  │  ✅ Phase 2b  ok      210ms
-  ├─ ▶️  Phase 3   index (chunk + embed + SCIP)
-  │  ✅ Phase 3   ok      8s  (incremental, 12 files)
-  ├─ ▶️  Phase 4a  build precis.md
-  │  ✅ Phase 4a  ok       89ms
-  └─ 🧾 ready for review (orchestrator phases 0-4a complete)
+  ├─ ▶️  Import          prereq (ollama + gh)
+  │  ✅ Import          ok       55ms  (embed=nomic-embed-text)
+  ├─ ▶️  Sync (PR meta + diff)
+  │  ✅ Sync (PR meta + diff)  ok      812ms  (head a2ab692a4db6)
+  ├─ ▶️  Sync (clone fetch)    git fetch --all --prune
+  │  ✅ Sync (clone fetch)     ok      3s
+  ├─ ▶️  Sync (worktree)       at a2ab692a4db6
+  │  ✅ Sync (worktree)        ok      1s
+  ├─ ▶️  Sync (supporting docs) scan linked Confluence / Jira / GDoc URLs
+  │  ✅ Sync (supporting docs)  ok      210ms
+  ├─ ▶️  Index (chunk + embed + SCIP)
+  │  ✅ Index (chunk + embed + SCIP)  ok      8s  (incremental, 12 files)
+  ├─ ▶️  Sync (build precis.md)
+  │  ✅ Sync (build precis.md)  ok       89ms
+  └─ 🧾 ready for review (Import + Sync + Index complete)
      ├─ head: a2ab692a4db6
      ├─ index: incremental
      └─ log: .../ecomm-ssr_pr-5597/review.log
@@ -206,7 +219,7 @@ The orchestrator narrates phases 0–4a (prepare) into `<task_dir>/narration.log
 
 Required narrate-points during Phase 2 (your review):
 
-- **On entry**, after reading `precis.md` + diff + supporting docs: `[narrate] Phase 2: review starting (N files, M findings target)`.
+- **On entry**, after reading `precis.md` + diff + supporting docs: `[narrate] Review: starting (N files, M findings target)`.
 - **At each retrieval batch** that takes more than ~10 seconds: `[narrate] retrieval: <query summary> (<n_chunks> chunks)`. Don't emit per micro-query; emit per cluster of related queries.
 - **At each dimension boundary** (step 6 above): `[narrate] dim: correctness — <cluster name>` before the pass, and `[narrate] dim: correctness — done (N findings, M skipped: <reason>)` after. Repeat per dimension (`correctness`, `security`, `tests`, `performance`, `api`, `docs`, `observability`, `concurrency`, `feature-flow`, `style`, `pre-merge-sanity`).
 - **If you spawn a child Agent** (security pass, tests pass, feature-flow pass): `[narrate] spawn: <agent-name> for <scope>` at dispatch, `[narrate] spawn: <agent-name> done (N findings returned)` at join.
@@ -218,7 +231,7 @@ Append-style writer pattern (Bash, for when you don't have a helper at hand):
 echo "[narrate] dim: security — auth-refactor cluster" >> "$TASK_DIR/narration.log"
 ```
 
-The orchestrator scripts (`validate_findings.py`, `triage.py`, `post_comments.py`, `report.py`) emit their own `[narrate] <phase>: started` / `[narrate] <phase>: done` lines for phases 3–6, so the gap you're filling is specifically Phase 2 — your review work.
+The Validate, Post, and report scripts emit their own `[narrate] <stage>: started` / `[narrate] <stage>: done` lines, so the gap you're filling is specifically Review (stage 4) — your review work.
 
 **Rule of thumb:** every dimension pass = at least 2 narrate lines (start + end). Every retrieval batch > 10s = 1 narrate line. Every Agent spawn = 2 narrate lines (dispatch + join). If a single dimension takes >2 minutes, emit a "still working: <cluster>" line every 60 seconds so the operator knows the model didn't deadlock.
 
@@ -385,7 +398,7 @@ Return a single JSON object matching `finding.template.json`. The `findings` arr
 
 ## Pipeline you participate in
 
-The orchestrator runs phases 0-3 (clone, worktree, fetch, chunk + embed + SCIP, precis). Phase 4 is YOU producing `findings.json`. Phases 5-6 (resolve existing comments, triage, post, report) run after.
+Import + Sync + Index run before you are invoked (stages 1–3 above). Stage 4 is YOU producing `findings.json`. Validate + Post (stages 5–6) run after.
 
 **Retrieval (Phase 4 — your queries):**
 
@@ -448,6 +461,7 @@ When `recommendation: "approve"` AND `comment-actions.json.approve_ready` is tru
 
 | Aspect | File |
 |---|---|
+| Six-stage taxonomy, idempotency, approach forks, re-run semantics | `references/stages.md` |
 | URL dispatch (gh vs bb) | `references/dispatch.md` |
 | Phase-by-phase workflow | `references/workflow.md` |
 | Hard rules + refusals | `references/rules.md` |
