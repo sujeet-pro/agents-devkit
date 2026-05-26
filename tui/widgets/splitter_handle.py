@@ -1,13 +1,12 @@
 """SplitterHandle — draggable bar between the queue and the detail tabs.
 
-The handle is 1 cell thin (1 row tall when the layout is horizontal, 1 column
-wide when vertical) and spans the orthogonal axis. It captures the mouse on
+The handle is 1 row tall and spans the full width. It captures the mouse on
 ``MouseDown``, emits :class:`SplitterHandle.Dragged` on every ``MouseMove``
 while the button is held, and emits :class:`SplitterHandle.Released` on
 ``MouseUp``.
 
-The parent app translates the live deltas into a new ``split_percent`` and
-re-applies layout; persistence to the prefs sidecar happens only on
+The parent app translates the vertical deltas into a new ``split_percent``
+and re-applies layout; persistence to the prefs sidecar happens only on
 ``Released`` to avoid hammering the disk during a drag.
 """
 from __future__ import annotations
@@ -54,28 +53,12 @@ class SplitterHandle(Static):
             super().__init__()
 
     def __init__(self, *, ascii_only: bool = False) -> None:
-        super().__init__(self._idle_glyph(ascii_only), markup=False)
+        glyph = "-- drag --" if ascii_only else "··· drag ···"
+        super().__init__(glyph, markup=False)
         self._ascii_only = ascii_only
         self._dragging = False
         self._last_screen_x = 0
         self._last_screen_y = 0
-
-    @staticmethod
-    def _idle_glyph(ascii_only: bool) -> str:
-        return "::" if ascii_only else "···"
-
-    def set_direction(self, direction: str) -> None:
-        """Refresh the glyph to hint at the drag axis.
-
-        ``horizontal`` → top/bottom split → drag up/down → render a horizontal
-        rule of dots. ``vertical`` → left/right split → drag left/right →
-        render a vertical-ish glyph. Cosmetic; mouse capture works regardless.
-        """
-        if direction == "horizontal":
-            glyph = "··· drag ···" if not self._ascii_only else "-- drag --"
-        else:
-            glyph = "⇕" if not self._ascii_only else "|"
-        self.update(glyph)
 
     # --- mouse handling ---
 

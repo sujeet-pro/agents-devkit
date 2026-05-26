@@ -1,7 +1,7 @@
 """Action bar / primary action tests.
 
-Validates that the primary action surface exposes exactly the four new
-actions and none of the removed multi-select / parallel controls.
+Validates that the four action bars expose the correct keybind chips and that
+removed multi-select / parallel controls are absent.
 """
 from __future__ import annotations
 
@@ -10,11 +10,16 @@ from pathlib import Path
 
 from tui.app import AdkApp
 from tui.widgets.detail_pane import TabbedDetailPane
-from tui.widgets.footer_bar import FooterBar
+from tui.widgets.pr_action_bar import PRActionBar
+from tui.widgets.queue_action_bar import QueueActionBar
 
 
-def _footer_text(app: AdkApp) -> str:
-    return str(app.query_one(FooterBar).render())
+def _queue_action_text(app: AdkApp) -> str:
+    return str(app.query_one(QueueActionBar).render())
+
+
+def _pr_action_text(app: AdkApp) -> str:
+    return str(app.query_one(PRActionBar).render())
 
 
 def _log_text(app: AdkApp) -> str:
@@ -41,92 +46,99 @@ async def _poll_until(predicate, *, pilot, timeout_s: float = 5.0,
 # Primary action labels
 # ---------------------------------------------------------------------------
 
-def test_footer_has_sync_pr_action(tui_app) -> None:
+def test_pr_action_bar_has_sync_pr_action(tui_app) -> None:
     async def _run() -> None:
         async with tui_app.run_test() as pilot:
             await pilot.pause()
-            assert "[S]Sync PR" in _footer_text(tui_app)
+            # Select the first row so PRActionBar shows actions.
+            await pilot.press("j")
+            await pilot.pause()
+            assert "[S]Sync PR" in _pr_action_text(tui_app)
 
     asyncio.run(_run())
 
 
-def test_footer_has_sync_review_action(tui_app) -> None:
+def test_pr_action_bar_has_sync_review_action(tui_app) -> None:
     async def _run() -> None:
         async with tui_app.run_test() as pilot:
             await pilot.pause()
-            assert "[R]Sync+Rev" in _footer_text(tui_app)
+            await pilot.press("j")
+            await pilot.pause()
+            assert "[R]Sync+Rev" in _pr_action_text(tui_app)
 
     asyncio.run(_run())
 
 
-def test_footer_has_sync_all_action(tui_app) -> None:
+def test_queue_action_bar_has_sync_all_action(tui_app) -> None:
     async def _run() -> None:
         async with tui_app.run_test() as pilot:
             await pilot.pause()
-            assert "[s]Sync all" in _footer_text(tui_app)
+            assert "[s]Sync all" in _queue_action_text(tui_app)
 
     asyncio.run(_run())
 
 
-def test_footer_has_sync_review_all_action(tui_app) -> None:
+def test_queue_action_bar_has_sync_review_all_action(tui_app) -> None:
     async def _run() -> None:
         async with tui_app.run_test() as pilot:
             await pilot.pause()
-            assert "[A]Sync+Rev all" in _footer_text(tui_app)
-
-    asyncio.run(_run())
-
-
-# ---------------------------------------------------------------------------
-# Removed controls must not appear in footer
-# ---------------------------------------------------------------------------
-
-def test_footer_has_no_run_selected(tui_app) -> None:
-    async def _run() -> None:
-        async with tui_app.run_test() as pilot:
-            await pilot.pause()
-            assert "run-sel" not in _footer_text(tui_app)
-
-    asyncio.run(_run())
-
-
-def test_footer_has_no_space_select(tui_app) -> None:
-    async def _run() -> None:
-        async with tui_app.run_test() as pilot:
-            await pilot.pause()
-            assert "[space]" not in _footer_text(tui_app)
-
-    asyncio.run(_run())
-
-
-def test_footer_has_no_parallel_key(tui_app) -> None:
-    async def _run() -> None:
-        async with tui_app.run_test() as pilot:
-            await pilot.pause()
-            assert "[p]" not in _footer_text(tui_app)
-
-    asyncio.run(_run())
-
-
-def test_footer_has_no_sel_count(tui_app) -> None:
-    async def _run() -> None:
-        async with tui_app.run_test() as pilot:
-            await pilot.pause()
-            assert "sel:" not in _footer_text(tui_app)
-            assert "par:" not in _footer_text(tui_app)
+            assert "[A]Sync+Rev all" in _queue_action_text(tui_app)
 
     asyncio.run(_run())
 
 
 # ---------------------------------------------------------------------------
-# No parallel actions: pressing 1 while work running is blocked
+# Removed controls must not appear in any action bar
+# ---------------------------------------------------------------------------
+
+def test_no_run_selected_in_action_bars(tui_app) -> None:
+    async def _run() -> None:
+        async with tui_app.run_test() as pilot:
+            await pilot.pause()
+            assert "run-sel" not in _queue_action_text(tui_app)
+            assert "run-sel" not in _pr_action_text(tui_app)
+
+    asyncio.run(_run())
+
+
+def test_no_space_select_in_action_bars(tui_app) -> None:
+    async def _run() -> None:
+        async with tui_app.run_test() as pilot:
+            await pilot.pause()
+            assert "[space]" not in _queue_action_text(tui_app)
+            assert "[space]" not in _pr_action_text(tui_app)
+
+    asyncio.run(_run())
+
+
+def test_no_parallel_key_in_action_bars(tui_app) -> None:
+    async def _run() -> None:
+        async with tui_app.run_test() as pilot:
+            await pilot.pause()
+            assert "[p]" not in _queue_action_text(tui_app)
+            assert "[p]" not in _pr_action_text(tui_app)
+
+    asyncio.run(_run())
+
+
+def test_no_sel_count_in_action_bars(tui_app) -> None:
+    async def _run() -> None:
+        async with tui_app.run_test() as pilot:
+            await pilot.pause()
+            for text in (_queue_action_text(tui_app), _pr_action_text(tui_app)):
+                assert "sel:" not in text
+                assert "par:" not in text
+
+    asyncio.run(_run())
+
+
+# ---------------------------------------------------------------------------
+# No parallel actions: pressing S while work running is blocked
 # ---------------------------------------------------------------------------
 
 def test_sync_pr_blocked_while_work_running(eligible_queue_path: Path) -> None:
     """Pressing S (Sync PR) while a work task is already running must be refused."""
     app = AdkApp(queue_path=eligible_queue_path, poll_interval=0.05)
-
-    import asyncio as _asyncio
 
     class _FakeTask:
         def done(self) -> bool:
@@ -149,10 +161,10 @@ def test_sync_pr_blocked_while_work_running(eligible_queue_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Sync all running shows label
+# Sync all running shows label in QueueActionBar
 # ---------------------------------------------------------------------------
 
-def test_sync_all_footer_shows_running_when_proc_alive(
+def test_sync_all_queue_action_shows_running_when_proc_alive(
     eligible_queue_path: Path, tmp_path: Path,
 ) -> None:
     slow = tmp_path / "slow-adk"
@@ -176,9 +188,9 @@ def test_sync_all_footer_shows_running_when_proc_alive(
                 timeout_s=4.0,
             )
             assert ok, "sync never started"
-            footer = _footer_text(app)
-            assert "[s]Sync all (running…)" in footer, (
-                f"expected running label; footer={footer!r}"
+            bar = _queue_action_text(app)
+            assert "[s]Sync all (running…)" in bar, (
+                f"expected running label; queue_action_bar={bar!r}"
             )
             await _poll_until(
                 lambda: "pr-sync exited rc=0" in _log_text(app),

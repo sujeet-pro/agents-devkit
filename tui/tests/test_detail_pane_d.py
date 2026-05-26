@@ -49,6 +49,14 @@ class _Row:
     author: Any = None
     slack_permalink = None
     prep_error = None
+    last_synced_at = None
+    last_synced_head_sha = None
+    last_indexed_at = None
+    last_indexed_head_sha = None
+    last_validated_at = None
+    last_validated_head_sha = None
+    last_posted_at = None
+    last_posted_head_sha = None
 
 
 def _force_no_identity(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -241,19 +249,21 @@ def test_verdict_pill_needs_re_review(fake_pr_dir: Path, monkeypatch: pytest.Mon
     assert "NEEDS RE-REVIEW" in pill
 
 
-def test_verdict_pill_appears_first_in_overview(
+def test_verdict_pill_appears_before_key_value_block(
     fake_pr_dir: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """The verdict pill must be the first non-empty line in the Overview text."""
+    """The verdict pill must appear before the key:value block (Title/Author/Branch)."""
     _force_no_identity(monkeypatch)
     dp = _reload_dp()
     row = _make_full_row(status="pending", prep_status="ready", ready_for_review=True)
     text = dp._compute_overview_text(row, None)
-    non_empty = [l for l in text.splitlines() if l.strip()]
-    assert non_empty, "overview text must not be empty"
-    # The pill contains "READY" — it must come before the key:value block.
-    assert "READY" in non_empty[0], (
-        f"Expected pill to be first line; first non-empty line: {non_empty[0]!r}"
+    lines = text.splitlines()
+    pill_idx = next((i for i, l in enumerate(lines) if "READY" in l), None)
+    title_idx = next((i for i, l in enumerate(lines) if l.startswith("Title:")), None)
+    assert pill_idx is not None, "READY pill must be present in Overview text"
+    assert title_idx is not None, "Title: line must be present in Overview text"
+    assert pill_idx < title_idx, (
+        f"Pill (line {pill_idx}) must come before Title: (line {title_idx})"
     )
 
 

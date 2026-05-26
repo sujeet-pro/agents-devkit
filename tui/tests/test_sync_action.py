@@ -10,7 +10,7 @@ import pytest
 
 from tui.app import AdkApp
 from tui.widgets.detail_pane import TabbedDetailPane
-from tui.widgets.footer_bar import FooterBar
+from tui.widgets.queue_action_bar import QueueActionBar
 
 
 def _log_text(app: AdkApp) -> str:
@@ -22,8 +22,8 @@ def _log_text(app: AdkApp) -> str:
         return ""
 
 
-def _footer_text(app: AdkApp) -> str:
-    return str(app.query_one(FooterBar).render())
+def _queue_action_text(app: AdkApp) -> str:
+    return str(app.query_one(QueueActionBar).render())
 
 
 async def _poll_until(predicate, *, pilot, timeout_s: float = 5.0,
@@ -108,11 +108,11 @@ def test_sync_footer_shows_running_label_mid_run(
                 timeout_s=4.0,
             )
             assert ok, "subprocess never produced the starting line"
-            # While the subprocess is still alive (sleeping), the footer must
-            # show the (running…) label.
-            footer = _footer_text(app)
-            assert "[s]Sync all (running…)" in footer, (
-                f"expected running label in footer, got: {footer!r}"
+            # While the subprocess is still alive (sleeping), the QueueActionBar
+            # must show the (running…) label.
+            bar = _queue_action_text(app)
+            assert "[s]Sync all (running…)" in bar, (
+                f"expected running label in queue_action_bar, got: {bar!r}"
             )
             # Wait for clean exit so the test doesn't leave a child hanging.
             ok2 = await _poll_until(
@@ -121,10 +121,10 @@ def test_sync_footer_shows_running_label_mid_run(
                 timeout_s=8.0,
             )
             assert ok2, "subprocess never exited"
-            # After exit, the footer flips back.
+            # After exit, the bar flips back.
             await pilot.pause()
-            footer_after = _footer_text(app)
-            assert "(running…)" not in footer_after
+            bar_after = _queue_action_text(app)
+            assert "(running…)" not in bar_after
 
     asyncio.run(_run())
 

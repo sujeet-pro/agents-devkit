@@ -3,39 +3,37 @@ from __future__ import annotations
 import asyncio
 import json
 
-from tui.widgets.footer_bar import FooterBar
+from tui.widgets.queue_action_bar import QueueActionBar
 from tui.widgets.queue_table import QueueTable
 
 
-def _footer_text(app) -> str:
-    return str(app.query_one(FooterBar).render())
+def _queue_action_text(app) -> str:
+    return str(app.query_one(QueueActionBar).render())
 
 
 def test_f_cycles_filter(tui_app):
     async def _run() -> None:
         async with tui_app.run_test() as pilot:
             await pilot.pause()
-            before = _footer_text(tui_app)
+            before = _queue_action_text(tui_app)
             assert "filter:all" in before
             await pilot.press("f")
             await pilot.pause()
-            after = _footer_text(tui_app)
+            after = _queue_action_text(tui_app)
             assert "filter:open" in after
             assert before != after
 
     asyncio.run(_run())
 
 
-def test_footer_shows_primary_actions(tui_app):
+def test_queue_action_bar_shows_primary_actions(tui_app):
     async def _run() -> None:
         async with tui_app.run_test() as pilot:
             await pilot.pause()
-            footer = _footer_text(tui_app)
-            assert "[S]Sync PR" in footer
-            assert "[R]Sync+Rev" in footer
-            assert "[s]Sync all" in footer
-            assert "[A]Sync+Rev all" in footer
-            assert "runner:claude" in footer
+            bar = _queue_action_text(tui_app)
+            assert "[s]Sync all" in bar
+            assert "[A]Sync+Rev all" in bar
+            assert "runner:claude" in bar
 
     asyncio.run(_run())
 
@@ -99,11 +97,11 @@ def test_capital_k_cycles_sort(tui_app):
     async def _run() -> None:
         async with tui_app.run_test() as pilot:
             await pilot.pause()
-            before = _footer_text(tui_app)
+            before = _queue_action_text(tui_app)
             assert "sort:queue" in before
             await pilot.press("K")
             await pilot.pause()
-            after = _footer_text(tui_app)
+            after = _queue_action_text(tui_app)
             assert "sort:newest" in after
             assert before != after
 
@@ -125,13 +123,14 @@ def test_jk_moves_cursor(tui_app):
 
 
 # ---------------------------------------------------------------------------
-# Primary action footer tests
+# Primary action bars do not have legacy keys
 # ---------------------------------------------------------------------------
 
-def test_footer_has_no_legacy_review_or_batch_keys(fake_plan_path, tmp_path):
-    """Footer must not advertise removed multi-select / parallel / review keys."""
+def test_bars_have_no_legacy_review_or_batch_keys(fake_plan_path, tmp_path):
+    """Action bars must not advertise removed multi-select / parallel / review keys."""
     import json
     from tui.app import AdkApp
+    from tui.widgets.pr_action_bar import PRActionBar
 
     q = tmp_path / "q.json5"
     q.write_text(json.dumps({"prs": [{
@@ -151,10 +150,13 @@ def test_footer_has_no_legacy_review_or_batch_keys(fake_plan_path, tmp_path):
     async def _run() -> None:
         async with app.run_test() as pilot:
             await pilot.pause()
-            footer = _footer_text(app)
-            assert "[r] review" not in footer
-            assert "run-sel" not in footer
-            assert "[space]" not in footer
-            assert "[p]" not in footer
+            for bar_text in (
+                str(app.query_one(QueueActionBar).render()),
+                str(app.query_one(PRActionBar).render()),
+            ):
+                assert "[r] review" not in bar_text
+                assert "run-sel" not in bar_text
+                assert "[space]" not in bar_text
+                assert "[p]" not in bar_text
 
     asyncio.run(_run())

@@ -1,4 +1,4 @@
-"""Layout tests: list + detail pane + action bar + minimal footer.
+"""Layout tests: list + detail pane + new action bars.
 
 Validates that the simplified layout mounts the correct top-level widgets
 and that secondary panes (WorkersPane, RunsPane, SyncPlanPane, LogPane)
@@ -15,11 +15,16 @@ from tui.widgets.activity_pane import ActivityPane
 from tui.widgets.detail_pane import TabbedDetailPane
 from tui.widgets.footer_bar import FooterBar
 from tui.widgets.header_bar import HeaderBar
+from tui.widgets.pr_action_bar import PRActionBar
+from tui.widgets.pr_status_bar import PRStatusBar
+from tui.widgets.queue_action_bar import QueueActionBar
+from tui.widgets.queue_status_bar import QueueStatusBar
 from tui.widgets.queue_table import QueueTable
+from tui.widgets.splitter_handle import SplitterHandle
 
 
 def test_core_widgets_compose(tui_app) -> None:
-    """App must compose QueueTable, TabbedDetailPane, FooterBar, HeaderBar."""
+    """App must compose all expected widgets."""
     async def _run() -> None:
         async with tui_app.run_test() as pilot:
             await pilot.pause()
@@ -27,6 +32,11 @@ def test_core_widgets_compose(tui_app) -> None:
             tui_app.query_one(TabbedDetailPane)
             tui_app.query_one(FooterBar)
             tui_app.query_one(HeaderBar)
+            tui_app.query_one(QueueStatusBar)
+            tui_app.query_one(QueueActionBar)
+            tui_app.query_one(PRStatusBar)
+            tui_app.query_one(PRActionBar)
+            tui_app.query_one(SplitterHandle)
 
     asyncio.run(_run())
 
@@ -43,17 +53,30 @@ def test_activity_pane_is_inside_tabbed_detail(tui_app) -> None:
     asyncio.run(_run())
 
 
-def test_footer_has_minimal_navigation(tui_app) -> None:
-    """Footer must contain quit, help, filter, sort, nav keys."""
+def test_footer_is_slim(tui_app) -> None:
+    """Footer must only contain help and quit — no queue stats or actions."""
     async def _run() -> None:
         async with tui_app.run_test() as pilot:
             await pilot.pause()
             footer = str(tui_app.query_one(FooterBar).render())
             assert "[q]" in footer
             assert "[?]" in footer
-            assert "filter:" in footer
-            assert "sort:" in footer
-            assert "nav" in footer
+            # Stats and filter/sort have moved to action bars.
+            assert "filter:" not in footer
+            assert "sort:" not in footer
+
+    asyncio.run(_run())
+
+
+def test_queue_action_bar_has_navigation(tui_app) -> None:
+    """QueueActionBar must show filter, sort, nav keys."""
+    async def _run() -> None:
+        async with tui_app.run_test() as pilot:
+            await pilot.pause()
+            bar = str(tui_app.query_one(QueueActionBar).render())
+            assert "filter:" in bar
+            assert "sort:" in bar
+            assert "nav" in bar
 
     asyncio.run(_run())
 
@@ -113,15 +136,31 @@ def test_cycle_stage_tab_prev_wraps(tui_app) -> None:
     asyncio.run(_run())
 
 
-def test_header_stage_counts_after_reload(tui_app) -> None:
-    """After reload the HeaderBar's _stage_counts dict should be populated."""
+def test_stage_tab_click_updates_filter(tui_app) -> None:
+    """Activating a stage tab through TabbedContent.active must apply the filter."""
+    from textual.widgets import TabbedContent
+
     async def _run() -> None:
         async with tui_app.run_test() as pilot:
             await pilot.pause()
-            header = tui_app.query_one(HeaderBar)
-            counts = header._stage_counts
+            assert tui_app._active_stage_tab == "stage-all"
+            tc = tui_app.query_one("#stage-tabs", TabbedContent)
+            tc.active = "stage-ready"
+            await pilot.pause()
+            assert tui_app._active_stage_tab == "stage-ready"
+
+    asyncio.run(_run())
+
+
+def test_queue_status_bar_stage_counts_after_reload(tui_app) -> None:
+    """After reload the QueueStatusBar must have been updated with stage counts."""
+    async def _run() -> None:
+        async with tui_app.run_test() as pilot:
+            await pilot.pause()
+            bar = tui_app.query_one(QueueStatusBar)
+            assert bar._stage_counts is not None
+            counts = bar._stage_counts
             assert isinstance(counts, dict)
-            # All stage keys must be present; values are non-negative ints.
             for key in ("refresh", "index", "review", "resolve", "ready", "done"):
                 assert key in counts, f"missing key {key!r}"
                 assert isinstance(counts[key], int) and counts[key] >= 0
@@ -142,7 +181,6 @@ def test_no_always_visible_secondary_panes(fake_queue_path: Path) -> None:
     async def _run() -> None:
         async with app.run_test() as pilot:
             await pilot.pause()
-            # These panes must NOT be mounted at app/screen level.
             for widget_type in (WorkersPane, RunsPane, SyncPlanPane, LogPane):
                 try:
                     app.query_one(widget_type)
@@ -151,10 +189,8 @@ def test_no_always_visible_secondary_panes(fake_queue_path: Path) -> None:
                     )
                 except NoMatches:
                     pass
-            # The replacement: ActivityPane lives inside TabbedDetailPane.
             activity = app.query_one(TabbedDetailPane).activity_pane()
             assert activity is not None
-            # QueueTable must still occupy meaningful space.
             table = app.query_one(QueueTable)
             assert table.row_count >= 0
 

@@ -24,7 +24,7 @@ def test_app_renders_header(tui_app):
             await pilot.pause()
             header = tui_app.query_one(HeaderBar)
             text = str(header.render())
-            assert "queue:" in text
+            assert text.startswith("adk")
 
     asyncio.run(_run())
 

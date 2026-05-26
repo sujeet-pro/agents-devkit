@@ -1,12 +1,13 @@
 r"""Tests for the user-controlled split layout.
 
-The TUI no longer auto-switches layout by terminal width. Instead the user
-pins direction (horizontal | vertical) and split percent via:
-  - `\` to toggle direction
+The TUI always uses queue-on-top, detail-on-bottom. The user controls the
+split ratio via:
   - `[` / `]` to shrink / grow the queue's share
   - `=` to reset to 50/50
 
 Preferences persist to `$ADK_CONFIG_HOME/tui-prefs.json`.
+A sidecar that still contains ``"layout"`` / ``"direction"`` keys is silently
+accepted — backwards-compat.
 """
 from __future__ import annotations
 
@@ -45,43 +46,32 @@ def test_queue_table_always_uses_all_columns(fake_queue_path: Path) -> None:
     asyncio.run(_run())
 
 
-def test_default_layout_horizontal_50_50(
+def test_default_layout_50_50(
     fake_queue_path: Path, isolated_config: Path
 ) -> None:
-    """With no prefs file, default to horizontal (stacked) at 50/50."""
+    """With no prefs file, default to 50/50 split."""
     from tui.app import AdkApp
     app = AdkApp(queue_path=fake_queue_path, poll_interval=0.05)
 
     async def _run() -> None:
         async with app.run_test(size=(120, 40)) as pilot:
             await pilot.pause()
-            assert app._layout_prefs.direction == "horizontal"
             assert app._layout_prefs.split_percent == 50
 
     asyncio.run(_run())
 
 
-def test_toggle_direction_persists(
+def test_no_direction_attribute_on_prefs(
     fake_queue_path: Path, isolated_config: Path
 ) -> None:
-    """Pressing `\\` flips direction and saves to tui-prefs.json."""
+    """LayoutPrefs no longer has a `direction` field."""
     from tui.app import AdkApp
     app = AdkApp(queue_path=fake_queue_path, poll_interval=0.05)
 
     async def _run() -> None:
         async with app.run_test(size=(120, 40)) as pilot:
             await pilot.pause()
-            assert app._layout_prefs.direction == "horizontal"
-            await pilot.press("backslash")
-            await pilot.pause()
-            assert app._layout_prefs.direction == "vertical"
-
-            # Persisted to sidecar.
-            prefs_path = isolated_config / "tui-prefs.json"
-            assert prefs_path.exists(), "tui-prefs.json must be written on toggle"
-            saved = json.loads(prefs_path.read_text(encoding="utf-8"))
-            assert saved.get("layout") == "vertical"
-            assert saved.get("split_percent") == 50
+            assert not hasattr(app._layout_prefs, "direction")
 
     asyncio.run(_run())
 
@@ -127,7 +117,7 @@ def test_shrink_queue_adjusts_split(
 def test_reset_split_to_50(
     fake_queue_path: Path, isolated_config: Path
 ) -> None:
-    """Pressing `=` resets the split to 50/50 (direction unchanged)."""
+    """Pressing `=` resets the split to 50/50."""
     from tui.app import AdkApp
     app = AdkApp(queue_path=fake_queue_path, poll_interval=0.05)
 
@@ -148,7 +138,7 @@ def test_reset_split_to_50(
 def test_split_clamped_to_min_max(
     fake_queue_path: Path, isolated_config: Path
 ) -> None:
-    """[ and ] are clamped to MIN/MAX_SPLIT_PERCENT — no off-by-one runaways."""
+    """[ and ] are clamped to MIN/MAX_SPLIT_PERCENT."""
     from tui.app import AdkApp
     from tui.model.prefs import MIN_SPLIT_PERCENT, MAX_SPLIT_PERCENT
     app = AdkApp(queue_path=fake_queue_path, poll_interval=0.05)
@@ -168,10 +158,10 @@ def test_split_clamped_to_min_max(
     asyncio.run(_run())
 
 
-def test_horizontal_layout_stacks_widgets(
+def test_layout_always_stacks_widgets(
     fake_queue_path: Path, isolated_config: Path
 ) -> None:
-    """Horizontal direction puts queue on top, tabs below — same width, sum of heights."""
+    """Layout is always stacked: queue on top, tabs below — same width, sum of heights."""
     from tui.app import AdkApp
     app = AdkApp(queue_path=fake_queue_path, poll_interval=0.05)
 
@@ -181,33 +171,10 @@ def test_horizontal_layout_stacks_widgets(
             table = app.query_one(QueueTable)
             tabs = app.query_one(TabbedDetailPane)
             assert table.size.width == tabs.size.width, (
-                f"horizontal layout: widths must match; "
+                f"stacked layout: widths must match; "
                 f"queue.width={table.size.width} tabs.width={tabs.size.width}"
             )
             assert table.size.height > 0 and tabs.size.height > 0
-
-    asyncio.run(_run())
-
-
-def test_vertical_layout_places_widgets_side_by_side(
-    fake_queue_path: Path, isolated_config: Path
-) -> None:
-    """Vertical direction puts queue beside tabs — same height, sum of widths."""
-    from tui.app import AdkApp
-    app = AdkApp(queue_path=fake_queue_path, poll_interval=0.05)
-
-    async def _run() -> None:
-        async with app.run_test(size=(160, 40)) as pilot:
-            await pilot.pause()
-            await pilot.press("backslash")  # horizontal → vertical
-            await pilot.pause()
-            table = app.query_one(QueueTable)
-            tabs = app.query_one(TabbedDetailPane)
-            assert table.size.height == tabs.size.height, (
-                f"vertical layout: heights must match; "
-                f"queue.height={table.size.height} tabs.height={tabs.size.height}"
-            )
-            assert table.size.width > 0 and tabs.size.width > 0
 
     asyncio.run(_run())
 
@@ -217,7 +184,7 @@ def test_prefs_loaded_from_sidecar(
 ) -> None:
     """A pre-existing tui-prefs.json must be respected at startup."""
     (isolated_config / "tui-prefs.json").write_text(
-        json.dumps({"layout": "vertical", "split_percent": 35}),
+        json.dumps({"split_percent": 35}),
         encoding="utf-8",
     )
     from tui.app import AdkApp
@@ -226,7 +193,25 @@ def test_prefs_loaded_from_sidecar(
     async def _run() -> None:
         async with app.run_test(size=(140, 40)) as pilot:
             await pilot.pause()
-            assert app._layout_prefs.direction == "vertical"
             assert app._layout_prefs.split_percent == 35
+
+    asyncio.run(_run())
+
+
+def test_sidecar_with_legacy_layout_key_is_ignored(
+    fake_queue_path: Path, isolated_config: Path
+) -> None:
+    """A sidecar that still has 'layout': 'vertical' must load without error."""
+    (isolated_config / "tui-prefs.json").write_text(
+        json.dumps({"layout": "vertical", "split_percent": 40}),
+        encoding="utf-8",
+    )
+    from tui.app import AdkApp
+    app = AdkApp(queue_path=fake_queue_path, poll_interval=0.05)
+
+    async def _run() -> None:
+        async with app.run_test(size=(140, 40)) as pilot:
+            await pilot.pause()
+            assert app._layout_prefs.split_percent == 40
 
     asyncio.run(_run())

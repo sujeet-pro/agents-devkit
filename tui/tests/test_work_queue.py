@@ -5,12 +5,17 @@ import asyncio
 from pathlib import Path
 
 from tui.app import AdkApp
-from tui.widgets.footer_bar import FooterBar
+from tui.widgets.queue_action_bar import QueueActionBar
+from tui.widgets.pr_action_bar import PRActionBar
 from tui.widgets.queue_table import QueueTable
 
 
-def _footer_text(app: AdkApp) -> str:
-    return str(app.query_one(FooterBar).render())
+def _queue_action_text(app: AdkApp) -> str:
+    return str(app.query_one(QueueActionBar).render())
+
+
+def _pr_action_text(app: AdkApp) -> str:
+    return str(app.query_one(PRActionBar).render())
 
 
 def _current_cells(app: AdkApp) -> list[str]:
@@ -36,32 +41,39 @@ async def _poll_until(predicate, *, pilot, timeout_s: float = 8.0,
     return False
 
 
-def test_footer_shows_four_primary_actions(tui_app) -> None:
+def test_action_bars_show_primary_actions(tui_app) -> None:
     async def _run() -> None:
         async with tui_app.run_test() as pilot:
             await pilot.pause()
-            footer = _footer_text(tui_app)
-            assert "[S]Sync PR" in footer
-            assert "[R]Sync+Rev" in footer
-            assert "[s]Sync all" in footer
-            assert "[A]Sync+Rev all" in footer
-            assert "run-sel" not in footer
-            assert "[space]" not in footer
-            assert "par:" not in footer
-            assert "sel:" not in footer
+            # Select first row so PRActionBar is populated.
+            await pilot.press("j")
+            await pilot.pause()
+            q_bar = _queue_action_text(tui_app)
+            pr_bar = _pr_action_text(tui_app)
+            assert "[s]Sync all" in q_bar
+            assert "[A]Sync+Rev all" in q_bar
+            assert "[S]Sync PR" in pr_bar
+            assert "[R]Sync+Rev" in pr_bar
+            assert "run-sel" not in q_bar
+            assert "[space]" not in q_bar
+            assert "par:" not in q_bar
+            assert "sel:" not in q_bar
 
     asyncio.run(_run())
 
 
-def test_footer_has_no_multi_select_labels(eligible_multi_queue: Path) -> None:
+def test_action_bars_have_no_multi_select_labels(eligible_multi_queue: Path) -> None:
     app = AdkApp(queue_path=eligible_multi_queue, poll_interval=0.05)
 
     async def _run() -> None:
         async with app.run_test() as pilot:
             await pilot.pause()
-            footer = _footer_text(app)
-            assert "[r] review" not in footer
-            assert "[p]" not in footer
+            for text in (
+                _queue_action_text(app),
+                _pr_action_text(app),
+            ):
+                assert "[r] review" not in text
+                assert "[p]" not in text
 
     asyncio.run(_run())
 

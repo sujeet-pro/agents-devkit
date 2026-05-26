@@ -2,9 +2,12 @@
 
 The drag flow is: ``MouseDown`` captures the mouse; subsequent ``MouseMove``
 events emit :class:`SplitterHandle.Dragged` with screen-coord deltas. The app
-translates each delta into a new ``split_percent`` (clamped) and re-applies
-layout live. ``MouseUp`` emits :class:`SplitterHandle.Released` and the app
-persists the final ratio to the sidecar.
+translates each vertical delta into a new ``split_percent`` (clamped) and
+re-applies layout live. ``MouseUp`` emits :class:`SplitterHandle.Released`
+and the app persists the final ratio to the sidecar.
+
+The layout is always stacked (vertical motion only). Horizontal deltas are
+ignored.
 """
 from __future__ import annotations
 
@@ -44,21 +47,17 @@ def test_splitter_present_between_queue_and_tabs(
     asyncio.run(_run())
 
 
-def test_drag_horizontal_increases_queue_share(
+def test_drag_downward_increases_queue_share(
     fake_queue_path: Path, isolated_config: Path
 ) -> None:
-    """In horizontal (stacked) layout, dragging the handle downward
-    (positive delta_y) grows the queue's share."""
+    """Dragging the handle downward (positive delta_y) grows the queue's share."""
     from tui.app import AdkApp
     app = AdkApp(queue_path=fake_queue_path, poll_interval=0.05)
 
     async def _run() -> None:
         async with app.run_test(size=(120, 40)) as pilot:
             await pilot.pause()
-            assert app._layout_prefs.direction == "horizontal"
             before = app._layout_prefs.split_percent
-            # Simulate a downward drag of 8 cells. With axis_size≈38, that's
-            # roughly +21% — clamped if needed.
             splitter = app.query_one(SplitterHandle)
             splitter.post_message(SplitterHandle.Dragged(0, 8))
             await pilot.pause()
@@ -67,10 +66,10 @@ def test_drag_horizontal_increases_queue_share(
     asyncio.run(_run())
 
 
-def test_drag_horizontal_negative_shrinks_queue(
+def test_drag_upward_shrinks_queue(
     fake_queue_path: Path, isolated_config: Path
 ) -> None:
-    """Dragging up in horizontal layout shrinks the queue's share."""
+    """Dragging up shrinks the queue's share."""
     from tui.app import AdkApp
     app = AdkApp(queue_path=fake_queue_path, poll_interval=0.05)
 
@@ -86,24 +85,21 @@ def test_drag_horizontal_negative_shrinks_queue(
     asyncio.run(_run())
 
 
-def test_drag_vertical_uses_horizontal_delta(
+def test_horizontal_drag_delta_is_ignored(
     fake_queue_path: Path, isolated_config: Path
 ) -> None:
-    """In vertical (side-by-side) layout, dragging right grows the queue."""
+    """A purely horizontal drag (delta_x only, delta_y=0) has no effect."""
     from tui.app import AdkApp
     app = AdkApp(queue_path=fake_queue_path, poll_interval=0.05)
 
     async def _run() -> None:
-        async with app.run_test(size=(160, 40)) as pilot:
+        async with app.run_test(size=(120, 40)) as pilot:
             await pilot.pause()
-            await pilot.press("backslash")  # → vertical
-            await pilot.pause()
-            assert app._layout_prefs.direction == "vertical"
             before = app._layout_prefs.split_percent
             splitter = app.query_one(SplitterHandle)
-            splitter.post_message(SplitterHandle.Dragged(15, 0))
+            splitter.post_message(SplitterHandle.Dragged(50, 0))
             await pilot.pause()
-            assert app._layout_prefs.split_percent > before
+            assert app._layout_prefs.split_percent == before
 
     asyncio.run(_run())
 
@@ -122,7 +118,6 @@ def test_release_persists_to_sidecar(
             splitter.post_message(SplitterHandle.Dragged(0, 6))
             await pilot.pause()
             prefs_path = isolated_config / "tui-prefs.json"
-            # Drag alone shouldn't have written yet.
             assert not prefs_path.exists(), (
                 "drag deltas must not persist; only Released persists"
             )

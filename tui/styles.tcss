@@ -3,13 +3,39 @@ Screen { layout: vertical; }
 HeaderBar { dock: top; height: 1; background: $primary-background; color: $text; padding: 0 1; }
 FooterBar { dock: bottom; height: 1; background: $primary-background; color: $text; padding: 0 1; }
 
-/* Direction + split percentages are set at runtime via widget.styles
-   (see AdkApp._apply_layout). The container only needs to occupy the
-   remaining height between the docked header and footer. */
-#main { height: 1fr; width: 1fr; }
+/* #main is a vertical stack; QueueTable and TabbedDetailPane share the
+   remaining height via fr units set at runtime in AdkApp._apply_layout.
+   The four thin bars (QueueStatusBar, QueueActionBar, PRStatusBar,
+   PRActionBar) and the SplitterHandle each take 1 natural row. */
+#main { height: 1fr; width: 1fr; layout: vertical; }
+
+QueueStatusBar {
+    height: 1;
+    width: 1fr;
+    background: $primary-background;
+    color: $text-muted;
+    padding: 0 1;
+}
 
 QueueTable { height: 1fr; width: 1fr; }
 QueueTable > .datatable--header { text-style: bold; }
+
+QueueActionBar {
+    height: 1;
+    width: 1fr;
+    background: $primary-background;
+    color: $text-muted;
+    padding: 0 1;
+}
+
+PRStatusBar {
+    height: 1;
+    width: 1fr;
+    background: $surface;
+    color: $text;
+    padding: 0 1;
+    text-style: bold;
+}
 
 TabbedDetailPane { height: 1fr; width: 1fr; background: $surface; }
 TabbedDetailPane TabbedContent { height: 1fr; }
@@ -28,6 +54,14 @@ TabbedDetailPane ScrollableContainer {
     scrollbar-color-hover: $accent;
     scrollbar-color-active: $accent;
     scrollbar-background: $surface;
+}
+
+PRActionBar {
+    height: 1;
+    width: 1fr;
+    background: $primary-background;
+    color: $text-muted;
+    padding: 0 1;
 }
 
 ActivityPane { height: 1fr; }

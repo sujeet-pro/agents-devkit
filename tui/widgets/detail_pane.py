@@ -41,6 +41,109 @@ _PREP_PHASE_FRACTIONS: dict[str, int] = {
 _PREP_TOTAL = 6
 
 
+_STAGE_LEGEND = (
+    "Stage glyphs:  · pending  ✓ done  ⚡ running  ! failed"
+    "   (S=Sync I=Index R=Review V=Validate P=Post)"
+)
+
+# Maps worker task_type values to the stage name used in the timeline.
+_WORKER_TYPE_TO_STAGE: dict[str, str] = {
+    "sync":          "sync",
+    "prepare":       "index",
+    "index":         "index",
+    "embed":         "index",
+    "review":        "review",
+    "post":          "post",
+    "post_comments": "post",
+}
+
+
+def _format_relative_age(iso_str: str | None) -> str:
+    """Return a human-readable age string like '2m ago', '1h 5m ago', '3d ago'."""
+    if not iso_str:
+        return ""
+    ts = iso_str
+    if ts.endswith("Z"):
+        ts = ts[:-1] + "+00:00"
+    try:
+        from datetime import datetime, timezone
+        parsed = datetime.fromisoformat(ts)
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        delta = datetime.now(tz=timezone.utc) - parsed
+        seconds = int(delta.total_seconds())
+        if seconds < 0:
+            return "just now"
+        if seconds < 60:
+            return f"{seconds}s ago"
+        minutes = seconds // 60
+        if minutes < 60:
+            return f"{minutes}m ago"
+        hours = minutes // 60
+        if hours < 24:
+            leftover_m = minutes % 60
+            return f"{hours}h {leftover_m}m ago" if leftover_m else f"{hours}h ago"
+        days = hours // 24
+        return f"{days}d ago"
+    except ValueError:
+        return ""
+
+
+def _stage_glyph(done: bool, running: bool, failed: bool) -> str:
+    if running:
+        return "⚡"
+    if failed:
+        return "!"
+    if done:
+        return "✓"
+    return "·"
+
+
+def _stage_timeline_lines(row: "QueueRow", worker: "WorkerRow | None") -> list[str]:
+    """Return 5 lines — one per pipeline stage — for the Overview timeline block."""
+    live_stage: str | None = None
+    if worker is not None and not worker.is_stale:
+        live_stage = _WORKER_TYPE_TO_STAGE.get(worker.task_type or "", None)
+
+    current_head = row.head_sha or ""
+
+    def _one(label: str, abbrev: str, stage: str, done_ts: str | None, done_sha: str | None,
+             predecessor: str) -> str:
+        running = live_stage == stage
+        failed = False
+        done = bool(done_ts)
+
+        glyph = _stage_glyph(done=done, running=running, failed=failed)
+
+        if running:
+            age = _format_relative_age(worker.started_at if worker else None)
+            suffix = f"started {age}" if age else "running"
+            return f"  {label:<10} [{abbrev}] {glyph} running · {suffix}"
+
+        if done:
+            age = _format_relative_age(done_ts)
+            short_sha = (done_sha or "")[:8] or "—"
+            stale = ""
+            if current_head and done_sha and current_head != done_sha:
+                stale = f"  (stale — head now {current_head[:8]})"
+            ts_part = f"{done_ts[:16]} UTC" if done_ts else ""
+            return (
+                f"  {label:<10} [{abbrev}] {glyph} done · {age} · {ts_part} · head {short_sha}{stale}"
+            )
+
+        return f"  {label:<10} [{abbrev}] {glyph} pending — runs after {predecessor}"
+
+    lines = [
+        "Stages:",
+        _one("Sync",     "S", "sync",     row.last_synced_at,    row.last_synced_head_sha,    "queue"),
+        _one("Index",    "I", "index",    row.last_indexed_at,   row.last_indexed_head_sha,   "Sync"),
+        _one("Review",   "R", "review",   row.last_reviewed_at,  row.last_reviewed_head_sha,  "Index"),
+        _one("Validate", "V", "validate", row.last_validated_at, row.last_validated_head_sha, "Review"),
+        _one("Post",     "P", "post",     row.last_posted_at,    row.last_posted_head_sha,    "Validate"),
+    ]
+    return lines
+
+
 def _prep_progress_bar(filled: int, total: int = _PREP_TOTAL) -> str:
     filled = max(0, min(filled, total))
     return "[" + "█" * filled + "·" * (total - filled) + "]"
@@ -259,6 +362,70 @@ def _verdict_pill(row: "QueueRow", worker: "WorkerRow | None") -> str | None:
     return None
 
 
+def _overview_comments_count(row: "QueueRow") -> str | None:
+    """Return 'Comments: N open / M total', or None if pr-comments.json is absent."""
+    path = _PR_REVIEW_ROOT / f"{row.repo}_pr-{row.number}" / "pr-review" / "pr-comments.json"
+    if not path.exists():
+        return None
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    if not isinstance(raw, dict):
+        return None
+    review = raw.get("review_comments") or []
+    issue = raw.get("issue_comments") or []
+    bb = [c for c in (raw.get("comments") or []) if not c.get("deleted")]
+    total = len(review) + len(issue) + len(bb)
+    if total == 0:
+        return None
+    open_n = sum(
+        1 for c in review if not (c.get("resolved") or c.get("isResolved"))
+    ) + sum(
+        1 for c in bb if not c.get("resolution")
+    )
+    return f"Comments: {open_n} open / {total} total"
+
+
+def _overview_slack_origin(row: "QueueRow") -> str | None:
+    """Return a one-line Slack origin summary, or None if queue-context.json is absent."""
+    ctx_path = _PR_REVIEW_ROOT / f"{row.repo}_pr-{row.number}" / "pr-review" / "queue-context.json"
+    if not ctx_path.exists():
+        return None
+    try:
+        ctx = json.loads(ctx_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    slack = ctx.get("slack") or {}
+    channel = slack.get("channel") or ""
+    starter = ctx.get("thread_starter") or ctx.get("message_preview") or ""
+    if not channel and not starter:
+        return None
+    preview = starter[:80].replace("\n", " ")
+    if channel and preview:
+        return f"Slack:   {channel} · {preview}"
+    if channel:
+        return f"Slack:   {channel}"
+    return f"Slack:   {preview}"
+
+
+def _overview_files_changed(row: "QueueRow") -> str | None:
+    """Return 'Files: N changed', counted from diff.patch file headers."""
+    patch_path = _PR_REVIEW_ROOT / f"{row.repo}_pr-{row.number}" / "pr-review" / "diff.patch"
+    if not patch_path.exists():
+        return None
+    try:
+        text = patch_path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return None
+    count = text.count("\ndiff --git ")
+    if text.startswith("diff --git "):
+        count += 1
+    if count == 0:
+        return None
+    return f"Files:   {count} changed"
+
+
 def _compute_overview_text(
     row: "QueueRow | None",
     worker: "WorkerRow | None",
@@ -286,11 +453,19 @@ def _compute_overview_text(
         or "(unknown)"
     )
 
+    lines: list[str] = []
+
+    # 1. Stage glyph legend
+    lines.append(_STAGE_LEGEND)
+    lines.append("")
+
+    # 2. Verdict pill
     pill = _verdict_pill(row, worker)
-    lines = []
     if pill:
         lines.append(pill)
-        lines.append("")  # blank separator before the key:value block
+        lines.append("")
+
+    # 3. Key:value identity block
     lines += [
         f"{row.repo}#{row.number}",
         f"Title:   {title}",
@@ -315,16 +490,38 @@ def _compute_overview_text(
     prep = _prep_line(row, worker)
     lines.append(prep)
 
+    # 4. Stage timeline
+    lines.append("")
+    lines.extend(_stage_timeline_lines(row, worker))
+
+    # 5. Findings summary
     findings = _findings_summary(row)
     if findings is not None:
+        lines.append("")
         lines.append(findings)
 
+    # 6. Mergeability
     lines.append(_mergeability_line(row))
 
+    # 7. Extra fields: comments count, files changed, Slack origin
+    comments_count = _overview_comments_count(row)
+    if comments_count is not None:
+        lines.append(comments_count)
+
+    files_changed = _overview_files_changed(row)
+    if files_changed is not None:
+        lines.append(files_changed)
+
+    slack_origin = _overview_slack_origin(row)
+    if slack_origin is not None:
+        lines.append(slack_origin)
+
+    # 8. Staleness
     staleness = _staleness_line(row)
     if staleness is not None:
         lines.append(staleness)
 
+    # 9. Actions
     lines.append(_quick_actions_line(row))
     lines.append(_context_actions_line(row, worker))
     return "\n".join(lines)

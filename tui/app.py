@@ -23,12 +23,15 @@ from tui.model.prefs import (
     MIN_SPLIT_PERCENT,
     load_prefs,
     save_prefs,
-    toggle_direction,
 )
 from tui.widgets.detail_pane import TabbedDetailPane
 from tui.widgets.footer_bar import FooterBar
 from tui.widgets.header_bar import HeaderBar
 from tui.widgets.help_screen import HelpScreen
+from tui.widgets.pr_action_bar import PRActionBar
+from tui.widgets.pr_status_bar import PRStatusBar
+from tui.widgets.queue_action_bar import QueueActionBar
+from tui.widgets.queue_status_bar import QueueStatusBar
 from tui.widgets.queue_table import QueueTable
 from tui.widgets.splitter_handle import SplitterHandle
 
@@ -190,7 +193,6 @@ class AdkApp(App):
         Binding("b", "repos", "repos"),
         Binding("t", "cycle_theme", "theme"),
         Binding("tab", "focus_next_pane", "pane"),
-        Binding("backslash", "toggle_layout_direction", "split:h/v"),
         Binding("left_square_bracket", "shrink_queue", show=False),
         Binding("right_square_bracket", "grow_queue", show=False),
         Binding("equals_sign", "reset_split", show=False),
@@ -270,9 +272,13 @@ class AdkApp(App):
             yield TabPane("Ready",   id="stage-ready")
             yield TabPane("Done",    id="stage-done")
         with Container(id="main"):
+            yield QueueStatusBar()
             yield QueueTable()
+            yield QueueActionBar()
             yield SplitterHandle(ascii_only=self._ascii_only)
+            yield PRStatusBar()
             yield TabbedDetailPane()
+            yield PRActionBar()
         yield FooterBar()
 
     async def on_mount(self) -> None:
@@ -341,16 +347,21 @@ class AdkApp(App):
     def _update_footer(self, *, row: "QueueRow | None" = None) -> None:
         if not self.screen_stack:
             return
-        self._default_query(FooterBar).update_status(
-            self._filter_mode,
-            self._sort_mode,
-            sync_all_running=self._sync_all_running(),
-            work_running=self._work_running(),
-            agent=self._current_agent,
-            row=row,
-            layout_direction=self._layout_prefs.direction,
-            split_percent=self._layout_prefs.split_percent,
-        )
+        self._update_queue_action_bar()
+
+    def _update_queue_action_bar(self) -> None:
+        if not self.screen_stack:
+            return
+        try:
+            self._default_query(QueueActionBar).update_state(
+                self._filter_mode,
+                self._sort_mode,
+                sync_running=self._sync_all_running(),
+                work_running=self._work_running(),
+                runner=self._current_agent,
+            )
+        except Exception:
+            pass
 
     def _work_text_for_url(self, url: str | None) -> str | None:
         if not url:
@@ -399,8 +410,18 @@ class AdkApp(App):
             operations=self._operations_summary,
             runner=self._current_agent,
         )
-        # Compute per-stage counts for the header's second line.
-        header.update_stage_counts(_compute_stage_counts(self._rows_by_url))
+
+        stage_counts = _compute_stage_counts(self._rows_by_url)
+        workers_active = len(self._workers_by_url)
+        try:
+            self._default_query(QueueStatusBar).update_state(
+                snapshot,
+                stage_counts,
+                sync_running=self._sync_all_running(),
+                workers_active=workers_active,
+            )
+        except Exception:
+            pass
 
         self._default_query(QueueTable).load(
             snapshot,
@@ -478,6 +499,14 @@ class AdkApp(App):
             worker=worker,
             work_text=self._work_text_for_url(url),
         )
+        try:
+            self._default_query(PRStatusBar).update_pr(row)
+        except Exception:
+            pass
+        try:
+            self._default_query(PRActionBar).update_pr(row)
+        except Exception:
+            pass
         self._update_footer(row=row)
 
     def on_resize(self, event) -> None:
@@ -485,21 +514,15 @@ class AdkApp(App):
         self._apply_layout()
 
     def _apply_layout(self) -> None:
-        """Apply the user's chosen split direction + ratio to the live widgets.
+        """Apply the split ratio to the live widgets.
 
-        Direction "horizontal" → queue on top, tabs below (top/bottom split).
-        Direction "vertical"   → queue on left, tabs on right (left/right split).
-        Width / height percentages come from ``self._layout_prefs.split_percent``
-        (queue's share); the detail-tabs pane gets the remainder.
-
-        Uses ``fr`` units so the 1-cell ``SplitterHandle`` between the two
-        panes stays at a fixed size and the queue/tabs split the remaining
-        space at the user's chosen ratio.
+        Always stacked: queue on top, tabs below. The four thin bars and the
+        SplitterHandle each occupy 1 natural row. Only QueueTable and
+        TabbedDetailPane are resized via fr units.
         """
         if not self.screen_stack:
             return
         try:
-            main = self._default_query_id("#main")
             table = self._default_query(QueueTable)
             tabs = self._default_query(TabbedDetailPane)
             splitter = self._default_query(SplitterHandle)
@@ -510,26 +533,12 @@ class AdkApp(App):
         queue_share = max(MIN_SPLIT_PERCENT, min(MAX_SPLIT_PERCENT, int(prefs.split_percent)))
         tabs_share = 100 - queue_share
 
-        if prefs.direction == "vertical":
-            # Side-by-side (queue left, tabs right).
-            main.styles.layout = "horizontal"
-            table.styles.width = f"{queue_share}fr"
-            table.styles.height = "1fr"
-            splitter.styles.width = 1
-            splitter.styles.height = "1fr"
-            tabs.styles.width = f"{tabs_share}fr"
-            tabs.styles.height = "1fr"
-        else:
-            # Stacked (queue top, tabs below) — the default.
-            main.styles.layout = "vertical"
-            table.styles.height = f"{queue_share}fr"
-            table.styles.width = "1fr"
-            splitter.styles.height = 1
-            splitter.styles.width = "1fr"
-            tabs.styles.height = f"{tabs_share}fr"
-            tabs.styles.width = "1fr"
-
-        splitter.set_direction(prefs.direction)
+        table.styles.height = f"{queue_share}fr"
+        table.styles.width = "1fr"
+        splitter.styles.height = 1
+        splitter.styles.width = "1fr"
+        tabs.styles.height = f"{tabs_share}fr"
+        tabs.styles.width = "1fr"
 
     def _default_query_id(self, selector: str):
         """Same as _default_query but takes a CSS selector string instead of
@@ -549,55 +558,38 @@ class AdkApp(App):
 
     # --- layout user actions ---
 
-    def action_toggle_layout_direction(self) -> None:
-        new = toggle_direction(self._layout_prefs.direction)
-        self._layout_prefs = LayoutPrefs(
-            direction=new, split_percent=self._layout_prefs.split_percent
-        ).normalised()
-        self._apply_layout()
-        self._persist_layout_prefs()
-        self._notify_layout(f"(layout: {new} · {self._layout_prefs.split_percent}/100)")
-
     def action_shrink_queue(self) -> None:
         new_pct = max(MIN_SPLIT_PERCENT, self._layout_prefs.split_percent - ADJUST_STEP)
         if new_pct == self._layout_prefs.split_percent:
             self._notify_layout(f"(split at min {MIN_SPLIT_PERCENT}%)")
             return
-        self._layout_prefs = LayoutPrefs(
-            direction=self._layout_prefs.direction, split_percent=new_pct
-        ).normalised()
+        self._layout_prefs = LayoutPrefs(split_percent=new_pct).normalised()
         self._apply_layout()
         self._persist_layout_prefs()
-        self._notify_layout(f"(layout: {self._layout_prefs.direction} · {new_pct}/100)")
+        self._notify_layout(f"(split: {new_pct}/100)")
 
     def action_grow_queue(self) -> None:
         new_pct = min(MAX_SPLIT_PERCENT, self._layout_prefs.split_percent + ADJUST_STEP)
         if new_pct == self._layout_prefs.split_percent:
             self._notify_layout(f"(split at max {MAX_SPLIT_PERCENT}%)")
             return
-        self._layout_prefs = LayoutPrefs(
-            direction=self._layout_prefs.direction, split_percent=new_pct
-        ).normalised()
+        self._layout_prefs = LayoutPrefs(split_percent=new_pct).normalised()
         self._apply_layout()
         self._persist_layout_prefs()
-        self._notify_layout(f"(layout: {self._layout_prefs.direction} · {new_pct}/100)")
+        self._notify_layout(f"(split: {new_pct}/100)")
 
     def action_reset_split(self) -> None:
-        self._layout_prefs = LayoutPrefs(
-            direction=self._layout_prefs.direction, split_percent=50
-        ).normalised()
+        self._layout_prefs = LayoutPrefs(split_percent=50).normalised()
         self._apply_layout()
         self._persist_layout_prefs()
-        self._notify_layout(f"(layout: {self._layout_prefs.direction} · 50/50)")
+        self._notify_layout("(split: 50/50)")
 
     # --- mouse-drag splitter ---
 
     def on_splitter_handle_dragged(self, event: SplitterHandle.Dragged) -> None:
-        """Translate a mouse-drag delta into a new split percentage.
+        """Translate a vertical mouse-drag delta into a new split percentage.
 
-        In horizontal layout the user drags up/down → vertical pixels move
-        the boundary; in vertical layout left/right → horizontal pixels.
-        The percent is recomputed as ``current ± (delta / axis_size * 100)``
+        The percent is recomputed as ``current ± (dy / axis_height * 100)``
         and clamped to [MIN, MAX]; layout is re-applied live so the user
         sees the panes resize in real time. Persistence to disk waits for
         :class:`SplitterHandle.Released` to avoid one write per pixel.
@@ -609,13 +601,8 @@ class AdkApp(App):
         except Exception:
             return
 
-        direction = self._layout_prefs.direction
-        if direction == "horizontal":
-            axis_size = main.size.height
-            delta = event.delta_y
-        else:
-            axis_size = main.size.width
-            delta = event.delta_x
+        axis_size = main.size.height
+        delta = event.delta_y
 
         if axis_size <= 1 or delta == 0:
             return
@@ -626,9 +613,7 @@ class AdkApp(App):
         if new_pct == self._layout_prefs.split_percent:
             return
 
-        self._layout_prefs = LayoutPrefs(
-            direction=direction, split_percent=new_pct
-        ).normalised()
+        self._layout_prefs = LayoutPrefs(split_percent=new_pct).normalised()
         self._apply_layout()
         self._update_footer()
 
@@ -636,8 +621,8 @@ class AdkApp(App):
         """Drag ended — persist the final ratio + narrate the result."""
         self._persist_layout_prefs()
         self._notify_layout(
-            f"(layout: {self._layout_prefs.direction} · "
-            f"{self._layout_prefs.split_percent}/{100 - self._layout_prefs.split_percent})"
+            f"(split: {self._layout_prefs.split_percent}/"
+            f"{100 - self._layout_prefs.split_percent})"
         )
 
     def on_data_table_row_highlighted(self) -> None:
@@ -728,11 +713,14 @@ class AdkApp(App):
 
     def on_tabbed_content_tab_activated(self, event) -> None:
         """Sync the active stage tab to the queue filter when the stage-tabs
-        TabbedContent fires TabActivated."""
-        tab_id = str(event.tab.id) if event.tab else ""
-        if not tab_id.startswith("stage-"):
+        TabbedContent fires TabActivated. `event.tab.id` is the inner Tab
+        widget's auto-generated id (e.g. `--content-tab-stage-all`), so we
+        identify the source via `event.tabbed_content.id` and read the
+        TabPane id from `event.tabbed_content.active`."""
+        tc = getattr(event, "tabbed_content", None)
+        if tc is None or tc.id != "stage-tabs":
             return
-        self._apply_stage_filter(tab_id)
+        self._apply_stage_filter(str(tc.active))
 
     def _apply_stage_filter(self, tab_id: str) -> None:
         """Set the active stage filter and reload the queue table."""
@@ -834,6 +822,7 @@ class AdkApp(App):
         self._current_agent = picked
         self._update_footer()
         self._default_query(HeaderBar).update_runner(self._current_agent)
+        self._update_queue_action_bar()
 
     @work
     async def action_add_pr(self) -> None:
