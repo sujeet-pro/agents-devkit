@@ -3,7 +3,6 @@
 Validates:
 - TabbedDetailPane is a composed widget with four named tab panes.
 - show() updates the Overview sub-widget (DetailPane.overview_text).
-- show() updates the Log tab content.
 - Comments and Review tabs render their placeholder text.
 - Cursor move in the main app updates the tabbed detail pane.
 """
@@ -122,23 +121,6 @@ def test_tabbed_detail_pane_show_updates_overview_via_inner_detail_pane() -> Non
     outer.show(_make_row())  # should not raise
 
 
-def test_tabbed_detail_pane_initial_log_text_has_hint() -> None:
-    outer = TabbedDetailPane()
-    assert "[l]" in outer._log_text or "press" in outer._log_text.lower()
-
-
-def test_tabbed_detail_pane_show_sets_log_text_with_worker_log_path() -> None:
-    outer = TabbedDetailPane()
-    outer.show(_make_row(), worker=_make_worker())
-    assert "/tmp/review.log" in outer._log_text
-
-
-def test_tabbed_detail_pane_show_none_row() -> None:
-    outer = TabbedDetailPane()
-    outer.show(None)  # must not raise
-    assert "no row selected" in outer._log_text.lower()
-
-
 # ---------------------------------------------------------------------------
 # TabbedDetailPane — mounted TUI tests (four tabs actually compose)
 # ---------------------------------------------------------------------------
@@ -161,7 +143,8 @@ def test_tabbed_detail_pane_has_four_tabs(fake_queue_path: Path) -> None:
             assert "tab-overview" in tab_ids, f"tab-overview missing; found: {tab_ids}"
             assert "tab-comments" in tab_ids, f"tab-comments missing; found: {tab_ids}"
             assert "tab-review" in tab_ids, f"tab-review missing; found: {tab_ids}"
-            assert "tab-log" in tab_ids, f"tab-log missing; found: {tab_ids}"
+            assert "tab-activity" in tab_ids, f"tab-activity missing; found: {tab_ids}"
+            assert "tab-log" not in tab_ids, f"tab-log must not exist; found: {tab_ids}"
 
     asyncio.run(_run())
 
@@ -182,15 +165,20 @@ def test_overview_tab_shows_pr_details(fake_queue_path: Path) -> None:
 
 
 def test_comments_tab_has_placeholder(fake_queue_path: Path) -> None:
-    """Comments tab must render the placeholder text."""
-    from textual.widgets import Static
+    """Comments tab must render the placeholder text (now via Markdown widget)."""
+    from textual.widgets import Markdown
     app = _make_app_with_tabbed_pane(fake_queue_path)
 
     async def _run() -> None:
         async with app.run_test() as pilot:
             await pilot.pause()
-            comments_static = app.query_one("#detail-comments", Static)
-            text = str(comments_static.render())
+            comments_md = app.query_one("#detail-comments", Markdown)
+            # The Markdown widget exposes its raw source via the `_markdown`
+            # internal attr (set by `update()`); fall back to rendering the
+            # widget tree for older versions.
+            text = getattr(comments_md, "_markdown", None) or ""
+            if not text:
+                text = str(comments_md.render())
             assert "Comments" in text or "comment" in text.lower(), (
                 f"Comments placeholder missing.\nGot: {text!r}"
             )
@@ -199,34 +187,19 @@ def test_comments_tab_has_placeholder(fake_queue_path: Path) -> None:
 
 
 def test_review_tab_has_placeholder(fake_queue_path: Path) -> None:
-    """Review tab must render the placeholder text."""
-    from textual.widgets import Static
+    """Review tab must render the placeholder text (now via Markdown widget)."""
+    from textual.widgets import Markdown
     app = _make_app_with_tabbed_pane(fake_queue_path)
 
     async def _run() -> None:
         async with app.run_test() as pilot:
             await pilot.pause()
-            review_static = app.query_one("#detail-review", Static)
-            text = str(review_static.render())
+            review_md = app.query_one("#detail-review", Markdown)
+            text = getattr(review_md, "_markdown", None) or ""
+            if not text:
+                text = str(review_md.render())
             assert "review" in text.lower() or "findings" in text.lower(), (
                 f"Review placeholder missing.\nGot: {text!r}"
-            )
-
-    asyncio.run(_run())
-
-
-def test_log_tab_shows_hint(fake_queue_path: Path) -> None:
-    """Log tab must contain a '[l]' key hint or 'press'."""
-    from textual.widgets import Static
-    app = _make_app_with_tabbed_pane(fake_queue_path)
-
-    async def _run() -> None:
-        async with app.run_test() as pilot:
-            await pilot.pause()
-            log_static = app.query_one("#detail-log", Static)
-            text = str(log_static.render())
-            assert "[l]" in text or "press" in text.lower(), (
-                f"Log tab hint missing.\nGot: {text!r}"
             )
 
     asyncio.run(_run())

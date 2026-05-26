@@ -62,10 +62,13 @@ sys.path.insert(0, str(THIS_DIR))
 CODE_INDEX_LIB = THIS_DIR.parent.parent.parent / "scripts" / "lib" / "code_index"
 ADK_PR_REVIEW_SCRIPTS = THIS_DIR.parent.parent / "adk-pr-review" / "scripts"
 _LIB_DIR = THIS_DIR.parent.parent.parent / "scripts" / "lib"
+_SCRIPTS_DIR = THIS_DIR.parent.parent.parent / "scripts"
 sys.path.insert(0, str(ADK_PR_REVIEW_SCRIPTS))
 sys.path.insert(0, str(CODE_INDEX_LIB))
 if str(_LIB_DIR) not in sys.path:
     sys.path.insert(0, str(_LIB_DIR))
+if str(_SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(_SCRIPTS_DIR))
 from adk_home import adk_config_home  # noqa: E402
 
 from _common import (  # noqa: E402
@@ -715,6 +718,44 @@ def cmd_branch_list(args) -> int:
     for b, s, h, t in rows:
         print(f"{b.ljust(w_b)}  {s.ljust(w_s)}  {h:<12}  {t}")
     return 0
+
+
+def is_configured_repo(host: str, owner: str, repo: str) -> bool:
+    """Return True when (host, owner, repo) matches a configured repos.md entry.
+
+    Lookup: $ADK_CONFIG_HOME/repos.md frontmatter `repos[*]` entries. Each
+    entry may define `host`, `workspace` (owner), and `name` (repo). All three
+    fields must match for a positive result; fields absent from an entry are
+    treated as wildcards.
+
+    Returns True when the registry is missing or empty (backward compat —
+    don't filter when there's no explicit registry).
+    """
+    try:
+        from config_io import load_repos  # type: ignore
+        fm, _ = load_repos()
+    except Exception:
+        return True
+    entries = fm.get("repos") if isinstance(fm, dict) else None
+    if not entries:
+        return True
+    host_lower = (host or "").lower()
+    owner_lower = (owner or "").lower()
+    repo_lower = (repo or "").lower()
+    for entry in entries:
+        if not isinstance(entry, dict):
+            continue
+        e_host = (entry.get("host") or "").lower()
+        e_owner = (entry.get("workspace") or entry.get("owner") or "").lower()
+        e_name = (entry.get("name") or "").lower()
+        if e_host and e_host != host_lower:
+            continue
+        if e_owner and e_owner != owner_lower:
+            continue
+        if e_name and e_name != repo_lower:
+            continue
+        return True
+    return False
 
 
 def _drop_branch_dir(name: str, slug: str, log) -> None:

@@ -13,17 +13,24 @@ from typing import TYPE_CHECKING
 from textual import work
 from textual.app import App, ComposeResult
 from textual.binding import Binding
-from textual.containers import Horizontal
+from textual.containers import Container
+from textual.widgets import TabbedContent, TabPane
 
+from tui.model.prefs import (
+    ADJUST_STEP,
+    LayoutPrefs,
+    MAX_SPLIT_PERCENT,
+    MIN_SPLIT_PERCENT,
+    load_prefs,
+    save_prefs,
+    toggle_direction,
+)
 from tui.widgets.detail_pane import TabbedDetailPane
 from tui.widgets.footer_bar import FooterBar
 from tui.widgets.header_bar import HeaderBar
 from tui.widgets.help_screen import HelpScreen
-from tui.widgets.log_pane import LogPane
 from tui.widgets.queue_table import QueueTable
-from tui.widgets.runs_pane import RunsPane
-from tui.widgets.sync_plan_pane import SyncPlanPane
-from tui.widgets.workers_pane import WorkersPane
+from tui.widgets.splitter_handle import SplitterHandle
 
 if TYPE_CHECKING:
     from tui.model.queue_model import FilterMode, QueueModel, QueueRow, SortMode
@@ -38,6 +45,12 @@ _THEME_CYCLE: tuple[str, ...] = (
     "textual-dark", "textual-light", "nord", "gruvbox", "dracula",
 )
 _RUNNER_CHOICES: tuple[str, ...] = ("claude", "cursor", "codex", "opencode", "headless")
+
+# Stage tab IDs and their display order for action_cycle_stage_tab.
+_STAGE_TAB_IDS: tuple[str, ...] = (
+    "stage-all", "stage-refresh", "stage-index", "stage-review",
+    "stage-resolve", "stage-ready", "stage-done",
+)
 
 
 def _configured_runner(default: str = "claude") -> str:
@@ -71,6 +84,62 @@ def _configured_runner(default: str = "claude") -> str:
     return runner if runner in _RUNNER_CHOICES else default
 
 
+def _stage_filter_pred(tab_id: str):
+    """Return a predicate ``(task_status: str) -> bool`` for the given stage tab,
+    or None if no filtering is needed (All tab)."""
+    if tab_id == "stage-all":
+        return None
+    if tab_id == "stage-refresh":
+        statuses = frozenset({"queued_for_sync", "syncing"})
+        return lambda s: s in statuses
+    if tab_id == "stage-index":
+        statuses = frozenset({"queued_for_index", "indexing"})
+        return lambda s: s in statuses
+    if tab_id == "stage-review":
+        statuses = frozenset({"reviewing", "ready_to_act"})
+        return lambda s: s in statuses
+    if tab_id == "stage-resolve":
+        statuses = frozenset({"reviewed", "comments"})
+        return lambda s: s in statuses
+    if tab_id == "stage-ready":
+        statuses = frozenset({"ready_to_merge"})
+        return lambda s: s in statuses
+    if tab_id == "stage-done":
+        return lambda s: s.startswith("merged")
+    return None
+
+
+def _compute_stage_counts(rows_by_url: "dict[str, QueueRow]") -> dict[str, int]:
+    """Compute per-stage row counts from all (unfiltered) rows."""
+    from tui.model.pr_status import derive_task_status
+
+    counts: dict[str, int] = {
+        "refresh": 0, "index": 0, "review": 0,
+        "resolve": 0, "ready": 0, "done": 0,
+    }
+    refresh_s = frozenset({"queued_for_sync", "syncing"})
+    index_s   = frozenset({"queued_for_index", "indexing"})
+    review_s  = frozenset({"reviewing", "ready_to_act"})
+    resolve_s = frozenset({"reviewed", "comments"})
+    ready_s   = frozenset({"ready_to_merge"})
+
+    for row in rows_by_url.values():
+        ts = derive_task_status(row, None)
+        if ts in refresh_s:
+            counts["refresh"] += 1
+        elif ts in index_s:
+            counts["index"] += 1
+        elif ts in review_s:
+            counts["review"] += 1
+        elif ts in resolve_s:
+            counts["resolve"] += 1
+        elif ts in ready_s:
+            counts["ready"] += 1
+        elif ts.startswith("merged"):
+            counts["done"] += 1
+    return counts
+
+
 def _format_operations_summary(rows: list["RunRow"]) -> str:
     if not rows:
         return "ops: none"
@@ -93,18 +162,38 @@ class AdkApp(App):
         Binding("q", "quit", "quit"),
         Binding("question_mark", "help", "help"),
         Binding("f", "cycle_filter", "filter"),
-        Binding("S", "cycle_sort", "sort"),
-        Binding("1", "sync_pr", "Sync PR"),
-        Binding("2", "sync_review_pr", "Sync+Review"),
+        Binding("K", "cycle_sort", "sort"),
+        Binding("1", "select_tab_overview", "tab:overview"),
+        Binding("2", "select_tab_review", "tab:review"),
+        Binding("3", "select_tab_comments", "tab:comments"),
+        Binding("4", "select_tab_diff", "tab:diff"),
+        Binding("5", "select_tab_activity", "tab:activity"),
+        Binding("pagedown", "scroll_tab_down", show=False),
+        Binding("pageup", "scroll_tab_up", show=False),
+        Binding("J", "scroll_tab_line_down", show=False),
+        Binding("n", "next_comment", show=False),
+        Binding("N", "prev_comment", show=False),
+        Binding("S", "sync_pr", "Sync PR"),
+        Binding("R", "sync_review_pr", "Sync+Review"),
         Binding("s", "sync_all", "Sync all"),
         Binding("A", "sync_review_all", "Sync+Review all"),
         Binding("l", "show_logs", "logs"),
         Binding("L", "show_run_logs", "run-logs"),
         Binding("enter", "pr_actions", "actions"),
-        Binding("a", "pick_agent", "runner"),
+        Binding("a", "approve_pr", "approve"),
+        Binding("v", "rereview", "re-review"),
+        Binding("x", "refresh_cascade", "refresh"),
+        Binding("m", "merge_status", "mergeable?"),
+        Binding("M", "merge_pr", "merge"),
+        Binding("r", "pick_agent", "runner"),
         Binding("plus", "add_pr", "add-pr"),
         Binding("b", "repos", "repos"),
         Binding("t", "cycle_theme", "theme"),
+        Binding("tab", "focus_next_pane", "pane"),
+        Binding("backslash", "toggle_layout_direction", "split:h/v"),
+        Binding("left_square_bracket", "shrink_queue", show=False),
+        Binding("right_square_bracket", "grow_queue", show=False),
+        Binding("equals_sign", "reset_split", show=False),
         Binding("j", "cursor_down", show=False),
         Binding("k", "cursor_up", show=False),
         Binding("g", "cursor_home", show=False),
@@ -112,13 +201,12 @@ class AdkApp(App):
         Binding("escape", "escape", show=False),
         # Secondary/hidden — accessible but not shown in primary footer.
         Binding("u", "update_pr", show=False),
-        Binding("x", "refresh_context", show=False),
+        Binding("X", "refresh_context", show=False),
         Binding("I", "update_index", show=False),
-        Binding("v", "rereview", show=False),
-        Binding("m", "merge_status", show=False),
-        Binding("M", "merge_pr", show=False),
         Binding("o", "open_links", show=False),
         Binding("O", "open_slack", show=False),
+        Binding("period", "cycle_stage_tab_next", show=False),
+        Binding("comma", "cycle_stage_tab_prev", show=False),
     ]
 
     def __init__(
@@ -168,15 +256,23 @@ class AdkApp(App):
         self._work_queue = WorkQueueModel()
         self._work_task: asyncio.Task | None = None
 
+        self._layout_prefs: LayoutPrefs = load_prefs()
+        self._active_stage_tab: str = "stage-all"
+
     def compose(self) -> ComposeResult:
         yield HeaderBar()
-        with Horizontal(id="main"):
+        with TabbedContent(id="stage-tabs"):
+            yield TabPane("All",     id="stage-all")
+            yield TabPane("Refresh", id="stage-refresh")
+            yield TabPane("Index",   id="stage-index")
+            yield TabPane("Review",  id="stage-review")
+            yield TabPane("Resolve", id="stage-resolve")
+            yield TabPane("Ready",   id="stage-ready")
+            yield TabPane("Done",    id="stage-done")
+        with Container(id="main"):
             yield QueueTable()
+            yield SplitterHandle(ascii_only=self._ascii_only)
             yield TabbedDetailPane()
-        yield WorkersPane()
-        yield RunsPane()
-        yield SyncPlanPane()
-        yield LogPane()
         yield FooterBar()
 
     async def on_mount(self) -> None:
@@ -200,11 +296,12 @@ class AdkApp(App):
         # spawn them and can't kill them on quit.
         n_existing = len(self._workers_by_url)
         if n_existing > 0:
-            self.query_one(LogPane).write(
+            self._log(
                 f"(reattached: {n_existing} existing worker"
                 f"{'' if n_existing == 1 else 's'} from heartbeat dir)"
             )
         self.set_interval(self.poll_interval, self._maybe_reload)
+        self._apply_layout()
 
     def _default_query(self, widget_type):
         """Query for a widget on the DEFAULT screen, not the active one.
@@ -217,6 +314,21 @@ class AdkApp(App):
         unmounting); callers in periodic timers should guard via
         `_maybe_reload`'s screen_stack check."""
         return self.screen_stack[0].query_one(widget_type)
+
+    def _activity(self):
+        """Shorthand: the live ActivityPane (inside the detail tabs)."""
+        if not self.screen_stack:
+            return None
+        try:
+            return self._default_query(TabbedDetailPane).activity_pane()
+        except Exception:
+            return None
+
+    def _log(self, text: str) -> None:
+        """Append a line to the Activity tab's log section."""
+        ap = self._activity()
+        if ap is not None:
+            ap.write(text)
 
     def _sync_all_running(self) -> bool:
         if self._sync_proc is not None and self._sync_proc.returncode is None:
@@ -236,6 +348,8 @@ class AdkApp(App):
             work_running=self._work_running(),
             agent=self._current_agent,
             row=row,
+            layout_direction=self._layout_prefs.direction,
+            split_percent=self._layout_prefs.split_percent,
         )
 
     def _work_text_for_url(self, url: str | None) -> str | None:
@@ -267,10 +381,27 @@ class AdkApp(App):
             sort_mode=self._sort_mode,
         )
         self._rows_by_url = {row.pr_url: row for row in snapshot.rows}
-        self._default_query(HeaderBar).update_snapshot(
+
+        # Apply stage filter on top of the existing filter_mode snapshot.
+        stage_pred = _stage_filter_pred(self._active_stage_tab)
+        if stage_pred is not None:
+            from tui.model.pr_status import derive_task_status
+            filtered_rows = [
+                r for r in snapshot.rows
+                if stage_pred(derive_task_status(r, None))
+            ]
+            from dataclasses import replace as _dc_replace
+            snapshot = _dc_replace(snapshot, rows=filtered_rows)
+
+        header = self._default_query(HeaderBar)
+        header.update_snapshot(
             snapshot,
             operations=self._operations_summary,
+            runner=self._current_agent,
         )
+        # Compute per-stage counts for the header's second line.
+        header.update_stage_counts(_compute_stage_counts(self._rows_by_url))
+
         self._default_query(QueueTable).load(
             snapshot,
             ascii_only=self._ascii_only,
@@ -288,7 +419,9 @@ class AdkApp(App):
         if not force and not self._plan_model.has_changed():
             return
         snapshot = self._plan_model.snapshot()
-        self._default_query(SyncPlanPane).update_snapshot(snapshot, ascii_only=self._ascii_only)
+        ap = self._activity()
+        if ap is not None:
+            ap.update_plan(snapshot, ascii_only=self._ascii_only)
 
     def _reload_workers(self, *, force: bool = False) -> None:
         if self._workers_model is None:
@@ -298,7 +431,9 @@ class AdkApp(App):
         if not force and not self._workers_model.has_changed():
             return
         rows = self._workers_model.snapshot()
-        self._default_query(WorkersPane).update_workers(rows, ascii_only=self._ascii_only)
+        ap = self._activity()
+        if ap is not None:
+            ap.update_workers(rows, ascii_only=self._ascii_only)
         self._workers_by_url = {w.pr_url: w for w in rows if not w.is_stale}
         if self._model is not None:
             self._reload(force=True)
@@ -314,7 +449,9 @@ class AdkApp(App):
         rows = self._runs_model.snapshot()
         self._run_rows = rows
         self._operations_summary = _format_operations_summary(rows)
-        self._default_query(RunsPane).update_runs(rows)
+        ap = self._activity()
+        if ap is not None:
+            ap.update_runs(rows)
         if self._model is not None:
             self._reload(force=True)
 
@@ -343,6 +480,166 @@ class AdkApp(App):
         )
         self._update_footer(row=row)
 
+    def on_resize(self, event) -> None:
+        # Re-apply on resize so percentage units re-resolve cleanly.
+        self._apply_layout()
+
+    def _apply_layout(self) -> None:
+        """Apply the user's chosen split direction + ratio to the live widgets.
+
+        Direction "horizontal" → queue on top, tabs below (top/bottom split).
+        Direction "vertical"   → queue on left, tabs on right (left/right split).
+        Width / height percentages come from ``self._layout_prefs.split_percent``
+        (queue's share); the detail-tabs pane gets the remainder.
+
+        Uses ``fr`` units so the 1-cell ``SplitterHandle`` between the two
+        panes stays at a fixed size and the queue/tabs split the remaining
+        space at the user's chosen ratio.
+        """
+        if not self.screen_stack:
+            return
+        try:
+            main = self._default_query_id("#main")
+            table = self._default_query(QueueTable)
+            tabs = self._default_query(TabbedDetailPane)
+            splitter = self._default_query(SplitterHandle)
+        except Exception:
+            return
+
+        prefs = self._layout_prefs
+        queue_share = max(MIN_SPLIT_PERCENT, min(MAX_SPLIT_PERCENT, int(prefs.split_percent)))
+        tabs_share = 100 - queue_share
+
+        if prefs.direction == "vertical":
+            # Side-by-side (queue left, tabs right).
+            main.styles.layout = "horizontal"
+            table.styles.width = f"{queue_share}fr"
+            table.styles.height = "1fr"
+            splitter.styles.width = 1
+            splitter.styles.height = "1fr"
+            tabs.styles.width = f"{tabs_share}fr"
+            tabs.styles.height = "1fr"
+        else:
+            # Stacked (queue top, tabs below) — the default.
+            main.styles.layout = "vertical"
+            table.styles.height = f"{queue_share}fr"
+            table.styles.width = "1fr"
+            splitter.styles.height = 1
+            splitter.styles.width = "1fr"
+            tabs.styles.height = f"{tabs_share}fr"
+            tabs.styles.width = "1fr"
+
+        splitter.set_direction(prefs.direction)
+
+    def _default_query_id(self, selector: str):
+        """Same as _default_query but takes a CSS selector string instead of
+        a widget type. Used for #main / #foo lookups during layout apply."""
+        return self.screen_stack[0].query_one(selector)
+
+    def _persist_layout_prefs(self) -> None:
+        try:
+            save_prefs(self._layout_prefs)
+        except Exception:
+            # Persistence is best-effort; never block the UI on a config write.
+            pass
+
+    def _notify_layout(self, message: str) -> None:
+        self._log(message)
+        self._update_footer()
+
+    # --- layout user actions ---
+
+    def action_toggle_layout_direction(self) -> None:
+        new = toggle_direction(self._layout_prefs.direction)
+        self._layout_prefs = LayoutPrefs(
+            direction=new, split_percent=self._layout_prefs.split_percent
+        ).normalised()
+        self._apply_layout()
+        self._persist_layout_prefs()
+        self._notify_layout(f"(layout: {new} · {self._layout_prefs.split_percent}/100)")
+
+    def action_shrink_queue(self) -> None:
+        new_pct = max(MIN_SPLIT_PERCENT, self._layout_prefs.split_percent - ADJUST_STEP)
+        if new_pct == self._layout_prefs.split_percent:
+            self._notify_layout(f"(split at min {MIN_SPLIT_PERCENT}%)")
+            return
+        self._layout_prefs = LayoutPrefs(
+            direction=self._layout_prefs.direction, split_percent=new_pct
+        ).normalised()
+        self._apply_layout()
+        self._persist_layout_prefs()
+        self._notify_layout(f"(layout: {self._layout_prefs.direction} · {new_pct}/100)")
+
+    def action_grow_queue(self) -> None:
+        new_pct = min(MAX_SPLIT_PERCENT, self._layout_prefs.split_percent + ADJUST_STEP)
+        if new_pct == self._layout_prefs.split_percent:
+            self._notify_layout(f"(split at max {MAX_SPLIT_PERCENT}%)")
+            return
+        self._layout_prefs = LayoutPrefs(
+            direction=self._layout_prefs.direction, split_percent=new_pct
+        ).normalised()
+        self._apply_layout()
+        self._persist_layout_prefs()
+        self._notify_layout(f"(layout: {self._layout_prefs.direction} · {new_pct}/100)")
+
+    def action_reset_split(self) -> None:
+        self._layout_prefs = LayoutPrefs(
+            direction=self._layout_prefs.direction, split_percent=50
+        ).normalised()
+        self._apply_layout()
+        self._persist_layout_prefs()
+        self._notify_layout(f"(layout: {self._layout_prefs.direction} · 50/50)")
+
+    # --- mouse-drag splitter ---
+
+    def on_splitter_handle_dragged(self, event: SplitterHandle.Dragged) -> None:
+        """Translate a mouse-drag delta into a new split percentage.
+
+        In horizontal layout the user drags up/down → vertical pixels move
+        the boundary; in vertical layout left/right → horizontal pixels.
+        The percent is recomputed as ``current ± (delta / axis_size * 100)``
+        and clamped to [MIN, MAX]; layout is re-applied live so the user
+        sees the panes resize in real time. Persistence to disk waits for
+        :class:`SplitterHandle.Released` to avoid one write per pixel.
+        """
+        if not self.screen_stack:
+            return
+        try:
+            main = self._default_query_id("#main")
+        except Exception:
+            return
+
+        direction = self._layout_prefs.direction
+        if direction == "horizontal":
+            axis_size = main.size.height
+            delta = event.delta_y
+        else:
+            axis_size = main.size.width
+            delta = event.delta_x
+
+        if axis_size <= 1 or delta == 0:
+            return
+
+        pct_delta = (delta / axis_size) * 100.0
+        new_pct = int(round(self._layout_prefs.split_percent + pct_delta))
+        new_pct = max(MIN_SPLIT_PERCENT, min(MAX_SPLIT_PERCENT, new_pct))
+        if new_pct == self._layout_prefs.split_percent:
+            return
+
+        self._layout_prefs = LayoutPrefs(
+            direction=direction, split_percent=new_pct
+        ).normalised()
+        self._apply_layout()
+        self._update_footer()
+
+    def on_splitter_handle_released(self, event: SplitterHandle.Released) -> None:  # noqa: ARG002
+        """Drag ended — persist the final ratio + narrate the result."""
+        self._persist_layout_prefs()
+        self._notify_layout(
+            f"(layout: {self._layout_prefs.direction} · "
+            f"{self._layout_prefs.split_percent}/{100 - self._layout_prefs.split_percent})"
+        )
+
     def on_data_table_row_highlighted(self) -> None:
         self._refresh_detail()
 
@@ -365,7 +662,7 @@ class AdkApp(App):
         table = self.query_one(QueueTable)
         pr_url = table.selected_pr_url()
         if not pr_url:
-            self.query_one(LogPane).write("(no row selected)")
+            self._log("(no row selected)")
             return
         row = self._rows_by_url.get(pr_url)
         label = f"{row.repo}#{row.number}" if row is not None else pr_url
@@ -427,6 +724,45 @@ class AdkApp(App):
         self._sort_mode = _SORT_CYCLE[(idx + 1) % len(_SORT_CYCLE)]
         self._reload(force=True)
 
+    # --- stage tab handling ---
+
+    def on_tabbed_content_tab_activated(self, event) -> None:
+        """Sync the active stage tab to the queue filter when the stage-tabs
+        TabbedContent fires TabActivated."""
+        tab_id = str(event.tab.id) if event.tab else ""
+        if not tab_id.startswith("stage-"):
+            return
+        self._apply_stage_filter(tab_id)
+
+    def _apply_stage_filter(self, tab_id: str) -> None:
+        """Set the active stage filter and reload the queue table."""
+        self._active_stage_tab = tab_id
+        self._reload(force=True)
+
+    def action_cycle_stage_tab_next(self) -> None:
+        """Advance to the next stage tab."""
+        idx = _STAGE_TAB_IDS.index(self._active_stage_tab) if self._active_stage_tab in _STAGE_TAB_IDS else 0
+        next_id = _STAGE_TAB_IDS[(idx + 1) % len(_STAGE_TAB_IDS)]
+        self._set_stage_tab(next_id)
+
+    def action_cycle_stage_tab_prev(self) -> None:
+        """Go back to the previous stage tab."""
+        idx = _STAGE_TAB_IDS.index(self._active_stage_tab) if self._active_stage_tab in _STAGE_TAB_IDS else 0
+        prev_id = _STAGE_TAB_IDS[(idx - 1) % len(_STAGE_TAB_IDS)]
+        self._set_stage_tab(prev_id)
+
+    def _set_stage_tab(self, tab_id: str) -> None:
+        """Activate a stage tab by ID, both in the widget and in the filter."""
+        self._active_stage_tab = tab_id
+        if not self.screen_stack:
+            return
+        try:
+            tc = self._default_query_id("#stage-tabs")
+            tc.active = tab_id
+        except Exception:
+            pass
+        self._reload(force=True)
+
     def action_cursor_down(self) -> None:
         self.query_one(QueueTable).action_cursor_down()
         self._refresh_detail()
@@ -459,7 +795,7 @@ class AdkApp(App):
             idx = -1
         new_theme = _THEME_CYCLE[(idx + 1) % len(_THEME_CYCLE)]
         self.theme = new_theme
-        self.query_one(LogPane).write(f"(theme: {new_theme})")
+        self._log(f"(theme: {new_theme})")
 
     @work
     async def action_quit(self) -> None:
@@ -497,6 +833,7 @@ class AdkApp(App):
             return
         self._current_agent = picked
         self._update_footer()
+        self._default_query(HeaderBar).update_runner(self._current_agent)
 
     @work
     async def action_add_pr(self) -> None:
@@ -508,7 +845,7 @@ class AdkApp(App):
         # asked to type a value that we'll just reject.
         busy = self._busy_label()
         if busy is not None:
-            self.query_one(LogPane).write(f"(can't add PR — {busy} already running)")
+            self._log(f"(can't add PR — {busy} already running)")
             return
         # Don't stack a second PromptScreen if one's already up.
         if any(isinstance(s, PromptScreen) for s in self.screen_stack):
@@ -521,12 +858,11 @@ class AdkApp(App):
         self._add_pr_task = asyncio.create_task(self._run_add_pr(value.strip()))
 
     async def _run_add_pr(self, text: str) -> None:
-        log_pane = self.query_one(LogPane)
         adk = self._resolve_adk_bin()
         cmd: list[str] = [str(adk), "pr-queue", "add", text, "-y"]
         if self._queue_path is not None:
             cmd += ["--queue", str(self._queue_path)]
-        log_pane.write(f"$ {' '.join(shlex.quote(c) for c in cmd)}")
+        self._log(f"$ {' '.join(shlex.quote(c) for c in cmd)}")
         try:
             proc = await asyncio.create_subprocess_exec(
                 *cmd,
@@ -534,16 +870,16 @@ class AdkApp(App):
                 stderr=asyncio.subprocess.STDOUT,
             )
         except (FileNotFoundError, PermissionError, OSError) as exc:
-            log_pane.write(f"(error: {exc})")
+            self._log(f"(error: {exc})")
             return
         assert proc.stdout is not None
         while True:
             line = await proc.stdout.readline()
             if not line:
                 break
-            log_pane.write(line.decode(errors="replace").rstrip("\n"))
+            self._log(line.decode(errors="replace").rstrip("\n"))
         rc = await proc.wait()
-        log_pane.write(f"(pr-queue add exited rc={rc})")
+        self._log(f"(pr-queue add exited rc={rc})")
         if self._model is not None:
             self._reload(force=True)
 
@@ -569,10 +905,10 @@ class AdkApp(App):
     def action_sync_all(self) -> None:
         busy = self._busy_label()
         if busy == "sync all":
-            self.query_one(LogPane).write("(Sync all already running — wait or quit and restart)")
+            self._log("(Sync all already running — wait or quit and restart)")
             return
         if busy is not None:
-            self.query_one(LogPane).write(f"(can't start Sync all — {busy} already running)")
+            self._log(f"(can't start Sync all — {busy} already running)")
             return
         self._sync_task = asyncio.create_task(self._run_sync())
         self._sync_task.add_done_callback(self._on_sync_task_done)
@@ -580,11 +916,11 @@ class AdkApp(App):
     def action_sync_pr(self) -> None:
         pr_url = self._selected_pr_url()
         if not pr_url:
-            self.query_one(LogPane).write("(no row selected)")
+            self._log("(no row selected)")
             return
         busy = self._busy_label()
         if busy is not None:
-            self.query_one(LogPane).write(f"(can't start Sync PR — {busy} already running)")
+            self._log(f"(can't start Sync PR — {busy} already running)")
             return
         self._work_task = asyncio.create_task(self._work_sync_pr(pr_url))
         self._work_task.add_done_callback(self._on_work_task_done)
@@ -592,11 +928,11 @@ class AdkApp(App):
     def action_sync_review_pr(self) -> None:
         pr_url = self._selected_pr_url()
         if not pr_url:
-            self.query_one(LogPane).write("(no row selected)")
+            self._log("(no row selected)")
             return
         busy = self._busy_label()
         if busy is not None:
-            self.query_one(LogPane).write(
+            self._log(
                 f"(can't start Sync + Review — {busy} already running)"
             )
             return
@@ -607,7 +943,7 @@ class AdkApp(App):
     def action_sync_review_all(self) -> None:
         busy = self._busy_label()
         if busy is not None:
-            self.query_one(LogPane).write(
+            self._log(
                 f"(can't start Sync + Review all — {busy} already running)"
             )
             return
@@ -616,7 +952,6 @@ class AdkApp(App):
         self._update_footer()
 
     async def _work_sync_pr(self, pr_url: str) -> None:
-        log_pane = self.query_one(LogPane)
         self._work_queue.set_global_mode("sync-pr")
         self._work_queue.set(pr_url, "running", "sync")
         self._reload(force=True)
@@ -630,14 +965,13 @@ class AdkApp(App):
             )
         except BaseException as exc:
             self._work_queue.set(pr_url, "failed", "sync", message=repr(exc))
-            log_pane.write(f"(Sync PR crashed: {exc!r})")
+            self._log(f"(Sync PR crashed: {exc!r})")
         finally:
             self._work_queue.set_global_mode(None)
             self._update_footer()
             self._reload(force=True)
 
     async def _work_sync_review_pr(self, pr_url: str) -> None:
-        log_pane = self.query_one(LogPane)
         self._work_queue.set_global_mode("sync-review")
         self._work_queue.set(pr_url, "running", "sync+review")
         self._reload(force=True)
@@ -650,7 +984,7 @@ class AdkApp(App):
             row = self._rows_by_url.get(pr_url)
             if row is None or not row.ready_for_review:
                 self._work_queue.set(pr_url, "skipped", "sync+review", message="not ready")
-                log_pane.write(f"(skipping review — row not ready: {pr_url})")
+                self._log(f"(skipping review — row not ready: {pr_url})")
                 return
             self._work_queue.set(pr_url, "running", "sync+review")
             self._reload(force=True)
@@ -664,14 +998,13 @@ class AdkApp(App):
             )
         except BaseException as exc:
             self._work_queue.set(pr_url, "failed", "sync+review", message=repr(exc))
-            log_pane.write(f"(Sync + Review crashed: {exc!r})")
+            self._log(f"(Sync + Review crashed: {exc!r})")
         finally:
             self._work_queue.set_global_mode(None)
             self._update_footer()
             self._reload(force=True)
 
     async def _work_sync_review_all(self) -> None:
-        log_pane = self.query_one(LogPane)
         self._work_queue.set_global_mode("sync-review-all")
         self._update_footer()
         try:
@@ -683,7 +1016,7 @@ class AdkApp(App):
                 if row.ready_for_review
             ]
             if not urls:
-                log_pane.write("(Sync + Review all — no eligible rows after sync)")
+                self._log("(Sync + Review all — no eligible rows after sync)")
                 return
             for url in urls:
                 self._work_queue.set(url, "queued", "sync+review")
@@ -710,12 +1043,12 @@ class AdkApp(App):
                 )
                 outcomes.append(result)
                 self._reload(force=True)
-            log_pane.write(f"(Sync + Review all done — {len(urls)} row(s))")
+            self._log(f"(Sync + Review all done — {len(urls)} row(s))")
             if outcomes:
                 from tui.screens.recap_screen import RecapScreen
                 self.push_screen(RecapScreen(outcomes=outcomes, ascii_only=self._ascii_only))
         except BaseException as exc:
-            log_pane.write(f"(Sync + Review all crashed: {exc!r})")
+            self._log(f"(Sync + Review all crashed: {exc!r})")
         finally:
             self._work_queue.set_global_mode(None)
             self._update_footer()
@@ -734,7 +1067,7 @@ class AdkApp(App):
             return
         if exc is not None:
             try:
-                self.query_one(LogPane).write(f"(work queue crashed: {exc!r})")
+                self._log(f"(work queue crashed: {exc!r})")
             except Exception:
                 pass
         self._work_task = None
@@ -747,11 +1080,23 @@ class AdkApp(App):
     def action_refresh_context(self) -> None:
         self._run_selected_pr_command("refresh context", ["pr", "context-refresh"])
 
+    def action_refresh_meta(self) -> None:
+        """Refresh PR metadata + comments via `adk pr sync` — no review.
+
+        Writes pr.json / pr-comments.json / diff.patch in the PR's task dir
+        and updates the queue row's head_sha / comment activity. Cheap, safe
+        to run on any selection."""
+        self._run_selected_pr_command("refresh meta", ["pr", "sync"])
+
     def action_update_index(self) -> None:
         self._run_selected_pr_command("update index", ["pr-task", "prepare"])
 
     def action_merge_status(self) -> None:
-        self._run_selected_info_pr_command("merge status", ["pr", "merge-status"])
+        # --refresh re-pulls PR meta + comments from origin so the verdict
+        # reflects live state, not the cached pr.json from the last review.
+        self._run_selected_info_pr_command(
+            "merge status", ["pr", "merge-status", "--refresh"]
+        )
 
     def action_open_links(self) -> None:
         self._run_selected_pr_command("open PR", ["pr", "open"])
@@ -763,16 +1108,86 @@ class AdkApp(App):
         table = self.query_one(QueueTable)
         pr_url = table.selected_pr_url()
         if not pr_url:
-            self.query_one(LogPane).write("(no row selected)")
+            self._log("(no row selected)")
             return
         self._start_review_for_url(pr_url, force=True)
+
+    def action_refresh_cascade(self) -> None:
+        """Full refresh cascade: sync → re-index (if head changed) → re-review.
+
+        Each phase is only triggered when necessary:
+        - sync always runs first.
+        - re-index only if head_sha changed since last index.
+        - re-review only if re-indexed or comment_review is needed.
+        Individual u/I/v bindings remain available for targeted use."""
+        pr_url = self._selected_pr_url()
+        if not pr_url:
+            self._log("(no row selected)")
+            return
+        busy = self._busy_label()
+        if busy is not None:
+            self._log(f"(can't start refresh cascade — {busy} already running)")
+            return
+        self._work_task = asyncio.create_task(self._work_refresh_cascade(pr_url))
+        self._work_task.add_done_callback(self._on_work_task_done)
+
+    async def _work_refresh_cascade(self, pr_url: str) -> None:
+        """Orchestrate sync → index → review for a single PR."""
+        self._work_queue.set_global_mode("refresh-cascade")
+        self._work_queue.set(pr_url, "running", "cascade:sync")
+        self._reload(force=True)
+        try:
+            # Phase 1: sync metadata.
+            rc = await self._run_adk_command("sync", ["pr", "sync", pr_url])
+            if rc != 0:
+                self._work_queue.set(pr_url, "failed", "cascade:sync", message=f"rc={rc}")
+                return
+            # Re-read queue row after sync to see if head changed.
+            self._reload(force=True)
+            row = self._rows_by_url.get(pr_url)
+            head_sha = row.head_sha if row is not None else None
+            last_indexed = getattr(row, "last_indexed_head_sha", None) if row is not None else None
+            head_changed = head_sha is not None and head_sha != last_indexed
+
+            if head_changed:
+                # Phase 2: re-index.
+                self._work_queue.set(pr_url, "running", "cascade:index")
+                self._reload(force=True)
+                rc = await self._run_adk_command("prepare index", ["pr-task", "prepare", pr_url])
+                if rc != 0:
+                    self._work_queue.set(pr_url, "failed", "cascade:index", message=f"rc={rc}")
+                    return
+                self._reload(force=True)
+
+            # Phase 3: review if head was re-indexed or row needs re-review.
+            needs_review = head_changed or (row is not None and row.ready_for_review)
+            if needs_review:
+                self._work_queue.set(pr_url, "running", "cascade:review")
+                self._reload(force=True)
+                result = await self._run_review(pr_url)
+                outcome = result.get("outcome", "failed")
+                self._work_queue.set(
+                    pr_url,
+                    "done" if outcome == "ok" else "failed",
+                    "cascade:review",
+                    message=str(result.get("last_line") or outcome)[:40],
+                )
+            else:
+                self._work_queue.set(pr_url, "done", "cascade", message="up-to-date")
+        except BaseException as exc:
+            self._work_queue.set(pr_url, "failed", "cascade", message=repr(exc))
+            self._log(f"(refresh cascade crashed: {exc!r})")
+        finally:
+            self._work_queue.set_global_mode(None)
+            self._update_footer()
+            self._reload(force=True)
 
     @work
     async def action_merge_pr(self) -> None:
         table = self.query_one(QueueTable)
         pr_url = table.selected_pr_url()
         if not pr_url:
-            self.query_one(LogPane).write("(no row selected)")
+            self._log("(no row selected)")
             return
         await self._confirm_and_merge(pr_url)
 
@@ -780,7 +1195,7 @@ class AdkApp(App):
         table = self.query_one(QueueTable)
         pr_url = table.selected_pr_url()
         if not pr_url:
-            self.query_one(LogPane).write("(no row selected)")
+            self._log("(no row selected)")
             return
         worker = self._workers_by_url.get(pr_url)
         log_path = worker.log_path if worker is not None else None
@@ -789,17 +1204,16 @@ class AdkApp(App):
             log_path = self._latest_result_log_for_pr(pr_url)
             label = "latest review result"
         if not log_path:
-            self.query_one(LogPane).write(f"(no log found for {pr_url})")
+            self._log(f"(no log found for {pr_url})")
             return
         self._write_log_tail(log_path, label=label, max_lines=120)
 
     def action_show_run_logs(self) -> None:
         if not self._run_rows:
-            self.query_one(LogPane).write("(no run logs found)")
+            self._log("(no run logs found)")
             return
         run = self._run_rows[0]
-        log_pane = self.query_one(LogPane)
-        log_pane.write(f"(run logs: {run.run_id})")
+        self._log(f"(run logs: {run.run_id})")
 
         written = False
         for step in run.steps:
@@ -836,7 +1250,7 @@ class AdkApp(App):
                 written = True
 
         if not written:
-            log_pane.write("(latest run has no log paths yet)")
+            self._log("(latest run has no log paths yet)")
 
     async def _perform_pr_action(self, action: str, pr_url: str) -> None:
         if action == "open-pr":
@@ -862,7 +1276,7 @@ class AdkApp(App):
 
     def _start_review_for_url(self, pr_url: str, *, force: bool) -> None:
         if pr_url in self._review_tasks and not self._review_tasks[pr_url].done():
-            self.query_one(LogPane).write(f"(review already running for {pr_url})")
+            self._log(f"(review already running for {pr_url})")
             return
         extra = ["--force"] if force else None
         task = asyncio.create_task(self._run_review(pr_url, extra_worker_args=extra))
@@ -897,7 +1311,7 @@ class AdkApp(App):
             return
         if exc is not None:
             try:
-                self.query_one(LogPane).write(f"(review crashed: {exc!r})")
+                self._log(f"(review crashed: {exc!r})")
                 self._update_footer()
             except Exception:
                 pass
@@ -911,7 +1325,7 @@ class AdkApp(App):
             return
         if exc is not None:
             try:
-                self.query_one(LogPane).write(f"(sync crashed: {exc!r})")
+                self._log(f"(sync crashed: {exc!r})")
             except Exception:
                 pass
             self._sync_proc = None
@@ -921,7 +1335,7 @@ class AdkApp(App):
         table = self.query_one(QueueTable)
         pr_url = table.selected_pr_url()
         if not pr_url:
-            self.query_one(LogPane).write("(no row selected)")
+            self._log("(no row selected)")
             return
         self._run_pr_command(label, prefix, pr_url)
 
@@ -930,7 +1344,7 @@ class AdkApp(App):
         task.add_done_callback(lambda t: self._on_background_action_done(label, t))
 
     def _run_info_pr_command(self, label: str, prefix: list[str], pr_url: str) -> None:
-        """Like _run_pr_command but routes output to an InfoScreen instead of LogPane."""
+        """Like _run_pr_command but routes output to an InfoScreen instead of ActivityPane log."""
         task = asyncio.create_task(self._run_info_adk_command(label, [*prefix, pr_url]))
         task.add_done_callback(lambda t: self._on_background_action_done(label, t))
 
@@ -939,7 +1353,7 @@ class AdkApp(App):
         table = self.query_one(QueueTable)
         pr_url = table.selected_pr_url()
         if not pr_url:
-            self.query_one(LogPane).write("(no row selected)")
+            self._log("(no row selected)")
             return
         self._run_info_pr_command(label, prefix, pr_url)
 
@@ -950,12 +1364,11 @@ class AdkApp(App):
             return
         if exc is not None:
             try:
-                self.query_one(LogPane).write(f"({label} crashed: {exc!r})")
+                self._log(f"({label} crashed: {exc!r})")
             except Exception:
                 pass
 
     async def _run_adk_command(self, label: str, args: list[str]) -> int:
-        log_pane = self.query_one(LogPane)
         adk = self._resolve_adk_bin()
         if self._queue_path is not None and args and args[0] in {"pr-queue", "pr"}:
             cmd = [str(adk), args[0], "--queue", str(self._queue_path), *args[1:]]
@@ -963,7 +1376,7 @@ class AdkApp(App):
             cmd = [str(adk), *args, "--queue", str(self._queue_path)]
         else:
             cmd = [str(adk), *args]
-        log_pane.write(f"$ {' '.join(shlex.quote(c) for c in cmd)}")
+        self._log(f"$ {' '.join(shlex.quote(c) for c in cmd)}")
         try:
             proc = await asyncio.create_subprocess_exec(
                 *cmd,
@@ -971,16 +1384,16 @@ class AdkApp(App):
                 stderr=asyncio.subprocess.STDOUT,
             )
         except (FileNotFoundError, PermissionError, OSError) as exc:
-            log_pane.write(f"({label} error: {exc})")
+            self._log(f"({label} error: {exc})")
             return 2
         assert proc.stdout is not None
         while True:
             line = await proc.stdout.readline()
             if not line:
                 break
-            log_pane.write(line.decode(errors="replace").rstrip("\n"))
+            self._log(line.decode(errors="replace").rstrip("\n"))
         rc = await proc.wait()
-        log_pane.write(f"({label} exited rc={rc})")
+        self._log(f"({label} exited rc={rc})")
         self._reload(force=True)
         self._reload_runs(force=True)
         self._reload_workers(force=True)
@@ -989,13 +1402,12 @@ class AdkApp(App):
     async def _run_info_adk_command(self, label: str, args: list[str]) -> int:
         """Like _run_adk_command, but collects output and displays it in an InfoScreen.
 
-        The LogPane still receives the command line and the exit-code line so
+        The Activity log still receives the command line and the exit-code line so
         the activity record is preserved.  The actual command output goes to a
         dedicated modal panel the user can review at their own pace.
         """
         from tui.screens.info_screen import InfoScreen
 
-        log_pane = self.query_one(LogPane)
         adk = self._resolve_adk_bin()
         if self._queue_path is not None and args and args[0] in {"pr-queue", "pr"}:
             cmd = [str(adk), args[0], "--queue", str(self._queue_path), *args[1:]]
@@ -1003,7 +1415,7 @@ class AdkApp(App):
             cmd = [str(adk), *args, "--queue", str(self._queue_path)]
         else:
             cmd = [str(adk), *args]
-        log_pane.write(f"$ {' '.join(shlex.quote(c) for c in cmd)}")
+        self._log(f"$ {' '.join(shlex.quote(c) for c in cmd)}")
         try:
             proc = await asyncio.create_subprocess_exec(
                 *cmd,
@@ -1011,7 +1423,7 @@ class AdkApp(App):
                 stderr=asyncio.subprocess.STDOUT,
             )
         except (FileNotFoundError, PermissionError, OSError) as exc:
-            log_pane.write(f"({label} error: {exc})")
+            self._log(f"({label} error: {exc})")
             return 2
         assert proc.stdout is not None
         output_lines: list[str] = []
@@ -1021,7 +1433,7 @@ class AdkApp(App):
                 break
             output_lines.append(line.decode(errors="replace").rstrip("\n"))
         rc = await proc.wait()
-        log_pane.write(f"({label} exited rc={rc})")
+        self._log(f"({label} exited rc={rc})")
         self._reload(force=True)
         self._reload_runs(force=True)
         self._reload_workers(force=True)
@@ -1029,13 +1441,12 @@ class AdkApp(App):
         return rc
 
     async def _run_sync(self) -> None:
-        log_pane = self.query_one(LogPane)
         queue_arg: list[str] = []
         if self._queue_path is not None:
             queue_arg = ["--queue", str(self._queue_path)]
         adk = self._resolve_adk_bin()
         cmd = [str(adk), "pr-sync", *queue_arg]
-        log_pane.write(f"$ {' '.join(shlex.quote(c) for c in cmd)}")
+        self._log(f"$ {' '.join(shlex.quote(c) for c in cmd)}")
         self._update_footer()
         env = dict(os.environ)
         if self._plan_path is not None:
@@ -1048,7 +1459,7 @@ class AdkApp(App):
                 env=env,
             )
         except (FileNotFoundError, PermissionError, OSError) as exc:
-            log_pane.write(f"(error: {exc})")
+            self._log(f"(error: {exc})")
             self._sync_proc = None
             self._update_footer()
             return
@@ -1058,9 +1469,9 @@ class AdkApp(App):
             line = await self._sync_proc.stdout.readline()
             if not line:
                 break
-            log_pane.write(line.decode(errors="replace").rstrip("\n"))
+            self._log(line.decode(errors="replace").rstrip("\n"))
         rc = await self._sync_proc.wait()
-        log_pane.write(f"(pr-sync exited rc={rc})")
+        self._log(f"(pr-sync exited rc={rc})")
         self._sync_proc = None
         self._update_footer()
         self._reload_plan(force=True)
@@ -1081,13 +1492,26 @@ class AdkApp(App):
             for result in run.results:
                 if result.get("pr_url") == pr_url and result.get("log"):
                     return str(result["log"])
+        # P2.5: fallback for TUI-spawned reviews where no RunRow was written.
+        try:
+            from tui.model.queue_model import _PR_REVIEW_ROOT
+            import sys as _sys
+            _scripts = Path(__file__).resolve().parents[1] / "skills" / "adk-cli" / "scripts"
+            if str(_scripts) not in _sys.path:
+                _sys.path.insert(0, str(_scripts))
+            import queue_io as _queue_io
+            _host, _owner, repo, number = _queue_io.dedupe_key(pr_url)
+            log_path = _PR_REVIEW_ROOT / f"{repo}_pr-{number}" / "review.log"
+            if log_path.exists():
+                return str(log_path)
+        except Exception:
+            pass
         return None
 
     def _write_log_tail(self, log_path: str, *, label: str, max_lines: int) -> None:
-        log_pane = self.query_one(LogPane)
         path = Path(log_path).expanduser()
         if not path.exists():
-            log_pane.write(f"(log missing: {path})")
+            self._log(f"(log missing: {path})")
             return
         try:
             lines: deque[str] = deque(maxlen=max_lines)
@@ -1095,14 +1519,14 @@ class AdkApp(App):
                 for line in fh:
                     lines.append(line.rstrip("\n"))
         except OSError as exc:
-            log_pane.write(f"(log read error: {path}: {exc})")
+            self._log(f"(log read error: {path}: {exc})")
             return
-        log_pane.write(f"(log: {label} — {path} — last {len(lines)} lines)")
+        self._log(f"(log: {label} — {path} — last {len(lines)} lines)")
         if not lines:
-            log_pane.write("(log is empty)")
+            self._log("(log is empty)")
             return
         for line in lines:
-            log_pane.write(line)
+            self._log(line)
 
     def _resolve_worker_script(self) -> Path:
         if self._worker_script is not None:
@@ -1114,7 +1538,6 @@ class AdkApp(App):
         for the end-of-run recap: `{pr_url, rc, last_line, outcome}` where
         outcome is `"ok"` (rc=0), `"failed"` (rc!=0), or `"spawn-error"` (the
         subprocess never started)."""
-        log_pane = self.query_one(LogPane)
         worker = self._resolve_worker_script()
         cmd: list[str] = [sys.executable, str(worker), pr_url]
         if self._queue_path is not None:
@@ -1129,7 +1552,7 @@ class AdkApp(App):
             cmd += ["--heartbeat-dir", str(self._heartbeat_dir)]
         if extra_worker_args:
             cmd += extra_worker_args
-        log_pane.write(f"$ {' '.join(shlex.quote(c) for c in cmd)}")
+        self._log(f"$ {' '.join(shlex.quote(c) for c in cmd)}")
         try:
             proc = await asyncio.create_subprocess_exec(
                 *cmd,
@@ -1137,7 +1560,7 @@ class AdkApp(App):
                 stderr=asyncio.subprocess.STDOUT,
             )
         except (FileNotFoundError, PermissionError, OSError) as exc:
-            log_pane.write(f"(error: {exc})")
+            self._log(f"(error: {exc})")
             self._update_footer()
             return {"pr_url": pr_url, "rc": None,
                     "last_line": f"spawn error: {exc}",
@@ -1152,17 +1575,192 @@ class AdkApp(App):
                 if not line:
                     break
                 text = line.decode(errors="replace").rstrip("\n")
-                log_pane.write(text)
+                self._log(text)
                 if text:
                     last_line = text
             rc = await proc.wait()
-            log_pane.write(f"(worker exited rc={rc})")
+            self._log(f"(worker exited rc={rc})")
             return {"pr_url": pr_url, "rc": rc, "last_line": last_line,
                     "outcome": "ok" if rc == 0 else "failed"}
         finally:
             self._review_workers.pop(pr_url, None)
             self._update_footer()
             self._reload(force=True)
+
+    # --- tab selection actions ---
+
+    def action_select_tab_overview(self) -> None:
+        self._select_detail_tab("tab-overview")
+
+    def action_select_tab_review(self) -> None:
+        self._select_detail_tab("tab-review")
+
+    def action_select_tab_comments(self) -> None:
+        self._select_detail_tab("tab-comments")
+
+    def action_select_tab_diff(self) -> None:
+        self._select_detail_tab("tab-diff")
+
+    def action_select_tab_activity(self) -> None:
+        self._select_detail_tab("tab-activity")
+
+    # Maps each tab id → the VerticalScroll / ScrollableContainer that owns
+    # its primary scroll state. Used by PageUp/PageDown to scroll the active
+    # tab regardless of which widget inside it has focus.
+    _TAB_SCROLL_ID = {
+        "tab-overview": "#overview-scroll",
+        "tab-review":   "#review-scroll",
+        "tab-comments": "#comments-scroll",
+        "tab-diff":     "#diff-scroll",  # right-pane diff content
+    }
+
+    # Maps each tab id → the selector that should receive focus when the
+    # user switches to the tab. For most tabs that's the scroll container
+    # (so arrows + page-keys scroll content). For Diff the file list takes
+    # focus so arrow keys browse files; PageUp/PageDown still scroll the
+    # right-side content via the _TAB_SCROLL_ID lookup above.
+    _TAB_FOCUS_ID = {
+        "tab-overview": "#overview-scroll",
+        "tab-review":   "#review-scroll",
+        "tab-comments": "#comments-scroll",
+        "tab-diff":     "#diff-files-list",
+    }
+
+    def _select_detail_tab(self, tab_id: str) -> None:
+        if not self.screen_stack:
+            return
+        pane = self._default_query(TabbedDetailPane)
+        pane.select_tab(tab_id)
+        # Focus the right widget for the tab so the user can interact
+        # immediately (arrows + page-keys do the right thing).
+        focus_selector = self._TAB_FOCUS_ID.get(tab_id)
+        if focus_selector is None:
+            return
+        try:
+            self._default_query_id(focus_selector).focus()
+        except Exception:
+            pass
+
+    def _active_tab_scroll(self):
+        """Return the VerticalScroll for the currently-active detail tab, or None."""
+        if not self.screen_stack:
+            return None
+        try:
+            pane = self._default_query(TabbedDetailPane)
+            tabs = pane.query_one("#detail-tabs")
+            active = getattr(tabs, "active", None) or "tab-overview"
+        except Exception:
+            return None
+        selector = self._TAB_SCROLL_ID.get(active)
+        if selector is None:
+            return None
+        try:
+            return self._default_query_id(selector)
+        except Exception:
+            return None
+
+    def action_scroll_tab_down(self) -> None:
+        scroll = self._active_tab_scroll()
+        if scroll is not None:
+            scroll.scroll_page_down(animate=False)
+
+    def action_scroll_tab_up(self) -> None:
+        scroll = self._active_tab_scroll()
+        if scroll is not None:
+            scroll.scroll_page_up(animate=False)
+
+    def action_scroll_tab_line_down(self) -> None:
+        scroll = self._active_tab_scroll()
+        if scroll is not None:
+            scroll.scroll_down(animate=False)
+
+    def _jump_comment(self, *, forward: bool) -> None:
+        """Scroll the Comments tab to the next/previous comment divider.
+
+        Each comment is separated by a markdown ``---`` rule, which Textual
+        renders as a ``MarkdownHorizontalRule`` widget. We locate the rule
+        nearest to (and on the requested side of) the current scroll offset
+        and align the viewport so the next comment header lands at the top.
+        Falls back to PageDown / PageUp when no rules are present (no
+        comments, or active tab isn't a markdown tab).
+        """
+        scroll = self._active_tab_scroll()
+        if scroll is None:
+            return
+        try:
+            from textual.widgets._markdown import MarkdownHorizontalRule
+        except Exception:
+            MarkdownHorizontalRule = None  # type: ignore[assignment]
+        rules: list = []
+        if MarkdownHorizontalRule is not None:
+            try:
+                rules = list(scroll.query(MarkdownHorizontalRule))
+            except Exception:
+                rules = []
+        if not rules:
+            (scroll.scroll_page_down if forward else scroll.scroll_page_up)(animate=False)
+            return
+
+        positions: list[int] = []
+        for rule in rules:
+            try:
+                # virtual_region is the widget's offset inside the scrollable
+                # content; that's what we compare against scroll_y.
+                positions.append(int(rule.virtual_region.y))
+            except Exception:
+                continue
+        positions.sort()
+        if not positions:
+            (scroll.scroll_page_down if forward else scroll.scroll_page_up)(animate=False)
+            return
+
+        current = int(scroll.scroll_y)
+        if forward:
+            target = next((y for y in positions if y > current + 1), positions[-1])
+        else:
+            preceding = [y for y in positions if y < current - 1]
+            target = preceding[-1] if preceding else positions[0]
+        scroll.scroll_to(y=max(0, target - 1), animate=False)
+
+    def action_next_comment(self) -> None:
+        self._jump_comment(forward=True)
+
+    def action_prev_comment(self) -> None:
+        self._jump_comment(forward=False)
+
+    def action_focus_next_pane(self) -> None:
+        """Cycle focus: QueueTable → TabbedDetailPane → QueueTable."""
+        if not self.screen_stack:
+            return
+        focused = self.focused
+        queue = self._default_query(QueueTable)
+        detail = self._default_query(TabbedDetailPane)
+        if focused is queue or (focused is not None and focused in queue.query("*")):
+            detail.focus()
+        else:
+            queue.focus()
+
+    # --- approve action ---
+
+    @work
+    async def action_approve_pr(self) -> None:
+        table = self.query_one(QueueTable)
+        pr_url = table.selected_pr_url()
+        if not pr_url:
+            self._log("(no row selected)")
+            return
+        row = self._rows_by_url.get(pr_url)
+        label = f"{row.repo}#{row.number}" if row is not None else pr_url
+        from tui.screens.confirm_screen import ConfirmScreen
+        ok = await self.push_screen_wait(ConfirmScreen(
+            f"Approve this PR on its host platform?\n\n{label}\n{pr_url}\n\n"
+            "This posts an approval via the platform API. Not done in auto mode.",
+            yes_label="approve",
+            no_label="cancel",
+        ))
+        if not ok:
+            return
+        self._run_pr_command("approve PR", ["pr", "approve", "--yes"], pr_url)
 
     async def on_unmount(self) -> None:
         procs = [self._sync_proc, *self._review_workers.values()]

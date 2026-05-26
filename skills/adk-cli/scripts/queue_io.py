@@ -31,8 +31,9 @@ Public API:
   read_queue(path) → dict
   write_queue(path, queue) → None  (under lock)
   update_pr_entry(path, pr_url, updates: dict) → bool
-  merge_scan_results(existing_queue, scanned_entries) → dict
-  dedupe_key(pr_url) → (host, repo, pr_number)
+  merge_scan_results(existing_queue, scanned_entries, *, fetch_state=None) → dict
+  atomic_scan_merge(path, scanned_entries, *, fetch_state=None) → dict  (P0.3 TOCTOU-safe)
+  dedupe_key(pr_url) → (host, owner, repo, pr_number)
   slack_threads_for(entry) → list[dict]
   acquire_next_row(path) → dict | None
   release_row(path, pr_url, **post_updates) → bool
@@ -400,6 +401,26 @@ def write_queue(path: Path, queue: dict) -> None:
         path.write_text(_dump_json5(queue), encoding="utf-8")
 
 
+def atomic_scan_merge(path: Path, scanned: list[dict],
+                      *, fetch_state=None) -> dict:
+    """Atomically read → merge_scan_results → write the queue.
+
+    Holds the fcntl lock for the entire read+merge+write sequence so that
+    two concurrent `adk pr-scan` runs do not clobber each other's additions
+    (P0.3 TOCTOU fix). Returns the merged queue dict (with `_merge_summary`
+    still present for the caller to inspect).
+    """
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with file_lock(_lock_path(path), timeout_s=120.0):
+        existing = read_queue(path)
+        merged = merge_scan_results(existing, scanned, fetch_state=fetch_state)
+        # Write the merged result (without _merge_summary) to disk.
+        summary = merged.pop("_merge_summary", {})
+        path.write_text(_dump_json5(merged), encoding="utf-8")
+        merged["_merge_summary"] = summary
+        return merged
+
+
 def update_pr_entry(path: Path, pr_url: str, updates: dict) -> bool:
     """Read-modify-write a single entry by pr_url. Returns True if matched."""
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -543,27 +564,55 @@ _GH_PR_RE = re.compile(r"github\.com/(?P<owner>[^/]+)/(?P<repo>[^/]+)/pull/(?P<n
 _BB_PR_RE = re.compile(r"bitbucket\.org/(?P<ws>[^/]+)/(?P<repo>[^/]+)/pull-requests/(?P<n>\d+)", re.I)
 
 
-def dedupe_key(pr_url: str) -> tuple[str, str, int]:
-    """Return (host, repo, pr_number). repo is just the repo name (last path
-    segment), so the same repo across mirrors / different owners de-collides
-    on owner via the host check — but the spec says 'repo-name + pr-number'
-    as the unique key, so we honour that and treat repo across owners as same.
+def dedupe_key(pr_url: str) -> tuple[str, str, str, int]:
+    """Return (host, owner, repo, pr_number).
+
+    `owner` is the GitHub org / Bitbucket workspace. Including it prevents
+    cross-org collisions when two repos share the same name (e.g.
+    github.com/foo/utils and github.com/bar/utils would both match on
+    (github, utils, 42) with the old 3-tuple).
     """
     s = pr_url.strip().rstrip("/")
     m = _GH_PR_RE.search(s)
     if m:
-        return ("github", m.group("repo"), int(m.group("n")))
+        return ("github", m.group("owner"), m.group("repo"), int(m.group("n")))
     m = _BB_PR_RE.search(s)
     if m:
-        return ("bitbucket", m.group("repo"), int(m.group("n")))
+        return ("bitbucket", m.group("ws"), m.group("repo"), int(m.group("n")))
     raise ValueError(f"unrecognised PR url: {pr_url}")
 
 
 # ----- merge ----------------------------------------------------------------
 
-def merge_scan_results(existing: dict, scanned: list[dict]) -> dict:
+# Process-local cache: url → (pr_state_str, fetched_at_epoch).
+# TTL: 3600 s. Avoids re-hitting the host API on back-to-back `adk pr-scan` runs.
+_HOST_STATE_CACHE: dict[str, tuple[str, float]] = {}
+_HOST_STATE_CACHE_TTL_S = 3600
+
+
+def _cached_host_state(pr_url: str, fetch_fn) -> str:
+    """Return the host-API state string for `pr_url`, using the process cache.
+
+    `fetch_fn(pr_url) -> str` must return one of the strings returned by
+    `classify_pr_state`: "open", "merged", "closed", "unknown".
+    Cache misses call `fetch_fn`; hits within TTL skip the call entirely.
+    """
+    import time
+    now = time.time()
+    cached = _HOST_STATE_CACHE.get(pr_url)
+    if cached is not None:
+        state, fetched_at = cached
+        if now - fetched_at < _HOST_STATE_CACHE_TTL_S:
+            return state
+    state = fetch_fn(pr_url)
+    _HOST_STATE_CACHE[pr_url] = (state, now)
+    return state
+
+
+def merge_scan_results(existing: dict, scanned: list[dict],
+                       *, fetch_state=None) -> dict:
     """Merge freshly-scanned entries into an existing queue. Additive on every
-    field that's safely additive. Dedup by (host, repo, pr_number).
+    field that's safely additive. Dedup by (host, owner, repo, pr_number).
 
     Rules:
       - New PR (not in existing) → append as-is.
@@ -574,14 +623,24 @@ def merge_scan_results(existing: dict, scanned: list[dict]) -> dict:
           - `supporting_docs`: union (preserving order, existing first).
           - `status`, `last_checked_at`, `notes`, `taken_at`: PRESERVE existing.
           - `pr_url`: preserve existing (might be canonicalised differently).
+          - `discovery_source`: preserved; "channel" added if missing on existing.
+      - Existing PR NOT seen in scan:
+          - If `fetch_state` callable is provided, re-check the host API.
+            OPEN → keep and update `last_seen_scan_at` to now.
+            MERGED / CLOSED → set `terminal_status` + `terminal_at`.
+            UNKNOWN (fetch failed) → keep; do not mutate terminal fields.
       - Terminal `merged` entries are NEVER re-added even if scanned again
         (they're effectively read-only).
+
+    `fetch_state(pr_url) -> str` is an optional callable that returns
+    classify_pr_state output ("open", "merged", "closed", "unknown"). Callers
+    that don't pass it get the old behaviour (no host re-check for unseen rows).
     """
     merged = deepcopy(existing) if existing else {"filters": None, "prs": []}
     merged.setdefault("prs", [])
     merged.setdefault("filters", None)
 
-    by_key: dict[tuple[str, str, int], dict] = {}
+    by_key: dict[tuple[str, str, str, int], dict] = {}
     for e in merged["prs"]:
         try:
             by_key[dedupe_key(e["pr_url"])] = e
@@ -591,13 +650,21 @@ def merge_scan_results(existing: dict, scanned: list[dict]) -> dict:
     added = 0
     refreshed = 0
     skipped_merged = 0
+    retained_open = 0
+    terminal_marked = 0
 
+    scanned_keys: set[tuple[str, str, str, int]] = set()
     for sc in scanned:
         try:
             k = dedupe_key(sc["pr_url"])
         except (ValueError, KeyError):
             continue
+        scanned_keys.add(k)
         existing_entry = by_key.get(k)
+
+        # Tag discovery source on incoming scan entry.
+        sc.setdefault("discovery_source", "channel")
+
         if existing_entry is None:
             # Brand new — append with defaults.
             new_entry = {
@@ -605,6 +672,7 @@ def merge_scan_results(existing: dict, scanned: list[dict]) -> dict:
                 "status": sc.get("status", STATUS_PENDING),
                 "last_checked_at": None,
                 "taken_at": None,
+                "discovery_source": sc.get("discovery_source", "channel"),
             }
             if sc.get("slack"):
                 new_entry["slack"] = sc["slack"]
@@ -613,6 +681,8 @@ def merge_scan_results(existing: dict, scanned: list[dict]) -> dict:
                 new_entry["supporting_docs"] = list(sc["supporting_docs"])
             if sc.get("related_pr_urls"):
                 new_entry["related_pr_urls"] = list(sc["related_pr_urls"])
+            if sc.get("author"):
+                new_entry["author"] = sc["author"]
             merged["prs"].append(new_entry)
             by_key[k] = new_entry
             added += 1
@@ -641,7 +711,46 @@ def merge_scan_results(existing: dict, scanned: list[dict]) -> dict:
                     if url not in cur_related:
                         cur_related.append(url)
                 existing_entry["related_pr_urls"] = cur_related
+            # Backfill author if missing.
+            if sc.get("author") and not existing_entry.get("author"):
+                existing_entry["author"] = sc["author"]
+            # Backfill discovery_source if missing.
+            existing_entry.setdefault("discovery_source", sc.get("discovery_source", "channel"))
+            existing_entry["last_seen_scan_at"] = _now_iso()
             refreshed += 1
 
-    merged["_merge_summary"] = {"added": added, "refreshed": refreshed, "skipped_merged": skipped_merged}
+    # PR retention: for rows NOT seen in this scan, re-check host state when
+    # a fetch_state callable is provided (N3). Rows with a terminal_status already
+    # set are left alone.
+    if fetch_state is not None:
+        for k, entry in by_key.items():
+            if k in scanned_keys:
+                continue
+            if entry.get("terminal_status"):
+                continue
+            if (entry.get("status") or "") in TERMINAL_STATUSES:
+                continue
+            pr_url = entry.get("pr_url", "")
+            if not pr_url:
+                continue
+            try:
+                state = _cached_host_state(pr_url, fetch_state)
+            except Exception:
+                state = "unknown"
+            if state == "open":
+                entry["last_seen_scan_at"] = _now_iso()
+                retained_open += 1
+            elif state in {"merged", "closed"}:
+                entry["terminal_status"] = state.upper()
+                entry["terminal_at"] = _now_iso()
+                terminal_marked += 1
+            # "unknown" → leave the row untouched
+
+    merged["_merge_summary"] = {
+        "added": added,
+        "refreshed": refreshed,
+        "skipped_merged": skipped_merged,
+        "retained_open": retained_open,
+        "terminal_marked": terminal_marked,
+    }
     return merged

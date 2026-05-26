@@ -65,7 +65,6 @@ def test_show_row_without_worker_shows_last_review() -> None:
     pane.show(_make_row())
     text = pane.overview_text
     assert "Last review:" in text
-    assert "Prep:" not in text
     assert "Lock:" not in text
 
 

@@ -18,7 +18,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
-from _common import which, write_json, emit_json, die, get_logger, run, pr_review_file  # noqa: E402
+from _common import which, write_json, emit_json, die, get_logger, run, pr_review_file, _narrate_write  # noqa: E402
 
 try:
     import requests
@@ -157,7 +157,7 @@ def _bb_resolve_full_sha(s: requests.Session, workspace: str, repo: str,
 
 
 def _fetch_bb_checks(s: requests.Session, workspace: str, repo: str,
-                     head_sha: str | None, log) -> dict:
+                     head_sha: str | None, log, task_dir: Path | None = None) -> dict:
     if not head_sha:
         return {"state": "unknown", "failing": [], "pending": [], "passed": 0}
     try:
@@ -165,6 +165,15 @@ def _fetch_bb_checks(s: requests.Session, workspace: str, repo: str,
             s,
             f"{BB_BASE}/repositories/{workspace}/{repo}/commit/{head_sha}/statuses/build?pagelen=100",
         )
+    except requests.HTTPError as e:
+        if e.response is not None and e.response.status_code == 403:
+            msg = ("build_status: not available "
+                   "(403 — bitbucket token lacks repository:read scope or commit not visible)")
+            log.warning("bb: %s", msg)
+            _narrate_write(task_dir, f"[narrate] {msg}")
+            return {"state": "unavailable", "failing": [], "pending": [], "passed": 0}
+        log.warning("bb: failed to fetch build statuses for %s (%s)", head_sha, e)
+        return {"state": "unknown", "failing": [], "pending": [], "passed": 0}
     except Exception as e:
         log.warning("bb: failed to fetch build statuses for %s (%s)", head_sha, e)
         return {"state": "unknown", "failing": [], "pending": [], "passed": 0}
@@ -214,7 +223,7 @@ def fetch_bitbucket(workspace: str, repo: str, n: int, task_dir: Path, log) -> d
         "base_oid": base,
         "mergeable": pr.get("mergeable"),
         "merge_status": pr.get("merge_status"),
-        "checks": _fetch_bb_checks(s, workspace, repo, head, log),
+        "checks": _fetch_bb_checks(s, workspace, repo, head, log, task_dir),
         "url": pr.get("links", {}).get("html", {}).get("href"),
         "raw": pr,
     }

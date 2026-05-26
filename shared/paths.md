@@ -69,6 +69,8 @@ $ADK_DATA_HOME/
 │       ├── docs/                # supporting docs pulled from queue-context.json (lazy)
 │       ├── state.json           # {phases, task_dir}
 │       ├── review.log           # streaming log of the review run
+│       ├── narration.log        # append-only live phase narration (tail -f during a run)
+│       ├── agent.log            # stdout/stderr of the spawned review agent (pr-review-all)
 │       ├── .adk-pr-lock         # per-PR fcntl lock (held during a live review)
 │       └── pr-review/           # per-run artifacts (separates "review output" from "code + index + state")
 │           ├── pr.json          # PR metadata (host, head_sha, title, body, …)
@@ -87,8 +89,16 @@ $ADK_DATA_HOME/
 ├── skill-setup/                 # /adk-setup outputs
 │   └── auto-runs/<ts>/          # one folder per --check or --init run
 ├── skill-explain/<ts>/  skill-improve/<ts>/  skill-document/<ts>/  skill-implement/<ts>/
+├── tui/                         # state shared between the TUI and background workers
+│   ├── runs/                    # one <run-id>.json per active or recent multi-PR run
+│   ├── workers/                 # one <worker-id>.json heartbeat per live worker process
+│   └── workers/sync-plan.json   # current sync plan (written by pr-sync, read by TUI)
 └── logs/                        # CLI log output — `adk pr-sync`, `adk pr-queue`, etc.
                                  # One file per command invocation. Rotated by hand for now.
+    └── pr-review-all-runs/<ts>/ # one folder per `adk pr-review-all` / `adk pr-review` run
+        ├── report.md            # aggregate result: per-PR status, exit codes, elapsed times
+        └── pr-sync.log          # stdout of the pre-flight `adk pr-sync` step
+                                 # Per-PR agent stdout lives in the PR's own task dir: agent.log
 ```
 
 **Why this layout.** `memory/` and `improve/` are top-level because their lifecycle is independent of config (memory is per-session, improve is auto-managed by `/adk-improve`). `config/` is user-owned, with `connectors/<source>.md` as the canonical per-source config — the YAML frontmatter is what scripts read; the markdown body is the human-authored cheatsheet the agent reads as context.

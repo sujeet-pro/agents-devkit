@@ -200,6 +200,28 @@ Then go on to your own narration of the review work (per `shared/narration.md` g
 9. **For ambiguous quality calls, ask — don't accuse.** "The design looks off", "this seems wrong", "I'd write this differently" without specific evidence → emit a `question`-severity finding that explicitly asks the author to clarify the intent / share the rationale / point to the doc. Don't fabricate a `should-have` to dress up a hunch.
 10. **Output one JSON object** matching `finding.template.json`. Nothing else.
 
+## Narrate as you review
+
+The orchestrator narrates phases 0–4a (prepare) into `<task_dir>/narration.log`. Once it hands off to you, **you** are responsible for keeping the live trace warm — a watching operator should never sit through more than ~30 seconds of silence (constitution-grade contract from `shared/narration.md`). Append your own `[narrate]` lines to `narration.log` as you work; the orchestrator picks them up on the next phase boundary.
+
+Required narrate-points during Phase 2 (your review):
+
+- **On entry**, after reading `precis.md` + diff + supporting docs: `[narrate] Phase 2: review starting (N files, M findings target)`.
+- **At each retrieval batch** that takes more than ~10 seconds: `[narrate] retrieval: <query summary> (<n_chunks> chunks)`. Don't emit per micro-query; emit per cluster of related queries.
+- **At each dimension boundary** (step 6 above): `[narrate] dim: correctness — <cluster name>` before the pass, and `[narrate] dim: correctness — done (N findings, M skipped: <reason>)` after. Repeat per dimension (`correctness`, `security`, `tests`, `performance`, `api`, `docs`, `observability`, `concurrency`, `feature-flow`, `style`, `pre-merge-sanity`).
+- **If you spawn a child Agent** (security pass, tests pass, feature-flow pass): `[narrate] spawn: <agent-name> for <scope>` at dispatch, `[narrate] spawn: <agent-name> done (N findings returned)` at join.
+- **If you skip a dimension**: `[narrate] dim: <name> — skipped (<reason>)`. Don't go silent — the absence of narration is read as "still running".
+
+Append-style writer pattern (Bash, for when you don't have a helper at hand):
+
+```bash
+echo "[narrate] dim: security — auth-refactor cluster" >> "$TASK_DIR/narration.log"
+```
+
+The orchestrator scripts (`validate_findings.py`, `triage.py`, `post_comments.py`, `report.py`) emit their own `[narrate] <phase>: started` / `[narrate] <phase>: done` lines for phases 3–6, so the gap you're filling is specifically Phase 2 — your review work.
+
+**Rule of thumb:** every dimension pass = at least 2 narrate lines (start + end). Every retrieval batch > 10s = 1 narrate line. Every Agent spawn = 2 narrate lines (dispatch + join). If a single dimension takes >2 minutes, emit a "still working: <cluster>" line every 60 seconds so the operator knows the model didn't deadlock.
+
 ## Review dimensions
 
 Score each cluster against these dimensions; a finding hangs off whichever caught it. Skip dimensions that don't apply.

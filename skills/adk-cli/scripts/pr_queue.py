@@ -116,19 +116,35 @@ def cmd_list(args) -> int:
         print("(queue empty)" if not args.status else f"(no entries with status={args.status})")
         return 0
 
+    _AUTHOR_W = 16
+
+    def _author_cell(e: dict) -> str:
+        author = e.get("author")
+        if isinstance(author, dict):
+            name = author.get("display_name") or author.get("host_user_id") or ""
+        elif isinstance(author, str):
+            name = author
+        else:
+            name = ""
+        return name[:_AUTHOR_W]
+
     rows = []
     for e in prs:
         rows.append((
             _short_status(e),
             (e.get("last_checked_at") or "-")[:19],
+            _author_cell(e),
             e.get("pr_url") or "",
         ))
-    w_status = max(len(r[0]) for r in rows + [("status", "", "")])
-    w_lc = max(len(r[1]) for r in rows + [("", "last_checked_at", "")])
-    print(f"{'status'.ljust(w_status)}  {'last_checked_at'.ljust(w_lc)}  pr_url")
-    print(f"{'-' * w_status}  {'-' * w_lc}  -")
+    w_status = max(len(r[0]) for r in rows + [("status", "", "", "")])
+    w_lc = max(len(r[1]) for r in rows + [("", "last_checked_at", "", "")])
+    w_auth = _AUTHOR_W
+    print(f"{'status'.ljust(w_status)}  {'last_checked_at'.ljust(w_lc)}  "
+          f"{'author'.ljust(w_auth)}  pr_url")
+    print(f"{'-' * w_status}  {'-' * w_lc}  {'-' * w_auth}  -")
     for r in rows:
-        print(f"{r[0].ljust(w_status)}  {r[1].ljust(w_lc)}  {r[2]}")
+        print(f"{r[0].ljust(w_status)}  {r[1].ljust(w_lc)}  "
+              f"{r[2].ljust(w_auth)}  {r[3]}")
     print(f"\n{len(rows)} entr{'y' if len(rows) == 1 else 'ies'}  ·  queue: {queue_path}")
     return 0
 
@@ -195,14 +211,22 @@ def cmd_clean(args) -> int:
                   f"{'y' if len(to_drop) == 1 else 'ies'} "
                   f"(last_checked_at >= {args.stale_days} days ago) + their task folders")
     else:
-        # Default sweep: both terminal states (merged + closed). Together they
-        # cover everything the origin API has confirmed will not move again.
-        to_drop = [e for e in prs if (e.get("status") or "") in TERMINAL_STATUSES]
+        # Default sweep: both terminal statuses — rows with `status` in the
+        # TERMINAL_STATUSES set AND rows that have `terminal_status` set by
+        # the N3 PR-retention re-check (which marks open rows that have since
+        # merged/closed as terminal without changing their `status` field).
+        to_drop = [
+            e for e in prs
+            if (e.get("status") or "") in TERMINAL_STATUSES
+            or bool(e.get("terminal_status"))
+        ]
         if not to_drop:
-            print("(no merged or closed entries to clean)")
+            print("(no merged, closed, or terminal entries to clean)")
             return 0
-        kinds = sorted({e.get("status") for e in to_drop})
-        action = (f"drop {len(to_drop)} {'/'.join(kinds)} entr"
+        kinds = sorted({
+            e.get("terminal_status") or e.get("status") for e in to_drop
+        })
+        action = (f"drop {len(to_drop)} {'/'.join(str(k) for k in kinds)} entr"
                   f"{'y' if len(to_drop) == 1 else 'ies'} + their task folders")
 
     if args.all and not args.yes:
@@ -641,6 +665,10 @@ def _refresh_one(pr_url: str, entry: dict, *, queue_path: Path, log) -> dict:
         ):
             if key in comment_activity:
                 updates[key] = comment_activity[key]
+    # Stamp sync completion so the TUI can surface "last synced at" per PR.
+    updates["last_synced_at"] = _now_iso()
+    if new_head:
+        updates["last_synced_head_sha"] = new_head
     update_pr_entry(queue_path, pr_url, updates)
     prev_head = entry.get("head_sha")
     head_unchanged = (prev_head == new_head) if prev_head else None
@@ -927,6 +955,61 @@ def cmd_set_status(args) -> int:
     return 0
 
 
+# ----- remove (manual removal with decision-log traceability) ---------------
+
+def cmd_remove(args) -> int:
+    """Manually remove a PR row by URL.
+
+    Logs the removal to the decision log so it's traceable by /adk-improve.
+    The row's task folder is NOT deleted by this command — use `adk pr-queue clean`
+    for disk cleanup. If the row is currently locked (taken_at set), pass
+    --force to remove it anyway.
+    """
+    queue_path = Path(args.queue).expanduser()
+    log = get_logger("pr-queue-remove")
+    entry = find_row(queue_path, args.pr_url)
+    if entry is None:
+        die(f"no entry found for {args.pr_url} in {queue_path}")
+    if entry.get("taken_at") and not getattr(args, "force", False):
+        die(f"row {args.pr_url} is currently locked (taken_at={entry.get('taken_at')!r}). "
+            f"Pass --force to remove anyway.")
+    queue = read_queue(queue_path)
+    prs = queue.get("prs", []) or []
+    queue["prs"] = [e for e in prs if e.get("pr_url") != args.pr_url]
+    write_queue(queue_path, queue)
+    log.info("removed row: %s", args.pr_url)
+
+    # Append decision-log entry for traceability.
+    try:
+        _LIB_DIR = Path(__file__).resolve().parents[3] / "scripts" / "lib"
+        if str(_LIB_DIR) not in sys.path:
+            sys.path.insert(0, str(_LIB_DIR))
+        import time as _time
+        from adk_home import adk_data_home  # noqa: WPS433
+        decisions_path = adk_data_home() / "improve" / "learning" / "decisions.jsonl"
+        decisions_path.parent.mkdir(parents=True, exist_ok=True)
+        from datetime import datetime, timezone
+        record = {
+            "ts": datetime.now(tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "skill": "adk-pr-queue",
+            "sub_flow": "remove",
+            "fork_id": "manual_remove",
+            "fork_type": "user-answered",
+            "default_offered": None,
+            "user_chose": "remove",
+            "task_slug": args.pr_url,
+            "reason_if_given": getattr(args, "reason", None) or None,
+        }
+        with decisions_path.open("a", encoding="utf-8") as fh:
+            fh.write(json.dumps(record) + "\n")
+    except Exception as e:
+        log.warning("decision-log append failed: %s", e)
+
+    print(json.dumps({"action": "removed", "pr_url": args.pr_url,
+                      "queue": str(queue_path)}, indent=2))
+    return 0
+
+
 # ----- release -------------------------------------------------------------
 
 def cmd_release(args) -> int:
@@ -1038,6 +1121,16 @@ def main(argv: list[str] | None = None) -> int:
                        help="new status (pending|in_review|reviewed|comments|approved|merged|closed|error|reminded)")
     sp_ss.add_argument("--queue", default=str(DEFAULT_QUEUE_PATH), help=argparse.SUPPRESS)
     sp_ss.set_defaults(func=cmd_set_status)
+
+    sp_rm = sub.add_parser("remove",
+                           help="manually remove a PR row by URL (logged to decision log for traceability)")
+    sp_rm.add_argument("pr_url", help="PR URL to remove")
+    sp_rm.add_argument("--queue", default=str(DEFAULT_QUEUE_PATH), help=argparse.SUPPRESS)
+    sp_rm.add_argument("--force", action="store_true",
+                       help="remove even if the row is currently locked")
+    sp_rm.add_argument("--reason", default=None,
+                       help="reason for removal (recorded in decision log)")
+    sp_rm.set_defaults(func=cmd_remove)
 
     sp_rem = sub.add_parser("remind",
                             help="Slack-reply reminder for any PR reviewed "

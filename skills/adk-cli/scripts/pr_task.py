@@ -511,9 +511,9 @@ def cmd_info(args) -> int:
         "exists": task_dir.exists(),
     }
     if task_dir.exists():
-        pr_json = task_dir / "pr.json"
-        precis = task_dir / "precis.md"
-        findings = task_dir / "findings.json"
+        pr_json = task_dir / "pr-review" / "pr.json"
+        precis = task_dir / "pr-review" / "precis.md"
+        findings = task_dir / "pr-review" / "findings.json"
         info.update({
             "has_pr_json": pr_json.exists(),
             "has_precis": precis.exists(),
@@ -535,6 +535,16 @@ def cmd_info(args) -> int:
                 info["state"] = pr.get("state") or pr.get("status")
             except Exception:
                 pass
+    # Populate author from queue row if available (regardless of task existence).
+    try:
+        from queue_io import find_row  # noqa: WPS433
+        from adk_home import adk_config_home  # noqa: WPS433
+        _q = adk_config_home() / "pr-queue.json5"
+        row = find_row(_q, args.pr_url) if _q.exists() else None
+        if row and row.get("author"):
+            info["author"] = row["author"]
+    except Exception:
+        pass
     print(json.dumps(info, indent=2, default=str))
     return 0
 
@@ -567,7 +577,7 @@ def cmd_list(args) -> int:
         phases = state.get("phases") or {}
         head = (phases.get("2a_fetch_pr") or {}).get("head_sha") or "-"
         idx_head = (phases.get("3_index") or {}).get("head_sha_at_index") or "-"
-        has_findings = (f / "findings.json").exists()
+        has_findings = (f / "pr-review" / "findings.json").exists()
         rows.append((f.name, head[:12], idx_head[:12], "✓" if has_findings else "-"))
     w_name = max(len(r[0]) for r in rows + [("task", "", "", "")])
     print(f"{'task'.ljust(w_name)}  {'head':<12}  {'index':<12}  findings")

@@ -42,7 +42,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
-from _common import die, get_logger, read_json, write_json, pr_review_file  # noqa: E402
+from _common import die, get_logger, read_json, write_json, pr_review_file, _narrate_write  # noqa: E402
 
 
 VALID_STATES = ("accept", "reject", "edit", "pending")
@@ -95,6 +95,8 @@ def cmd_init(task_dir: Path, default_state: str, log) -> dict:
     write_json(_state_path(task_dir), state)
     log.info("init: mode=%s findings=%d default=%s (auto-accepted %d appreciation(s))",
              mode, len(findings), default_state, n_auto_appreciations)
+    _narrate_write(task_dir,
+                   f"[narrate] triage: started ({len(findings)} findings, mode={mode})")
     return {
         "mode": mode,
         "n_findings": len(findings),
@@ -272,6 +274,9 @@ def cmd_finalize(task_dir: Path, log) -> dict:
     write_json(_final_path(task_dir), out)
     log.info("finalize: accepted=%d rejected=%d edited=%d",
              out["triage"]["accepted"], out["triage"]["rejected"], out["triage"]["edited"])
+    _narrate_write(task_dir,
+                   f"[narrate] triage: done — accepted={out['triage']['accepted']}, "
+                   f"rejected={out['triage']['rejected']}, edited={out['triage']['edited']}")
     return {"final_path": str(_final_path(task_dir)), **out["triage"]}
 
 

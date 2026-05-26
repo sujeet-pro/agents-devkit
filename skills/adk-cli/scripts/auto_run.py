@@ -15,7 +15,7 @@ Flow:
      selects the deep profile (Claude Opus, Cursor GPT 5.5) and is auto-added
      for large/high-risk PRs unless --no-auto-deep is set.
   5. Capture per-PR exit code + stdout last line.
-  6. Aggregate to `$ADK_DATA_HOME/skill-setup/auto-runs/<ts>/report.md`.
+  6. Aggregate to `$ADK_DATA_HOME/logs/pr-review-all-runs/<ts>/report.md`.
 
 Exit codes:
   0 — every spawned review succeeded
@@ -36,6 +36,7 @@ import selectors
 import shlex
 import subprocess
 import sys
+import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
@@ -83,10 +84,10 @@ ADK_BIN = REPO_ROOT / "bin" / "adk"
 _LIB_DIR = REPO_ROOT / "scripts" / "lib"
 if str(_LIB_DIR) not in sys.path:
     sys.path.insert(0, str(_LIB_DIR))
-from adk_home import adk_data_home, adk_skill_home  # noqa: E402
+from adk_home import adk_data_home, adk_logs_home, adk_skill_home  # noqa: E402
 
 ADK_HOME = adk_data_home()
-AUTO_RUNS_ROOT = adk_skill_home("setup") / "auto-runs"
+AUTO_RUNS_ROOT = adk_logs_home() / "pr-review-all-runs"
 
 # Per-agent rough cost coefficient (USD per review). Used by --max-cost-usd
 # as a pre-flight estimate. Conservative; doesn't account for retries.
@@ -353,7 +354,11 @@ def _spawn_review(pr_url: str, agent: str | None, run_dir: Path, log,
     """Spawn one agent for one PR. Captures stdout/stderr to a log file
     under run_dir; returns a summary dict.
     """
-    log_path = run_dir / f"{pr_url.replace('/', '_').replace(':', '')}.log"
+    try:
+        _p = parse_pr_url(pr_url)
+        log_path = task_dir_for(_p["repo"], _p["pr_number"]) / "agent.log"
+    except Exception:
+        log_path = run_dir / f"{pr_url.replace('/', '_').replace(':', '')}.log"
     log_path.parent.mkdir(parents=True, exist_ok=True)
     resolved_model = resolve_runner_model(
         runner=runner,
@@ -449,6 +454,23 @@ def _spawn_review(pr_url: str, agent: str | None, run_dir: Path, log,
                 })
             next_heartbeat = time.time()
             current_phase = "spawned review agent"
+
+            # P0.2: renew taken_at every 30 min so long-running reviews don't
+            # auto-expire the queue lock (TAKEN_LOCK_MAX_AGE_SECONDS = 2h).
+            _taken_at_stop = threading.Event()
+            _TAKEN_AT_INTERVAL = 30 * 60  # 30 minutes
+
+            def _renew_taken_at():
+                while not _taken_at_stop.wait(timeout=_TAKEN_AT_INTERVAL):
+                    try:
+                        queue_path = Path(queue).expanduser()
+                        update_pr_entry(queue_path, pr_url, {"taken_at": _now_iso()})
+                    except Exception:
+                        pass
+
+            _taken_at_thread = threading.Thread(target=_renew_taken_at, daemon=True)
+            _taken_at_thread.start()
+
             selector = selectors.DefaultSelector()
             if proc.stdout is not None:
                 selector.register(proc.stdout, selectors.EVENT_READ)
@@ -472,6 +494,8 @@ def _spawn_review(pr_url: str, agent: str | None, run_dir: Path, log,
                         "current_phase": current_phase,
                     })
                     next_heartbeat = time.time() + 5
+            _taken_at_stop.set()
+            _taken_at_thread.join()
             if proc.stdout is not None:
                 for line in proc.stdout:
                     fh.write(line)

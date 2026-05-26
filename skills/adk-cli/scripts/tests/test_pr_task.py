@@ -79,10 +79,14 @@ def test_info_reads_state_and_pr_json(tmp_path, monkeypatch, capsys):
             "3_index":     {"head_sha_at_index": "deadbeefcafe1234"},
         }
     }
+    # state.json + review.log live at the task root (alongside code/, code-index/);
+    # everything else lives under pr-review/.
     (task / "state.json").write_text(json.dumps(state), encoding="utf-8")
-    (task / "pr.json").write_text(json.dumps({
+    pr_review = task / "pr-review"
+    pr_review.mkdir(parents=True, exist_ok=True)
+    (pr_review / "pr.json").write_text(json.dumps({
         "title": "fix: stuff", "state": "open"}), encoding="utf-8")
-    (task / "precis.md").write_text("# precis\n", encoding="utf-8")
+    (pr_review / "precis.md").write_text("# precis\n", encoding="utf-8")
     # findings.json deliberately missing.
 
     monkeypatch.setattr(pr_task, "_task_dir_for", lambda url: task)

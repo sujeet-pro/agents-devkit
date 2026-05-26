@@ -96,8 +96,7 @@ PR_REVIEW_FILES = frozenset({
     "triage.json", "triage-state.json",
     "posting-plan.json", "post-result.json", "comment-actions.json",
     "findings.md", "report.md",
-    "state.json", "queue-context.json",
-    "review.log",
+    "queue-context.json",
 })
 
 

@@ -212,5 +212,31 @@ def test_send_reminders_handles_missing_slack_config(tmp_path, monkeypatch):
     assert "slack config" in out["failed"][0]["error"]
 
 
+def test_threshold_hours_from_config_reads_hours_key():
+    """Config with pr_reviews.reminder.hours overrides DEFAULT_THRESHOLD_HOURS."""
+    slack_cfg = {"pr_reviews": {"reminder": {"hours": 6}}}
+    assert pr_reminders._threshold_hours_from_config(slack_cfg) == 6.0
+
+
+def test_threshold_hours_from_config_falls_back_to_default():
+    """Missing config key falls back to DEFAULT_THRESHOLD_HOURS."""
+    assert pr_reminders._threshold_hours_from_config({}) == pr_reminders.DEFAULT_THRESHOLD_HOURS
+
+
+def test_send_reminders_threshold_reads_from_config(tmp_path, monkeypatch):
+    """When threshold_hours=None, send_reminders reads from load_slack_config()."""
+    # Row reviewed 7h ago — stale at 6h threshold, fresh at 24h threshold.
+    row = _row(last_reviewed_at=_iso(NOW - timedelta(hours=7)))
+    q = _write(tmp_path, [row])
+
+    fake_cfg = {"pr_reviews": {"reminder": {"hours": 6}}}
+    monkeypatch.setattr(pr_reminders, "load_slack_config", lambda: fake_cfg)
+
+    # dry_run=True avoids needing a Slack client.
+    out = pr_reminders.send_reminders(q, dry_run=True, now=NOW)
+    assert out.get("dry_run") is True
+    assert len(out.get("would_remind", [])) == 1
+
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-v"]))

@@ -667,12 +667,28 @@ def main(argv: list[str] | None = None) -> int:
                 refresh_min_age_hours=refresh_min_age_hours,
                 emit_progress=quiet,
             )
-            # Surface a tally so the final pr-sync JSON shows the audit result.
-            results.append({
+            # Propagate non-zero fix_rc from individual gap commands into the
+            # step status. A gap with fix_rc != 0 or fix_status not in (ok,
+            # previewed, declined) counts as a failure for the summary.
+            failed_gaps = [
+                g for g in (res.get("gaps") or [])
+                if g.get("fix_rc") not in (None, 0)
+                or g.get("fix_status") not in (None, "ok", "previewed", "declined")
+                and g.get("fix_rc") is not None
+            ]
+            step_status = "warn" if failed_gaps else "ok"
+            step_record: dict = {
                 "step": "base-index audit",
-                "status": "ok",
+                "status": step_status,
                 "audit": res,
-            })
+            }
+            if failed_gaps:
+                step_record["reason"] = "; ".join(
+                    f"{g.get('repo')}/{g.get('target_branch')}: "
+                    f"[skipped: {g.get('fix_status', 'rc=' + str(g.get('fix_rc')))}]"
+                    for g in failed_gaps
+                )
+            results.append(step_record)
             return 0
         # Don't go through _run_step here — we want the audit summary inline
         # in the step record, not a single rc.
@@ -690,8 +706,10 @@ def main(argv: list[str] | None = None) -> int:
                     log.info("base-index audit output:\n%s", captured)
             else:
                 _do_audit()
-            plan_writer.step_done("base-index audit", status="ok", rc=0)
-            audit = results[-1].get("audit", {}) if results else {}
+            _audit_step = results[-1] if results else {}
+            _audit_status = _audit_step.get("status", "ok")
+            plan_writer.step_done("base-index audit", status=_audit_status, rc=0)
+            audit = _audit_step.get("audit", {})
             gaps = audit.get("gaps") or []
             if quiet:
                 emit_event(RunEvent(

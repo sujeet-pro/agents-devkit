@@ -5,7 +5,7 @@ import asyncio
 from pathlib import Path
 
 from tui.app import AdkApp
-from tui.widgets.log_pane import LogPane
+from tui.widgets.detail_pane import TabbedDetailPane
 
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -13,9 +13,11 @@ WORKER_SCRIPT = _REPO_ROOT / "tui" / "worker.py"
 
 
 def _log_text(app: AdkApp) -> str:
-    pane = app.screen_stack[0].query_one(LogPane)
-    lines = getattr(pane, "lines", [])
-    return "\n".join(getattr(line, "text", None) or str(line) for line in lines)
+    try:
+        tdp = app.screen_stack[0].query_one(TabbedDetailPane)
+        return "\n".join(tdp.activity_pane()._log_buffer)
+    except Exception:
+        return ""
 
 
 def _active_worker_count(app: AdkApp) -> int:

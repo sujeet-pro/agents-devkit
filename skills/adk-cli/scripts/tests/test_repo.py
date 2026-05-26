@@ -302,5 +302,43 @@ def test_branch_list_new_layout_shows_each_branch(fake_repos_root, capsys):
     assert "master" in out and "develop" in out
 
 
+# ----- is_configured_repo ---------------------------------------------------
+
+def test_is_configured_repo_matches_configured_entry(monkeypatch):
+    """Exact match on host + workspace (owner) + name returns True."""
+    import config_io as cio
+    monkeypatch.setattr(cio, "load_repos", lambda: (
+        {"repos": [{"host": "github", "workspace": "acme", "name": "foo"}]}, ""
+    ))
+    assert repo.is_configured_repo("github", "acme", "foo") is True
+
+
+def test_is_configured_repo_rejects_unknown_repo(monkeypatch):
+    """A repo not listed in repos.md returns False."""
+    import config_io as cio
+    monkeypatch.setattr(cio, "load_repos", lambda: (
+        {"repos": [{"host": "github", "workspace": "acme", "name": "foo"}]}, ""
+    ))
+    assert repo.is_configured_repo("github", "acme", "bar") is False
+
+
+def test_is_configured_repo_empty_registry_returns_true(monkeypatch):
+    """Empty repos list → backward compat passthrough."""
+    import config_io as cio
+    monkeypatch.setattr(cio, "load_repos", lambda: ({}, ""))
+    assert repo.is_configured_repo("github", "acme", "anything") is True
+
+
+def test_is_configured_repo_missing_registry_returns_true(monkeypatch):
+    """When load_repos raises (file missing), return True (don't filter)."""
+    import config_io as cio
+
+    def _raise():
+        raise FileNotFoundError("no file")
+
+    monkeypatch.setattr(cio, "load_repos", _raise)
+    assert repo.is_configured_repo("github", "acme", "anything") is True
+
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-v"]))

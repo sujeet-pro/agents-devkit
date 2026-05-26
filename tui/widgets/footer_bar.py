@@ -22,34 +22,41 @@ class FooterBar(Static):
         agent: str | None = None,
         runner: str | None = None,
         row: "QueueRow | None" = None,  # noqa: ARG002 — kept for call-site compat
+        layout_direction: str | None = None,
+        split_percent: int | None = None,
     ) -> None:
         runner_name = runner or agent
 
         parts = [
-            "[?] help",
-            f"[f] filter:{filter_mode}",
-            f"[S] sort:{sort_mode}",
-            "[j/k] nav",
-            "[q] quit",
-            "·",
-            "[1] Sync PR",
-            "[2] Sync+Review",
+            "[?]help",
+            f"[f]filter:{filter_mode}",
+            f"[K]sort:{sort_mode}",
+            "[j/k]nav",
+            "[tab]pane",
+            "[1-5]tab",
+            "[pgup/pgdn]scroll",
         ]
 
-        if sync_all_running:
-            parts.append("[s] Sync all (running…)")
-        else:
-            parts.append("[s] Sync all")
+        if layout_direction:
+            short = "h" if layout_direction == "horizontal" else "v"
+            pct = split_percent if split_percent is not None else 50
+            parts.append(f"[\\]split:{short}{pct}")
 
-        if work_running:
-            parts.append("[A] Sync+Review all (running…)")
-        else:
-            parts.append("[A] Sync+Review all")
+        parts.extend(["·", "[S]Sync PR", "[R]Sync+Rev"])
+
+        parts.append("[s]Sync all (running…)" if sync_all_running else "[s]Sync all")
+        parts.append("[A]Sync+Rev all (running…)" if work_running else "[A]Sync+Rev all")
 
         parts.extend([
             "·",
-            "[enter] actions",
-            "[a] runner",
+            "[enter]act",
+            "[a]pprove",
+            "[v]re-review",
+            "[x]refresh",
+            "[m]ergeable?",
+            "[M]erge",
+            "[r]unner",
+            "[q]quit",
         ])
 
         if runner_name:

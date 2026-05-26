@@ -38,6 +38,13 @@ from queue_io import (  # noqa: E402
 DEFAULT_THRESHOLD_HOURS = 24.0
 
 
+def _threshold_hours_from_config(slack_cfg: dict) -> float:
+    """Read pr_reviews.reminder.hours from a loaded slack config dict."""
+    return float(
+        slack_cfg.get("pr_reviews", {}).get("reminder", {}).get("hours", DEFAULT_THRESHOLD_HOURS)
+    )
+
+
 def _is_stale_review(entry: dict, *, now: datetime, threshold_hours: float) -> bool:
     """Pure-function predicate: should this row get a nudge?"""
     if (entry.get("status") or "") in TERMINAL_STATUSES:
@@ -73,7 +80,7 @@ def _reminder_text(entry: dict, *, now: datetime) -> str:
             "and has no new commits since. Please address comments or merge.")
 
 
-def send_reminders(queue_path: Path, *, threshold_hours: float = DEFAULT_THRESHOLD_HOURS,
+def send_reminders(queue_path: Path, *, threshold_hours: float | None = None,
                    dry_run: bool = False, log=None,
                    now: datetime | None = None) -> dict:
     """Walk the queue and post a reminder reply for every row that qualifies.
@@ -82,6 +89,9 @@ def send_reminders(queue_path: Path, *, threshold_hours: float = DEFAULT_THRESHO
     for per-row errors; aggregates them into `failed` so the sync pipeline
     can keep moving.
 
+    `threshold_hours` defaults to None; when None the value is read from
+    slack.md (pr_reviews.reminder.hours), falling back to DEFAULT_THRESHOLD_HOURS.
+
     `now` defaults to the real wall clock; pass an explicit value from
     tests so the staleness predicate is deterministic.
     """
@@ -89,6 +99,12 @@ def send_reminders(queue_path: Path, *, threshold_hours: float = DEFAULT_THRESHO
         log = get_logger("pr-reminders")
     if now is None:
         now = datetime.now(tz=timezone.utc)
+    if threshold_hours is None:
+        try:
+            slack_cfg = load_slack_config()
+            threshold_hours = _threshold_hours_from_config(slack_cfg)
+        except Exception:
+            threshold_hours = DEFAULT_THRESHOLD_HOURS
     queue = read_queue(queue_path)
     prs = queue.get("prs", []) or []
 
@@ -168,8 +184,9 @@ def main(argv: list[str] | None = None) -> int:
                     "that has no new commits since. One reminder per 24h window.",
     )
     ap.add_argument("--queue", default=str(DEFAULT_QUEUE_PATH))
-    ap.add_argument("--threshold-hours", type=float, default=DEFAULT_THRESHOLD_HOURS,
-                    help=f"hours since review to qualify (default: {DEFAULT_THRESHOLD_HOURS})")
+    ap.add_argument("--threshold-hours", type=float, default=None,
+                    help="hours since review to qualify; defaults to "
+                         "slack.md::pr_reviews.reminder.hours (24)")
     ap.add_argument("--dry-run", action="store_true",
                     help="list what would be reminded; don't post or stamp")
     ap.add_argument("-y", "--yes", action="store_true",

@@ -9,18 +9,17 @@ from pathlib import Path
 import pytest
 
 from tui.app import AdkApp
+from tui.widgets.detail_pane import TabbedDetailPane
 from tui.widgets.footer_bar import FooterBar
-from tui.widgets.log_pane import LogPane
 
 
 def _log_text(app: AdkApp) -> str:
-    """Concatenate every visible line in the RichLog."""
-    pane = app.query_one(LogPane)
-    # RichLog exposes its accumulated lines via .lines (a list of Strip).
-    # Strip has a .text property in Textual 8.x; fall back to str() for
-    # forward-compat.
-    lines = getattr(pane, "lines", [])
-    return "\n".join(getattr(line, "text", None) or str(line) for line in lines)
+    """Concatenate every line in the ActivityPane log buffer."""
+    try:
+        ap = app.query_one(TabbedDetailPane).activity_pane()
+        return "\n".join(ap._log_buffer)
+    except Exception:
+        return ""
 
 
 def _footer_text(app: AdkApp) -> str:
@@ -112,7 +111,7 @@ def test_sync_footer_shows_running_label_mid_run(
             # While the subprocess is still alive (sleeping), the footer must
             # show the (running…) label.
             footer = _footer_text(app)
-            assert "[s] Sync all (running…)" in footer, (
+            assert "[s]Sync all (running…)" in footer, (
                 f"expected running label in footer, got: {footer!r}"
             )
             # Wait for clean exit so the test doesn't leave a child hanging.

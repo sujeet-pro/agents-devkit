@@ -11,13 +11,15 @@ from pathlib import Path
 
 from tui.app import AdkApp
 from tui.screens.prompt_screen import PromptScreen
-from tui.widgets.log_pane import LogPane
+from tui.widgets.detail_pane import TabbedDetailPane
 
 
 def _log_text(app: AdkApp) -> str:
-    pane = app.query_one(LogPane)
-    lines = getattr(pane, "lines", [])
-    return "\n".join(getattr(line, "text", None) or str(line) for line in lines)
+    try:
+        ap = app.query_one(TabbedDetailPane).activity_pane()
+        return "\n".join(ap._log_buffer)
+    except Exception:
+        return ""
 
 
 async def _poll_until(predicate, *, pilot, timeout_s: float = 5.0,

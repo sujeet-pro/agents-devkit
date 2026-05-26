@@ -469,17 +469,60 @@ def _print_links_tail(task_dir: Path, pr: dict) -> None:
     print("─" * 79)
 
 
-def _derive_slack_permalink(slack_info: dict) -> str | None:
-    """Reconstruct a Slack permalink from slack_info when 'permalink' isn't set.
+def _load_slack_workspace() -> str | None:
+    """Read the Slack workspace name from connectors/slack.md top-level frontmatter.
 
-    Falls back to the canonical Slack URL pattern:
-      https://<workspace>.slack.com/archives/<channel_id>/p<ts_no_dot>
-    The workspace name isn't in slack_info (only the channel_id is), so this
-    returns None unless the caller's permalink is already present. This stub
-    exists so the call site is uniform; future enrichment (workspace name
-    lookup) can extend it.
+    Looks for a `workspace:` key at the top level of the YAML frontmatter
+    (not inside `pr_reviews:`). Returns None when the file is absent, the
+    frontmatter is missing, or the key is not set — callers log the gap.
     """
-    return None
+    if not _CLI_AVAILABLE:
+        return None
+    try:
+        config_home_path = None
+        # queue_io.load_slack_config reads $ADK_CONFIG_HOME/connectors/slack.md
+        # for the pr_reviews section. We need the raw top-level frontmatter to
+        # pick up `workspace:`. Re-parse the same file directly.
+        import os
+        import re as _re
+        config_home = os.environ.get("ADK_CONFIG_HOME") or os.path.expanduser(
+            "~/.agents-devkit/config"
+        )
+        slack_md = Path(config_home) / "connectors" / "slack.md"
+        if not slack_md.exists():
+            return None
+        text = slack_md.read_text(encoding="utf-8")
+        m = _re.match(r"\A---\s*\n(.*?)\n---\s*\n?", text, _re.DOTALL)
+        if not m:
+            return None
+        try:
+            import yaml
+            fm = yaml.safe_load(m.group(1)) or {}
+        except Exception:
+            return None
+        return fm.get("workspace") or None
+    except Exception:
+        return None
+
+
+def _derive_slack_permalink(slack_info: dict) -> str | None:
+    """Reconstruct a Slack permalink from channel_id + message_ts.
+
+    Formula: https://<workspace>.slack.com/archives/<channel_id>/p<ts_no_dot>
+    where ts_no_dot = message_ts.replace(".", "").
+
+    Returns None when the workspace name is unavailable or the required fields
+    are missing from slack_info — the caller's best-effort silencing is correct.
+    """
+    channel_id = slack_info.get("channel_id")
+    message_ts = slack_info.get("message_ts") or slack_info.get("thread_ts")
+    if not channel_id or not message_ts:
+        return None
+    workspace = _load_slack_workspace()
+    if not workspace:
+        return None
+    ts_no_dot = str(message_ts).replace(".", "")
+    return f"https://{workspace}.slack.com/archives/{channel_id}/p{ts_no_dot}"
 
 
 def _release_and_print_tail(task_dir: Path, pr: dict, findings_blob: dict, log) -> None:

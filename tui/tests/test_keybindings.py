@@ -31,10 +31,10 @@ def test_footer_shows_primary_actions(tui_app):
         async with tui_app.run_test() as pilot:
             await pilot.pause()
             footer = _footer_text(tui_app)
-            assert "[1] Sync PR" in footer
-            assert "[2] Sync+Review" in footer
-            assert "[s] Sync all" in footer
-            assert "[A] Sync+Review all" in footer
+            assert "[S]Sync PR" in footer
+            assert "[R]Sync+Rev" in footer
+            assert "[s]Sync all" in footer
+            assert "[A]Sync+Rev all" in footer
             assert "runner:claude" in footer
 
     asyncio.run(_run())
@@ -95,14 +95,13 @@ def test_main_runner_flag_overrides_config(tmp_path, monkeypatch):
     assert captured["agent"] == "codex"
 
 
-def test_capital_s_cycles_sort(tui_app):
+def test_capital_k_cycles_sort(tui_app):
     async def _run() -> None:
         async with tui_app.run_test() as pilot:
             await pilot.pause()
             before = _footer_text(tui_app)
             assert "sort:queue" in before
-            # Capital S — Textual maps shift+s to the literal `S` key.
-            await pilot.press("S")
+            await pilot.press("K")
             await pilot.pause()
             after = _footer_text(tui_app)
             assert "sort:newest" in after

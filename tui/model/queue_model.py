@@ -43,7 +43,7 @@ class QueueRow:
     repo: str
     number: int
     title: str | None
-    author: str | None
+    author: dict | None
     target_branch: str | None
     head_sha: str | None
     status: str
@@ -55,6 +55,14 @@ class QueueRow:
     last_reviewed_head_sha: str | None
     ready_for_review: bool
     slack_permalink: str | None
+    last_synced_at: str | None = None
+    last_synced_head_sha: str | None = None
+    last_indexed_at: str | None = None
+    last_indexed_head_sha: str | None = None
+    last_validated_at: str | None = None
+    last_validated_head_sha: str | None = None
+    last_posted_at: str | None = None
+    last_posted_head_sha: str | None = None
 
 
 @dataclass
@@ -75,7 +83,7 @@ def _row_from_entry(entry: dict, now: datetime, *, queue_index: int) -> QueueRow
     if not pr_url:
         return None
     try:
-        host, repo, number = queue_io.dedupe_key(pr_url)
+        host, _owner, repo, number = queue_io.dedupe_key(pr_url)
     except ValueError:
         return None
 
@@ -103,6 +111,14 @@ def _row_from_entry(entry: dict, now: datetime, *, queue_index: int) -> QueueRow
         last_reviewed_head_sha=entry.get("last_reviewed_head_sha"),
         ready_for_review=queue_io.ready_for_review(entry, now=now),
         slack_permalink=slack_permalink,
+        last_synced_at=entry.get("last_synced_at"),
+        last_synced_head_sha=entry.get("last_synced_head_sha"),
+        last_indexed_at=entry.get("last_indexed_at"),
+        last_indexed_head_sha=entry.get("last_indexed_head_sha"),
+        last_validated_at=entry.get("last_validated_at"),
+        last_validated_head_sha=entry.get("last_validated_head_sha"),
+        last_posted_at=entry.get("last_posted_at"),
+        last_posted_head_sha=entry.get("last_posted_head_sha"),
     )
 
 

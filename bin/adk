@@ -167,6 +167,14 @@ def main(argv: list[str]) -> int:
         return _tui_app.main(argv)
     cmd = argv[0]
     rest = argv[1:]
+    try:
+        _lib_dir = str(REPO_ROOT / "scripts" / "lib")
+        if _lib_dir not in sys.path:
+            sys.path.insert(0, _lib_dir)
+        from adk_invocation_log import record_invocation  # type: ignore[import-not-found]
+        record_invocation(cmd)
+    except Exception:
+        pass
     if cmd == "pr-scan":
         from pr_scan import main as f  # type: ignore[import-not-found]
         return f(rest)

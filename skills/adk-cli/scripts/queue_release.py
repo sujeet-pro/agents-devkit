@@ -82,74 +82,18 @@ def _short_tldr(status: str, n_findings: int, recommendation: str | None) -> str
 
 
 def update_slack_reaction(slack_info: dict, new_status: str, slack_cfg: dict, log=None) -> dict:
-    """Reconcile slack reactions to reflect `new_status`.
-
-    Normal transitions: remove `last_reaction_status` emoji, add the new one.
-    Transitions to a terminal-positive status (approved/merged): sweep every OTHER
-    configured status emoji off the message defensively, in case a prior reaction
-    wasn't tracked in `last_reaction_status`. The new status's emoji is the only
-    one left.
+    """Record the new status in slack_info. Reaction side-effects are dropped.
 
     Returns the updated slack_info dict.
     """
-    status_emoji = (slack_cfg or {}).get("status_emoji") or {}
-    new_emoji = status_emoji.get(new_status)
-    last_status = slack_info.get("last_reaction_status")
-    last_emoji = status_emoji.get(last_status) if last_status else None
-
-    channel_id = slack_info.get("channel_id")
-    message_ts = slack_info.get("message_ts")
-    if not channel_id or not message_ts:
-        return slack_info
-
-    # Reaction policy (2026-05-22): an emoji on a message is only unambiguous
-    # when the entire slack thread contains exactly ONE PR. When the thread
-    # carries multiple PRs (main + replies), a per-status emoji on a shared
-    # message can't tell readers which PR it reflects — so we skip the
-    # reaction entirely. The slack-summary REPLY (written separately by
-    # post_comments.py) carries the per-PR verdict instead, with the PR link
-    # embedded in its body for unambiguous attribution.
     thread_pr_count = slack_info.get("thread_pr_count",
                                      slack_info.get("n_pr_links_in_message", 1))
     if thread_pr_count and thread_pr_count > 1:
-        if status_emoji:
-            from slack_helpers import SlackClient  # type: ignore
-            client = SlackClient()
-            for em in status_emoji.values():
-                if em:
-                    client.remove_reaction(channel_id, message_ts, em)
         if log:
-            log.info("slack: swept status reactions for multi-PR thread "
-                     "(count=%d); reply-mode verdict only for %s",
+            log.info("slack: multi-PR thread (count=%d); reply-mode verdict only for %s",
                      thread_pr_count, new_status)
         slack_info["last_reaction_status"] = None
         return slack_info
-
-    is_terminal_positive = new_status in TERMINAL_OR_POSITIVE
-    if not new_emoji and not is_terminal_positive:
-        if log:
-            log.info("slack: no emoji configured for status=%s; skipping reaction update", new_status)
-        slack_info["last_reaction_status"] = new_status
-        return slack_info
-
-    # Lazy import — slack-sdk only needed when we actually post.
-    from slack_helpers import SlackClient  # type: ignore
-    client = SlackClient()
-
-    if is_terminal_positive:
-        for st, em in status_emoji.items():
-            if not em:
-                continue
-            if em == new_emoji:
-                continue
-            client.remove_reaction(channel_id, message_ts, em)
-        if log:
-            log.info("slack: terminal transition to %s — swept other status emojis", new_status)
-    elif last_emoji and last_emoji != new_emoji:
-        client.remove_reaction(channel_id, message_ts, last_emoji)
-
-    if new_emoji:
-        client.add_reaction(channel_id, message_ts, new_emoji)
 
     slack_info["last_reaction_status"] = new_status
     return slack_info

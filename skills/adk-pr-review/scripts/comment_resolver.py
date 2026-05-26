@@ -32,6 +32,10 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 from _common import read_json, write_json, emit_json, get_logger, die, pr_review_file  # noqa: E402
 
+ADK_CLI_SCRIPTS = Path(__file__).resolve().parent.parent.parent / "adk-cli" / "scripts"
+sys.path.insert(0, str(ADK_CLI_SCRIPTS))
+from queue_io import update_pr_entry, _now_iso as _queue_now_iso  # noqa: E402
+
 
 OFFLINE_PATTERNS = [
     re.compile(r"\b(agreed|aligned|sync'?d|synced|discussed)\s+(offline|in\s+(the\s+)?meeting|in\s+(the\s+)?call|on\s+slack|on\s+discord)\b", re.I),
@@ -559,6 +563,23 @@ def main() -> int:
         "actions": verified,
     }
     write_json(pr_review_file(task_dir, "comment-actions.json"), out)
+
+    # Stamp the queue row with validation completion time + head_sha.
+    head_sha = pr.get("head_sha")
+    pr_url = pr.get("url")
+    queue_ctx_path = pr_review_file(task_dir, "queue-context.json")
+    if pr_url and queue_ctx_path.exists():
+        try:
+            queue_ctx = read_json(queue_ctx_path)
+            queue_path_str = queue_ctx.get("queue_path")
+            if queue_path_str:
+                _stamp: dict = {"last_validated_at": _queue_now_iso()}
+                if head_sha:
+                    _stamp["last_validated_head_sha"] = head_sha
+                update_pr_entry(Path(queue_path_str), pr_url, _stamp)
+        except Exception:
+            pass  # stamping is best-effort; never block the resolver
+
     if args.json:
         return emit_json(out)
     log.info("verified %d/%d actions (%d auto-classified, %d via general-comment) · "

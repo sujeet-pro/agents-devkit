@@ -29,11 +29,11 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
-from _common import read_json, write_json, emit_json, get_logger, die, pr_review_file  # noqa: E402
+from _common import read_json, write_json, emit_json, get_logger, die, pr_review_file, _narrate_write  # noqa: E402
 
 ADK_CLI_SCRIPTS = Path(__file__).resolve().parent.parent.parent / "adk-cli" / "scripts"
 sys.path.insert(0, str(ADK_CLI_SCRIPTS))
-from queue_io import slack_threads_for  # noqa: E402
+from queue_io import slack_threads_for, update_pr_entry, _now_iso as _queue_now_iso  # noqa: E402
 
 try:
     import requests
@@ -465,6 +465,7 @@ def main() -> int:
 
     task_dir = Path(args.task_dir)
     log = get_logger("post_comments", task_dir)
+    _narrate_write(task_dir, "[narrate] post: started")
 
     pr = read_json(pr_review_file(task_dir, "pr.json"))
     findings_path = pr_review_file(task_dir, "findings-final.json")
@@ -575,6 +576,18 @@ def main() -> int:
         queue_ctx=queue_ctx,
         suppress_review=args.comments_only,
     )
+
+    # P0.1 duplicate-posting guard: check prior post-result.json before writing.
+    prior_result = _load_prior_post_result(task_dir)
+    if prior_result:
+        current_head = pr.get("head_sha") or pr.get("headRefOid")
+        posted_ids = _posted_finding_ids(prior_result)
+        approve_already = _prior_approve_ok(prior_result, current_head)
+        n_skipped = _apply_dup_guard(plan, posted_ids, approve_already, current_head, log)
+        _narrate_write(task_dir,
+                       f"[narrate] dup-guard: skipped {n_skipped} previously-posted finding(s)"
+                       + ("; head_sha unchanged → approve already posted" if approve_already else ""))
+
     write_json(pr_review_file(task_dir, "posting-plan.json"), plan)
     log.info("posting-plan.json: %d step(s) — %s",
              len(plan.get("steps", [])),
@@ -600,6 +613,8 @@ def main() -> int:
             "note": "Host agent dispatches each step via the named mcp__adk-mcp-{github,bitbucket}__* tool. NEVER merge — that's a human action.",
         }
         write_json(pr_review_file(task_dir, "post-result.json"), out)
+        _stamp_posted(task_dir, pr, queue_ctx)
+        _append_history(task_dir, pr, findings, approve_ready, actions)
         return emit_json(out) if args.json else (print(json.dumps(out, indent=2)) or 0)
 
     host = pr.get("host")
@@ -673,8 +688,144 @@ def main() -> int:
     else:
         die(f"unsupported host: {host}")
 
+    n_posted = len(out.get("posted", [])) + len(out.get("appreciations_posted", []))
+    n_resolved = len(out.get("resolved", []))
+    _narrate_write(task_dir,
+                   f"[narrate] post: done — posted={n_posted}, resolved={n_resolved}, "
+                   f"approved={out.get('approved') is not None}")
     write_json(pr_review_file(task_dir, "post-result.json"), out)
+    _stamp_posted(task_dir, pr, queue_ctx)
+    _append_history(task_dir, pr, findings, approve_ready, actions)
     return emit_json(out) if args.json else 0
+
+
+def _stamp_posted(task_dir: Path, pr: dict, queue_ctx: dict | None) -> None:
+    """Write last_posted_at / last_posted_head_sha to the queue row (best-effort)."""
+    if not queue_ctx:
+        return
+    pr_url = pr.get("url")
+    queue_path_str = queue_ctx.get("queue_path")
+    if not pr_url or not queue_path_str:
+        return
+    head_sha = pr.get("head_sha")
+    stamp: dict = {"last_posted_at": _queue_now_iso()}
+    if head_sha:
+        stamp["last_posted_head_sha"] = head_sha
+    try:
+        update_pr_entry(Path(queue_path_str), pr_url, stamp)
+    except Exception:
+        pass  # stamping is best-effort; never block posting
+
+
+def _append_history(task_dir: Path, pr: dict, findings_blob: dict,
+                    approve_ready: bool, actions: list[dict]) -> None:
+    """Append one JSONL line to pr-review/history.jsonl recording this dispatch."""
+    findings = findings_blob.get("findings") or []
+    by_sev: dict[str, int] = {}
+    for f in findings:
+        sev = f.get("severity") or "unknown"
+        by_sev[sev] = by_sev.get(sev, 0) + 1
+    host_decision = pr.get("reviewDecision") or pr.get("review_decision") or None
+    record = {
+        "ts": _queue_now_iso(),
+        "head_sha": pr.get("head_sha"),
+        "recommendation": findings_blob.get("recommendation"),
+        "n_blocker": by_sev.get("blocker", 0),
+        "n_critical": by_sev.get("critical", 0),
+        "n_should": by_sev.get("should-have", 0),
+        "n_may": by_sev.get("may-have", 0),
+        "n_nit": by_sev.get("nitpick", 0),
+        "approve_ready": approve_ready,
+        "host_review_decision": host_decision,
+    }
+    history_path = pr_review_file(task_dir, "history.jsonl")
+    try:
+        with history_path.open("a", encoding="utf-8") as fh:
+            fh.write(json.dumps(record, separators=(",", ":")) + "\n")
+    except Exception:
+        pass  # append is best-effort; never block posting
+
+
+def _load_prior_post_result(task_dir: Path) -> dict:
+    """Return the prior post-result.json blob, or {} if absent/unreadable."""
+    p = pr_review_file(task_dir, "post-result.json")
+    if not p.exists():
+        return {}
+    try:
+        return json.loads(p.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
+def _posted_finding_ids(prior: dict) -> set[str]:
+    """Collect finding IDs that were successfully posted in a prior run.
+
+    Looks inside the posting-plan.json steps recorded in the prior result, and
+    also inside the direct-API `posted` / `appreciations_posted` lists.
+    """
+    ids: set[str] = set()
+    # MCP-plan mode: the plan was the output; look at the steps themselves.
+    # The plan steps carry `finding_id` when they were inline-comment / general
+    # steps. A step with no `finding_id` is a review_summary / approve_pr step —
+    # those are guarded separately via `_prior_approve_ok`.
+    for step in prior.get("steps", []):
+        fid = step.get("finding_id")
+        if fid and step.get("status") not in ("skip-already-posted",):
+            ids.add(fid)
+    # Direct-API mode: the posted / appreciations_posted lists carry per-finding
+    # status dicts from bb_post_inline / gh_post_review. The review_summary step
+    # posts ALL issues in one batch — if it succeeded, all issue finding IDs were
+    # posted. We surface this by marking the plan's review_summary step rather
+    # than individual IDs, so we use a sentinel instead.
+    if prior.get("posted") and any(
+        r.get("status") == "ok" for r in prior.get("posted", [])
+    ):
+        ids.add("__review_summary_posted__")
+    for r in prior.get("appreciations_posted", []):
+        fid = r.get("finding_id") or r.get("id")
+        if fid and r.get("status") == "ok":
+            ids.add(fid)
+    return ids
+
+
+def _prior_approve_ok(prior: dict, current_head_sha: str | None) -> bool:
+    """Return True if a prior run approved the PR at the same head_sha."""
+    prior_approved = prior.get("approved")
+    if not prior_approved:
+        return False
+    if prior_approved.get("status") not in ("ok",):
+        return False
+    # Only skip re-approval if the head_sha hasn't changed.
+    prior_head = prior.get("head_sha")
+    if prior_head and current_head_sha and prior_head != current_head_sha:
+        return False
+    return True
+
+
+def _apply_dup_guard(plan: dict, posted_ids: set[str], prior_approve_ok: bool,
+                     head_sha: str | None, log) -> int:
+    """Mark plan steps as skip-already-posted where the finding was already posted.
+
+    Mutates `plan["steps"]` in-place. Returns the number of steps skipped.
+    """
+    skipped = 0
+    review_summary_skipped = "__review_summary_posted__" in posted_ids
+    for step in plan.get("steps", []):
+        kind = step.get("kind", "")
+        fid = step.get("finding_id")
+        if fid and fid in posted_ids:
+            step["status"] = "skip-already-posted"
+            skipped += 1
+        elif kind == "review_summary" and review_summary_skipped:
+            step["status"] = "skip-already-posted"
+            skipped += 1
+        elif kind == "approve_pr" and prior_approve_ok:
+            step["status"] = "skip-already-posted"
+            step["note"] = (step.get("note") or "") + " (head_sha unchanged; approve already posted)"
+            skipped += 1
+    if skipped:
+        log.info("dup-guard: %d step(s) skipped (already posted in a prior run)", skipped)
+    return skipped
 
 
 def _comment_actions_approve_ready(task_dir: Path) -> bool:

@@ -11,7 +11,7 @@ from textual.widgets import Static
 
 from tui.app import AdkApp, _THEME_CYCLE
 from tui.screens.confirm_screen import ConfirmScreen
-from tui.widgets.log_pane import LogPane
+from tui.widgets.detail_pane import TabbedDetailPane
 
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -19,9 +19,11 @@ WORKER_SCRIPT = _REPO_ROOT / "tui" / "worker.py"
 
 
 def _log_text(app: AdkApp) -> str:
-    pane = app.query_one(LogPane)
-    lines = getattr(pane, "lines", [])
-    return "\n".join(getattr(line, "text", None) or str(line) for line in lines)
+    try:
+        ap = app.query_one(TabbedDetailPane).activity_pane()
+        return "\n".join(ap._log_buffer)
+    except Exception:
+        return ""
 
 
 async def _poll_until(predicate, *, pilot, timeout_s: float = 4.0,

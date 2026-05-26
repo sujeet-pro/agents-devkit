@@ -76,6 +76,8 @@ TaskStatus = Literal[
     "posting",
     # Findings posted; triage finalized.
     "reviewed",
+    # Reviewed + approved on host + merge-status.json bucket == "mergeable_now".
+    "ready_to_merge",
     # Any phase has status == "failed" (prep_status or state.json).
     "failed",
     # taken_at set and older than TAKEN_LOCK_MAX_AGE_SECONDS (stale lock).
@@ -135,6 +137,8 @@ class TaskStateInfo:
     has_findings: bool
     # Has triage.json been finalized?
     has_finalized_triage: bool
+    # Bucket from merge-status.json: mergeable_now | mergeable_with_caveats | blocked | unknown.
+    merge_status_bucket: str | None = None
 
 
 def read_task_state(
@@ -191,18 +195,30 @@ def read_task_state(
             if chunk_count is not None:
                 index_chunk_count = int(chunk_count)
 
-    has_findings = (task_dir / "findings.json").exists()
+    has_findings = (task_dir / "pr-review" / "findings.json").exists()
 
     # Finalized triage: posting-plan.json exists (dispatched) or
     # triage.json with a "finalized" flag.
-    posting_plan = task_dir / "posting-plan.json"
-    triage_json = task_dir / "triage.json"
+    posting_plan = task_dir / "pr-review" / "posting-plan.json"
+    triage_json = task_dir / "pr-review" / "triage.json"
     has_finalized_triage = posting_plan.exists()
     if not has_finalized_triage and triage_json.exists():
         try:
             traw: Any = json.loads(triage_json.read_text(encoding="utf-8"))
             if isinstance(traw, dict) and traw.get("finalized"):
                 has_finalized_triage = True
+        except (OSError, json.JSONDecodeError):
+            pass
+
+    merge_status_bucket: str | None = None
+    merge_status_path = task_dir / "pr-review" / "merge-status.json"
+    if merge_status_path.exists():
+        try:
+            mraw: Any = json.loads(merge_status_path.read_text(encoding="utf-8"))
+            if isinstance(mraw, dict):
+                bucket = mraw.get("bucket")
+                if isinstance(bucket, str):
+                    merge_status_bucket = bucket
         except (OSError, json.JSONDecodeError):
             pass
 
@@ -213,6 +229,7 @@ def read_task_state(
         index_chunk_count=index_chunk_count,
         has_findings=has_findings,
         has_finalized_triage=has_finalized_triage,
+        merge_status_bucket=merge_status_bucket,
     )
 
 
@@ -311,6 +328,10 @@ def derive_task_status(
     # ------------------------------------------------------------------
     if task_state is not None:
         if task_state.has_finalized_triage:
+            # 7a. Approved on host + merge-status confirms mergeable → promote.
+            if (queue_status == "approved"
+                    and task_state.merge_status_bucket == "mergeable_now"):
+                return "ready_to_merge"
             return "reviewed"
         if task_state.has_findings:
             return "ready_to_act"

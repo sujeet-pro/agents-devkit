@@ -79,8 +79,8 @@ def test_slack_reaction_status_uses_request_changes_when_host_says_so():
     ) == "request_changes"
 
 
-def test_multi_pr_reaction_update_sweeps_status_reactions(monkeypatch):
-    """Multi-PR threads should have no per-status reactions left behind."""
+def test_multi_pr_reaction_update_no_slack_calls(monkeypatch):
+    """Multi-PR threads: update_slack_reaction makes no Slack API calls at all."""
     import sys
     import types
 
@@ -120,11 +120,7 @@ def test_multi_pr_reaction_update_sweeps_status_reactions(monkeypatch):
     )
 
     assert added == []
-    assert sorted(emoji for _, _, emoji in removed) == [
-        "octagonal_sign",
-        "speech_balloon",
-        "white_check_mark",
-    ]
+    assert removed == []
     assert info["last_reaction_status"] is None
 
 

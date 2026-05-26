@@ -1,86 +1,37 @@
-Screen {
-    layout: vertical;
+Screen { layout: vertical; }
+
+HeaderBar { dock: top; height: 1; background: $primary-background; color: $text; padding: 0 1; }
+FooterBar { dock: bottom; height: 1; background: $primary-background; color: $text; padding: 0 1; }
+
+/* Direction + split percentages are set at runtime via widget.styles
+   (see AdkApp._apply_layout). The container only needs to occupy the
+   remaining height between the docked header and footer. */
+#main { height: 1fr; width: 1fr; }
+
+QueueTable { height: 1fr; width: 1fr; }
+QueueTable > .datatable--header { text-style: bold; }
+
+TabbedDetailPane { height: 1fr; width: 1fr; background: $surface; }
+TabbedDetailPane TabbedContent { height: 1fr; }
+TabbedDetailPane TabPane { padding: 0 1; height: 1fr; }
+TabbedDetailPane DetailPane { height: auto; padding: 0; background: $surface; }
+TabbedDetailPane Markdown { height: auto; background: $surface; padding: 0 1; }
+TabbedDetailPane MarkdownViewer { height: 1fr; background: $surface; }
+
+/* Always reserve a visible scrollbar gutter on the tab content scrolls so
+   the user can see the affordance + the scroll position at a glance. */
+TabbedDetailPane VerticalScroll,
+TabbedDetailPane ScrollableContainer {
+    scrollbar-gutter: stable;
+    scrollbar-size-vertical: 1;
+    scrollbar-color: $accent;
+    scrollbar-color-hover: $accent;
+    scrollbar-color-active: $accent;
+    scrollbar-background: $surface;
 }
 
-HeaderBar {
-    dock: top;
-    height: 1;
-    background: $primary-background;
-    color: $text;
-    padding: 0 1;
-}
-
-FooterBar {
-    dock: bottom;
-    height: 1;
-    background: $primary-background;
-    color: $text;
-    padding: 0 1;
-}
-
-#main {
-    layout: horizontal;
-    height: 1fr;
-}
-
-QueueTable {
-    width: 3fr;
-    height: 1fr;
-}
-
-QueueTable > .datatable--header {
-    text-style: bold;
-}
-
-/* TabbedDetailPane is the mounted widget; DetailPane is its Overview sub-widget */
-TabbedDetailPane {
-    width: 1fr;
-    height: 1fr;
-    background: $surface;
-}
-
-TabbedDetailPane TabbedContent {
-    height: 1fr;
-}
-
-TabbedDetailPane TabPane {
-    padding: 0 1;
-    height: 1fr;
-}
-
-/* Preserve the original DetailPane text style when used as Overview sub-widget */
-TabbedDetailPane DetailPane {
-    height: auto;
-    padding: 0;
-    background: $surface;
-}
-
-WorkersPane {
-    height: auto;
-    min-height: 1;
-    max-height: 6;
-    padding: 0 1;
-    background: $boost;
-}
-
-RunsPane {
-    height: auto;
-    min-height: 1;
-    max-height: 6;
-    padding: 0 1;
-    background: $boost;
-}
-
-SyncPlanPane {
-    height: auto;
-    min-height: 2;
-    max-height: 8;
-    padding: 0 1;
-    background: $boost;
-}
-
-LogPane {
-    height: 10;
-    border-top: solid $primary;
-    background: $surface;
-}
+ActivityPane { height: 1fr; }
+ActivityPane VerticalScroll { height: 1fr; }
+ActivityPane Static { padding: 0 1; }
+ActivityPane .activity-section-header { text-style: bold; padding-top: 1; color: $accent; }
+ActivityPane #activity-log { background: $surface; }

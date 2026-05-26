@@ -44,15 +44,17 @@ def test_pr_review_file_returns_v4_path_for_brand_new_file(tmp_path):
 
 
 def test_pr_review_files_set_covers_known_files():
-    """The PR_REVIEW_FILES set lists every file the skill writes."""
+    """The PR_REVIEW_FILES set lists every PR-review artifact that lives in
+    the ``pr-review/`` subfolder. ``state.json`` and ``review.log`` are
+    intentionally NOT in this set — they live at the task root alongside
+    ``code/`` and ``code-index/``, mirroring the v4 layout."""
     expected = {
         "pr.json", "pr-comments.json", "diff.patch", "precis.md",
         "findings.json", "validated-findings.json", "initial-findings.json",
         "findings-final.json", "validation-report.json",
         "triage.json", "triage-state.json",
         "posting-plan.json", "post-result.json", "comment-actions.json",
-        "findings.md", "report.md", "state.json", "queue-context.json",
-        "review.log",
+        "findings.md", "report.md", "queue-context.json",
     }
     assert expected <= PR_REVIEW_FILES
 

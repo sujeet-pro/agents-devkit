@@ -61,23 +61,68 @@ def cmd_context_refresh(args) -> int:
 
 def cmd_merge_status(args) -> int:
     queue_path = Path(args.queue).expanduser()
+
+    # --refresh: pull fresh PR meta + comment activity from the origin before
+    # computing the verdict. The TUI passes this when the user asks "can I
+    # merge now?" so they don't see a stale cache. Best-effort: a refresh
+    # error degrades to the cached read (with a note in the output).
+    refresh_note: str | None = None
+    if getattr(args, "refresh", False):
+        try:
+            _run_adk(["pr-queue", "--queue", str(queue_path), "update", args.pr_url])
+            try:
+                from comment_activity import fetch_comment_activity  # type: ignore
+                activity = fetch_comment_activity(args.pr_url)
+                if "error" not in activity:
+                    field_updates = {
+                        k: v for k, v in activity.items()
+                        if k in (
+                            "comment_activity_hash", "comment_count",
+                            "unresolved_comment_count",
+                            "comment_activity_updated_at", "comment_activity_error",
+                        )
+                    }
+                    if field_updates and find_row(queue_path, args.pr_url) is not None:
+                        update_pr_entry(queue_path, args.pr_url, field_updates)
+                else:
+                    refresh_note = f"comment refresh warn: {activity.get('error')}"
+            except Exception as e:
+                refresh_note = f"comment refresh failed: {e}"
+        except Exception as e:
+            refresh_note = f"refresh failed: {e}"
+
     row = find_row(queue_path, args.pr_url) or {}
     meta = cheap_pr_meta(args.pr_url, _NullLog())
     task_dir = _task_dir(args.pr_url)
-    pr_json = _read_json(task_dir / "pr.json")
-    comment_actions = _read_json(task_dir / "comment-actions.json")
-    approved_host = bool(row.get("approved_host")) or (
-        pr_json.get("reviewDecision") in {"APPROVED"}
-        or pr_json.get("review_decision") in {"APPROVED"}
-    )
+    pr_json = _read_json(task_dir / "pr-review" / "pr.json")
+    comment_actions = _read_json(task_dir / "pr-review" / "comment-actions.json")
+
+    review_decision = str(
+        pr_json.get("reviewDecision") or pr_json.get("review_decision") or ""
+    ).upper()
+    approved_host = bool(row.get("approved_host")) or review_decision == "APPROVED"
+    changes_requested = review_decision == "CHANGES_REQUESTED"
     recommendation = row.get("recommendation") or pr_json.get("recommendation")
     approve_ready = comment_actions.get("approve_ready")
-    unresolved_known = None if approve_ready is None else not bool(approve_ready)
+
+    # Open-comments count: prefer the queue row's tracked value (kept fresh by
+    # the refresh path above), fall back to whatever pr_json says.
+    open_comments_count = (
+        row.get("unresolved_comment_count")
+        or pr_json.get("unresolved_comment_count")
+        or 0
+    )
+    try:
+        open_comments_count = int(open_comments_count)
+    except (TypeError, ValueError):
+        open_comments_count = 0
     status = row.get("status") or ""
-    open_comments = status == "comments"
+    has_open_comments = bool(open_comments_count) or status == "comments"
+
     checks = pr_json.get("checks") or pr_json.get("status_checks") or {}
     checks_state = _checks_state(checks)
     mergeability = _mergeability(pr_json)
+
     origin_state = "unknown"
     if meta.get("merged_at"):
         origin_state = "merged"
@@ -85,36 +130,78 @@ def cmd_merge_status(args) -> int:
         origin_state = "closed"
     elif meta and not meta.get("error"):
         origin_state = "open"
-    blockers = []
+
+    # Hard blockers: prevent merge regardless of intent.
+    blockers: list[str] = []
     if origin_state != "open":
         blockers.append(f"origin state is {origin_state}")
+    if changes_requested:
+        blockers.append("a reviewer requested changes")
     if not approved_host and recommendation != "approve":
         blockers.append("not approved")
-    comments_blocking = unresolved_known is True or (open_comments and approve_ready is not True)
-    if comments_blocking:
-        blockers.append("unresolved or unclassified comments")
     if checks_state == "failed":
         blockers.append("checks failing")
     if mergeability == "blocked":
-        blockers.append("not mergeable")
-    bucket = "mergeable_now" if not blockers else "blocked"
-    if checks_state == "unknown" or mergeability == "unknown":
-        bucket = "unknown" if not blockers else "blocked"
+        blockers.append("not mergeable (conflicts)")
+
+    # Caveats: don't prevent merge, but the operator should consider them.
+    # "Open comments without a CHANGES_REQUESTED review" is the canonical
+    # caveat — they're advisory by GitHub/BB rules, but the human author
+    # probably wants them resolved before clicking merge.
+    caveats: list[str] = []
+    if not blockers and has_open_comments and approve_ready is not True:
+        if open_comments_count:
+            caveats.append(
+                f"{open_comments_count} open comment(s) unresolved "
+                "(no reviewer blocked merge; resolving before merging is recommended)"
+            )
+        else:
+            caveats.append(
+                "open comments unresolved "
+                "(no reviewer blocked merge; resolving before merging is recommended)"
+            )
+    if not blockers and checks_state == "pending":
+        caveats.append("checks still running")
+
+    if blockers:
+        bucket = "blocked"
+    elif caveats:
+        bucket = "mergeable_with_caveats"
+    elif checks_state == "unknown" or mergeability == "unknown":
+        bucket = "unknown"
+    else:
+        bucket = "mergeable_now"
+
     out = {
         "pr_url": args.pr_url,
         "bucket": bucket,
         "blockers": blockers,
+        "caveats": caveats,
         "origin_state": origin_state,
         "approved_host": approved_host,
+        "review_decision": review_decision or None,
+        "changes_requested": changes_requested,
         "recommendation": recommendation,
-        "open_comments": open_comments,
+        "open_comments": has_open_comments,
+        "open_comments_count": open_comments_count,
         "approve_ready": approve_ready,
         "checks": checks_state,
         "mergeability": mergeability,
+        "refreshed": bool(getattr(args, "refresh", False)),
+        "refresh_note": refresh_note,
         "links": _links_for(args.pr_url, queue_path),
     }
     print(json.dumps(out, indent=2))
-    return 0 if bucket == "mergeable_now" else 1
+    # Persist for the TUI's mergeability indicator. Best-effort; do not
+    # propagate write failures (the print above is the source of truth).
+    try:
+        cache_path = task_dir / "pr-review" / "merge-status.json"
+        cache_path.parent.mkdir(parents=True, exist_ok=True)
+        cache_path.write_text(json.dumps(out, indent=2), encoding="utf-8")
+    except OSError:
+        pass
+    # Exit-code contract: 0 = OK to merge (with or without caveats), 1 = blocked.
+    return 0 if bucket in ("mergeable_now", "mergeable_with_caveats") else 1
 
 
 def cmd_merge(args) -> int:
@@ -479,7 +566,7 @@ def _links_for(pr_url: str, queue_path: Path) -> dict[str, str]:
         td = _task_dir(pr_url)
         links["task-dir"] = file_link(td) or ""
         for key, name in (("report", "report.md"), ("findings", "findings.md")):
-            path = td / name
+            path = td / "pr-review" / name
             if path.exists():
                 links[key] = file_link(path) or ""
     except Exception:
@@ -688,6 +775,12 @@ def main(argv: list[str] | None = None) -> int:
 
     sp_ms = sub.add_parser("merge-status", help="show whether a PR can merge now")
     sp_ms.add_argument("pr_url")
+    sp_ms.add_argument(
+        "--refresh", action="store_true",
+        help="re-fetch PR metadata + comment activity from origin before computing. "
+             "Without --refresh the verdict is computed from the cached pr.json / "
+             "queue row (faster, but may be stale).",
+    )
     sp_ms.set_defaults(func=cmd_merge_status)
 
     sp_merge = sub.add_parser("merge", help="merge a PR via provider API when explicitly enabled")

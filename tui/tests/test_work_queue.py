@@ -15,10 +15,12 @@ def _footer_text(app: AdkApp) -> str:
 
 def _current_cells(app: AdkApp) -> list[str]:
     table = app.query_one(QueueTable)
-    col_keys = list(table.columns)
-    if len(col_keys) < 5:
+    active_cols = table._current_column_set or ()
+    if "current" not in active_cols:
         return []
-    current_col = col_keys[4]
+    col_keys = list(table.columns)
+    current_idx = active_cols.index("current")
+    current_col = col_keys[current_idx]
     return [str(table.get_cell(row_key, current_col)) for row_key in table.rows]
 
 
@@ -39,10 +41,10 @@ def test_footer_shows_four_primary_actions(tui_app) -> None:
         async with tui_app.run_test() as pilot:
             await pilot.pause()
             footer = _footer_text(tui_app)
-            assert "[1] Sync PR" in footer
-            assert "[2] Sync+Review" in footer
-            assert "[s] Sync all" in footer
-            assert "[A] Sync+Review all" in footer
+            assert "[S]Sync PR" in footer
+            assert "[R]Sync+Rev" in footer
+            assert "[s]Sync all" in footer
+            assert "[A]Sync+Rev all" in footer
             assert "run-sel" not in footer
             assert "[space]" not in footer
             assert "par:" not in footer
@@ -59,7 +61,6 @@ def test_footer_has_no_multi_select_labels(eligible_multi_queue: Path) -> None:
             await pilot.pause()
             footer = _footer_text(app)
             assert "[r] review" not in footer
-            assert "[R]" not in footer
             assert "[p]" not in footer
 
     asyncio.run(_run())
@@ -91,7 +92,7 @@ def test_sync_pr_shows_running_state_in_table(
     async def _run() -> None:
         async with app.run_test() as pilot:
             await pilot.pause()
-            await pilot.press("1")
+            await pilot.press("S")
             ok = await _poll_until(
                 lambda: any("running (sync)" in cell for cell in _current_cells(app)),
                 pilot=pilot,

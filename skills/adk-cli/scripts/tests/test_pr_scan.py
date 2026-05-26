@@ -1,6 +1,7 @@
 """Tests for pr_scan.scan() — focused on thread-reply PR-link extraction."""
 from __future__ import annotations
 
+import json
 import logging
 from types import SimpleNamespace
 
@@ -477,8 +478,9 @@ def test_post_process_skips_reaction_when_thread_has_multi_pr(monkeypatch):
     assert stats["merged_skipped_multi_pr_examples"] == ["gh:foo#1", "gh:foo#2"]
 
 
-def test_post_process_reacts_when_thread_has_single_pr(monkeypatch):
-    """The single-PR-thread case continues to react as before."""
+def test_post_process_single_pr_merged_no_reaction(monkeypatch):
+    """Merged single-PR threads are dropped from the actionable set but no
+    Slack reaction is added (reactions are dropped globally)."""
     reactions: list[tuple[str, str, str]] = []
 
     class FakeSlackC:
@@ -502,10 +504,143 @@ def test_post_process_reacts_when_thread_has_single_pr(monkeypatch):
     ]
     slack_cfg = {"status_emoji": {"merged": ":merged:"}}
     log = logging.getLogger("test")
-    _, stats = pr_scan.post_process(candidates, slack_cfg, dry_run=False, log=log)
+    kept, stats = pr_scan.post_process(candidates, slack_cfg, dry_run=False, log=log)
 
-    assert reactions == [("C1", "100.000", ":merged:")]
-    assert stats["merged_reacted"] == 1
+    assert reactions == [], "no reaction should be added even for single-PR merged threads"
+    assert kept == []
+    assert stats["merged_skipped"] == 1
+    assert stats["merged_reacted"] == 0
+
+
+# ----- _parse_since_seconds --------------------------------------------------
+
+def test_parse_since_seconds_hours():
+    assert pr_scan._parse_since_seconds("1h") == 3600.0
+
+
+def test_parse_since_seconds_hours_alias():
+    assert pr_scan._parse_since_seconds("30hr") == 30 * 3600.0
+
+
+def test_parse_since_seconds_fractional_hours():
+    assert pr_scan._parse_since_seconds("12h") == 12 * 3600.0
+
+
+def test_parse_since_seconds_days():
+    assert pr_scan._parse_since_seconds("30d") == 30 * 86400.0
+
+
+def test_parse_since_seconds_weeks():
+    assert pr_scan._parse_since_seconds("4w") == 4 * 7 * 86400.0
+
+
+def test_parse_since_seconds_months():
+    assert pr_scan._parse_since_seconds("1m") == 30 * 86400.0
+
+
+def test_parse_since_seconds_case_insensitive():
+    assert pr_scan._parse_since_seconds("12H") == 12 * 3600.0
+    assert pr_scan._parse_since_seconds("7D") == 7 * 86400.0
+
+
+def test_parse_since_seconds_invalid_raises():
+    with pytest.raises(ValueError, match="unrecognised"):
+        pr_scan._parse_since_seconds("badformat")
+
+    with pytest.raises(ValueError, match="unrecognised"):
+        pr_scan._parse_since_seconds("30x")
+
+
+# ----- configured-repo filter (_filter_by_configured_repos) ------------------
+
+def test_filter_drops_unknown_repo_when_registry_configured(monkeypatch):
+    """Candidates for repos not in repos.md are dropped when the registry exists."""
+    monkeypatch.setattr(pr_scan, "is_configured_repo",
+                        lambda host, owner, repo: (host == "github" and repo == "allowed"))
+
+    candidates = [
+        {"pr_url": "https://github.com/acme/allowed/pull/1"},
+        {"pr_url": "https://github.com/acme/other/pull/2"},
+    ]
+    log = logging.getLogger("test")
+    kept, dropped = pr_scan._filter_by_configured_repos(candidates, log)
+
+    assert len(kept) == 1
+    assert kept[0]["pr_url"].endswith("/pull/1")
+    assert dropped == 1
+
+
+def test_filter_passes_all_when_registry_empty(monkeypatch):
+    """When is_configured_repo returns True for everything (empty registry), nothing is dropped."""
+    monkeypatch.setattr(pr_scan, "is_configured_repo", lambda host, owner, repo: True)
+
+    candidates = [
+        {"pr_url": "https://github.com/acme/foo/pull/1"},
+        {"pr_url": "https://github.com/acme/bar/pull/2"},
+    ]
+    log = logging.getLogger("test")
+    kept, dropped = pr_scan._filter_by_configured_repos(candidates, log)
+
+    assert len(kept) == 2
+    assert dropped == 0
+
+
+# ----- scan_direct_review_requests -------------------------------------------
+
+def test_scan_direct_gh_pr_shows_up_with_direct_link_origin(monkeypatch):
+    """When GH returns a PR for a configured repo, scan_direct_review_requests
+    returns a candidate with link_origin='direct' and discovery_source='direct'.
+    """
+    import sys, types
+
+    gh_response = json.dumps({
+        "items": [
+            {
+                "html_url": "https://github.com/acme/foo/pull/42",
+                "pull_request": {"html_url": "https://github.com/acme/foo/pull/42"},
+            }
+        ]
+    })
+
+    def fake_run(cmd, **kwargs):
+        class FakeCP:
+            returncode = 0
+            stdout = gh_response
+            stderr = ""
+        return FakeCP()
+
+    monkeypatch.setattr(pr_scan.subprocess, "run", fake_run)
+
+    def fake_load_repos():
+        return ({"repos": [{"host": "github", "workspace": "acme", "name": "foo"}]}, "")
+
+    sys.modules.setdefault("config_io", types.SimpleNamespace(load_repos=fake_load_repos))
+    monkeypatch.setitem(sys.modules, "config_io",
+                        types.SimpleNamespace(load_repos=fake_load_repos))
+
+    log = logging.getLogger("test")
+    candidates = pr_scan.scan_direct_review_requests(log)
+
+    assert len(candidates) == 1
+    c = candidates[0]
+    assert c["pr_url"] == "https://github.com/acme/foo/pull/42"
+    assert c["link_origin"] == "direct"
+    assert c["discovery_source"] == "direct"
+
+
+def test_scan_direct_skips_bitbucket_with_warning(monkeypatch):
+    """Bitbucket repos log a warning and produce no candidates."""
+    import sys, types
+
+    def fake_load_repos():
+        return ({"repos": [{"host": "bitbucket", "workspace": "myws", "name": "myrepo"}]}, "")
+
+    monkeypatch.setitem(sys.modules, "config_io",
+                        types.SimpleNamespace(load_repos=fake_load_repos))
+
+    log = logging.getLogger("test")
+    candidates = pr_scan.scan_direct_review_requests(log)
+    assert candidates == []
 
 
 if __name__ == "__main__":

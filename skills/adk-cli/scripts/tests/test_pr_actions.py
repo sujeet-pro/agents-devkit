@@ -53,14 +53,21 @@ def test_merge_status_blocks_when_not_approved(tmp_path, monkeypatch, capsys):
 
 
 def test_merge_status_allows_resolvable_comments_when_approved(tmp_path, monkeypatch, capsys):
+    """When all open comments are classified resolvable (approve_ready=True)
+    and the PR is approved, comments must NOT be a hard blocker.
+
+    approve_ready=True with open comments → caveat at most, never a blocker.
+    approve_ready=False or None → caveat, again not a hard blocker."""
     q = _queue(tmp_path / "q.json5", {
         "pr_url": "https://github.com/acme/foo/pull/1",
         "status": "comments",
         "approved_host": True,
     })
     task = tmp_path / "task"
-    task.mkdir()
-    (task / "comment-actions.json").write_text(json.dumps({"approve_ready": True}), encoding="utf-8")
+    (task / "pr-review").mkdir(parents=True)
+    (task / "pr-review" / "comment-actions.json").write_text(
+        json.dumps({"approve_ready": True}), encoding="utf-8"
+    )
     monkeypatch.setattr(pr, "cheap_pr_meta", lambda _url, _log: {
         "state": "OPEN",
         "merged_at": None,
@@ -69,9 +76,13 @@ def test_merge_status_allows_resolvable_comments_when_approved(tmp_path, monkeyp
 
     rc = pr.main(["--queue", str(q), "merge-status", "https://github.com/acme/foo/pull/1"])
 
-    assert rc == 1  # checks/mergeability are unknown in this lightweight fixture
     out = json.loads(capsys.readouterr().out)
-    assert "unresolved or unclassified comments" not in out["blockers"]
+    for b in out["blockers"]:
+        assert "comment" not in b.lower(), f"comments must not be hard blockers, got {b!r}"
+    # checks/mergeability are unknown in this lightweight fixture so the
+    # bucket ends up "unknown" (rc=1) rather than mergeable_now.
+    assert rc == 1
+    assert out["bucket"] in {"unknown", "mergeable_now"}
 
 
 def test_context_refresh_runs_update_slack_and_prepare(tmp_path, monkeypatch, capsys):
@@ -555,14 +566,21 @@ def test_merge_status_blocks_when_not_approved(tmp_path, monkeypatch, capsys):
 
 
 def test_merge_status_allows_resolvable_comments_when_approved(tmp_path, monkeypatch, capsys):
+    """When all open comments are classified resolvable (approve_ready=True)
+    and the PR is approved, comments must NOT be a hard blocker.
+
+    approve_ready=True with open comments → caveat at most, never a blocker.
+    approve_ready=False or None → caveat, again not a hard blocker."""
     q = _queue(tmp_path / "q.json5", {
         "pr_url": "https://github.com/acme/foo/pull/1",
         "status": "comments",
         "approved_host": True,
     })
     task = tmp_path / "task"
-    task.mkdir()
-    (task / "comment-actions.json").write_text(json.dumps({"approve_ready": True}), encoding="utf-8")
+    (task / "pr-review").mkdir(parents=True)
+    (task / "pr-review" / "comment-actions.json").write_text(
+        json.dumps({"approve_ready": True}), encoding="utf-8"
+    )
     monkeypatch.setattr(pr, "cheap_pr_meta", lambda _url, _log: {
         "state": "OPEN",
         "merged_at": None,
@@ -571,9 +589,13 @@ def test_merge_status_allows_resolvable_comments_when_approved(tmp_path, monkeyp
 
     rc = pr.main(["--queue", str(q), "merge-status", "https://github.com/acme/foo/pull/1"])
 
-    assert rc == 1  # checks/mergeability are unknown in this lightweight fixture
     out = json.loads(capsys.readouterr().out)
-    assert "unresolved or unclassified comments" not in out["blockers"]
+    for b in out["blockers"]:
+        assert "comment" not in b.lower(), f"comments must not be hard blockers, got {b!r}"
+    # checks/mergeability are unknown in this lightweight fixture so the
+    # bucket ends up "unknown" (rc=1) rather than mergeable_now.
+    assert rc == 1
+    assert out["bucket"] in {"unknown", "mergeable_now"}
 
 
 def test_context_refresh_runs_update_slack_and_prepare(tmp_path, monkeypatch, capsys):

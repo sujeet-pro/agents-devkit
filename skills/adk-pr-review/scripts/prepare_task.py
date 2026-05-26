@@ -74,6 +74,7 @@ sys.path.insert(0, str(ADK_CLI_SCRIPTS))
 from queue_io import (  # noqa: E402
     DEFAULT_QUEUE_PATH, acquire_next_row, find_row, update_pr_entry,
     TAKEN_LOCK_MAX_AGE_SECONDS, STATUS_IN_REVIEW, slack_threads_for,
+    _now_iso as _queue_now_iso,
 )
 
 # Decision-log helper — improvement #4 (decisions.jsonl was getting zero new
@@ -430,6 +431,26 @@ def main() -> int:
 def _main_inner(args, parsed, task_dir, log) -> int:
     host, owner, repo, n = parsed["host"], parsed["owner"], parsed["repo"], parsed["pr_number"]
     state = read_state(task_dir)
+    # P1.2 self-heal: if state.json carries a stale task_dir (e.g. from a pre-migration
+    # run that stored ~/.agents-devkit/ instead of $ADK_DATA_HOME/), overwrite it with
+    # the current runtime path so downstream readers don't fail on the old literal path.
+    if state.get("task_dir") and state["task_dir"] != str(task_dir):
+        log.info("state.json: healing stale task_dir %r → %s", state["task_dir"], task_dir)
+        state["task_dir"] = str(task_dir)
+        write_state(task_dir, state)
+    # Same for code-index/meta.json table_path if present.
+    meta_path = task_dir / "code-index" / "meta.json"
+    if meta_path.exists():
+        try:
+            meta = json.loads(meta_path.read_text(encoding="utf-8"))
+            tp = meta.get("table_path") or ""
+            if tp and not tp.startswith(str(task_dir)):
+                new_tp = str(task_dir / "code-index" / Path(tp).name)
+                log.info("code-index/meta.json: healing stale table_path %r → %s", tp, new_tp)
+                meta["table_path"] = new_tp
+                meta_path.write_text(json.dumps(meta, indent=2), encoding="utf-8")
+        except Exception as e:
+            log.warning("code-index/meta.json: could not self-heal (%s)", e)
     prior_index_head = state.get("phases", {}).get("3_index", {}).get("head_sha_at_index")
     if args.rebuild:
         log.info("--rebuild: prior index will be discarded")
@@ -687,6 +708,14 @@ def _main_inner(args, parsed, task_dir, log) -> int:
     else:
         _idx_note = "full rebuild"
     narrate_done(task_dir, "3", note=_idx_note)
+
+    # Stamp the queue row so the TUI can show "last indexed at / head".
+    if not _idx_phase.get("skipped"):
+        _queue_path = Path(args.queue).expanduser()
+        update_pr_entry(_queue_path, args.url, {
+            "last_indexed_at": _queue_now_iso(),
+            "last_indexed_head_sha": head_sha,
+        })
 
     # Health check AFTER state write — a transient health-check failure no
     # longer orphans the index. The earlier mark_phase call captured what

@@ -5,7 +5,7 @@ import asyncio
 from pathlib import Path
 
 from tui.app import AdkApp
-from tui.widgets.log_pane import LogPane
+from tui.widgets.detail_pane import TabbedDetailPane
 
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -13,9 +13,11 @@ WORKER_SCRIPT = _REPO_ROOT / "tui" / "worker.py"
 
 
 def _log_text(app: AdkApp) -> str:
-    pane = app.query_one(LogPane)
-    lines = getattr(pane, "lines", [])
-    return "\n".join(getattr(line, "text", None) or str(line) for line in lines)
+    try:
+        ap = app.query_one(TabbedDetailPane).activity_pane()
+        return "\n".join(ap._log_buffer)
+    except Exception:
+        return ""
 
 
 async def _poll_until(predicate, *, pilot, timeout_s: float = 5.0,
@@ -48,7 +50,7 @@ def test_sync_review_with_no_row_selected_logs_no_row(
     async def _run() -> None:
         async with app.run_test() as pilot:
             await pilot.pause()
-            await pilot.press("2")
+            await pilot.press("R")
             ok = await _poll_until(
                 lambda: "(no row selected)" in _log_text(app),
                 pilot=pilot,
@@ -91,7 +93,7 @@ def test_sync_review_on_not_ready_row_marks_skipped(
                 await pilot.pause()
             assert found, "no not-ready row found in sample_queue fixture"
 
-            await pilot.press("2")
+            await pilot.press("R")
             ok = await _poll_until(
                 lambda: "skipping review — row not ready" in _log_text(app)
                 or any(
@@ -124,7 +126,7 @@ def test_sync_review_on_eligible_row_spawns_worker(
     async def _run() -> None:
         async with app.run_test() as pilot:
             await pilot.pause()
-            await pilot.press("2")
+            await pilot.press("R")
             ok = await _poll_until(
                 lambda: "(worker exited rc=0)" in _log_text(app),
                 pilot=pilot,
@@ -165,7 +167,7 @@ def test_sync_all_while_sync_review_blocked(
     async def _run() -> None:
         async with app.run_test() as pilot:
             await pilot.pause()
-            await pilot.press("2")
+            await pilot.press("R")
             ok = await _poll_until(
                 lambda: "[claude] starting" in _log_text(app),
                 pilot=pilot,
@@ -228,7 +230,7 @@ def test_sync_review_while_sync_all_blocked(
             )
             assert ok, f"sync never started; log:\n{_log_text(app)}"
 
-            await pilot.press("2")
+            await pilot.press("R")
             ok2 = await _poll_until(
                 lambda: "(can't start Sync + Review — sync all already running)"
                 in _log_text(app),

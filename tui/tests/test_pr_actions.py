@@ -11,14 +11,16 @@ from textual.widgets import DataTable, OptionList
 from tui.app import AdkApp
 from tui.screens.info_screen import InfoScreen
 from tui.screens.pr_action_screen import PrActionScreen
-from tui.widgets.log_pane import LogPane
+from tui.widgets.detail_pane import TabbedDetailPane
 from tui.widgets.queue_table import QueueTable
 
 
 def _log_text(app: AdkApp) -> str:
-    pane = app.screen_stack[0].query_one(LogPane)
-    lines = getattr(pane, "lines", [])
-    return "\n".join(getattr(line, "text", None) or str(line) for line in lines)
+    try:
+        tdp = app.screen_stack[0].query_one(TabbedDetailPane)
+        return "\n".join(tdp.activity_pane()._log_buffer)
+    except Exception:
+        return ""
 
 
 async def _poll_until(predicate, *, pilot, timeout_s: float = 5.0,
@@ -45,7 +47,7 @@ def _recording_adk(tmp_path: Path, log_path: Path) -> Path:
     return p
 
 
-def test_sync_pr_key_1_updates_and_prepares(
+def test_sync_pr_key_S_updates_and_prepares(
     eligible_queue_path: Path,
     fake_plan_path: Path,
     tmp_path: Path,
@@ -62,7 +64,7 @@ def test_sync_pr_key_1_updates_and_prepares(
     async def _run() -> None:
         async with app.run_test() as pilot:
             await pilot.pause()
-            await pilot.press("1")
+            await pilot.press("S")
             ok = await _poll_until(
                 lambda: "prepare index exited rc=0" in _log_text(app),
                 pilot=pilot,

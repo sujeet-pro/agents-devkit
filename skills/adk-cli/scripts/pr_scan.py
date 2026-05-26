@@ -44,7 +44,7 @@ Args:
 from __future__ import annotations
 
 import argparse
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from difflib import SequenceMatcher
 import json
 import os
@@ -76,12 +76,14 @@ from _common import (  # noqa: E402
 from queue_io import (  # noqa: E402
     DEFAULT_QUEUE_PATH,
     load_slack_config, read_queue, write_queue, merge_scan_results,
+    atomic_scan_merge, classify_pr_state,
     STATUS_PENDING, STATUS_MERGED,
 )
 from slack_helpers import (  # noqa: E402
     SlackClient, find_pr_urls, extract_message_actor_ids,
     days_ago_ts, hours_ago_ts,
 )
+from repo import is_configured_repo  # noqa: E402
 
 DEFAULT_SLACK_CONFIG = adk_config_home() / "connectors" / "slack.md"
 
@@ -414,25 +416,11 @@ def scan(slack_cfg: dict, oldest_ts: str, log) -> tuple[list[dict], dict]:
 
 
 def post_process(candidates: list[dict], slack_cfg: dict, dry_run: bool, log) -> tuple[list[dict], dict]:
-    """For each candidate: cheap meta. If merged + thread carries exactly
-    one PR + emoji configured → react on its own message_ts. Return
-    (non_merged, stats).
-
-    Reaction policy (2026-05-22): a single emoji on a slack message can
-    only identify a verdict for the PR it visually represents. When the
-    whole thread contains exactly one PR, the reaction is unambiguous. When
-    the thread carries multiple PRs (main + replies combined), a reaction
-    on the main message would conflate verdicts — so we skip the reaction
-    entirely and rely on reply-based reporting downstream, where each
-    reply text includes the PR link.
-    """
+    """For each candidate: cheap meta. Drop merged PRs. Return (non_merged, stats)."""
     stats = {"merged_reacted": 0, "merged_skipped": 0,
              "merged_skipped_multi_pr": 0, "merged_skipped_multi_pr_examples": [],
              "errors": 0, "kept": 0}
-    status_emoji = slack_cfg.get("status_emoji") or {}
-    merged_emoji = status_emoji.get("merged")
     kept: list[dict] = []
-    client: SlackClient | None = None
 
     for c in candidates:
         meta = cheap_pr_meta(c["pr_url"], log)
@@ -443,28 +431,179 @@ def post_process(candidates: list[dict], slack_cfg: dict, dry_run: bool, log) ->
         if meta.get("merged_at"):
             stats["merged_skipped"] += 1
             slack = c.get("slack") or {}
-            # Thread-wide PR count is the gate for reaction safety.
             thread_pr_count = slack.get("thread_pr_count", 1)
-            if thread_pr_count == 1 and merged_emoji and not dry_run:
-                if client is None:
-                    client = SlackClient()
-                ok = client.add_reaction(slack["channel_id"], slack["message_ts"], merged_emoji)
-                if ok:
-                    stats["merged_reacted"] += 1
-            elif thread_pr_count > 1:
+            if thread_pr_count > 1:
                 stats["merged_skipped_multi_pr"] += 1
                 examples = stats.setdefault("merged_skipped_multi_pr_examples", [])
                 ref = format_pr_ref(c["pr_url"])
                 if ref not in examples and len(examples) < 5:
                     examples.append(ref)
                 if not is_orchestrated():
-                    log.info("merged PR in multi-PR thread (count=%d) — skipping reaction; "
-                             "reply-mode verdict expected: %s", thread_pr_count, c["pr_url"])
+                    log.info("merged PR in multi-PR thread (count=%d): %s",
+                             thread_pr_count, c["pr_url"])
             continue
         c["_meta"] = meta
         kept.append(c)
         stats["kept"] += 1
     return kept, stats
+
+
+def scan_user_mentions(slack_client: "SlackClient", user_id: str,
+                       since_days: int, url_patterns: list[str],
+                       log) -> list[dict]:
+    """Search Slack for messages where `user_id` is mentioned, returning
+    candidate rows (same shape as `scan` candidates) filtered to the
+    `since_days` window.
+
+    Uses Slack `search.messages` with `query="<@USER_ID> has:link"` to
+    narrow to messages that contain at least one link (reduces noise).
+    Each result runs through `find_pr_urls` and `find_supporting_docs` — the
+    same extraction used by the channel-scan path.
+
+    New rows get `discovery_source: "mention"`. The dedup against channel-
+    scan results happens in `merge_scan_results` via `dedupe_key`.
+    """
+    if not user_id:
+        log.warning("scan_user_mentions: user_id is empty — skipping mention scan")
+        return []
+
+    from datetime import timezone
+    now_ts = datetime.now(timezone.utc).timestamp()
+    cutoff_ts = now_ts - since_days * 86400
+
+    query = f"<@{user_id}> has:link"
+    candidates: list[dict] = []
+    page = 1
+
+    try:
+        while True:
+            # SlackClient._call maps method name string to the underlying
+            # WebClient method. search_messages uses `count` + `page` paging.
+            result = slack_client._call("search_messages",
+                                        {"query": query, "count": 20, "page": page})
+            if result is None:
+                break
+            messages = (result.get("messages") or {}).get("matches") or []
+            if not messages:
+                break
+            for msg in messages:
+                ts_raw = msg.get("ts") or "0"
+                try:
+                    ts_float = float(ts_raw)
+                except (TypeError, ValueError):
+                    ts_float = 0.0
+                if ts_float < cutoff_ts:
+                    continue
+                text = msg.get("text") or ""
+                pr_urls = find_pr_urls(text, url_patterns)
+                if not pr_urls:
+                    continue
+                channel_info = msg.get("channel") or {}
+                cid = channel_info.get("id") or ""
+                supporting = find_supporting_docs(text)
+                thread_ts = msg.get("thread_ts") or ts_raw
+                permalink = msg.get("permalink") or ""
+                n_prs = len(pr_urls)
+                for pr_url in pr_urls:
+                    related = [u for u in pr_urls if u != pr_url]
+                    candidates.append({
+                        "pr_url": pr_url,
+                        "supporting_docs": supporting,
+                        "related_pr_urls": related,
+                        "discovery_source": "mention",
+                        "slack": _slack_for(
+                            pr_url,
+                            channel_id=cid, message_ts=ts_raw, thread_ts=thread_ts,
+                            thread_starter_user_id=msg.get("user"),
+                            link_origin="mention",
+                            n_pr_links_in_message=n_prs,
+                            permalink=permalink,
+                            thread_pr_count=n_prs,
+                        ),
+                    })
+            paging = (result.get("messages") or {}).get("paging") or {}
+            if page >= (paging.get("pages") or 1):
+                break
+            page += 1
+    except Exception as e:
+        log.warning("scan_user_mentions: search.messages failed (%s) — skipping mention scan", e)
+        return []
+
+    return candidates
+
+
+def scan_direct_review_requests(log) -> list[dict]:
+    """Return candidates from PRs where the user is a requested reviewer.
+
+    For each configured repo in repos.md:
+      - GitHub: calls `gh api search/issues` with `review-requested:@me`.
+      - Bitbucket: logs a one-line warning and skips (REST helper not implemented).
+
+    Returned candidates have the same shape as channel-scan candidates but with
+    `link_origin="direct"` and no `slack` field. They merge through the normal
+    dedupe path in merge_scan_results / atomic_scan_merge.
+    """
+    try:
+        # config_io is in scripts/ which repo.py added to sys.path at import.
+        from config_io import load_repos  # type: ignore  # noqa: WPS433
+        fm, _ = load_repos()
+    except Exception as exc:
+        log.warning("direct-scan: could not load repos.md (%s) — skipping", exc)
+        return []
+
+    repo_entries = (fm.get("repos") if isinstance(fm, dict) else None) or []
+    if not repo_entries:
+        log.info("direct-scan: no repos configured in repos.md — skipping")
+        return []
+
+    candidates: list[dict] = []
+    for entry in repo_entries:
+        if not isinstance(entry, dict):
+            continue
+        host = (entry.get("host") or "github").lower()
+        owner = entry.get("workspace") or entry.get("owner") or ""
+        repo_name = entry.get("name") or ""
+        if not owner or not repo_name:
+            continue
+
+        if host == "bitbucket":
+            log.warning("direct-scan: bitbucket direct scan not implemented "
+                        "for %s/%s; relying on Slack scan", owner, repo_name)
+            continue
+
+        if host != "github":
+            log.warning("direct-scan: unsupported host %r for %s/%s; skipping",
+                        host, owner, repo_name)
+            continue
+
+        query = f"is:open is:pr review-requested:@me repo:{owner}/{repo_name}"
+        cmd = ["gh", "api", "search/issues",
+               "-X", "GET", "-f", f"q={query}", "--paginate"]
+        try:
+            cp = subprocess.run(cmd, capture_output=True, text=True, check=True)
+            items = json.loads(cp.stdout).get("items") or []
+        except subprocess.CalledProcessError as exc:
+            log.warning("direct-scan: gh api search failed for %s/%s (%s) — skipping",
+                        owner, repo_name, (exc.stderr or "").strip()[:120])
+            continue
+        except Exception as exc:
+            log.warning("direct-scan: error for %s/%s (%s) — skipping",
+                        owner, repo_name, exc)
+            continue
+
+        for item in items:
+            pr_url = item.get("pull_request", {}).get("html_url") or item.get("html_url") or ""
+            if not pr_url or "/pull/" not in pr_url:
+                continue
+            candidates.append({
+                "pr_url": pr_url,
+                "supporting_docs": [],
+                "related_pr_urls": [],
+                "discovery_source": "direct",
+                "link_origin": "direct",
+            })
+
+    return candidates
 
 
 def _similar(a: str | None, b: str | None) -> float:
@@ -541,15 +680,98 @@ def maybe_emit_gentle_reminders(candidates: list[dict], existing_queue: dict,
     return stats
 
 
+def _filter_by_configured_repos(candidates: list[dict], log) -> tuple[list[dict], int]:
+    """Drop candidates whose repo is not in repos.md. Returns (kept, dropped_count).
+
+    When repos.md is absent or has no entries, all candidates pass through
+    (backward compat).
+    """
+    kept: list[dict] = []
+    dropped = 0
+    for c in candidates:
+        try:
+            p = parse_pr_url(c["pr_url"])
+        except (ValueError, KeyError):
+            kept.append(c)
+            continue
+        if is_configured_repo(p["host"], p["owner"], p["repo"]):
+            kept.append(c)
+        else:
+            dropped += 1
+            log.info("pr-scan: dropping %s/%s/%s#%s — not in configured repos",
+                     p["host"], p["owner"], p["repo"], p["pr_number"])
+    return kept, dropped
+
+
 # ----- entrypoint ---------------------------------------------------------
+
+_SINCE_RE = re.compile(r"^(\d+(?:\.\d+)?)\s*(hr|h|d|w|m)$", re.I)
+
+_UNIT_SECONDS = {
+    "h": 3600,
+    "hr": 3600,
+    "d": 86400,
+    "w": 7 * 86400,
+    "m": 30 * 86400,
+}
+
+
+def _parse_since_seconds(since: str) -> float:
+    """Parse `--since` value to seconds.
+
+    Accepts:
+      Nh / Nhr — hours (e.g. "12h", "30hr")
+      Nd        — days (e.g. "30d", "7d")
+      Nw        — weeks (e.g. "4w" → 28d)
+      Nm        — months (e.g. "1m" → 30d, "3m" → 90d)
+
+    Raises ValueError on unrecognised format.
+    """
+    m = _SINCE_RE.match(since.strip())
+    if not m:
+        raise ValueError(
+            f"unrecognised --since format: {since!r}. "
+            "Use Nh / Nhr (hours), Nd (days), Nw (weeks), or Nm (months). "
+            "Example: 12h, 30d, 4w, 1m."
+        )
+    n = float(m.group(1))
+    unit = m.group(2).lower()
+    return n * _UNIT_SECONDS[unit]
+
+
+def _resolve_since_days(args, slack_cfg: dict) -> int:
+    """Return the scan window in whole days (for callers that need an int).
+
+    Sub-day windows (e.g. --since 12h) are rounded up to 1 day — lossy by design.
+    """
+    if getattr(args, "since", None):
+        try:
+            seconds = _parse_since_seconds(args.since)
+            return max(1, int(seconds // 86400))
+        except ValueError:
+            pass
+    if getattr(args, "since_days", 0) and args.since_days > 0:
+        return args.since_days
+    if getattr(args, "since_hours", 0.0) and args.since_hours > 0:
+        return max(1, int(args.since_hours / 24))
+    return int(slack_cfg.get("scan_days_default", 30))
+
 
 def _resolve_oldest_ts(args, slack_cfg: dict) -> tuple[str, str]:
     """Return (oldest_ts, human_description)."""
+    if getattr(args, "since", None):
+        try:
+            seconds = _parse_since_seconds(args.since)
+        except ValueError as e:
+            die(str(e))
+        ts_dt = datetime.now(tz=timezone.utc) - timedelta(seconds=seconds)
+        ts = f"{ts_dt.timestamp():.6f}"
+        return ts, f"last {args.since} (--since {args.since})"
     if args.since_hours and args.since_hours > 0:
         return hours_ago_ts(args.since_hours), f"last {args.since_hours}h"
     if args.since_days and args.since_days > 0:
         return days_ago_ts(args.since_days), f"last {args.since_days}d"
-    default_days = int(slack_cfg.get("scan_days_default", 14))
+    default_days = int(slack_cfg.get("scan_days_default", 30))
     return days_ago_ts(default_days), f"last {default_days}d (config default)"
 
 
@@ -558,6 +780,9 @@ def main(argv: list[str] | None = None) -> int:
                                  description="Scan Slack channels for PR links → upsert into pr-queue.json5")
     ap.add_argument("--slack-config", default=str(DEFAULT_SLACK_CONFIG))
     ap.add_argument("--queue", default=str(DEFAULT_QUEUE_PATH))
+    ap.add_argument("--since", default="",
+                    help="scan window: Nh / Nhr (hours), Nd (days), Nw (weeks), Nm (months). "
+                         "Example: 12h, 30d, 4w, 1m. Overrides --since-hours / --since-days.")
     ap.add_argument("--since-hours", type=float, default=0.0)
     ap.add_argument("--since-days", type=int, default=0)
     ap.add_argument("--channels", default="",
@@ -565,6 +790,10 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--channels-only", default="",
                     help="comma-separated channels to scan INSTEAD of slack config")
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--include-unmapped-repos", action="store_true",
+                    help="bypass the configured-repos filter; include PRs from any repo")
+    ap.add_argument("--no-direct", action="store_true",
+                    help="skip the direct review-requested scan (GitHub/Bitbucket API)")
     ap.add_argument("-y", "--yes", action="store_true",
                     help="non-interactive; smart defaults")
     ap.add_argument("-v", "--verbose", action="store_true",
@@ -613,22 +842,107 @@ def main(argv: list[str] | None = None) -> int:
                             status="run", detail=f"window {window}"))
 
     candidates, scan_stats = scan(slack_cfg, oldest_ts, log)
+    # Tag channel-scan candidates with discovery_source (N2 traceability).
+    for c in candidates:
+        c.setdefault("discovery_source", "channel")
     if not quiet:
         log.info("scan_stats: %s", scan_stats)
+
+    # N2 — user-mention scan. Runs after channel scan; dedup happens in merge.
+    url_patterns = slack_cfg.get("url_patterns") or []
+    user_id = slack_cfg.get("user_id") or ""
+    mention_candidates: list[dict] = []
+    if user_id and url_patterns:
+        since_days_val = _resolve_since_days(args, slack_cfg)
+        try:
+            mention_client = SlackClient()
+            mention_candidates = scan_user_mentions(
+                mention_client, user_id, since_days_val, url_patterns, log
+            )
+            if not quiet:
+                log.info("mention_scan: found %d candidates for user_id=%s",
+                         len(mention_candidates), user_id)
+        except Exception as e:
+            log.warning("mention_scan: failed (%s) — skipping", e)
+    elif not user_id:
+        if not quiet:
+            log.info("mention_scan: skipped — user_id not set in slack.md pr_reviews")
+
+    # Direct review-requested scan (GitHub API; Bitbucket not yet implemented).
+    direct_candidates: list[dict] = []
+    if not getattr(args, "no_direct", False):
+        direct_candidates = scan_direct_review_requests(log)
+        if not quiet:
+            log.info("direct_scan: found %d candidates", len(direct_candidates))
+
+    # Merge direct candidates into the main list before the repo filter.
+    if direct_candidates:
+        existing_urls = {c["pr_url"] for c in candidates}
+        for dc in direct_candidates:
+            if dc["pr_url"] not in existing_urls:
+                candidates.append(dc)
+                existing_urls.add(dc["pr_url"])
+
+    # Configured-repo filter — drop candidates not in repos.md (unless bypassed).
+    if not getattr(args, "include_unmapped_repos", False):
+        candidates, dropped_ch = _filter_by_configured_repos(candidates, log)
+        mention_candidates, dropped_mn = _filter_by_configured_repos(mention_candidates, log)
+        if not quiet and (dropped_ch or dropped_mn):
+            log.info("repo-filter: dropped %d channel + %d mention candidates "
+                     "(not in configured repos)", dropped_ch, dropped_mn)
+
+    mention_kept, mention_post_stats = post_process(
+        mention_candidates, slack_cfg, args.dry_run, log
+    ) if mention_candidates else ([], {})
 
     kept, post_stats = post_process(candidates, slack_cfg, args.dry_run, log)
     if not quiet:
         log.info("post_process: %s", post_stats)
 
+    # N4 — populate author on each kept candidate from its _meta (set by post_process).
+    for c in kept + mention_kept:
+        meta = c.pop("_meta", None) or {}
+        author_str = meta.get("author")
+        host = meta.get("host", "")
+        if author_str and not c.get("author"):
+            if host == "github":
+                c["author"] = {
+                    "display_name": author_str,
+                    "host_user_id": author_str,
+                    "email": None,
+                }
+            else:
+                # Bitbucket: display_name from meta; uuid used as host_user_id
+                # when the meta author is the uuid (fallback from cheap_pr_meta).
+                c["author"] = {
+                    "display_name": author_str,
+                    "host_user_id": meta.get("author_uuid") or author_str,
+                    "email": None,
+                }
+
+    all_kept = kept + [m for m in mention_kept
+                       if not any(m.get("pr_url") == k.get("pr_url") for k in kept)]
+
     existing = read_queue(queue_path)
-    reminder_stats = maybe_emit_gentle_reminders(kept, existing, slack_cfg, args.dry_run, log)
+    reminder_stats = maybe_emit_gentle_reminders(all_kept, existing, slack_cfg, args.dry_run, log)
     if not quiet:
         log.info("gentle_reminders: %s", reminder_stats)
-    merged = merge_scan_results(existing, kept)
-    merge_summary = merged.pop("_merge_summary", {})
+
+    # Build a fetch_state callable for N3 PR retention (re-checks open PRs not
+    # seen in this scan). Wraps cheap_pr_meta + classify_pr_state.
+    def _fetch_state(pr_url: str) -> str:
+        try:
+            meta = cheap_pr_meta(pr_url, log)
+            return classify_pr_state(meta)
+        except Exception:
+            return "unknown"
 
     if not args.dry_run:
-        write_queue(queue_path, merged)
+        # P0.3: atomic read → merge → write under the queue lock.
+        merged = atomic_scan_merge(queue_path, all_kept, fetch_state=_fetch_state)
+    else:
+        merged = merge_scan_results(existing, all_kept, fetch_state=_fetch_state)
+    merge_summary = merged.pop("_merge_summary", {})
 
     summary = {
         "queue": str(queue_path),
@@ -636,6 +950,7 @@ def main(argv: list[str] | None = None) -> int:
         "window": window,
         "scan": scan_stats,
         "post_process": post_stats,
+        "mention_post_process": mention_post_stats,
         "gentle_reminders": reminder_stats,
         "merge": merge_summary,
         "dry_run": args.dry_run,

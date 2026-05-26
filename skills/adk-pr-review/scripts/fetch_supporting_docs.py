@@ -149,6 +149,35 @@ def collect_urls_and_keys(task_dir: Path) -> tuple[list[str], list[str]]:
     return sorted(urls), bare_only
 
 
+def _update_index_for_fetched(index_path: Path, entry_id: str,
+                              fetched_path: Path, ts: str) -> None:
+    """Atomically update a single index entry to status=fetched.
+
+    Reads the current index, mutates the matching entry, then writes via a
+    temp-file-and-rename so the file is never partially written.
+    """
+    import time as _time
+    import tempfile
+    if not index_path.exists():
+        return
+    try:
+        blob = json.loads(index_path.read_text(encoding="utf-8"))
+    except Exception:
+        return
+    changed = False
+    for rec in blob.get("results", []):
+        if rec.get("id") == entry_id and rec.get("status") == "pending_mcp":
+            rec["status"] = "fetched"
+            rec["fetched_at"] = ts
+            rec["path"] = str(fetched_path)
+            changed = True
+    if not changed:
+        return
+    tmp = index_path.with_suffix(".tmp")
+    tmp.write_text(json.dumps(blob, indent=2), encoding="utf-8")
+    tmp.replace(index_path)
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--task-dir", required=True)
@@ -233,6 +262,20 @@ def main() -> int:
         ],
     }
     write_json(task_dir / "docs" / "index.json", index)
+
+    # Self-heal: if any pending_mcp entries already have their file on disk
+    # (the agent fetched via MCP in a prior run but didn't update the index),
+    # mark them as fetched now. Uses atomic temp-file-and-rename per entry.
+    import datetime as _dt
+    now_ts = _dt.datetime.now(_dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    index_path = task_dir / "docs" / "index.json"
+    for rec in results:
+        if rec.get("status") == "pending_mcp" and rec.get("path"):
+            p = Path(rec["path"])
+            if p.exists() and p.stat().st_size > 0:
+                log.info("docs index self-heal: %s already on disk — marking fetched", rec["id"])
+                _update_index_for_fetched(index_path, rec["id"], p, now_ts)
+                rec["status"] = "fetched"  # reflect in local summary too
 
     if args.json:
         return emit_json(index)

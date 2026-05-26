@@ -308,6 +308,54 @@ def test_queue_status_approved_returns_reviewed() -> None:
 
 
 # ---------------------------------------------------------------------------
+# derive_task_status — ready_to_merge
+# ---------------------------------------------------------------------------
+
+def _make_task_state_with_bucket(
+    *,
+    has_finalized_triage: bool = True,
+    merge_status_bucket: str | None = None,
+) -> TaskStateInfo:
+    return TaskStateInfo(
+        phases={},
+        has_failed_phase=False,
+        last_indexed_head_sha=None,
+        index_chunk_count=None,
+        has_findings=True,
+        has_finalized_triage=has_finalized_triage,
+        merge_status_bucket=merge_status_bucket,
+    )
+
+
+def test_ready_to_merge_happy_path() -> None:
+    """Approved row + finalized triage + mergeable_now → ready_to_merge."""
+    row = _FakeRow(status="approved", prep_status="ready", ready_for_review=True)
+    ts = _make_task_state_with_bucket(merge_status_bucket="mergeable_now")
+    assert derive_task_status(row, task_state=ts, now=_NOW) == "ready_to_merge"
+
+
+def test_ready_to_merge_boundary_caveats_stays_reviewed() -> None:
+    """Approved row + finalized triage + mergeable_with_caveats → reviewed, not ready_to_merge."""
+    row = _FakeRow(status="approved", prep_status="ready", ready_for_review=True)
+    ts = _make_task_state_with_bucket(merge_status_bucket="mergeable_with_caveats")
+    assert derive_task_status(row, task_state=ts, now=_NOW) == "reviewed"
+
+
+def test_ready_to_merge_not_approved_stays_reviewed() -> None:
+    """Finalized triage + mergeable_now but status != approved → reviewed."""
+    row = _FakeRow(status="reviewed", prep_status="ready", ready_for_review=True)
+    ts = _make_task_state_with_bucket(merge_status_bucket="mergeable_now")
+    assert derive_task_status(row, task_state=ts, now=_NOW) == "reviewed"
+
+
+def test_ready_to_merge_no_bucket_stays_reviewed() -> None:
+    """Approved + finalized triage but no merge-status file → reviewed."""
+    row = _FakeRow(status="approved", prep_status="ready", ready_for_review=True)
+    ts = _make_task_state_with_bucket(merge_status_bucket=None)
+    assert derive_task_status(row, task_state=ts, now=_NOW) == "reviewed"
+
+
+# ---------------------------------------------------------------------------
 # Priority ordering
 # ---------------------------------------------------------------------------
 
@@ -389,10 +437,11 @@ def test_read_task_state_detects_failed_phase(tmp_path: Path) -> None:
 def test_read_task_state_detects_findings_and_triage(tmp_path: Path) -> None:
     root = tmp_path / "skill-pr-review"
     task_dir = root / "myrepo_pr-9"
-    task_dir.mkdir(parents=True)
+    pr_review_dir = task_dir / "pr-review"
+    pr_review_dir.mkdir(parents=True)
     (task_dir / "state.json").write_text(json.dumps({"phases": {}}))
-    (task_dir / "findings.json").write_text("[]")
-    (task_dir / "posting-plan.json").write_text("{}")
+    (pr_review_dir / "findings.json").write_text("[]")
+    (pr_review_dir / "posting-plan.json").write_text("{}")
 
     ts = read_task_state(root, "myrepo", 9)
 
@@ -401,13 +450,42 @@ def test_read_task_state_detects_findings_and_triage(tmp_path: Path) -> None:
     assert ts.has_finalized_triage
 
 
+def test_read_task_state_reads_merge_status_bucket(tmp_path: Path) -> None:
+    root = tmp_path / "skill-pr-review"
+    task_dir = root / "myrepo_pr-11"
+    pr_review_dir = task_dir / "pr-review"
+    pr_review_dir.mkdir(parents=True)
+    (task_dir / "state.json").write_text(json.dumps({"phases": {}}))
+    (pr_review_dir / "merge-status.json").write_text(
+        json.dumps({"bucket": "mergeable_now", "reason": "no conflicts"})
+    )
+
+    ts = read_task_state(root, "myrepo", 11)
+
+    assert ts is not None
+    assert ts.merge_status_bucket == "mergeable_now"
+
+
+def test_read_task_state_merge_status_missing_returns_none_bucket(tmp_path: Path) -> None:
+    root = tmp_path / "skill-pr-review"
+    task_dir = root / "myrepo_pr-12"
+    task_dir.mkdir(parents=True)
+    (task_dir / "state.json").write_text(json.dumps({"phases": {}}))
+
+    ts = read_task_state(root, "myrepo", 12)
+
+    assert ts is not None
+    assert ts.merge_status_bucket is None
+
+
 def test_read_task_state_triage_json_finalized(tmp_path: Path) -> None:
     root = tmp_path / "skill-pr-review"
     task_dir = root / "myrepo_pr-10"
-    task_dir.mkdir(parents=True)
+    pr_review_dir = task_dir / "pr-review"
+    pr_review_dir.mkdir(parents=True)
     (task_dir / "state.json").write_text(json.dumps({"phases": {}}))
-    (task_dir / "findings.json").write_text("[]")
-    (task_dir / "triage.json").write_text(json.dumps({"finalized": True}))
+    (pr_review_dir / "findings.json").write_text("[]")
+    (pr_review_dir / "triage.json").write_text(json.dumps({"finalized": True}))
 
     ts = read_task_state(root, "myrepo", 10)
 

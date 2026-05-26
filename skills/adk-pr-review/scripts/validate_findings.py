@@ -42,7 +42,7 @@ from pathlib import Path
 THIS_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(THIS_DIR))
 
-from _common import die, get_logger, pr_review_file  # noqa: E402
+from _common import die, get_logger, pr_review_file, _narrate_write  # noqa: E402
 
 
 MIN_SUGGESTION_LEN = 8   # below this, "fix" is not actionable
@@ -95,6 +95,7 @@ def validate_findings(task_dir: Path, *, log) -> dict:
 
     blob = json.loads(findings_path.read_text(encoding="utf-8"))
     findings = blob.get("findings", []) or []
+    _narrate_write(task_dir, f"[narrate] validate: started ({len(findings)} findings input)")
 
     validated: list[dict] = []
     posted: list[dict] = []
@@ -116,6 +117,7 @@ def validate_findings(task_dir: Path, *, log) -> dict:
             f["validation"]["dropped_reason"] = anchor_reason
             dropped_anchor.append(f)
             validated.append(f)
+            _narrate_write(task_dir, f"[narrate] dropped {f.get('id', '?')}: {anchor_reason}")
             continue
         if not fix_ok:
             # Anchor's fine but we can't tell the author what to do.
@@ -124,6 +126,7 @@ def validate_findings(task_dir: Path, *, log) -> dict:
             f["validation"]["dropped_reason"] = fix_reason
             dropped_no_fix.append(f)
             validated.append(f)
+            _narrate_write(task_dir, f"[narrate] dropped {f.get('id', '?')}: {fix_reason}")
             continue
         f["posted"] = True
         validated.append(f)
@@ -155,6 +158,10 @@ def validate_findings(task_dir: Path, *, log) -> dict:
     log.info("validate: %d in → %d posted (%d dropped anchor, %d dropped no-fix)",
              summary["n_input"], summary["n_posted"],
              summary["n_dropped_anchor"], summary["n_dropped_no_fix"])
+    _narrate_write(task_dir,
+                   f"[narrate] validate: done — n_input={summary['n_input']}, "
+                   f"n_validated={summary['n_validated']}, "
+                   f"n_dropped={summary['n_dropped_anchor'] + summary['n_dropped_no_fix']}")
     return summary
 
 

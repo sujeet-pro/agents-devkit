@@ -49,7 +49,7 @@ if str(_LIB_DIR) not in sys.path:
     sys.path.insert(0, str(_LIB_DIR))
 from adk_home import adk_data_home, adk_config_home  # noqa: E402
 
-from _common import parse_pr_url  # noqa: E402
+from _common import parse_pr_url, task_dir_for  # noqa: E402
 
 from tui.agent_registry import default_agent, get_agent, list_agents  # noqa: E402
 from run_state import worker_id as make_worker_id  # noqa: E402
@@ -220,6 +220,11 @@ async def _drive(args: argparse.Namespace) -> int:
     hb_path = Path(args.heartbeat_dir).expanduser() / f"{os.getpid()}.json"
     started = _now_iso()
     worker_state_id = args.worker_id or make_worker_id(args.run_id or f"tui-{os.getpid()}", args.pr_url)
+    try:
+        _pr_parsed = parse_pr_url(args.pr_url)
+        _review_log_path = str(task_dir_for(_pr_parsed["repo"], _pr_parsed["pr_number"]) / "review.log")
+    except Exception:
+        _review_log_path = None
     payload = {
         "version": 1,
         "worker_id": worker_state_id,
@@ -230,6 +235,7 @@ async def _drive(args: argparse.Namespace) -> int:
         "agent": agent_name, "queue": queue,
         "started_at": started, "last_heartbeat": started,
         "current_phase": "phase 0", "rc": None,
+        "log_path": _review_log_path,
         "links": {"pr": args.pr_url},
     }
     _write_heartbeat(hb_path, payload)
