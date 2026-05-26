@@ -74,7 +74,7 @@ def _default_prepare_jobs() -> int:
     `cmd_prepare`; this helper just resolves the default.
     """
     try:
-        from config_io import get_adk_cli  # noqa: WPS433
+        from config import get_adk_cli  # noqa: WPS433
         val = get_adk_cli("pr_sync", "prepare_jobs", default=None)
         if val is None:
             return 1
@@ -85,6 +85,11 @@ def _default_prepare_jobs() -> int:
 PR_REVIEW_ROOT = ADK_HOME / "skill-pr-review"
 PREPARE_TASK = ADK_PR_REVIEW_SCRIPTS / "prepare_task.py"
 VALIDATE_FINDINGS = ADK_PR_REVIEW_SCRIPTS / "validate_findings.py"
+
+# Pipeline library — available when scripts/lib/ is accessible.
+_LIB_DIR = SCRIPTS_ROOT / "lib"
+if str(_LIB_DIR) not in sys.path:
+    sys.path.insert(0, str(_LIB_DIR))
 
 
 def _queued_task_dirs(queue_path: Path) -> dict[str, Path]:
@@ -741,6 +746,146 @@ def cmd_review_comments(args) -> int:
             findings_path.write_text(original_findings, encoding="utf-8")
 
 
+# ----- pipeline stage subcommands ------------------------------------------
+# Thin wrappers around pr_pipeline.stages.* so users get first-class CLI
+# access to individual pipeline stages without touching auto_run.py directly.
+
+def _pipeline_stages():
+    """Lazy import of pr_pipeline.stages to keep startup fast."""
+    try:
+        from pr_pipeline import stages  # noqa: WPS433
+        return stages
+    except ImportError as exc:
+        die(f"pr_pipeline not available ({exc}). "
+            "Ensure scripts/lib/ is on PYTHONPATH and pr_pipeline/ is installed.")
+
+
+def cmd_pipeline_import(args) -> int:
+    """adk pr-task import <pr-url> — run the Import stage (enrich queue row)."""
+    log = get_logger("pr-task-import")
+    queue_path = Path(args.queue).expanduser()
+    stages = _pipeline_stages()
+    try:
+        p = parse_pr_url(args.pr_url)
+    except ValueError as exc:
+        die(f"unrecognised PR URL: {args.pr_url} ({exc})")
+    from pr_pipeline.state import PRState  # noqa: WPS433
+    td = _task_dir_for(args.pr_url)
+    state = PRState(pr_url=args.pr_url, repo=p["repo"],
+                    pr_number=p["pr_number"], task_dir=td)
+    result = stages.do_import(state, queue_path=queue_path, log=log)
+    print(json.dumps({
+        "stage": result.stage,
+        "status": result.status,
+        "elapsed_s": result.elapsed_s,
+        "reason": result.reason or None,
+        "artifacts": result.artifacts,
+    }, indent=2))
+    return 0 if result.status in ("ok", "skipped") else 1
+
+
+def cmd_pipeline_sync(args) -> int:
+    """adk pr-task sync <pr-url> — run the Sync stage (worktree + docs)."""
+    log = get_logger("pr-task-sync")
+    queue_path = Path(args.queue).expanduser()
+    stages = _pipeline_stages()
+    try:
+        p = parse_pr_url(args.pr_url)
+    except ValueError as exc:
+        die(f"unrecognised PR URL: {args.pr_url} ({exc})")
+    from pr_pipeline.state import PRState  # noqa: WPS433
+    td = _task_dir_for(args.pr_url)
+    state = PRState(pr_url=args.pr_url, repo=p["repo"],
+                    pr_number=p["pr_number"], task_dir=td)
+    result = stages.do_sync(state, queue_path=queue_path, log=log)
+    print(json.dumps({
+        "stage": result.stage,
+        "status": result.status,
+        "elapsed_s": result.elapsed_s,
+        "reason": result.reason or None,
+    }, indent=2))
+    return 0 if result.status in ("ok", "skipped") else 1
+
+
+def cmd_pipeline_index(args) -> int:
+    """adk pr-task index <pr-url> [--rebuild] — run the Index stage."""
+    log = get_logger("pr-task-index")
+    queue_path = Path(args.queue).expanduser()
+    stages = _pipeline_stages()
+    try:
+        p = parse_pr_url(args.pr_url)
+    except ValueError as exc:
+        die(f"unrecognised PR URL: {args.pr_url} ({exc})")
+    from pr_pipeline.state import PRState  # noqa: WPS433
+    td = _task_dir_for(args.pr_url)
+    state = PRState(pr_url=args.pr_url, repo=p["repo"],
+                    pr_number=p["pr_number"], task_dir=td)
+    result = stages.do_index(state, queue_path=queue_path, log=log,
+                             rebuild=getattr(args, "rebuild", False))
+    print(json.dumps({
+        "stage": result.stage,
+        "status": result.status,
+        "elapsed_s": result.elapsed_s,
+        "reason": result.reason or None,
+    }, indent=2))
+    return 0 if result.status in ("ok", "skipped") else 1
+
+
+def cmd_pipeline_review(args) -> int:
+    """adk pr-task review <pr-url> [--detailed] [--deep] — run Review stage.
+
+    By default, Review couples Validate + Post so the first end-to-end pass
+    produces a posted review in one command.
+    """
+    log = get_logger("pr-task-review")
+    queue_path = Path(args.queue).expanduser()
+    stages = _pipeline_stages()
+    try:
+        p = parse_pr_url(args.pr_url)
+    except ValueError as exc:
+        die(f"unrecognised PR URL: {args.pr_url} ({exc})")
+    from pr_pipeline.state import PRState  # noqa: WPS433
+    td = _task_dir_for(args.pr_url)
+    state = PRState(pr_url=args.pr_url, repo=p["repo"],
+                    pr_number=p["pr_number"], task_dir=td)
+
+    # Review stage.
+    from pr_pipeline.scheduler import Semaphores, run as pipeline_run  # noqa: WPS433
+    # Couple Review + Validate + Post for the first-pass experience.
+    runner_cfg = {
+        "runner": getattr(args, "runner", "claude"),
+        "agent": getattr(args, "agent", None),
+        "model": getattr(args, "agent_model", None),
+        "detailed": getattr(args, "detailed", False),
+        "deep": getattr(args, "deep", False),
+    }
+    sems = Semaphores(import_=1, sync=1, index=1, review=1, validate=1, post=1)
+
+    # Advance state past import/sync/index so the scheduler starts at review.
+    from pr_pipeline.state import StageResult  # noqa: WPS433
+    for skip_stage in ("import", "sync", "index"):
+        state.advance(StageResult(stage=skip_stage, status="skipped"))  # type: ignore[arg-type]
+
+    final = pipeline_run(
+        [state],
+        sems=sems,
+        queue_path=queue_path,
+        runner_cfg=runner_cfg,
+    )
+    s = final[0]
+    last = s.last_result()
+    print(json.dumps({
+        "pr_url": s.pr_url,
+        "status": "ok" if not s.failed() else "failed",
+        "stages": {
+            name: {"status": r.status, "elapsed_s": r.elapsed_s}
+            for name, r in s.results.items()
+        },
+        "reason": (last.reason if last and last.status == "failed" else None),
+    }, indent=2))
+    return 0 if not s.failed() else 1
+
+
 # ----- entrypoint ----------------------------------------------------------
 
 def main(argv: list[str] | None = None) -> int:
@@ -771,7 +916,7 @@ def main(argv: list[str] | None = None) -> int:
                          help="override embed model (default from config)")
     sp_prep.add_argument("--jobs", type=int, default=None,
                          help="parallel workers for --all (default: from "
-                              "core.yaml pr_sync.prepare_jobs, fallback 1). "
+                              "adk-cli.json5 pr_sync.prepare_jobs, fallback 1). "
                               "Effective parallelism is capped by the per-repo "
                               "clone lock and OLLAMA_NUM_PARALLEL.")
     sp_prep.add_argument("--quiet", action="store_true", help=argparse.SUPPRESS)
@@ -868,6 +1013,49 @@ def main(argv: list[str] | None = None) -> int:
     sp_cr.add_argument("--no-slack-summary", action="store_true",
                        help="suppress Slack summary")
     sp_cr.set_defaults(func=cmd_review_comments)
+
+    # Pipeline stage subcommands — one-PR wrappers around pr_pipeline.stages.
+    sp_imp = sub.add_parser("import",
+                            help="pipeline Import stage: enrich queue row with PR metadata "
+                                 "(title, author, head_sha, additions, deletions, changed_files). "
+                                 "Cheap: no diff, no comments, no worktree.")
+    sp_imp.add_argument("pr_url")
+    sp_imp.add_argument("--queue", default=str(DEFAULT_QUEUE_PATH))
+    sp_imp.set_defaults(func=cmd_pipeline_import)
+
+    sp_sync = sub.add_parser("sync",
+                             help="pipeline Sync stage: pull full PR data + worktree + "
+                                  "supporting docs. Does NOT rebuild the index.")
+    sp_sync.add_argument("pr_url")
+    sp_sync.add_argument("--queue", default=str(DEFAULT_QUEUE_PATH))
+    sp_sync.set_defaults(func=cmd_pipeline_sync)
+
+    sp_idx = sub.add_parser("index",
+                            help="pipeline Index stage: chunk + embed + SCIP. "
+                                 "Assumes worktree already exists (run sync first).")
+    sp_idx.add_argument("pr_url")
+    sp_idx.add_argument("--rebuild", action="store_true",
+                        help="force a full rebuild even if head_sha is unchanged")
+    sp_idx.add_argument("--queue", default=str(DEFAULT_QUEUE_PATH))
+    sp_idx.set_defaults(func=cmd_pipeline_index)
+
+    sp_rev = sub.add_parser("review",
+                            help="pipeline Review stage: spawn the agent + validate + post. "
+                                 "First-pass coupled run (Review → Validate → Post).")
+    sp_rev.add_argument("pr_url")
+    sp_rev.add_argument("--detailed", action="store_true",
+                        help="use the detailed embed model for higher retrieval quality")
+    sp_rev.add_argument("--deep", action="store_true",
+                        help="force the deep model profile (Claude Opus / GPT-5.5)")
+    sp_rev.add_argument("--runner",
+                        choices=("claude", "cursor", "codex", "custom"),
+                        default="claude")
+    sp_rev.add_argument("--agent", default=None,
+                        help="override runner binary")
+    sp_rev.add_argument("--agent-model", dest="agent_model", default=None,
+                        help="optional model passed to runners that support it")
+    sp_rev.add_argument("--queue", default=str(DEFAULT_QUEUE_PATH))
+    sp_rev.set_defaults(func=cmd_pipeline_review)
 
     args = ap.parse_args(argv)
     if getattr(args, "verbose", False):

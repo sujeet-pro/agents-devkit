@@ -91,7 +91,7 @@ AUTO_RUNS_ROOT = adk_logs_home() / "pr-review-all-runs"
 
 # Per-agent rough cost coefficient (USD per review). Used by --max-cost-usd
 # as a pre-flight estimate. Conservative; doesn't account for retries.
-# Source: rough ballpark from observed runs; tune via core.yaml later.
+# Source: rough ballpark from observed runs; tune via adk-cli.json5 / core.json5 later.
 AGENT_COST_USD = {
     "claude": 0.50,
     "codex": 0.30,
@@ -712,7 +712,7 @@ def _print_run_tail(run_dir: Path, results: list[dict], report_path: Path) -> No
 def _cfg(key: str, default):
     """Read `pr_review_all.<key>` from adk-cli.json5; fall back to `default`."""
     try:
-        from config_io import get_adk_cli  # noqa: WPS433
+        from config import get_adk_cli  # noqa: WPS433
         return get_adk_cli("pr_review_all", key, default=default)
     except Exception:
         return default
@@ -1011,45 +1011,126 @@ def main(argv: list[str] | None = None) -> int:
                          "status": "wait", "stage": "selected"})
     dashboard.print_snapshot()
 
-    # Step 3: spawn agents.
+    # Step 3: spawn agents — pipelined path (default) or legacy fallback.
     results: list[dict] = []
-    if args.parallel <= 1:
-        for e in eligible:
-            dashboard.apply({"kind": "pr_active", "pr_url": e["pr_url"],
-                             "status": "run", "stage": "review agent",
-                             "detail": "agent subprocess running"})
-            dashboard.print_snapshot()
-            result = _spawn_review(
-                e["pr_url"], args.agent, run_dir, log,
-                runner=args.runner, model=args.agent_model,
-                detailed=args.detailed,
-                rebuild=args.rebuild,
-                deep=bool(e.get("_adk_deep")),
-                deep_reason=e.get("_adk_deep_reason"),
-                run_state_id=state_run_id,
-                queue=args.queue,
-                work_mode=e.get("_adk_work_mode"),
+    _pipeline_enabled = _cfg_bool("pr_pipeline_enabled", True)
+
+    if _pipeline_enabled:
+        # Pipelined stage scheduler: each PR is a state machine; per-stage
+        # semaphores allow concurrent PRs at different stages simultaneously.
+        # Gated by pr_pipeline.enabled (default true); falls back to legacy
+        # ThreadPoolExecutor when false.
+        try:
+            _LIB_PATH = REPO_ROOT / "scripts" / "lib"
+            if str(_LIB_PATH) not in sys.path:
+                sys.path.insert(0, str(_LIB_PATH))
+            from pr_pipeline.scheduler import run as pipeline_run, Semaphores  # noqa: WPS433
+            from pr_pipeline.state import PRState  # noqa: WPS433
+            from queue_io import find_row  # noqa: WPS433
+
+            def _make_task_dir(pr_url: str) -> Path:
+                try:
+                    p = parse_pr_url(pr_url)
+                    return task_dir_for(p["repo"], p["pr_number"])
+                except Exception:
+                    return run_dir / "task" / pr_url.replace("/", "_")
+
+            pipeline_states = [
+                PRState(
+                    pr_url=e["pr_url"],
+                    repo=(parse_pr_url(e["pr_url"]) or {}).get("repo", ""),
+                    pr_number=(parse_pr_url(e["pr_url"]) or {}).get("pr_number", 0),
+                    task_dir=_make_task_dir(e["pr_url"]),
+                )
+                for e in eligible
+            ]
+            sems = Semaphores(
+                import_=int(_cfg("import_parallel", 4)),
+                sync=int(_cfg("sync_parallel", 2)),
+                index=int(_cfg("index_parallel", 1)),
+                review=args.parallel,
+                validate=int(_cfg("validate_parallel", 4)),
+                post=int(_cfg("post_parallel", 2)),
             )
-            if result.get("status") == "ok":
-                dashboard.apply({"kind": "pr_done", "pr_url": e["pr_url"],
-                                 "status": "done", "stage": "review agent",
-                                 "elapsed_s": result.get("elapsed_s")})
-            else:
-                reason = result.get("error") or extract_failure_reason(result.get("log", ""))
-                result["reason"] = reason
-                dashboard.apply({"kind": "pr_fail", "pr_url": e["pr_url"],
-                                 "status": "fail", "stage": "review agent",
-                                 "reason": reason,
-                                 "next_action": "open the child log or rerun this PR",
-                                 "log_path": result.get("log", ""),
-                                 "elapsed_s": result.get("elapsed_s")})
-            dashboard.print_snapshot()
-            results.append(result)
-    else:
-        with ThreadPoolExecutor(max_workers=args.parallel) as pool:
-            futs = {
-                pool.submit(
-                    _spawn_review, e["pr_url"], args.agent, run_dir, log,
+
+            def _dashboard_event(ev: dict) -> None:
+                kind = ev.get("kind", "")
+                pr_url = ev.get("pr_url", "")
+                stage = ev.get("stage", "")
+                if kind == "stage_start":
+                    dashboard.apply({"kind": "pr_active", "pr_url": pr_url,
+                                     "status": "run", "stage": stage,
+                                     "detail": f"{stage} stage running"})
+                    dashboard.print_snapshot()
+                elif kind == "stage_done":
+                    if stage == "post":
+                        dashboard.apply({"kind": "pr_done", "pr_url": pr_url,
+                                         "status": "done", "stage": stage,
+                                         "elapsed_s": ev.get("elapsed_s")})
+                        dashboard.print_snapshot()
+                elif kind == "stage_fail":
+                    dashboard.apply({"kind": "pr_fail", "pr_url": pr_url,
+                                     "status": "fail", "stage": stage,
+                                     "reason": ev.get("reason", ""),
+                                     "next_action": "open the agent log or rerun this PR",
+                                     "elapsed_s": ev.get("elapsed_s")})
+                    dashboard.print_snapshot()
+
+            queue_path_obj = Path(args.queue).expanduser()
+            runner_cfg = {
+                "runner": args.runner,
+                "agent": args.agent,
+                "model": args.agent_model,
+                "detailed": args.detailed,
+                "deep": args.deep,
+                "rebuild": args.rebuild,
+            }
+            final_states = pipeline_run(
+                pipeline_states,
+                sems=sems,
+                queue_path=queue_path_obj,
+                runner_cfg=runner_cfg,
+                on_event=_dashboard_event,
+            )
+            # Convert pipeline states back to the legacy result dicts so the
+            # rest of main() (report writing, run-state update) stays unchanged.
+            for state in final_states:
+                last = state.last_result()
+                status = "ok" if (not state.failed()) else "failed"
+                reason = (last.reason if last and last.status == "failed" else None)
+                results.append({
+                    "pr_url": state.pr_url,
+                    "status": status,
+                    "elapsed_s": sum(
+                        r.elapsed_s for r in state.results.values()
+                    ),
+                    "reason": reason,
+                    "error": reason,
+                    "log": str(state.task_dir / "agent.log"),
+                    "model": runner_cfg.get("model"),
+                    "deep": args.deep,
+                    "deep_reason": next(
+                        (e.get("_adk_deep_reason") for e in eligible
+                         if e.get("pr_url") == state.pr_url),
+                        None,
+                    ),
+                    "detailed": args.detailed,
+                })
+        except ImportError as _import_err:
+            log.warning("pr_pipeline not importable (%s); falling back to ThreadPoolExecutor",
+                        _import_err)
+            _pipeline_enabled = False
+
+    if not _pipeline_enabled:
+        # Legacy sequential/parallel path — kept for one release as fallback.
+        if args.parallel <= 1:
+            for e in eligible:
+                dashboard.apply({"kind": "pr_active", "pr_url": e["pr_url"],
+                                 "status": "run", "stage": "review agent",
+                                 "detail": "agent subprocess running"})
+                dashboard.print_snapshot()
+                result = _spawn_review(
+                    e["pr_url"], args.agent, run_dir, log,
                     runner=args.runner, model=args.agent_model,
                     detailed=args.detailed,
                     rebuild=args.rebuild,
@@ -1058,16 +1139,7 @@ def main(argv: list[str] | None = None) -> int:
                     run_state_id=state_run_id,
                     queue=args.queue,
                     work_mode=e.get("_adk_work_mode"),
-                ): e for e in eligible
-            }
-            for e in eligible:
-                dashboard.apply({"kind": "pr_active", "pr_url": e["pr_url"],
-                                 "status": "run", "stage": "review agent",
-                                 "detail": "agent subprocess running"})
-            dashboard.print_snapshot()
-            for fut in as_completed(futs):
-                e = futs[fut]
-                result = fut.result()
+                )
                 if result.get("status") == "ok":
                     dashboard.apply({"kind": "pr_done", "pr_url": e["pr_url"],
                                      "status": "done", "stage": "review agent",
@@ -1083,6 +1155,44 @@ def main(argv: list[str] | None = None) -> int:
                                      "elapsed_s": result.get("elapsed_s")})
                 dashboard.print_snapshot()
                 results.append(result)
+        else:
+            with ThreadPoolExecutor(max_workers=args.parallel) as pool:
+                futs = {
+                    pool.submit(
+                        _spawn_review, e["pr_url"], args.agent, run_dir, log,
+                        runner=args.runner, model=args.agent_model,
+                        detailed=args.detailed,
+                        rebuild=args.rebuild,
+                        deep=bool(e.get("_adk_deep")),
+                        deep_reason=e.get("_adk_deep_reason"),
+                        run_state_id=state_run_id,
+                        queue=args.queue,
+                        work_mode=e.get("_adk_work_mode"),
+                    ): e for e in eligible
+                }
+                for e in eligible:
+                    dashboard.apply({"kind": "pr_active", "pr_url": e["pr_url"],
+                                     "status": "run", "stage": "review agent",
+                                     "detail": "agent subprocess running"})
+                dashboard.print_snapshot()
+                for fut in as_completed(futs):
+                    e = futs[fut]
+                    result = fut.result()
+                    if result.get("status") == "ok":
+                        dashboard.apply({"kind": "pr_done", "pr_url": e["pr_url"],
+                                         "status": "done", "stage": "review agent",
+                                         "elapsed_s": result.get("elapsed_s")})
+                    else:
+                        reason = result.get("error") or extract_failure_reason(result.get("log", ""))
+                        result["reason"] = reason
+                        dashboard.apply({"kind": "pr_fail", "pr_url": e["pr_url"],
+                                         "status": "fail", "stage": "review agent",
+                                         "reason": reason,
+                                         "next_action": "open the child log or rerun this PR",
+                                         "log_path": result.get("log", ""),
+                                         "elapsed_s": result.get("elapsed_s")})
+                    dashboard.print_snapshot()
+                    results.append(result)
 
     # Step 4: aggregate report.
     ended_ts = _now_iso()
