@@ -1,6 +1,6 @@
 # code_index — shared library defaults.
 #
-# Override these by creating ~/.agents-devkit/config/code-index.yaml with
+# Override these by creating $ADK_CONFIG_HOME/code-index.json5 with
 # the same shape; values are deep-merged (user overrides win key-by-key).
 # Per-invocation CLI flags / Python-API kwargs win over both.
 

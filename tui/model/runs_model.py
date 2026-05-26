@@ -5,10 +5,10 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-_LIB_DIR = Path(__file__).resolve().parents[2] / "scripts" / "lib"
-if str(_LIB_DIR) not in sys.path:
-    sys.path.insert(0, str(_LIB_DIR))
-from adk_home import adk_data_home  # noqa: E402
+_ADK_REPO_LIB = Path(__file__).resolve().parents[2] / "scripts" / "lib"
+if str(_ADK_REPO_LIB) not in sys.path:
+    sys.path.insert(0, str(_ADK_REPO_LIB))
+from config import adk_data_home  # noqa: E402
 
 
 @dataclass(frozen=True)

@@ -1,10 +1,14 @@
 """§6.y.1 review reply + §6.z auto-approve gate tests."""
 from __future__ import annotations
 
+import json
 from pathlib import Path
 import sys
 
 THIS_DIR = Path(__file__).resolve().parent
+_LIB_DIR = THIS_DIR.parent.parent.parent.parent / "scripts" / "lib"
+if str(_LIB_DIR) not in sys.path:
+    sys.path.insert(0, str(_LIB_DIR))
 sys.path.insert(0, str(THIS_DIR.parent))
 
 import slack_helpers
@@ -51,16 +55,34 @@ def test_render_uses_plain_at_login_when_no_mapping(tmp_path, monkeypatch):
 
 
 def test_render_uses_slack_user_id_when_mapping_exists(tmp_path, monkeypatch):
-    """Mapping present in core.yaml → uses <@U…> notation."""
+    """Mapping present in teams.json5 → uses <@U…> notation."""
     cfg_dir = tmp_path / "config"
     cfg_dir.mkdir(parents=True, exist_ok=True)
-    (cfg_dir / "core.yaml").write_text(
-        "user_mappings:\n"
-        "  github_to_slack:\n"
-        "    sujeet-pro: U123ABC\n",
-        encoding="utf-8",
-    )
+    (cfg_dir / "core.json5").write_text(json.dumps({
+        "schema_version": 5,
+        "user": {"email": "t@e.com", "first_name": "T"},
+        "org": {"name": "acme", "primary_workspace": "w"},
+        "bot": {"icon_emoji": ":robot:"},
+        "defaults": {},
+    }), encoding="utf-8")
+    (cfg_dir / "workspaces.json5").write_text(json.dumps({
+        "workspaces": [{
+            "id": "workspace:w", "name": "W", "role": "work",
+            "github_org": "acme", "workspace_root": "/tmp",
+        }],
+    }), encoding="utf-8")
+    (cfg_dir / "teams.json5").write_text(json.dumps({
+        "teams": [{
+            "id": "team:t", "name": "T",
+            "members": [{
+                "name": "Sujeet", "github_login": "sujeet-pro",
+                "slack_user_id": "U123ABC",
+            }],
+        }],
+    }), encoding="utf-8")
     monkeypatch.setenv("ADK_CONFIG_HOME", str(cfg_dir))
+    from config import reset_bundle
+    reset_bundle()
     text = slack_helpers.render_review_reply(
         host="github", owner="acme", repo="foo", pr_number=1,
         pr_url="https://github.com/acme/foo/pull/1", head_sha="abc",

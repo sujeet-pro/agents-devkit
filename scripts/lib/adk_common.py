@@ -3,7 +3,7 @@
 Shared by:
 - `skills/adk-pr-review/scripts/_common.py` (PR-review skill)
 - `scripts/lib/code_index/_lib_common.py` (indexer/query lib)
-- `scripts/config_io.py` (config IO)
+- `scripts/lib/config/` (config IO)
 
 This module owns the *pure* helpers — logging, subprocess, JSON IO, hashing,
 fcntl file locking, dict deep-merge — plus the two adk-level path constants
@@ -17,7 +17,7 @@ What stays in the domain-specific modules:
   read `skills/adk-pr-review/defaults.yaml`.
 - `scripts/lib/code_index/_lib_common.py`: the lib-specific `load_config` /
   `get_cfg` that read `scripts/lib/code_index/defaults.yaml`.
-- `scripts/config_io.py`: the canonical config-layout loader.
+- `scripts/lib/config/`: the canonical config-layout loader.
 
 Each domain-specific module re-exports the shared names it owns for local
 callers (`from _common import get_logger, ...`).

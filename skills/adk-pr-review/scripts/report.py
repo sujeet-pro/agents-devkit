@@ -470,37 +470,18 @@ def _print_links_tail(task_dir: Path, pr: dict) -> None:
 
 
 def _load_slack_workspace() -> str | None:
-    """Read the Slack workspace name from connectors/slack.md top-level frontmatter.
+    """Read the Slack workspace name from the config bundle.
 
-    Looks for a `workspace:` key at the top level of the YAML frontmatter
-    (not inside `pr_reviews:`). Returns None when the file is absent, the
-    frontmatter is missing, or the key is not set — callers log the gap.
+    Returns None when the bundle is unavailable or the field is unset —
+    callers log the gap.
     """
-    if not _CLI_AVAILABLE:
-        return None
     try:
-        config_home_path = None
-        # queue_io.load_slack_config reads $ADK_CONFIG_HOME/connectors/slack.md
-        # for the pr_reviews section. We need the raw top-level frontmatter to
-        # pick up `workspace:`. Re-parse the same file directly.
-        import os
-        import re as _re
-        config_home = os.environ.get("ADK_CONFIG_HOME") or os.path.expanduser(
-            "~/.agents-devkit/config"
-        )
-        slack_md = Path(config_home) / "connectors" / "slack.md"
-        if not slack_md.exists():
-            return None
-        text = slack_md.read_text(encoding="utf-8")
-        m = _re.match(r"\A---\s*\n(.*?)\n---\s*\n?", text, _re.DOTALL)
-        if not m:
-            return None
-        try:
-            import yaml
-            fm = yaml.safe_load(m.group(1)) or {}
-        except Exception:
-            return None
-        return fm.get("workspace") or None
+        _ADK_REPO_LIB = Path(__file__).resolve().parents[3] / "scripts" / "lib"
+        import sys as _sys
+        if str(_ADK_REPO_LIB) not in _sys.path:
+            _sys.path.insert(0, str(_ADK_REPO_LIB))
+        from config import get_bundle
+        return get_bundle().connectors.slack.workspace or None
     except Exception:
         return None
 

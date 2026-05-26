@@ -1,0 +1,9 @@
+[
+  // Add your Slack channels here.
+  // {
+  //   id: "channel:eng-alerts",
+  //   handle: "#eng-alerts",
+  //   purpose: "alerts",
+  //   slack_id: null,  // fill in after first lookup
+  // },
+]

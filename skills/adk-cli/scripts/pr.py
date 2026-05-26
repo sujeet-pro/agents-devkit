@@ -652,7 +652,10 @@ def _mergeability(pr_json: dict) -> str:
 
 def _allow_api_merge() -> bool:
     try:
-        from config_io import get_adk_cli  # type: ignore
+        _ADK_REPO_LIB = Path(__file__).resolve().parents[3] / "scripts" / "lib"
+        if str(_ADK_REPO_LIB) not in sys.path:
+            sys.path.insert(0, str(_ADK_REPO_LIB))
+        from config import get_adk_cli  # type: ignore
         return bool(get_adk_cli("pr_actions", "allow_api_merge", default=False))
     except Exception:
         return False

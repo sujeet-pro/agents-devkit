@@ -1,7 +1,7 @@
 ---
 name: adk-improve
 description: |
-  Improve, learn, refresh-metadata, update-defaults, self-improve, train-skill, learn-from-session. The self-improvement loop. Always interactive (asks first: improve skill defaults from decision logs, metadata via MCP introspection, or both). For defaults: runs scripts/proposal_generator.py against `$ADK_DATA_HOME/improve/learning/decisions.jsonl`, drafts proposed updates to `$ADK_CONFIG_HOME/core.yaml.defaults.*`, presents each with ≥3 evidence lines, applies on confirm; rotates decisions.jsonl to learning/archive/ after each run; appends summary to learning/summary.md. For metadata: runs scripts/metadata_introspector.py to refresh `$ADK_DATA_HOME/improve/metadata/<source>.json` from every reachable MCP. Bounded: cannot change shared/constitution.md; cannot change Must-do/Must-not-do sections of any SKILL.md (those are constitution-grade). Each proposal requires per-item confirmation regardless of mode. Never auto-applies. Min-evidence default 3 (configurable). Manual-only by design (disable-model-invocation: true) so the agent doesn't auto-trigger improvements mid-session.
+  Improve, learn, refresh-metadata, update-defaults, self-improve, train-skill, learn-from-session. The self-improvement loop. Always interactive (asks first: improve skill defaults from decision logs, metadata via MCP introspection, or both). For defaults: runs scripts/proposal_generator.py against `$ADK_MEMORY_HOME/learning/decisions.jsonl`, drafts proposed updates to `$ADK_CONFIG_HOME/core.json5.defaults.*`, presents each with ≥3 evidence lines, applies on confirm; rotates decisions.jsonl to $ADK_MEMORY_HOME/learning/archive/ after each run; appends summary to $ADK_MEMORY_HOME/learning/summary.md. For metadata: runs scripts/metadata_introspector.py to refresh `$ADK_DATA_HOME/metadata/<source>.json` from every reachable MCP. Bounded: cannot change shared/constitution.md; cannot change Must-do/Must-not-do sections of any SKILL.md (those are constitution-grade). Each proposal requires per-item confirmation regardless of mode. Never auto-applies. Min-evidence default 3 (configurable). Manual-only by design (disable-model-invocation: true) so the agent doesn't auto-trigger improvements mid-session.
 allowed-tools: [Read, Edit, Write, Bash]
 argument-hint: "[--target defaults|metadata|both] [--since <date>] [--min-evidence N] [--dry-run] [--detailed] [--deep]"
 metadata:
@@ -21,9 +21,9 @@ metadata:
 
 # adk-improve
 
-Read accumulated decision logs + introspect MCPs; propose updates to `core.yaml`.
+Read accumulated decision logs + introspect MCPs; propose updates to `core.json5`.
 
-**Global skill** — intermediate artifacts go to `$ADK_DATA_HOME/improve/<ts>/`. Mutates `$ADK_CONFIG_HOME/core.yaml` and `$ADK_DATA_HOME/improve/metadata/<source>.json` on confirm; never touches the cwd repo.
+**Global skill** — intermediate artifacts go to `$ADK_DATA_HOME/improve/<ts>/`. Mutates `$ADK_CONFIG_HOME/core.json5` and `$ADK_DATA_HOME/metadata/<source>.json` on confirm; never touches the cwd repo.
 
 `--detailed` inspects more decision evidence before proposing defaults. `--deep` selects the stronger model profile per `shared/model-depth.md`; use it for broad default rewrites or conflicting evidence, never to bypass per-item confirmation.
 
@@ -45,9 +45,9 @@ What do you want to improve?
 
 ```
 Phase 0 — read learning state
-  - $ADK_DATA_HOME/improve/learning/decisions.jsonl (current cycle)
-  - $ADK_DATA_HOME/improve/learning/summary.md (history)
-  - $ADK_CONFIG_HOME/core.yaml.defaults (current state)
+  - $ADK_MEMORY_HOME/learning/decisions.jsonl (current cycle)
+  - $ADK_MEMORY_HOME/learning/summary.md (history)
+  - $ADK_CONFIG_HOME/core.json5 defaults (current state)
 
 Phase 1 — advise
   - Show count of decisions since last improve run
@@ -59,35 +59,35 @@ Phase 2 — execute (proposal review loop)
     1. Show: skill, fork_id, current_default, proposed_default, evidence_count, confidence
     2. Show: ≥3 evidence lines verbatim (with task-slugs and reasons)
     3. Ask: accept / reject (with reason) / defer
-  - On accept: write to `core.yaml.defaults.<skill>.<fork_id>`. Add comment with date + evidence count.
+  - On accept: write to `core.json5.defaults.<skill>.<fork_id>`. Add comment with date + evidence count.
 
 Phase 3 — validate
-  - Each applied proposal: re-read core.yaml, confirm value present
+  - Each applied proposal: re-read core.json5, confirm value present
   - No proposals modified hard rules (constitution / Must-do)
 
 Phase 4 — report + rotate logs
   - Print: N proposals accepted, M deferred, K rejected
-  - Append run summary to $ADK_DATA_HOME/improve/learning/summary.md
-  - Archive current decisions.jsonl to $ADK_DATA_HOME/improve/learning/archive/<ts>-decisions.jsonl
+  - Append run summary to $ADK_MEMORY_HOME/learning/summary.md
+  - Archive current decisions.jsonl to $ADK_MEMORY_HOME/learning/archive/<ts>-decisions.jsonl
   - Start fresh empty decisions.jsonl
-  - Update core.yaml.learning_state.last_improve_run
+  - Update core.json5.learning_state.last_improve_run
 ```
 
 ## Workflow — metadata (option 2)
 
 ```
-Phase 0 — list configured MCPs from mcp/ and core.yaml
+Phase 0 — list configured MCPs from mcp/ and core.json5
 Phase 1 — advise: confirm which to refresh; warn about OAuth requirements
 Phase 2 — execute: scripts/metadata_introspector.py (which archives previous + writes fresh)
 Phase 3 — validate: all files written, JSON valid
 Phase 4 — report: diff vs prior (new dashboards, removed gates, etc.)
-  - Update core.yaml.learning_state.last_metadata_refresh
+  - Update core.json5.learning_state.last_metadata_refresh
 ```
 
 ## Hard rules
 
 1. **Never modify**: `shared/constitution.md`, any skill's `Must do` / `Must not do` / `Hard rules` sections, `agents/*.md` core personas.
-2. **Only modify**: `$ADK_CONFIG_HOME/core.yaml` (defaults block + enriched block + learning_state block) and `$ADK_DATA_HOME/improve/metadata/*.json`.
+2. **Only modify**: `$ADK_CONFIG_HOME/core.json5` (defaults block + enriched block + learning_state block) and `$ADK_DATA_HOME/metadata/*.json`.
 3. **Never auto-apply** a proposal under `--auto`. Each proposal requires per-item confirm — `--auto` only skips the "what do you want to improve" question if `--target` is passed.
 4. **Rotate decisions.jsonl** after every successful improve run. Archive, never delete.
 5. **Show ≥3 evidence lines** per proposal. < 3 = surface as "observation, not enough evidence yet".

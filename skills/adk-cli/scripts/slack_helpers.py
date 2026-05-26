@@ -376,11 +376,32 @@ class SlackClient:
             return False
 
     def post_thread_reply(self, channel_id: str, thread_ts: str, text: str) -> str | None:
+        # Bot identity (username + icon + footer) is injected by
+        # scripts/lib/slack/post.decorate_post_payload. Sourced from core.json5:
+        # bot + user. Idempotent — safe to wrap repeatedly.
+        params = {
+            "channel": channel_id,
+            "thread_ts": thread_ts,
+            "text": text,
+            "link_names": True,
+        }
         try:
-            resp = self._call(
-                "chat_postMessage",
-                {"channel": channel_id, "thread_ts": thread_ts, "text": text, "link_names": True},
+            # adk repo lib path: skills/adk-cli/scripts/ → ../../../scripts/lib
+            _ADK_REPO_LIB = (
+                Path(__file__).resolve().parent.parent.parent.parent
+                / "scripts" / "lib"
             )
+            if str(_ADK_REPO_LIB) not in sys.path:
+                sys.path.insert(0, str(_ADK_REPO_LIB))
+            from slack.post import decorate_post_payload  # type: ignore
+            params = decorate_post_payload(params)
+        except Exception as e:
+            # Bot identity is best-effort — never block a Slack reply because
+            # the config bundle failed to load. Log and fall back to the raw payload.
+            self.log.warning("slack bot-identity decoration skipped: %s", e)
+
+        try:
+            resp = self._call("chat_postMessage", params)
             return resp.get("ts")
         except self.SlackApiError as e:
             self.log.error("post_thread_reply failed: %s", e)
@@ -433,40 +454,25 @@ VERDICT_WORD = {
 
 
 def _lookup_slack_user_id(host: str, login: str | None) -> str | None:
-    """Resolve a GitHub/Bitbucket login to a Slack user ID via core.yaml's
-    user_mappings block. Returns None when no mapping exists.
-
-    core.yaml schema:
-      user_mappings:
-        github_to_slack:
-          sujeet-pro: U123ABC
-        bitbucket_to_slack:
-          some-nickname: U456DEF
+    """Resolve a GitHub/Bitbucket login to a Slack user ID via Team.members.
+    Returns None when no mapping exists.
     """
-    # NOTE: we deliberately re-resolve the core.yaml path at call time rather
-    # than via config_io.load_core(), because config_io binds ADK_HOME / paths
-    # at import time and tests that monkeypatch ADK_HOME after first import
-    # would silently miss the override. See pr_queue.py:_load_defaults for the
-    # parallel rationale. Tiny duplication; load-bearing for test isolation.
     if not login:
         return None
     try:
-        import os
-        import yaml  # type: ignore
-        _cfg_home = os.environ.get("ADK_CONFIG_HOME")
-        if _cfg_home:
-            core = Path(_cfg_home) / "core.yaml"
-        else:
-            return None
-
-        if not core.exists():
-            return None
-        cfg = yaml.safe_load(core.read_text(encoding="utf-8")) or {}
-        block_key = "github_to_slack" if host == "github" else "bitbucket_to_slack"
-        mapping = ((cfg.get("user_mappings") or {}).get(block_key) or {})
-        sid = mapping.get(login)
-        if sid and isinstance(sid, str):
-            return sid
+        _ADK_REPO_LIB = (
+            Path(__file__).resolve().parent.parent.parent.parent
+            / "scripts" / "lib"
+        )
+        if str(_ADK_REPO_LIB) not in sys.path:
+            sys.path.insert(0, str(_ADK_REPO_LIB))
+        from config import get_bundle  # type: ignore
+        b = get_bundle()
+        for team in b.teams:
+            for m in team.members:
+                if (host == "github" and m.github_login == login) or \
+                   (host == "bitbucket" and getattr(m, "bitbucket_username", None) == login):
+                    return m.slack_user_id
     except Exception:
         pass
     return None

@@ -19,37 +19,24 @@ which only prints the requested field; verbose output goes to ``/dev/null``.
 """
 from __future__ import annotations
 
-import json
 import os
 import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-_LIB_DIR = Path(__file__).resolve().parents[2] / "scripts" / "lib"
-if str(_LIB_DIR) not in sys.path:
-    sys.path.insert(0, str(_LIB_DIR))
-from adk_home import adk_config_home  # noqa: E402
-
-
-_IDENTITY_PATH = adk_config_home() / "identity.json"
+_ADK_REPO_LIB = Path(__file__).resolve().parents[2] / "scripts" / "lib"
+if str(_ADK_REPO_LIB) not in sys.path:
+    sys.path.insert(0, str(_ADK_REPO_LIB))
+from config import load_identity_cache, save_identity_cache  # noqa: E402
 
 
 def _load_cache() -> dict:
-    if not _IDENTITY_PATH.exists():
-        return {}
-    try:
-        return json.loads(_IDENTITY_PATH.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        return {}
+    return load_identity_cache()
 
 
 def _save_cache(data: dict) -> None:
-    try:
-        _IDENTITY_PATH.parent.mkdir(parents=True, exist_ok=True)
-        _IDENTITY_PATH.write_text(json.dumps(data, indent=2), encoding="utf-8")
-    except OSError:
-        pass
+    save_identity_cache(data)
 
 
 def _fetch_gh_login() -> str | None:

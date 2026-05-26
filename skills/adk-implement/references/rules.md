@@ -5,7 +5,7 @@
 1. **Read every file before writing it.**
 2. Smallest correct change. No drive-by cleanup. No opportunistic refactor.
 3. Tests for new behavior — happy + ≥1 boundary + ≥1 error per behavior.
-4. No commits to `main` / `master` / `release/*` / `prod/*` (or any pattern in `core.yaml.protected_branches`).
+4. No commits to `main` / `master` / `release/*` / `prod/*` (or any pattern in `core.json5.protected_branches`).
 5. Branch name derived from task-slug; never on the user's checked-out branch if that branch is protected.
 6. Never force-push. Never `git reset --hard`. Never `--no-verify`.
 7. Never merge a PR. Open it; let the human click merge.

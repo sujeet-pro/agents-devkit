@@ -1,0 +1,17 @@
+{
+  schema_version: 5,
+  user: {
+    email: "you@example.com",
+    first_name: "Your Name",
+  },
+  org: {
+    name: "your-org",
+    primary_workspace: "work",
+  },
+  bot: {
+    icon_emoji: ":robot_face:",
+    name_template: "{first_name}'s adk",
+    footer_template: "Sent by {first_name} via adk",
+  },
+  defaults: {},
+}

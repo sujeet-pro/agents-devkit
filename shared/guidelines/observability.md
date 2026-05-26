@@ -48,5 +48,5 @@
 ## Cite when reviewing
 
 - Repo's existing logger / metrics lib.
-- `repos.md frontmatter `repos[*].datadog.{apm_service,rum_app}` for canonical tags.
+- `repos.json5 `repos[*].datadog.{apm_service,rum_app}` for canonical tags.
 - The service's SLO doc (link in repo or Confluence).

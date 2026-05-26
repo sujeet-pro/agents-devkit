@@ -1,4 +1,4 @@
-"""adk pr-queue add 1234 resolves against core.yaml defaults.repo (P1 exit criterion)."""
+"""adk pr-queue add 1234 resolves against adk-cli.json5 defaults (P1 exit criterion)."""
 import argparse
 import json
 from pathlib import Path
@@ -7,23 +7,30 @@ from unittest.mock import patch, MagicMock
 
 THIS_DIR = Path(__file__).resolve().parent
 SCRIPTS_DIR = THIS_DIR.parent
+_LIB_DIR = THIS_DIR.parent.parent.parent.parent / "scripts" / "lib"
+if str(_LIB_DIR) not in sys.path:
+    sys.path.insert(0, str(_LIB_DIR))
 sys.path.insert(0, str(SCRIPTS_DIR))
 
 import pytest
+
+
+def _write_adk_cli(cfg_dir: Path, platform: str, repo: str) -> None:
+    """Write a minimal adk-cli.json5 with defaults.platform + defaults.repo."""
+    (cfg_dir / "adk-cli.json5").write_text(
+        json.dumps({"defaults": {"platform": platform, "repo": repo}}),
+        encoding="utf-8",
+    )
 
 
 def test_bare_number_resolves_via_defaults_repo(tmp_path, monkeypatch):
     """Bare PR number + defaults.repo=acme/foo + defaults.platform=github → constructs https://github.com/acme/foo/pull/1234."""
     cfg_dir = tmp_path / "config"
     cfg_dir.mkdir(parents=True, exist_ok=True)
-    (cfg_dir / "core.yaml").write_text(
-        "schema_version: 4\n"
-        "defaults:\n"
-        "  platform: github\n"
-        "  repo: acme/foo\n",
-        encoding="utf-8",
-    )
+    _write_adk_cli(cfg_dir, "github", "acme/foo")
     monkeypatch.setenv("ADK_CONFIG_HOME", str(cfg_dir))
+    from config import reset_bundle
+    reset_bundle()
 
     queue_path = tmp_path / "pr-queue.json5"
     queue_path.write_text('{"filters": null, "prs": []}\n')
@@ -43,10 +50,10 @@ def test_bare_number_with_hash_prefix(tmp_path, monkeypatch):
     """#1234 (with leading hash) also resolves."""
     cfg_dir = tmp_path / "config"
     cfg_dir.mkdir(parents=True, exist_ok=True)
-    (cfg_dir / "core.yaml").write_text(
-        "defaults:\n  platform: github\n  repo: acme/foo\n", encoding="utf-8"
-    )
+    _write_adk_cli(cfg_dir, "github", "acme/foo")
     monkeypatch.setenv("ADK_CONFIG_HOME", str(cfg_dir))
+    from config import reset_bundle
+    reset_bundle()
     queue_path = tmp_path / "pr-queue.json5"
     queue_path.write_text('{"filters": null, "prs": []}\n')
     import pr_queue
@@ -58,11 +65,14 @@ def test_bare_number_with_hash_prefix(tmp_path, monkeypatch):
 
 
 def test_bare_number_without_defaults_repo_errors_cleanly(tmp_path, monkeypatch):
-    """Bare number + no defaults.repo → clear error mentioning core.yaml."""
+    """Bare number + no defaults in adk-cli.json5 → clear error."""
     cfg_dir = tmp_path / "config"
     cfg_dir.mkdir(parents=True, exist_ok=True)
-    (cfg_dir / "core.yaml").write_text("schema_version: 4\n", encoding="utf-8")
+    # No adk-cli.json5 written → get_adk_cli returns None → falls back to
+    # get_bundle() which fails (no core.json5) → _load_defaults returns {} → die().
     monkeypatch.setenv("ADK_CONFIG_HOME", str(cfg_dir))
+    from config import reset_bundle
+    reset_bundle()
     queue_path = tmp_path / "pr-queue.json5"
     queue_path.write_text('{"filters": null, "prs": []}\n')
     import pr_queue
@@ -75,10 +85,10 @@ def test_bare_number_bitbucket_platform(tmp_path, monkeypatch):
     """defaults.platform=bitbucket builds a bitbucket URL."""
     cfg_dir = tmp_path / "config"
     cfg_dir.mkdir(parents=True, exist_ok=True)
-    (cfg_dir / "core.yaml").write_text(
-        "defaults:\n  platform: bitbucket\n  repo: workspace/repo\n", encoding="utf-8"
-    )
+    _write_adk_cli(cfg_dir, "bitbucket", "workspace/repo")
     monkeypatch.setenv("ADK_CONFIG_HOME", str(cfg_dir))
+    from config import reset_bundle
+    reset_bundle()
     queue_path = tmp_path / "pr-queue.json5"
     queue_path.write_text('{"filters": null, "prs": []}\n')
     import pr_queue

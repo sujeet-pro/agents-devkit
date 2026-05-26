@@ -47,7 +47,7 @@ sys.path.insert(0, str(REPO_ROOT / "skills" / "adk-cli" / "scripts"))
 _LIB_DIR = REPO_ROOT / "scripts" / "lib"
 if str(_LIB_DIR) not in sys.path:
     sys.path.insert(0, str(_LIB_DIR))
-from adk_home import adk_data_home, adk_config_home  # noqa: E402
+from config import adk_data_home, adk_config_home  # noqa: E402
 
 from _common import parse_pr_url, task_dir_for  # noqa: E402
 

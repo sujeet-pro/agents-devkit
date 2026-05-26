@@ -1,0 +1,9 @@
+{
+  auth: {
+    account_env: "SNOWFLAKE_ACCOUNT",
+    user_env: "SNOWFLAKE_USER",
+    password_env: "SNOWFLAKE_PASSWORD",
+    warehouse_env: "SNOWFLAKE_WAREHOUSE",
+    role_env: "SNOWFLAKE_ROLE",
+  },
+}

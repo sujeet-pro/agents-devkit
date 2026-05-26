@@ -304,39 +304,77 @@ def test_branch_list_new_layout_shows_each_branch(fake_repos_root, capsys):
 
 # ----- is_configured_repo ---------------------------------------------------
 
-def test_is_configured_repo_matches_configured_entry(monkeypatch):
-    """Exact match on host + workspace (owner) + name returns True."""
-    import config_io as cio
-    monkeypatch.setattr(cio, "load_repos", lambda: (
-        {"repos": [{"host": "github", "workspace": "acme", "name": "foo"}]}, ""
-    ))
+def _write_minimal_bundle(cfg_dir: Path, repos: list | None = None) -> None:
+    """Write a minimal v5 config bundle so ConfigBundle.load() succeeds."""
+    cfg_dir.mkdir(parents=True, exist_ok=True)
+    (cfg_dir / "core.json5").write_text(json.dumps({
+        "schema_version": 5,
+        "user": {"email": "t@e.com", "first_name": "T"},
+        "org": {"name": "acme", "primary_workspace": "w"},
+        "bot": {"icon_emoji": ":robot:"},
+        "defaults": {},
+    }), encoding="utf-8")
+    (cfg_dir / "workspaces.json5").write_text(json.dumps({
+        "workspaces": [{
+            "id": "workspace:w", "name": "W", "role": "work",
+            "github_org": "acme", "workspace_root": "/tmp",
+        }],
+    }), encoding="utf-8")
+    (cfg_dir / "teams.json5").write_text(json.dumps({
+        "teams": [{"id": "team:t", "name": "T"}],
+    }), encoding="utf-8")
+    if repos is not None:
+        (cfg_dir / "repos.json5").write_text(json.dumps({"repos": repos}),
+                                              encoding="utf-8")
+
+
+def test_is_configured_repo_matches_configured_entry(tmp_path, monkeypatch):
+    """Exact match on host + org (owner) + name returns True."""
+    cfg_dir = tmp_path / "config"
+    _write_minimal_bundle(cfg_dir, repos=[{
+        "id": "repo:foo", "host": "github", "org": "acme", "name": "foo",
+        "workspace": "workspace:w", "team": "team:t", "path": "/tmp/foo",
+        "primary_language": "ts", "base_branch": "main",
+    }])
+    monkeypatch.setenv("ADK_CONFIG_HOME", str(cfg_dir))
+    from config import reset_bundle
+    reset_bundle()
     assert repo.is_configured_repo("github", "acme", "foo") is True
 
 
-def test_is_configured_repo_rejects_unknown_repo(monkeypatch):
-    """A repo not listed in repos.md returns False."""
-    import config_io as cio
-    monkeypatch.setattr(cio, "load_repos", lambda: (
-        {"repos": [{"host": "github", "workspace": "acme", "name": "foo"}]}, ""
-    ))
+def test_is_configured_repo_rejects_unknown_repo(tmp_path, monkeypatch):
+    """A repo not listed in repos.json5 returns False."""
+    cfg_dir = tmp_path / "config"
+    _write_minimal_bundle(cfg_dir, repos=[{
+        "id": "repo:foo", "host": "github", "org": "acme", "name": "foo",
+        "workspace": "workspace:w", "team": "team:t", "path": "/tmp/foo",
+        "primary_language": "ts", "base_branch": "main",
+    }])
+    monkeypatch.setenv("ADK_CONFIG_HOME", str(cfg_dir))
+    from config import reset_bundle
+    reset_bundle()
     assert repo.is_configured_repo("github", "acme", "bar") is False
 
 
-def test_is_configured_repo_empty_registry_returns_true(monkeypatch):
+def test_is_configured_repo_empty_registry_returns_true(tmp_path, monkeypatch):
     """Empty repos list → backward compat passthrough."""
-    import config_io as cio
-    monkeypatch.setattr(cio, "load_repos", lambda: ({}, ""))
+    cfg_dir = tmp_path / "config"
+    _write_minimal_bundle(cfg_dir, repos=[])
+    monkeypatch.setenv("ADK_CONFIG_HOME", str(cfg_dir))
+    from config import reset_bundle
+    reset_bundle()
     assert repo.is_configured_repo("github", "acme", "anything") is True
 
 
-def test_is_configured_repo_missing_registry_returns_true(monkeypatch):
-    """When load_repos raises (file missing), return True (don't filter)."""
-    import config_io as cio
-
-    def _raise():
-        raise FileNotFoundError("no file")
-
-    monkeypatch.setattr(cio, "load_repos", _raise)
+def test_is_configured_repo_missing_registry_returns_true(tmp_path, monkeypatch):
+    """When repos.json5 is absent, return True (don't filter)."""
+    cfg_dir = tmp_path / "config"
+    # repos is None → _write_minimal_bundle skips writing repos.json5;
+    # ConfigBundle.load() treats absent file as empty list.
+    _write_minimal_bundle(cfg_dir, repos=None)
+    monkeypatch.setenv("ADK_CONFIG_HOME", str(cfg_dir))
+    from config import reset_bundle
+    reset_bundle()
     assert repo.is_configured_repo("github", "acme", "anything") is True
 
 

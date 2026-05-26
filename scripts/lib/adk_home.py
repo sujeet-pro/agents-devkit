@@ -43,8 +43,14 @@ def adk_logs_home() -> Path:
     return adk_data_home() / "logs"
 
 
-def adk_improve_home() -> Path:
-    return adk_data_home() / "improve"
+def adk_learning_home() -> Path:
+    """$ADK_MEMORY_HOME/learning — decisions.jsonl, sessions/, archive/, ..."""
+    return adk_memory_home() / "learning"
+
+
+def adk_metadata_home() -> Path:
+    """$ADK_DATA_HOME/metadata — MCP introspection cache (regenerable scratch)."""
+    return adk_data_home() / "metadata"
 
 
 def adk_repos_home() -> Path:
@@ -57,5 +63,6 @@ def adk_skill_home(skill_stem: str) -> Path:
 
 __all__ = [
     "adk_data_home", "adk_config_home", "adk_memory_home", "adk_logs_home",
-    "adk_improve_home", "adk_repos_home", "adk_skill_home",
+    "adk_learning_home", "adk_metadata_home",
+    "adk_repos_home", "adk_skill_home",
 ]

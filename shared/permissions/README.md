@@ -51,7 +51,7 @@ Behaviour:
 Edit the files in this folder and re-run `./install.sh` to push changes to
 every supported agent. To exclude a specific entry on a specific machine,
 remove it from the relevant config file here or rebuild the entry list in
-your `$ADK_CONFIG_HOME/core.yaml (+ repos.md + connectors/*.md)` (planned).
+your `$ADK_CONFIG_HOME/core.json5 (+ repos.json5 + connectors/*.json5)` (planned).
 
 ## Safety notes
 

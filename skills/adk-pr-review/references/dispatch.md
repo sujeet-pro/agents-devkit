@@ -24,7 +24,7 @@ The slug under `$ADK_DATA_HOME/skill-pr-review/` is `<repo>_pr-<n>`. If two PRs 
 
 ## Repo-name aliasing
 
-`config/repos.md` frontmatter `repos[*]` may define `path`, `host`, `workspace`, `name`. When the PR URL's `<owner>/<repo>` matches a `repos[i]` entry, the orchestrator reuses that entry's `path` if it's already on disk as a clone of the same remote; otherwise it clones into `$ADK_DATA_HOME/repos/<repo-name>/` regardless of where the user's working copy lives. The user's working copy is never touched.
+`config/repos.json5` `repos[*]` may define `path`, `host`, `workspace`, `name`. When the PR URL's `<owner>/<repo>` matches a `repos[i]` entry, the orchestrator reuses that entry's `path` if it's already on disk as a clone of the same remote; otherwise it clones into `$ADK_DATA_HOME/repos/<repo-name>/` regardless of where the user's working copy lives. The user's working copy is never touched.
 
 ## Out-of-scope refusal template
 

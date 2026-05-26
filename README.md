@@ -24,7 +24,7 @@ cd ~/code/agents-devkit
 ./install.sh --uninstall      # removes by marker, leaves your overrides
 ```
 
-After install, run `/adk-setup --init` (from your agent) to scaffold `$ADK_CONFIG_HOME/{core.yaml,repos.md,connectors/*.md,links.json5}`. See `SETUP.md` for CLI deps + env-var requirements.
+After install, edit the scaffolded config templates at `$ADK_CONFIG_HOME/{core.json5,workspaces.json5,repos.json5,...}` to add your details. See `SETUP.md` for CLI deps + env-var requirements.
 
 ## Quick start
 
@@ -188,7 +188,7 @@ The index lives at `$ADK_DATA_HOME/repos/.indices/<repo>/code-index/` and is con
 
 ### `adk pr-scan` — populate the review queue from Slack
 
-Walks the channels configured in `$ADK_CONFIG_HOME/connectors/slack.md` (frontmatter `pr_reviews.*`), reads main messages **and** thread replies, extracts every GitHub / Bitbucket PR URL, and upserts rows into `$ADK_CONFIG_HOME/pr-queue.json5`.
+Walks the channels configured in `$ADK_CONFIG_HOME/connectors/slack.json5` (`pr_reviews.channels`), reads main messages **and** thread replies, extracts every GitHub / Bitbucket PR URL, and upserts rows into `$ADK_CONFIG_HOME/pr-queue.json5`.
 
 ```bash
 adk pr-scan                              # default window (configured in slack.md)
@@ -314,11 +314,11 @@ Each skill is task-based and polymorphic on input. Every skill goes through a ma
 
 ## Key concepts
 
-- **One source of truth for user data:** `$ADK_CONFIG_HOME/` — `core.yaml` (workspaces / defaults / RAG), `repos.md` (repos), `connectors/*.md` (per-source dictionaries for Snowflake/Looker/Mixpanel/etc.), `links.json5` (cross-connector entity graph).
+- **One source of truth for user data:** `$ADK_CONFIG_HOME/` — `core.json5` (identity / defaults), `workspaces.json5`, `repos.json5`, `services.json5`, `connectors/*.json5` (per-source auth + config), `relations.json5` (cross-connector entity graph).
 - **Project-scoped overrides:** `<repo>/.adk/overrides.yaml` + `<repo>/ai-guidelines/` (or `docs/`).
 - **Two task-folder roots** (see `shared/paths.md`): repo-bound skills write under `<repo>/.temp/adk/<skill>/<task>/`; global skills (pr-review, investigate, sync, …) write under `$ADK_DATA_HOME/<area>/<task>/`. The latter root is created by `install.sh`.
-- **Self-improving:** every Q&A and override is logged; `/adk-improve` reads logs and proposes updated defaults that get applied to `$ADK_CONFIG_HOME/core.yaml` (or the right connector file) after you confirm.
-- **Metadata cache:** `$ADK_DATA_HOME/improve/metadata/<source>.json` — built by `/adk-setup --enrich` and refreshed by `/adk-improve --metadata`. Skills consult it instead of re-introspecting on every run.
+- **Self-improving:** every Q&A and override is logged to `$ADK_MEMORY_HOME/learning/decisions.jsonl`; `/adk-improve` reads logs and proposes updated defaults that get applied to `$ADK_CONFIG_HOME/core.json5` (or the right connector file) after you confirm.
+- **Metadata cache:** `$ADK_DATA_HOME/metadata/<source>.json` — built by `/adk-setup --enrich` and refreshed by `/adk-improve --metadata`. Skills consult it instead of re-introspecting on every run.
 - **RAG optional:** drop an `RAG_MCP_URL` into env, set `rag.enabled: true` in overrides, and every skill's context-gather phase pulls company knowledge alongside MCP results.
 
 ## Honest limits

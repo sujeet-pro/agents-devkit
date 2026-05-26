@@ -721,33 +721,29 @@ def cmd_branch_list(args) -> int:
 
 
 def is_configured_repo(host: str, owner: str, repo: str) -> bool:
-    """Return True when (host, owner, repo) matches a configured repos.md entry.
+    """Return True when (host, owner, repo) matches a configured repos entry.
 
-    Lookup: $ADK_CONFIG_HOME/repos.md frontmatter `repos[*]` entries. Each
-    entry may define `host`, `workspace` (owner), and `name` (repo). All three
-    fields must match for a positive result; fields absent from an entry are
-    treated as wildcards.
+    Lookup: bundle repos. Each Repo has `host`, `org` (owner), and `name`.
+    All three fields must match for a positive result; empty fields on a Repo
+    are treated as wildcards.
 
     Returns True when the registry is missing or empty (backward compat —
     don't filter when there's no explicit registry).
     """
     try:
-        from config_io import load_repos  # type: ignore
-        fm, _ = load_repos()
+        from config import get_bundle  # type: ignore
+        entries = get_bundle().repos.all()
     except Exception:
         return True
-    entries = fm.get("repos") if isinstance(fm, dict) else None
     if not entries:
         return True
     host_lower = (host or "").lower()
     owner_lower = (owner or "").lower()
     repo_lower = (repo or "").lower()
-    for entry in entries:
-        if not isinstance(entry, dict):
-            continue
-        e_host = (entry.get("host") or "").lower()
-        e_owner = (entry.get("workspace") or entry.get("owner") or "").lower()
-        e_name = (entry.get("name") or "").lower()
+    for r in entries:
+        e_host = (r.host or "").lower()
+        e_owner = (r.org or "").lower()
+        e_name = (r.name or "").lower()
         if e_host and e_host != host_lower:
             continue
         if e_owner and e_owner != owner_lower:
@@ -882,10 +878,7 @@ def cmd_auto_bases_clean(args) -> int:
     # the TTL without touching the config file.
     ttl_hours_default = 24.0
     try:
-        # scripts/config_io.py is the sibling of scripts/lib/code_index/, so
-        # add its parent to sys.path on first use.
-        sys.path.insert(0, str(CODE_INDEX_LIB.parent.parent))
-        from config_io import get_adk_cli  # noqa: WPS433
+        from config import get_adk_cli  # noqa: WPS433
         ttl_cfg = get_adk_cli("pr_sync", "auto_demote_ttl_hours",
                               default=ttl_hours_default)
         ttl_hours_default = float(ttl_cfg)

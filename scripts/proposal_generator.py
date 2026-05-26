@@ -25,9 +25,9 @@ from typing import Any
 _LIB_DIR = Path(__file__).resolve().parent / "lib"
 if str(_LIB_DIR) not in sys.path:
     sys.path.insert(0, str(_LIB_DIR))
-from adk_home import adk_improve_home  # noqa: E402
+from config import adk_learning_home  # noqa: E402
 
-LEARNING = adk_improve_home() / "learning"
+LEARNING = adk_learning_home()
 DECISIONS = LEARNING / "decisions.jsonl"
 DEFAULT_MIN_EVIDENCE = 3
 

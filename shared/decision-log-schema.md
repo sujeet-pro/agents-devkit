@@ -1,6 +1,6 @@
 # shared/decision-log-schema.md
 
-> The append-only JSONL at `$ADK_DATA_HOME/improve/learning/decisions.jsonl`. One line per non-trivial fork. Consumed by `/adk-improve` to propose updates to `$ADK_CONFIG_HOME/core.yaml.defaults.*`.
+> The append-only JSONL at `$ADK_MEMORY_HOME/learning/decisions.jsonl`. One line per non-trivial fork. Consumed by `/adk-improve` to propose updates to `$ADK_CONFIG_HOME/core.json5.defaults.*`.
 
 ## Line shape
 
@@ -43,8 +43,8 @@
 | `question` | string | exact question asked (for `user-answered`) |
 | `options` | string[] | the options presented |
 | `reason_if_given` | string \| null | the user's stated reason; gold for learning |
-| `repo` | string | repo name from repos.md |
-| `workspace` | string | workspace name from core.yaml.workspaces |
+| `repo` | string | repo name from repos.json5 |
+| `workspace` | string | workspace name from core.json5.workspaces |
 | `evidence` | string \| null | for `auto-defaulted`: the rationale, e.g. "3 prior tickets in this repo chose vertical-slice" |
 | `prior_decisions_count` | integer | count of prior matching fork_ids in log (used by /adk-improve confidence) |
 
@@ -52,7 +52,7 @@
 
 - **`user-answered`** — agent asked; user explicitly chose. **Highest weight** in learning.
 - **`auto-defaulted`** — agent picked recommended default under `--auto`. Useful for "did the silent default match what the user would have picked?" detection (compare with later overrides).
-- **`override-applied`** — applies an existing override from `core.yaml.defaults`. **No learning weight** (this is the *result* of prior learning, not new data).
+- **`override-applied`** — applies an existing override from `core.json5.defaults`. **No learning weight** (this is the *result* of prior learning, not new data).
 - **`inferred`** — agent inferred from context without offering choice (e.g., "this repo uses pytest, not jest"). Logged for traceability; light learning weight.
 
 ## Stable `fork_id`s
@@ -76,5 +76,5 @@ Adding a fork_id to a skill is a deliberate change — it's a new dimension the 
 ## File hygiene
 
 - Append-only during a session. Never truncate mid-session.
-- Rotated by `/adk-improve` on completion: current file archived to `$ADK_DATA_HOME/improve/learning/archive/<ts>-decisions.jsonl`, a fresh empty file replaces it, and the summary appended to `$ADK_DATA_HOME/improve/learning/summary.md`.
+- Rotated by `/adk-improve` on completion: current file archived to `$ADK_MEMORY_HOME/learning/archive/<ts>-decisions.jsonl`, a fresh empty file replaces it, and the summary appended to `$ADK_MEMORY_HOME/learning/summary.md`.
 - The archive is the durable history. `/adk-improve` reads `summary.md` + `decisions.jsonl` (the current cycle) when deciding what to propose.

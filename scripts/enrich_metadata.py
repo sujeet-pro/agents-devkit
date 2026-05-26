@@ -4,7 +4,7 @@ by introspecting reachable MCPs / CLI tools.
 
 This script does the PROGRAMMATIC enrichment. The AI step in /adk-setup --enrich
 produces nice prose around the results and decides what to lift into
-$ADK_CONFIG_HOME/connectors/<name>.md frontmatter; this just gathers raw
+$ADK_CONFIG_HOME/connectors/<name>.json5; this just gathers raw
 data into the metadata cache.
 
 Usage:
@@ -25,9 +25,9 @@ from typing import Any
 _LIB_DIR = Path(__file__).resolve().parent / "lib"
 if str(_LIB_DIR) not in sys.path:
     sys.path.insert(0, str(_LIB_DIR))
-from adk_home import adk_improve_home  # noqa: E402
+from config import adk_metadata_home  # noqa: E402
 
-METADATA_DIR = adk_improve_home() / "metadata"
+METADATA_DIR = adk_metadata_home()
 
 
 def run(cmd: list[str], env: dict[str, str] | None = None) -> tuple[int, str, str]:

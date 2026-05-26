@@ -31,7 +31,7 @@ The AI review pass never starts before Phase 3 settles — the precis the model 
 ## Phase 0 — prerequisites + URL dispatch
 
 1. Parse the PR URL → `(host, owner, repo, pr_number)` via `scripts/parse_pr_url.py`.
-2. Probe ollama: `scripts/ensure_ollama.py` checks (a) `ollama` binary on PATH, (b) the daemon responds at `http://localhost:11434`, (c) the embedding model is pulled. Default model: `nomic-embed-text`; `--detailed` selects the detailed embedding model (`bge-m3` by default). Override via `--embed-model` or `core.yaml.defaults.adk-pr-review.embed_model`. If ollama is missing, refuse and print the install command (do not try to install for the user).
+2. Probe ollama: `scripts/ensure_ollama.py` checks (a) `ollama` binary on PATH, (b) the daemon responds at `http://localhost:11434`, (c) the embedding model is pulled. Default model: `nomic-embed-text`; `--detailed` selects the detailed embedding model (`bge-m3` by default). Override via `--embed-model` or `core.json5.defaults.adk-pr-review.embed_model`. If ollama is missing, refuse and print the install command (do not try to install for the user).
 3. Probe MCP availability: `gh` CLI for GitHub PRs; `adk-mcp-bitbucket` for Bitbucket PRs. If neither is reachable for the host, refuse and surface the gap.
 4. Resolve the task folder: `python3 scripts/adk_task_slug.py --skill pr-review --input <url> --create --json` → `$ADK_DATA_HOME/skill-pr-review/<repo>_pr-<n>/`.
 
@@ -106,13 +106,13 @@ Every finding posted to the PR is a public mutation (constitution §I.4). The tr
 
 ```json
 {
-  "task_dir": "/Users/sujeet/.agents-devkit/pr-reviews/foo_pr-42",
+  "task_dir": "$ADK_DATA_HOME/skill-pr-review/foo_pr-42",
   "host": "github",
   "owner": "acme",
   "repo": "foo",
   "pr_number": 42,
   "head_sha": "abc123…",
-  "worktree_path": "/Users/sujeet/.agents-devkit/pr-reviews/foo_pr-42/code",
+  "worktree_path": "$ADK_DATA_HOME/skill-pr-review/foo_pr-42/code",
   "phases": {
     "0_prereq": {"status": "done", "ts": "2026-05-19T20:00:00Z"},
     "1_worktree": {"status": "done", "ts": "2026-05-19T20:00:15Z"},

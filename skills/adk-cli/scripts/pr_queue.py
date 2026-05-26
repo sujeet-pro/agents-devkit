@@ -6,7 +6,7 @@ add <url>           — single-shot upsert. URL may be a PR link (direct insert
                       after cheap meta-fetch), a Slack permalink (fetch that
                       message + replies, walk for PR links, upsert each), or
                       a bare PR number that resolves against
-                      $ADK_CONFIG_HOME/core.yaml's defaults.repo (with
+                      $ADK_CONFIG_HOME/adk-cli.json5 :: defaults.repo (or the bundle's primary repo) (with
                       defaults.platform, default "github").
 update <pr-url>     — refresh head_sha + merged-state on one row (cheap meta
                       only — does not trigger a review).
@@ -60,27 +60,42 @@ from comment_activity import fetch_comment_activity  # noqa: E402
 
 
 def _load_defaults() -> dict:
-    """Return the `defaults` block from $ADK_CONFIG_HOME/core.yaml,
-    or {} if the file or block is absent. Only the `defaults` key is
-    retained — every other top-level key is discarded so we never bring
-    unrelated config (which may contain tokens, paths, or other state)
-    into call sites. Per constitution §VII.
+    """Return defaults for repo and platform resolution.
 
-    Calls adk_config_home() freshly each time so tests that
-    monkeypatch the env see the new path.
+    Tries adk-cli.json5 first (get_adk_cli("defaults", "repo") /
+    get_adk_cli("defaults", "platform")). If unset, falls back to the first
+    repo in the bundle whose workspace matches the org's primary_workspace,
+    using that repo's host as platform and org/name as the repo string.
     """
+    from config import get_adk_cli, get_bundle  # noqa: WPS433
+
     try:
-        core = adk_config_home() / "core.yaml"
-        if not core.exists():
-            return {}
-        import yaml  # noqa: WPS433 — lazy
-        cfg = yaml.safe_load(core.read_text(encoding="utf-8")) or {}
+        cli_repo = get_adk_cli("defaults", "repo", default=None)
+        cli_platform = get_adk_cli("defaults", "platform", default=None)
+        if cli_repo or cli_platform:
+            out: dict = {}
+            if cli_repo:
+                out["repo"] = cli_repo
+            if cli_platform:
+                out["platform"] = cli_platform
+            return out
     except Exception:
-        return {}
-    defaults = cfg.get("defaults")
-    if not isinstance(defaults, dict):
-        return {}
-    return defaults
+        pass
+
+    # Fallback: derive from the bundle — pick the first repo whose workspace
+    # matches the org's primary_workspace.
+    try:
+        b = get_bundle()
+        primary_ws = (b.org.primary_workspace or "").lower()
+        for r in b.repos.all():
+            ws = (getattr(r, "workspace", None) or "").lower()
+            if ws == primary_ws:
+                repo_str = f"{r.org}/{r.name}" if getattr(r, "org", None) else r.name
+                return {"repo": repo_str, "platform": r.host or "github"}
+    except Exception:
+        pass
+
+    return {}
 
 
 def _task_dir_for_link(pr_url: str) -> Path | None:
@@ -373,7 +388,7 @@ _BARE_PR_NUMBER_RE = re.compile(r"^#?(\d+)$")
 def _resolve_bare_pr_number(token: str) -> str | None:
     """If `token` is a bare PR number (e.g. `1234` or `#1234`), expand it to
     a full PR URL using `defaults.platform` + `defaults.repo` from
-    $ADK_CONFIG_HOME/core.yaml. Returns None if `token` is not a
+    $ADK_CONFIG_HOME/adk-cli.json5. Returns None if `token` is not a
     bare-number form. Raises SystemExit (via `die`) on configuration errors
     so the caller surfaces a clear actionable message.
     """
@@ -388,7 +403,7 @@ def _resolve_bare_pr_number(token: str) -> str | None:
     if not repo:
         die(
             "bare PR number requires defaults.repo in "
-            "$ADK_CONFIG_HOME/core.yaml. Example: "
+            "$ADK_CONFIG_HOME/adk-cli.json5. Example: "
             "defaults: { platform: github, repo: acme/storefront-bff }. "
             "Or pass a full URL."
         )
@@ -406,13 +421,13 @@ def _resolve_bare_pr_number(token: str) -> str | None:
 
 def cmd_add(args) -> int:
     """Add a single PR to the queue, by direct PR URL, by Slack permalink,
-    or by bare PR number (resolves against core.yaml defaults.repo)."""
+    or by bare PR number (resolves against adk-cli.json5 defaults.repo)."""
     queue_path = Path(args.queue).expanduser()
     log = get_logger("pr-queue-add")
     url = args.url.strip()
 
     # Bare PR number form (`adk pr-queue add 1234` or `... add #1234`):
-    # resolve against `defaults.platform` + `defaults.repo` from core.yaml.
+    # resolve against `defaults.platform` + `defaults.repo` from adk-cli.json5.
     bare_resolved = _resolve_bare_pr_number(url)
     if bare_resolved is not None:
         log.info("resolved bare PR number %s → %s", url, bare_resolved)
@@ -430,7 +445,7 @@ def cmd_add(args) -> int:
         "Expected a PR URL (github.com/<owner>/<repo>/pull/<n> or "
         "bitbucket.org/<ws>/<repo>/pull-requests/<n>), a Slack permalink "
         "(https://<workspace>.slack.com/archives/<channel>/p<ts>), or a "
-        "bare PR number (uses core.yaml defaults.repo)."
+        "bare PR number (uses adk-cli.json5 defaults.repo)."
     )
     return 1  # unreachable
 
@@ -991,12 +1006,8 @@ def cmd_remove(args) -> int:
 
     # Append decision-log entry for traceability.
     try:
-        _LIB_DIR = Path(__file__).resolve().parents[3] / "scripts" / "lib"
-        if str(_LIB_DIR) not in sys.path:
-            sys.path.insert(0, str(_LIB_DIR))
-        import time as _time
-        from adk_home import adk_data_home  # noqa: WPS433
-        decisions_path = adk_data_home() / "improve" / "learning" / "decisions.jsonl"
+        from config import adk_learning_home  # noqa: WPS433
+        decisions_path = adk_learning_home() / "decisions.jsonl"
         decisions_path.parent.mkdir(parents=True, exist_ok=True)
         from datetime import datetime, timezone
         record = {
@@ -1059,7 +1070,7 @@ def main(argv: list[str] | None = None) -> int:
     sp_show.add_argument("pr_url")
     sp_show.set_defaults(func=cmd_show)
 
-    sp_add = sub.add_parser("add", help="add a PR by URL, Slack permalink, or bare PR number (uses core.yaml defaults.repo)")
+    sp_add = sub.add_parser("add", help="add a PR by URL, Slack permalink, or bare PR number (uses adk-cli.json5 defaults.repo)")
     sp_add.add_argument("url")
     sp_add.add_argument("-y", "--yes", action="store_true",
                         help="non-interactive; refresh in place if already present")

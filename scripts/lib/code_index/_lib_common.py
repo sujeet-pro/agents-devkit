@@ -51,22 +51,23 @@ def die(msg: str, code: int = 1) -> None:
 
 LIB_DIR = Path(__file__).resolve().parent
 LIB_DEFAULTS_YAML = LIB_DIR / "defaults.yaml"
-USER_OVERRIDE_YAML = CONFIG_HOME / "code-index.yaml"
+USER_OVERRIDE_JSON5 = CONFIG_HOME / "code-index.json5"
 
 
 def load_config() -> dict[str, Any]:
-    """Lib defaults ⊕ user override (deep merge). YAML loaded lazily."""
+    """Lib defaults ⊕ user override (deep merge). Defaults from YAML; user override from JSON5."""
     import yaml  # noqa: WPS433
+    import json5  # noqa: WPS433
 
     cfg: dict[str, Any] = {}
     if LIB_DEFAULTS_YAML.exists():
         cfg = yaml.safe_load(LIB_DEFAULTS_YAML.read_text(encoding="utf-8")) or {}
-    if USER_OVERRIDE_YAML.exists():
+    if USER_OVERRIDE_JSON5.exists():
         try:
-            user = yaml.safe_load(USER_OVERRIDE_YAML.read_text(encoding="utf-8")) or {}
+            user = json5.loads(USER_OVERRIDE_JSON5.read_text(encoding="utf-8")) or {}
             cfg = deep_merge(cfg, user)
-        except yaml.YAMLError as e:
-            die(f"invalid user override {USER_OVERRIDE_YAML}: {e}")
+        except Exception as e:
+            die(f"invalid user override {USER_OVERRIDE_JSON5}: {e}")
     return cfg
 
 

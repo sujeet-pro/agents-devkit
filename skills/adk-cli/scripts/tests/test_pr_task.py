@@ -126,7 +126,7 @@ def test_prepare_forwards_to_run_review(monkeypatch, capsys):
 
     args = SimpleNamespace(
         pr_url="https://github.com/acme/foo/pull/9",
-        queue="~/.agents-devkit/config/pr-queue.json5",
+        queue="~/.config/adk/pr-queue.json5",
         all=False, rebuild=False, detailed=False, deep=False, embed_model=None,
         jobs=None, yes=False,
     )
@@ -297,11 +297,11 @@ def test_prepare_all_jobs_one_matches_sequential_behavior(monkeypatch, capsys):
 
 
 def test_default_prepare_jobs_falls_back_to_one(monkeypatch):
-    """If config_io is unimportable / config key absent → 1."""
+    """If the config module is unimportable / config key absent → 1."""
     import builtins
     real_import = builtins.__import__
     def blocked(name, *a, **kw):
-        if name == "config_io":
+        if name == "config":
             raise ImportError("simulated")
         return real_import(name, *a, **kw)
     monkeypatch.setattr(builtins, "__import__", blocked)
@@ -315,7 +315,7 @@ def test_default_prepare_jobs_reads_adk_cli_json5(monkeypatch):
             return 4
         return default
     fake_module = SimpleNamespace(get_adk_cli=fake_get)
-    monkeypatch.setitem(sys.modules, "config_io", fake_module)
+    monkeypatch.setitem(sys.modules, "config", fake_module)
     assert pr_task._default_prepare_jobs() == 4
 
 
@@ -326,7 +326,7 @@ def test_default_prepare_jobs_clamps_to_minimum_one(monkeypatch):
             return 0
         return default
     fake_module = SimpleNamespace(get_adk_cli=fake_get)
-    monkeypatch.setitem(sys.modules, "config_io", fake_module)
+    monkeypatch.setitem(sys.modules, "config", fake_module)
     assert pr_task._default_prepare_jobs() == 1
 
 

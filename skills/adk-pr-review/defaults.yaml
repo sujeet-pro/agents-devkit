@@ -1,6 +1,6 @@
 # adk-pr-review — skill defaults.
 #
-# Override these by creating ~/.agents-devkit/config/adk-pr-review.yaml
+# Override these by creating $ADK_CONFIG_HOME/adk-pr-review.json5
 # with the same shape; values are deep-merged (user overrides win key-by-key).
 # Per-invocation CLI flags win over both.
 

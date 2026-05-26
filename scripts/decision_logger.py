@@ -24,9 +24,9 @@ from pathlib import Path
 _LIB_DIR = Path(__file__).resolve().parent / "lib"
 if str(_LIB_DIR) not in sys.path:
     sys.path.insert(0, str(_LIB_DIR))
-from adk_home import adk_improve_home  # noqa: E402
+from config import adk_learning_home  # noqa: E402
 
-LOG_DIR = adk_improve_home() / "learning"
+LOG_DIR = adk_learning_home()
 LOG_FILE = LOG_DIR / "decisions.jsonl"
 
 VALID_FORK_TYPES = {"user-answered", "auto-defaulted", "override-applied", "inferred", "escalation"}

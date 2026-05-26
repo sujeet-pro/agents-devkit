@@ -1,0 +1,6 @@
+{
+  auth: {
+    token_env: "GITHUB_TOKEN_CRED",
+  },
+  // default_org: "your-github-org",
+}

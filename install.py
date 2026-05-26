@@ -10,9 +10,9 @@ What it does (per agent target):
   - Merges mcp/adk-mcp-*.json into the agent's MCP config (idempotent).
   - Appends a one-line reference to AGENTS.md in the agent's global guidelines
     file (idempotent, by marker).
-  - Seeds $ADK_DATA_HOME/improve/learning/decisions.jsonl with shared/seed-decisions.jsonl
+  - Seeds $ADK_MEMORY_HOME/learning/decisions.jsonl with shared/seed-decisions.jsonl
     (first install only).
-  - Creates $ADK_CONFIG_HOME/ skeleton if missing.
+  - Creates $ADK_CONFIG_HOME/ skeleton if missing (v5 JSON5 layout).
 
 Targets: claude, cursor, codex, junie, all.
 
@@ -37,7 +37,7 @@ _LIB_DIR = Path(__file__).resolve().parent / "scripts" / "lib"
 if str(_LIB_DIR) not in sys.path:
     sys.path.insert(0, str(_LIB_DIR))
 from adk_home import (  # noqa: E402
-    adk_config_home, adk_data_home, adk_improve_home, adk_memory_home,
+    adk_config_home, adk_data_home, adk_learning_home, adk_metadata_home, adk_memory_home,
 )
 
 MARKER_MD_START = "<!-- adk-marker:start -->"
@@ -264,7 +264,7 @@ def _cleanup_allowed(path: Path) -> tuple[bool, str]:
         home / ".claude",
         home / ".codex",
         home / ".junie",
-        home / ".agents-devkit",
+        home / ".agents-devkit",  # legacy v3 root — kept so install can clean it up
         home / ".config" / "adk",
     ]
     forbidden_roots = [
@@ -1822,7 +1822,7 @@ For every prompt:
 3. Apply `{repo_root}/shared/constitution.md` and `{repo_root}/shared/question-first.md` before any skill workflow.
 4. Use MCP servers generated from `{repo_root}/mcp/adk-mcp-*.json` in `~/.codex/config.toml`.
 5. Treat non-ADK Codex plugins, imported skills, prompts, and MCP servers as unavailable unless the user explicitly asks to bypass ADK for this invocation.
-6. Log every non-trivial decision to `$ADK_DATA_HOME/improve/learning/decisions.jsonl` via `{repo_root}/scripts/decision_logger.py`.
+6. Log every non-trivial decision to `$ADK_MEMORY_HOME/learning/decisions.jsonl` via `{repo_root}/scripts/decision_logger.py`.
 """
 
 
@@ -2152,31 +2152,68 @@ def uninstall_target(target: str, dry_run: bool, results: dict[str, Any]) -> Non
 # Bootstrap user dir
 # ----------------------------------------------------------------------------
 
+def _scaffold_config_file(dst: Path, tmpl_src: Path, dry_run: bool) -> str:
+    """Copy a v5 template into dst only if dst does not already exist.
+
+    Returns 'created', 'would-create', or 'exists (left alone)'.
+    """
+    if dst.exists():
+        return "exists (left alone)"
+    if dry_run:
+        return "would-create"
+    shutil.copyfile(tmpl_src, dst)
+    return "created"
+
+
 def bootstrap_user_dir(repo_root: Path, dry_run: bool) -> dict[str, str]:
-    """Create adk home dirs v4 skeleton.
+    """Create adk home dirs v5 skeleton.
 
     Layout (see shared/paths.md):
-      $ADK_CONFIG_HOME/          # core.yaml + repos.md + links.json5 + connectors/*.md
-      $ADK_MEMORY_HOME/          # cross-session memory
+      $ADK_CONFIG_HOME/          # core.json5 + workspaces.json5 + teams.json5 + ... + connectors/*.json5
+      $ADK_MEMORY_HOME/          # cross-session memory + learning state
+        learning/{decisions.jsonl, sessions/, archive/, proposals/}
       $ADK_DATA_HOME/            # machine-local working dirs
-        improve/ repos/ skill-*/
+        metadata/ repos/ skill-*/
     """
     out: dict[str, str] = {}
 
     config_root = adk_config_home()
-    improve_root = adk_improve_home()
+    learning = adk_learning_home()
+    metadata = adk_metadata_home()
     memory = adk_memory_home()
     data_root = adk_data_home()
 
-    learning = improve_root / "learning"
-    metadata = improve_root / "metadata"
+    connectors = config_root / "connectors"
     sessions = learning / "sessions"
     proposals = learning / "proposals"
     archive = learning / "archive"
-    connectors = config_root / "connectors"
-    for d in (config_root, connectors, improve_root, learning, metadata, memory,
-              sessions, proposals, archive):
+
+    for d in (config_root, connectors, memory, learning, sessions, proposals, archive, metadata):
         ensure_dir(d, dry_run)
+
+    # Scaffold v5 config files from templates (never overwrite existing user files).
+    tmpl_root = repo_root / "shared" / "templates" / "config-v5"
+    top_level_files = [
+        "core.json5", "workspaces.json5", "teams.json5", "repos.json5",
+        "services.json5", "channels.json5", "dashboards.json5", "datadog-apps.json5",
+        "statsig.json5", "mixpanel.json5", "snowflake.json5", "atlassian.json5",
+        "relations.json5",
+    ]
+    for fname in top_level_files:
+        tmpl = tmpl_root / fname
+        if tmpl.exists():
+            out[fname] = _scaffold_config_file(config_root / fname, tmpl, dry_run)
+
+    connector_files = [
+        "datadog.json5", "slack.json5", "statsig.json5", "mixpanel.json5",
+        "snowflake.json5", "atlassian.json5", "github.json5", "bitbucket.json5",
+    ]
+    for fname in connector_files:
+        tmpl = tmpl_root / "connectors" / fname
+        if tmpl.exists():
+            out[f"connectors/{fname}"] = _scaffold_config_file(
+                connectors / fname, tmpl, dry_run
+            )
 
     decisions = learning / "decisions.jsonl"
     seed = repo_root / "shared" / "seed-decisions.jsonl"
@@ -2318,7 +2355,7 @@ def main() -> int:
     print(f"  - targets: {targets}")
     print()
     print("next:")
-    print("  1. run /adk-setup --init from your agent to scaffold $ADK_CONFIG_HOME/{core.yaml,repos.md,connectors/*.md,links.json5}.")
+    print("  1. edit $ADK_CONFIG_HOME/{core.json5,workspaces.json5,repos.json5} with your details (scaffolded from templates).")
     print("  2. set env vars per SETUP.md.")
     print("  3. restart your agent so it picks up env + MCP changes.")
     print("  4. run /adk-setup --check to verify.")

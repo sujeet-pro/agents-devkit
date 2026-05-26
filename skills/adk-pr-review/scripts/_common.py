@@ -251,26 +251,32 @@ def die(msg: str, code: int = 1) -> None:
 
 # ----- config loader -------------------------------------------------------
 
+_ADK_REPO_LIB = Path(__file__).resolve().parents[3] / "scripts" / "lib"
+if str(_ADK_REPO_LIB) not in sys.path:
+    sys.path.insert(0, str(_ADK_REPO_LIB))
+from config import adk_config_home  # noqa: E402
+
 SKILL_DIR = Path(__file__).resolve().parent.parent
 SKILL_DEFAULTS_YAML = SKILL_DIR / "defaults.yaml"
-USER_OVERRIDE_YAML = CONFIG_HOME / "adk-pr-review.yaml"
+USER_OVERRIDE_JSON5 = adk_config_home() / "adk-pr-review.json5"
 
 
 def load_config() -> dict[str, Any]:
     """Skill defaults ⊕ user override (deep merge). CLI flags layer on top
-    in the caller. Loads PyYAML lazily so import-time cost is zero when no
-    script needs config."""
+    in the caller. Loads PyYAML lazily for the defaults (still YAML); the
+    user override file is JSON5 (adk-pr-review.json5 in $ADK_CONFIG_HOME)."""
     import yaml  # noqa: WPS433 — lazy
 
     if not SKILL_DEFAULTS_YAML.exists():
         die(f"missing skill defaults: {SKILL_DEFAULTS_YAML}")
     cfg = yaml.safe_load(SKILL_DEFAULTS_YAML.read_text(encoding="utf-8")) or {}
-    if USER_OVERRIDE_YAML.exists():
+    if USER_OVERRIDE_JSON5.exists():
         try:
-            user = yaml.safe_load(USER_OVERRIDE_YAML.read_text(encoding="utf-8")) or {}
+            import json5  # noqa: WPS433 — lazy
+            user = json5.loads(USER_OVERRIDE_JSON5.read_text(encoding="utf-8")) or {}
             cfg = deep_merge(cfg, user)
-        except yaml.YAMLError as e:
-            die(f"invalid user override {USER_OVERRIDE_YAML}: {e}")
+        except Exception as e:
+            die(f"invalid user override {USER_OVERRIDE_JSON5}: {e}")
     return cfg
 
 

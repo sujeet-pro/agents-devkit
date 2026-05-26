@@ -1,0 +1,15 @@
+[
+  // Add your teams here. Each team has members with cross-platform identities.
+  // {
+  //   id: "team:engineering",
+  //   name: "Engineering",
+  //   members: [
+  //     {
+  //       name: "Alice",
+  //       email: "alice@example.com",
+  //       github_login: "alice",
+  //       slack_user_id: "U12345678",
+  //     },
+  //   ],
+  // },
+]

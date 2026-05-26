@@ -47,10 +47,10 @@ import sys as _sys
 _SCRIPTS_LIB = Path(__file__).resolve().parents[2]
 if str(_SCRIPTS_LIB) not in _sys.path:
     _sys.path.insert(0, str(_SCRIPTS_LIB))
-from adk_home import adk_improve_home as _adk_improve_home  # noqa: E402
+from config import adk_learning_home as _adk_learning_home  # noqa: E402
 
 OLLAMA_EMBED_URL = "http://localhost:11434/api/embed"
-_DECISION_LOG = _adk_improve_home() / "learning" / "decisions.jsonl"
+_DECISION_LOG = _adk_learning_home() / "decisions.jsonl"
 
 
 # ----- errors --------------------------------------------------------------

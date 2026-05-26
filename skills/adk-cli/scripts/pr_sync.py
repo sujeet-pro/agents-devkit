@@ -82,7 +82,7 @@ def _load_pr_sync_setting(key: str, default):
     """Read one key under `pr_sync:` in adk-cli.json5, then `default`. Safe on fresh
     installs — missing files return `default`."""
     try:
-        from config_io import get_adk_cli  # noqa: WPS433
+        from config import get_adk_cli  # noqa: WPS433
         return get_adk_cli("pr_sync", key, default=default)
     except Exception:
         return default
@@ -500,11 +500,11 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--promote-threshold", type=int, default=None,
                     help="minimum number of non-terminal queued PRs sharing a target branch "
                          "before audit auto-mode will `adk repo branch add --auto` that branch. "
-                         "Default: from core.yaml pr_sync.base_index_promote_threshold, fallback 2.")
+                         "Default: from adk-cli.json5 pr_sync.base_index_promote_threshold, fallback 2.")
     ap.add_argument("--refresh-min-age-hours", type=float, default=None,
                     help="minimum age (hours) of a base index before audit will check for "
                          "remote-tip drift. Prevents thrashing on rapidly-merging branches. "
-                         "Default: from core.yaml pr_sync.base_index_refresh_min_age_hours, fallback 1.0.")
+                         "Default: from adk-cli.json5 pr_sync.base_index_refresh_min_age_hours, fallback 1.0.")
     ap.add_argument("--no-auto-demote", action="store_true",
                     help="skip step 5.6 (auto-base cleanup); default is to demote auto-added "
                          "bases whose queue rows are all terminal.")

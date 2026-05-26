@@ -42,15 +42,15 @@ out-of-scope:
 
 ## decisions log entries
 - scope=full (user-answered)
-- test_framework=jest (override-applied from core.yaml)
+- test_framework=jest (override-applied from core.json5)
 - pr_strategy=single (auto-defaulted, based on 5 prior tasks in this repo)
 ```
 
 ## Recommendation logic
 
-- Read `$ADK_DATA_HOME/improve/learning/decisions.jsonl` + `summary.md` for prior matching `fork_id`s.
-- Read `$ADK_CONFIG_HOME/core.yaml.defaults.<skill>.*`.
-- Read `<repo>/.adk/core.yaml.defaults.<skill>.*` (override layer).
+- Read `$ADK_MEMORY_HOME/learning/decisions.jsonl` + `summary.md` for prior matching `fork_id`s.
+- Read `$ADK_CONFIG_HOME/core.json5.defaults.<skill>.*`.
+- Read `<repo>/.adk/core.json5.defaults.<skill>.*` (override layer).
 - Recommendation = highest-priority match.
 - If no prior data: recommendation = the most common cross-user-base default, marked `[no personal history]`.
 

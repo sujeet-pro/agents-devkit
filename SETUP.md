@@ -124,12 +124,12 @@ cd ~/code/agents-devkit
 The installer:
 
 1. Enforces an ADK-only agent profile before installing fresh files. It removes non-ADK skills/rules/prompts/MCP descriptor caches from Cursor, Claude, Codex, and Junie; deletes non-ADK plugin/import caches; and quarantines legacy ADK v2/v3 state under `$ADK_DATA_HOME/legacy/<timestamp>/`.
-2. Creates `$ADK_CONFIG_HOME/` if missing. The conversational scaffolding (core.yaml, repos.md, connectors/*.md, links.json5, settings.json5) is then done by `/adk-setup --init` — see §4.
+2. Creates `$ADK_CONFIG_HOME/` if missing and scaffolds minimal v5 templates (`core.json5`, `workspaces.json5`, `teams.json5`, etc.) — edit them to add your details. See §4.
 3. Symlinks skills + agents + commands into each detected agent's config dir wherever the agent supports symlinks. Cursor requestable rules, Junie command files, and JSON/TOML config are generated deterministically because those formats need rendered absolute paths/content.
 4. **Replaces** each agent's MCP server list with the `mcp/*.json` adk set: Claude → `~/.claude.json`, Cursor → `~/.cursor/mcp.json`, Codex → `~/.codex/config.toml` (marker block), Junie → `~/.junie/mcp/mcp.json`. Any pre-configured user MCPs are stashed under `_adkRemovedMcpServers` and put back on `--uninstall`.
 5. Merges `shared/permissions/*` into each agent's settings file so all safe / read tool calls are auto-approved and only dangerous actions prompt. See `shared/permissions/README.md`.
 6. Appends a one-line reference to `AGENTS.md` in each agent's global guidelines file.
-7. Seeds `$ADK_DATA_HOME/improve/learning/decisions.jsonl` with foundational design decisions (your earlier Q&A) so the first `/adk-improve` run has evidence.
+7. Seeds `$ADK_MEMORY_HOME/learning/decisions.jsonl` with foundational design decisions (your earlier Q&A) so the first `/adk-improve` run has evidence.
 8. Prints a JSON manifest of cleanup + install actions. In `--dry-run`, the same manifest is emitted with `would-*` statuses and no filesystem changes.
 
 ### ADK-only cleanup and repeatability
@@ -175,18 +175,18 @@ Division of labor:
 | Install brew, gh, jq, uv, node, python | **You.** See §1 above. | adk doesn't run brew on your machine. |
 | Export env vars in `~/.zshenv` | **You.** See §2 above. | adk doesn't modify shell rc. |
 | Symlink skills/agents/commands; merge MCP config; wire hooks | `install.sh` | Filesystem wiring. Deterministic; no AI needed. |
-| Scaffold `$ADK_CONFIG_HOME/{core.yaml,repos.md,connectors/*.md,links.json5}` (workspaces, repos, data sources) | `/adk-setup --init` (in your agent) | Conversational walkthrough; data dictionary needs your judgment. |
-| Query MCPs and populate `$ADK_DATA_HOME/improve/metadata/<source>.json` + propose `connectors/<name>.md` frontmatter updates | `/adk-setup --enrich` | Uses the agent's MCP client to invoke stdio MCPs (uvx/npx) that `curl` can't. AI summarizes large lists. |
+| Fill in `$ADK_CONFIG_HOME/{core.json5,workspaces.json5,repos.json5,connectors/*.json5}` (identity, workspaces, repos, data sources) | Edit the scaffolded templates directly, or run `/adk-setup --init` (in your agent) for a conversational walkthrough | Data dictionary needs your judgment. |
+| Query MCPs and populate `$ADK_DATA_HOME/metadata/<source>.json` + propose `connectors/<name>.json5` updates | `/adk-setup --enrich` | Uses the agent's MCP client to invoke stdio MCPs (uvx/npx) that `curl` can't. AI summarizes large lists. |
 | Verify env + MCPs reachable | `/adk-setup --check` or `python3 scripts/adk_mcp_health.py --probe` | The skill version also tests stdio MCPs via real MCP-client invocation and offers conversational fix-it guidance. The script is faster for repeated checks. |
 
 ```text
-/adk-setup --init       # scaffold $ADK_CONFIG_HOME/{core.yaml,repos.md,connectors/*.md,links.json5}
-/adk-setup --enrich     # query every reachable MCP, populate the enriched.* block + metadata cache
+/adk-setup --init       # conversational walkthrough to fill $ADK_CONFIG_HOME/{core.json5,workspaces.json5,repos.json5,...}
+/adk-setup --enrich     # query every reachable MCP, populate services/dashboards and metadata cache
 /adk-setup --check      # superset of scripts/adk_mcp_health.py (also tests stdio MCPs)
 /adk-setup --diff       # show what --enrich would change (read-only)
 ```
 
-Edit `$ADK_CONFIG_HOME/core.yaml` for your workspaces, defaults, and RAG config; `$ADK_CONFIG_HOME/repos.md` for the repos you work in; `$ADK_CONFIG_HOME/connectors/*.md` for each data source (Snowflake/Looker/Mixpanel/Datadog/etc — frontmatter is config, body is the human cheatsheet the agent reads as context). The skills won't be useful until at least one workspace and one repo entry are filled.
+Edit `$ADK_CONFIG_HOME/core.json5` for your identity and defaults; `$ADK_CONFIG_HOME/workspaces.json5` for your workspaces; `$ADK_CONFIG_HOME/repos.json5` for the repos you work in; `$ADK_CONFIG_HOME/connectors/*.json5` for each data source (Snowflake/Looker/Mixpanel/Datadog/etc). The skills won't be useful until at least one workspace and one repo entry are filled.
 
 ## 5. Verify
 
@@ -237,19 +237,29 @@ overrides:
 ## 7. Layout
 
 ```
-$ADK_DATA_HOME/
-├── memory/                 # auto: cross-session memory
-├── config/                 # YOU edit
-│   ├── core.yaml           # workspaces, defaults, rag, learning_state, enriched
-│   ├── repos.md            # frontmatter: repo defs; body: per-repo notes
-│   ├── connectors/         # one .md per data source (frontmatter=config, body=notes)
-│   ├── links.json5         # cross-connector entity graph
-│   ├── settings.json5      # CLI behaviour knobs
-│   ├── adk-cli.json5       # adk pr-sync / pr-scan / pr-review-all config
-│   └── pr-queue.json5      # PR-review queue (curated by adk pr-scan)
-├── improve/                # auto: /adk-improve consumes
-│   ├── learning/           # decisions.jsonl + sessions/ + archive/ + proposals/
-│   └── metadata/           # one <source>.json per MCP
+$ADK_CONFIG_HOME/           # YOU edit — synced across machines
+├── core.json5              # user identity, org, bot persona, defaults
+├── workspaces.json5        # workspace definitions
+├── teams.json5             # teams + members (cross-platform identities)
+├── repos.json5             # repo definitions
+├── services.json5          # service definitions
+├── channels.json5          # Slack channel inventory
+├── dashboards.json5        # dashboard links
+├── datadog-apps.json5      # Datadog application config
+├── statsig.json5           # Statsig project config
+├── mixpanel.json5          # Mixpanel project config
+├── snowflake.json5         # Snowflake connection config
+├── atlassian.json5         # Atlassian config
+├── relations.json5         # cross-entity graph (replaces links.json5)
+├── connectors/             # one .json5 per data source (auth + source config)
+├── adk-cli.json5           # adk pr-sync / pr-scan / pr-review-all config
+└── pr-queue.json5          # PR-review queue (curated by adk pr-scan)
+
+$ADK_MEMORY_HOME/           # auto: cross-session learning state — synced
+└── learning/               # decisions.jsonl + sessions/ + archive/ + proposals/
+
+$ADK_DATA_HOME/             # auto: machine-local scratch — not synced
+├── metadata/               # one <source>.json per MCP (regenerable)
 ├── repos/<name>/           # tracked repo clones + per-branch indices
 ├── skill-pr-review/        # one folder per PR being reviewed
 ├── skill-investigate/      # one folder per investigation
@@ -268,5 +278,5 @@ Inside any repo you work on:
 ## 8. Privacy
 
 - No skill ever uploads `$ADK_CONFIG_HOME/*` anywhere.
-- Tokens live in `~/.zshenv` (or shell rc) only. `core.yaml` / `connectors/*.md` frontmatter / `adk-cli.json5` can reference env vars by name but **must not** contain raw token values; a post-write hook enforces this with a regex check.
+- Tokens live in `~/.zshenv` (or shell rc) only. `core.json5` / `connectors/*.json5` / `adk-cli.json5` can reference env var names but **must not** contain raw token values; a post-write hook enforces this with a regex check.
 - Decision logs are local-only; `/adk-improve` proposals stay local until you accept them.

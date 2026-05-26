@@ -106,7 +106,7 @@ Review turnaround is best-effort. Ping in the PR thread if it's been quiet for >
 
 Every skill walks `shared/question-first.md` before executing:
 
-- Default mode is **auto** — the agent picks the recommended default for each fork, logs the choice to `$ADK_DATA_HOME/improve/learning/decisions.jsonl`, and narrates the pick so the user can interrupt.
+- Default mode is **auto** — the agent picks the recommended default for each fork, logs the choice to `$ADK_MEMORY_HOME/learning/decisions.jsonl`, and narrates the pick so the user can interrupt.
 - `-i` / `--interactive` actually asks (cap 3 user-facing questions).
 - "I don't know" hands off to `/adk-explain`.
 
@@ -116,7 +116,7 @@ Shared-state writes (Slack post, PR comment, Confluence page update, Statsig mut
 
 ## 8. The decision-log obligation
 
-Every non-trivial fork your skill resolves gets one JSONL line in `$ADK_DATA_HOME/improve/learning/decisions.jsonl`. Schema: `shared/decision-log-schema.md`. These lines feed `/adk-improve`, which proposes default updates to `$ADK_CONFIG_HOME/core.yaml`.
+Every non-trivial fork your skill resolves gets one JSONL line in `$ADK_MEMORY_HOME/learning/decisions.jsonl`. Schema: `shared/decision-log-schema.md`. These lines feed `/adk-improve`, which proposes default updates to `$ADK_CONFIG_HOME/core.json5`.
 
 If you're touching a skill, audit its decision-log emissions:
 

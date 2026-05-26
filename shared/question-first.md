@@ -25,7 +25,7 @@ This is one of your three questions only if the restatement is non-trivial. For 
 
 "Smallest version that helps you ship today?"
 
-- Asks the user to narrow scope. Defaults from `core.yaml.defaults.<skill>.scope` if set.
+- Asks the user to narrow scope. Defaults from `core.json5.defaults.<skill>.scope` if set.
 - For `/adk-implement`: vertical slice vs full vs spike?
 - For `/adk-investigate`: just this incident vs incident + prior similar?
 - For `/adk-document`: one-pager vs full doc?
@@ -85,7 +85,7 @@ When the agent proceeds in auto mode:
 
 ## Recording (the part that's training data)
 
-For each question asked + answered, append one line to `$ADK_DATA_HOME/improve/learning/decisions.jsonl`:
+For each question asked + answered, append one line to `$ADK_MEMORY_HOME/learning/decisions.jsonl`:
 
 ```json
 {"ts":"2026-05-18T14:22Z","skill":"adk-implement","sub_flow":"from-jira",

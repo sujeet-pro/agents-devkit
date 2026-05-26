@@ -56,7 +56,7 @@ from _common import file_lock  # noqa: E402
 _LIB_DIR = Path(__file__).resolve().parents[3] / "scripts" / "lib"
 if str(_LIB_DIR) not in sys.path:
     sys.path.insert(0, str(_LIB_DIR))
-from adk_home import adk_config_home  # noqa: E402
+from config import adk_config_home  # noqa: E402
 
 try:
     import json5  # type: ignore
@@ -336,44 +336,13 @@ def _load_json5_or_json(path: Path) -> dict:
 
 
 def load_slack_config(path: Path | None = None) -> dict:
-    """Load slack config for pr-reviews from `connectors/slack.md`.
+    """Load slack pr-reviews config from the typed bundle.
 
-    Lookup order:
-      1. `path` if given AND exists (a .md connector file).
-      2. `$ADK_CONFIG_HOME/connectors/slack.md` `pr_reviews:` section.
+    The `path` argument is no longer used; config is read from the bundle.
+    Returns a dict compatible with the connectors/slack.json5 :: pr_reviews block.
     """
-    config_home = adk_config_home()
-    candidates: list[Path] = []
-    if path:
-        candidates.append(Path(path).expanduser())
-    candidates.append(config_home / "connectors" / "slack.md")
-
-    for c in candidates:
-        if c.exists():
-            return _load_slack_from_connector_md(c)
-    raise FileNotFoundError(
-        f"No slack config found. Expected: {config_home / 'connectors' / 'slack.md'}"
-    )
-
-
-def _load_slack_from_connector_md(path: Path) -> dict:
-    """Read connectors/slack.md frontmatter, return the `pr_reviews` section."""
-    text = path.read_text(encoding="utf-8")
-    m = re.match(r"\A---\s*\n(.*?)\n---\s*\n?", text, re.DOTALL)
-    if not m:
-        raise ValueError(f"{path}: missing YAML frontmatter")
-    try:
-        import yaml
-    except ImportError:
-        raise RuntimeError("PyYAML not installed; required to read connectors/slack.md")
-    fm = yaml.safe_load(m.group(1)) or {}
-    pr = fm.get("pr_reviews")
-    if pr is None:
-        raise ValueError(
-            f"{path}: frontmatter has no `pr_reviews:` section. Add one with channels, "
-            "url_patterns, filter_mentioned_users, status_emoji, reminder."
-        )
-    return pr
+    from config import get_bundle  # noqa: WPS433
+    return get_bundle().connectors.slack.pr_reviews.model_dump()
 
 
 def read_queue(path: Path) -> dict:

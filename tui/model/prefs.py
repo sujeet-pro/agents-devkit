@@ -17,16 +17,15 @@ Backwards-compat: a sidecar that still contains ``"layout"`` or
 """
 from __future__ import annotations
 
-import json
 import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
-_LIB_DIR = Path(__file__).resolve().parents[2] / "scripts" / "lib"
-if str(_LIB_DIR) not in sys.path:
-    sys.path.insert(0, str(_LIB_DIR))
-from adk_home import adk_config_home  # noqa: E402
+_ADK_REPO_LIB = Path(__file__).resolve().parents[2] / "scripts" / "lib"
+if str(_ADK_REPO_LIB) not in sys.path:
+    sys.path.insert(0, str(_ADK_REPO_LIB))
+from config import adk_config_home, get_adk_cli, load_tui_prefs, save_tui_prefs  # noqa: E402
 
 
 CommentsFilter = Literal["open", "all"]
@@ -55,26 +54,12 @@ def _prefs_path() -> Path:
 
 def _read_adk_cli_tui_section() -> dict:
     """Read the ``tui:`` section from adk-cli.json5 if present."""
-    try:
-        scripts_dir = Path(__file__).resolve().parents[2] / "scripts"
-        if str(scripts_dir) not in sys.path:
-            sys.path.insert(0, str(scripts_dir))
-        from config_io import get_adk_cli  # type: ignore  # noqa: E402
-
-        node = get_adk_cli("tui", default={})
-        return node if isinstance(node, dict) else {}
-    except Exception:
-        return {}
+    node = get_adk_cli("tui", default={})
+    return node if isinstance(node, dict) else {}
 
 
 def _read_sidecar() -> dict:
-    path = _prefs_path()
-    if not path.exists():
-        return {}
-    try:
-        raw = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        return {}
+    raw = load_tui_prefs()
     return raw if isinstance(raw, dict) else {}
 
 
@@ -108,12 +93,10 @@ def load_prefs() -> LayoutPrefs:
 def save_prefs(prefs: LayoutPrefs) -> None:
     """Persist the user's layout choice to the sidecar (best-effort)."""
     norm = prefs.normalised()
-    path = _prefs_path()
     try:
-        path.parent.mkdir(parents=True, exist_ok=True)
         existing = _read_sidecar()
         existing["split_percent"] = norm.split_percent
         existing["comments_filter"] = norm.comments_filter
-        path.write_text(json.dumps(existing, indent=2), encoding="utf-8")
+        save_tui_prefs(existing)
     except OSError:
         pass

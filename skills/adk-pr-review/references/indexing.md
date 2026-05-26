@@ -51,7 +51,7 @@ POST http://localhost:11434/api/embed
 ```
 
 Defaults:
-- Model: `nomic-embed-text` (768-dim). Configurable via `--embed-model` or `core.yaml.defaults.adk-pr-review.embed_model`.
+- Model: `nomic-embed-text` (768-dim). Configurable via `--embed-model` or `core.json5.defaults.adk-pr-review.embed_model`.
 - Batch: 24. Empirically the sweet spot on a stock ollama install — larger batches OOM the model server on small machines.
 - Idle eviction: set `"keep_alive": 0` on the final batch to let ollama unload the model. The Electron app uses an idle timer; the CLI just does it on the last call.
 
