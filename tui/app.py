@@ -30,6 +30,7 @@ from tui.widgets.header_bar import HeaderBar
 from tui.widgets.help_screen import HelpScreen
 from tui.widgets.pr_action_bar import PRActionBar
 from tui.widgets.pr_status_bar import PRStatusBar
+from tui.widgets.global_activity_strip import GlobalActivityStrip
 from tui.widgets.queue_action_bar import QueueActionBar
 from tui.widgets.queue_status_bar import QueueStatusBar
 from tui.widgets.queue_table import QueueTable
@@ -57,30 +58,11 @@ _STAGE_TAB_IDS: tuple[str, ...] = (
 
 
 def _configured_runner(default: str = "claude") -> str:
-    import sys as _sys
     _lib = Path(__file__).resolve().parents[1] / "scripts" / "lib"
-    if str(_lib) not in _sys.path:
-        _sys.path.insert(0, str(_lib))
-    from adk_home import adk_config_home  # noqa: E402
-    cfg_path = adk_config_home() / "adk-cli.json5"
-    if not cfg_path.exists():
-        return default
-    try:
-        text = cfg_path.read_text(encoding="utf-8")
-        try:
-            import json5  # type: ignore[import-untyped]
-
-            cfg = json5.loads(text)
-        except ImportError:
-            cfg = json.loads(text)
-    except (OSError, ValueError, TypeError):
-        return default
-    if not isinstance(cfg, dict):
-        return default
-    pr_review_all = cfg.get("pr_review_all")
-    if not isinstance(pr_review_all, dict):
-        return default
-    runner = pr_review_all.get("runner")
+    if str(_lib) not in sys.path:
+        sys.path.insert(0, str(_lib))
+    from config import get_adk_cli  # noqa: E402
+    runner = get_adk_cli("pr_review_all", "runner", default=default)
     if not isinstance(runner, str):
         return default
     runner = runner.strip()
@@ -181,7 +163,8 @@ class AdkApp(App):
         Binding("r", "rereview", "review"),
         Binding("R", "sync_review_all", "Review all"),
         Binding("l", "show_logs", "logs"),
-        Binding("L", "show_run_logs", "run-logs"),
+        Binding("L", "show_run_logs", "pipeline-log"),
+        Binding("F", "findings_walk", "findings"),
         Binding("enter", "pr_actions", "actions"),
         Binding("a", "approve_pr", "approve"),
         Binding("u", "refresh_cascade", "update"),
@@ -258,6 +241,7 @@ class AdkApp(App):
 
         self._layout_prefs: LayoutPrefs = load_prefs()
         self._active_stage_tab: str = "stage-all"
+        self._active_pr_url: str | None = None
 
     def compose(self) -> ComposeResult:
         yield HeaderBar()
@@ -272,6 +256,7 @@ class AdkApp(App):
         with Container(id="main"):
             yield QueueStatusBar()
             yield QueueTable()
+            yield GlobalActivityStrip()
             yield QueueActionBar()
             yield SplitterHandle(ascii_only=self._ascii_only)
             yield PRStatusBar()
@@ -328,11 +313,55 @@ class AdkApp(App):
         except Exception:
             return None
 
-    def _log(self, text: str) -> None:
-        """Append a line to the Activity tab's log section."""
+    def _log_global(self, text: str) -> None:
+        """Append a line to the GlobalActivityStrip (and write to pipeline.log).
+
+        Also writes to ActivityPane._log_buffer so existing tests that read
+        ap._log_buffer continue to work.
+        """
+        # Write to the in-memory strip widget if available.
+        if self.screen_stack:
+            try:
+                strip = self._default_query(GlobalActivityStrip)
+                strip.append(text)
+            except Exception:
+                pass
+        # Keep ActivityPane._log_buffer populated for backward compatibility
+        # (existing tests read ap._log_buffer to verify operational messages).
         ap = self._activity()
         if ap is not None:
             ap.write(text)
+        # Also append to pipeline.log for persistence and the L-key modal.
+        try:
+            from config import adk_data_home
+            log_path = adk_data_home() / "logs" / "pipeline.log"
+            log_path.parent.mkdir(parents=True, exist_ok=True)
+            with log_path.open("a", encoding="utf-8") as fh:
+                fh.write(text + "\n")
+        except Exception:
+            pass
+
+    def _log_pr(self, pr_url: str, text: str) -> None:
+        """Append a line to the given PR's narration.log."""
+        try:
+            import sys as _sys
+            _scripts = Path(__file__).resolve().parents[1] / "skills" / "adk-cli" / "scripts"
+            if str(_scripts) not in _sys.path:
+                _sys.path.insert(0, str(_scripts))
+            import queue_io as _queue_io
+            from config import adk_data_home
+            _host, _owner, repo, number = _queue_io.dedupe_key(pr_url)
+            pr_dir = adk_data_home() / "skill-pr-review" / f"{repo}_pr-{number}"
+            narration_path = pr_dir / "narration.log"
+            narration_path.parent.mkdir(parents=True, exist_ok=True)
+            with narration_path.open("a", encoding="utf-8") as fh:
+                fh.write(text + "\n")
+        except Exception:
+            pass
+
+    def _log(self, text: str) -> None:
+        """Compatibility shim: routes to _log_global."""
+        self._log_global(text)
 
     def _sync_all_running(self) -> bool:
         if self._sync_proc is not None and self._sync_proc.returncode is None:
@@ -484,6 +513,17 @@ class AdkApp(App):
         self._reload_plan()
         self._reload_workers()
         self._reload_runs()
+        # Tail the global activity strip and the per-PR activity pane.
+        try:
+            self._default_query(GlobalActivityStrip).update_tail()
+        except Exception:
+            pass
+        ap = self._activity()
+        if ap is not None:
+            try:
+                ap.update_tail()
+            except Exception:
+                pass
 
     def _refresh_detail(self) -> None:
         if not self.screen_stack:
@@ -497,6 +537,15 @@ class AdkApp(App):
             worker=worker,
             work_text=self._work_text_for_url(url),
         )
+        # Update per-PR activity pane when selection changes.
+        if url != self._active_pr_url:
+            self._active_pr_url = url
+            ap = self._activity()
+            if ap is not None:
+                try:
+                    ap.set_pr(url)
+                except Exception:
+                    pass
         try:
             self._default_query(PRStatusBar).update_pr(row)
         except Exception:
@@ -1227,48 +1276,45 @@ class AdkApp(App):
         self._write_log_tail(log_path, label=label, max_lines=120)
 
     def action_show_run_logs(self) -> None:
-        if not self._run_rows:
-            self._log("(no run logs found)")
+        """Open the full global activity log modal (L key)."""
+        from tui.screens.global_activity_screen import GlobalActivityScreen
+        if any(isinstance(s, GlobalActivityScreen) for s in self.screen_stack):
             return
-        run = self._run_rows[0]
-        self._log(f"(run logs: {run.run_id})")
+        self.push_screen(GlobalActivityScreen())
 
-        written = False
-        for step in run.steps:
-            log_path = step.get("log_path")
-            if log_path:
-                self._write_log_tail(
-                    str(log_path),
-                    label=str(step.get("name") or "step"),
-                    max_lines=60,
-                )
-                written = True
+    @work
+    async def action_findings_walk(self) -> None:
+        """Open the findings walk modal for the selected PR (F key)."""
+        from tui.screens.findings_walk_screen import FindingsWalkScreen
 
-        active_workers = [
-            w for w in self._workers_by_url.values()
-            if (run.run_id and w.run_id == run.run_id) or run.status == "running"
-        ]
-        for worker in active_workers:
-            if worker.log_path:
-                label = worker.current_phase or worker.pr_url or worker.worker_id
-                self._write_log_tail(worker.log_path, label=label, max_lines=60)
-                written = True
+        pr_url = self._selected_pr_url()
+        if not pr_url:
+            self._log_global("(no row selected)")
+            return
 
-        for result in run.results:
-            log_path = result.get("log")
-            if log_path:
-                label = str(result.get("pr_url") or "review")
-                self._write_log_tail(str(log_path), label=label, max_lines=60)
-                written = True
+        # Resolve the validated-findings.json path.
+        try:
+            import sys as _sys
+            _scripts = Path(__file__).resolve().parents[1] / "skills" / "adk-cli" / "scripts"
+            if str(_scripts) not in _sys.path:
+                _sys.path.insert(0, str(_scripts))
+            import queue_io as _queue_io
+            from config import adk_data_home
+            _host, _owner, repo, number = _queue_io.dedupe_key(pr_url)
+            task_dir = adk_data_home() / "skill-pr-review" / f"{repo}_pr-{number}"
+            findings_path = task_dir / "pr-review" / "validated-findings.json"
+        except Exception as exc:
+            self._log_global(f"(findings walk: error resolving path: {exc})")
+            return
 
-        if not written and run.run_dir:
-            sync_log = Path(run.run_dir).expanduser() / "pr-sync.log"
-            if sync_log.exists():
-                self._write_log_tail(str(sync_log), label="pr-sync", max_lines=60)
-                written = True
+        if not findings_path.exists():
+            self._log_global(f"(findings walk: no validated-findings.json for {pr_url})")
+            return
 
-        if not written:
-            self._log("(latest run has no log paths yet)")
+        if any(isinstance(s, FindingsWalkScreen) for s in self.screen_stack):
+            return
+
+        await self.push_screen_wait(FindingsWalkScreen(findings_path=findings_path, task_dir=task_dir))
 
     async def _perform_pr_action(self, action: str, pr_url: str) -> None:
         if action == "open-pr":
