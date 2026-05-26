@@ -41,6 +41,44 @@ def _now_iso() -> str:
     return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
 
 
+# Substrings that indicate a failure is worth retrying (transient/external).
+_RETRYABLE_SUBSTRINGS = ("rc=", "timeout", "connection", "transient")
+
+# Substrings that indicate a failure is deterministic — never retry.
+_NON_RETRYABLE_SUBSTRINGS = (
+    "lock held",
+    "not in queue",
+    "could not parse pr url",
+    "queue row missing",
+    "pr url not parsable",
+)
+
+
+def _is_retryable(reason: str) -> bool:
+    """Return True if a stage failure reason is worth retrying.
+
+    Deterministic errors (bad URL, missing queue row, lock contention) are
+    excluded first; everything that looks like a transient subprocess or
+    network failure is included.
+    """
+    lower = reason.lower()
+    for phrase in _NON_RETRYABLE_SUBSTRINGS:
+        if phrase in lower:
+            return False
+    for phrase in _RETRYABLE_SUBSTRINGS:
+        if phrase in lower:
+            return True
+    return False
+
+
+@dataclass
+class RetryPolicy:
+    """Controls how many times a failing stage is retried before giving up."""
+    max_retries: int = 1   # 1 retry => up to 2 total attempts per stage
+    backoff_s: float = 5.0
+    per_stage_overrides: dict[str, int] = field(default_factory=dict)
+
+
 @dataclass
 class Semaphores:
     """Per-stage slot limits. index=1 keeps the bottleneck serialized by default."""
@@ -87,6 +125,7 @@ def run(
     queue_path: Path,
     runner_cfg: dict,
     on_event: Optional[Callable[[dict], None]] = None,
+    retry_policy: Optional[RetryPolicy] = None,
 ) -> list[PRState]:
     """Run all PRState objects through the pipeline concurrently.
 
@@ -100,6 +139,7 @@ def run(
     if not states:
         return states
 
+    _policy = retry_policy if retry_policy is not None else RetryPolicy()
     _sems = _make_sems(sems)
     # Total workers = sum of all semaphore values so no stage is deadlocked
     # waiting for pool space that a blocking stage is using.
@@ -129,7 +169,12 @@ def run(
         pending[fut] = state
 
     def _run_one_stage(state: PRState, stage: StageName) -> PRState:
-        """Acquire the stage semaphore, call the stage function, release."""
+        """Acquire the stage semaphore, call the stage function, release.
+
+        On failure, retries up to _policy.max_retries times (or the
+        per_stage_overrides value for this stage) when the failure reason
+        is retryable.  Sleeps _policy.backoff_s * attempt before each retry.
+        """
         sem = _sems[stage]
         _emit(on_event, "stage_wait", state.pr_url, stage)
         sem.acquire()
@@ -162,8 +207,26 @@ def run(
                 if runner_cfg.get("embed_model"):
                     kw["embed_model"] = runner_cfg["embed_model"]
 
-            with pr_locks[state.pr_url]:
-                result: StageResult = fn(state, **kw)
+            max_for_stage = _policy.per_stage_overrides.get(stage, _policy.max_retries)
+            max_attempts = max_for_stage + 1  # attempts = retries + 1
+
+            result: StageResult = StageResult(stage=stage, status="failed", reason="")
+            for attempt in range(max_attempts):
+                with pr_locks[state.pr_url]:
+                    result = fn(state, **kw)
+                if result.status != "failed":
+                    break
+                # Failed — decide whether to retry.
+                if attempt < max_attempts - 1 and _is_retryable(result.reason):
+                    _emit(on_event, "stage_retry", state.pr_url, stage,
+                          attempt=attempt + 1,
+                          max_attempts=max_attempts,
+                          reason=result.reason)
+                    time.sleep(_policy.backoff_s * (attempt + 1))
+                else:
+                    # Either not retryable or budget exhausted.
+                    break
+
             state.advance(result)
             if result.status == "failed":
                 _emit(on_event, "stage_fail", state.pr_url, stage,

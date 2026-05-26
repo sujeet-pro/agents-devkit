@@ -18,7 +18,7 @@ metadata:
   needs_meta_info: [workspaces, repos]
   needs_cli: [git, ollama, gh]
   needs_cli_optional: [scip-typescript, scip-python, scip-go, scip-java]
-  forks_emitted: [severity-bar, dimensions, scope, post-policy, resolve-policy, embed-model, model-depth, import-source, sync-scope, index-mode, review-depth, validate-strict]
+  forks_emitted: [severity-bar, dimensions, scope, resolve-policy, embed-model, model-depth, import-source, sync-scope, index-mode, review-depth, validate-strict, post-policy]
 ---
 
 # adk-pr-review — heavyweight PR review with code context
