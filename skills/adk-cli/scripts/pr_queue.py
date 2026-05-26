@@ -541,19 +541,29 @@ def _add_from_slack_permalink(url: str, slack_info: dict, queue_path: Path, args
     main_prs = find_pr_urls(main_text, url_patterns)
     all_text = main_text + "\n" + "\n".join((r.get("text") or "") for r in replies)
     supporting = find_supporting_docs(all_text)
-    reply_pr_counts = [
-        len(find_pr_urls(r.get("text") or "", url_patterns))
-        for r in replies
-    ]
-    thread_pr_count = len(main_prs) + sum(reply_pr_counts)
+    # Unique-PR-keyed dedup: same PR mentioned across main + replies, or via
+    # multiple URL shapes (pull/42 vs pull/42/files), collapses to one entry
+    # in thread_pr_urls. thread_pr_count reflects unique PRs, not raw mentions.
+    from queue_io import dedupe_key as _dedupe_key
     thread_pr_urls: list[str] = []
+    _seen_keys: set[tuple[str, str, str, int]] = set()
+
+    def _add_unique(url: str) -> None:
+        try:
+            key = _dedupe_key(url)
+        except ValueError:
+            return
+        if key in _seen_keys:
+            return
+        _seen_keys.add(key)
+        thread_pr_urls.append(url)
+
     for pr_url in main_prs:
-        if pr_url not in thread_pr_urls:
-            thread_pr_urls.append(pr_url)
+        _add_unique(pr_url)
     for rep in replies:
         for pr_url in find_pr_urls(rep.get("text") or "", url_patterns):
-            if pr_url not in thread_pr_urls:
-                thread_pr_urls.append(pr_url)
+            _add_unique(pr_url)
+    thread_pr_count = len(thread_pr_urls)
 
     def related_pr_urls(pr_url: str) -> list[str]:
         return [u for u in thread_pr_urls if u != pr_url]

@@ -130,8 +130,10 @@ def find_pr_urls(text: str, url_patterns: list[str]) -> list[str]:
                     seen.add(url)
                     out.append(url)
                 break
-    # Then bare URLs.
-    for m in re.finditer(r"https?://[^\s<>\]\)]+", text):
+    # Then bare URLs. `|` is excluded so we don't also match the `url` portion
+    # of a Slack `<url|label>` form a second time (the angle-bracket pass
+    # already captured it). `<` is excluded for the same reason.
+    for m in re.finditer(r"https?://[^\s<>\]\)|]+", text):
         url = m.group(0).rstrip(".,);:")
         for pat in url_patterns:
             if url.lower().startswith(pat.lower()):

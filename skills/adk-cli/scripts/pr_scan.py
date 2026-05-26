@@ -77,6 +77,7 @@ from queue_io import (  # noqa: E402
     DEFAULT_QUEUE_PATH,
     load_slack_config, read_queue, write_queue, merge_scan_results,
     atomic_scan_merge, classify_pr_state,
+    dedupe_key,
     STATUS_PENDING, STATUS_MERGED,
 )
 from slack_helpers import (  # noqa: E402
@@ -342,24 +343,30 @@ def scan(slack_cfg: dict, oldest_ts: str, log) -> tuple[list[dict], dict]:
             supporting = find_supporting_docs(all_text)
             main_permalink = client.get_message_permalink(cid, main_ts)
 
-            # thread_pr_count = total PR links in main + all replies. This is
-            # the value the slack reactor/poster uses to decide whether a
-            # reaction on a single message can identify "which PR" — only
-            # safe when the whole thread has exactly one PR. Compute it once
-            # here so every row in this thread carries the same total.
-            reply_pr_counts = [
-                len(find_pr_urls(r.get("text") or "", url_patterns))
-                for r in reply_msgs
-            ]
-            thread_pr_count = len(main_prs) + sum(reply_pr_counts)
+            # thread_pr_count = number of UNIQUE PRs across main + all replies,
+            # keyed by (host, owner, repo, pr#). The same PR mentioned in both
+            # the main message and a reply collapses to one, as does a PR linked
+            # via two URL shapes (`pull/42` vs `pull/42/files`). Used downstream
+            # to decide "does this Slack thread carry exactly one PR?".
             thread_pr_urls: list[str] = []
+            seen_keys: set[tuple[str, str, str, int]] = set()
+
+            def _add_unique(url: str) -> None:
+                try:
+                    key = dedupe_key(url)
+                except ValueError:
+                    return
+                if key in seen_keys:
+                    return
+                seen_keys.add(key)
+                thread_pr_urls.append(url)
+
             for u in main_prs:
-                if u not in thread_pr_urls:
-                    thread_pr_urls.append(u)
+                _add_unique(u)
             for rep in reply_msgs:
                 for u in find_pr_urls(rep.get("text") or "", url_patterns):
-                    if u not in thread_pr_urls:
-                        thread_pr_urls.append(u)
+                    _add_unique(u)
+            thread_pr_count = len(thread_pr_urls)
 
             def related_pr_urls(pr_url: str) -> list[str]:
                 return [u for u in thread_pr_urls if u != pr_url]

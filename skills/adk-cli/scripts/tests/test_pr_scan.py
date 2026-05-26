@@ -437,6 +437,37 @@ def test_thread_pr_count_two_prs_in_one_message(monkeypatch):
         assert c["slack"]["n_pr_links_in_message"] == 2
 
 
+def test_thread_pr_count_dedupes_same_pr_across_main_and_reply(monkeypatch):
+    """A PR linked in BOTH the main message and a reply must count once in
+    thread_pr_count. Regression for the bug where users saw 6 PRs in a thread
+    with 4 link occurrences and 2 unique PRs."""
+    main = {"ts": "100.000", "user": "U_alice",
+            "text": "Please review https://github.com/acme/foo/pull/1 "
+                    "and https://github.com/acme/foo/pull/2",
+            "reply_count": 2}
+    r1 = {"ts": "100.001", "user": "U_bob",
+          "text": "+1 to https://github.com/acme/foo/pull/1"}  # same PR as main
+    r2 = {"ts": "100.002", "user": "U_carol",
+          "text": "And https://github.com/acme/foo/pull/2/files"}  # same PR, different shape
+    fake = FakeSlackClient({"C1": ([main], {"100.000": [main, r1, r2]})})
+    monkeypatch.setattr(pr_scan, "SlackClient", lambda: fake)
+    log = logging.getLogger("test")
+    candidates, _ = pr_scan.scan(_slack_cfg(), oldest_ts="0", log=log)
+    for c in candidates:
+        assert c["slack"]["thread_pr_count"] == 2, (
+            f"4 link occurrences, 2 unique PRs → thread_pr_count must be 2, "
+            f"got {c['slack']['thread_pr_count']}"
+        )
+
+
+def test_find_pr_urls_does_not_double_count_slack_label_form():
+    """A Slack `<url|label>` form must yield exactly one URL, not two."""
+    from slack_helpers import find_pr_urls
+    text = "<https://github.com/acme/foo/pull/42|PR-42 (bugfix)>"
+    urls = find_pr_urls(text, ["https://github.com/"])
+    assert urls == ["https://github.com/acme/foo/pull/42"], urls
+
+
 def test_post_process_skips_reaction_when_thread_has_multi_pr(monkeypatch):
     """post_process must NOT add a merged-emoji reaction to the main message
     when thread_pr_count > 1 — even when the PR itself is merged. The
