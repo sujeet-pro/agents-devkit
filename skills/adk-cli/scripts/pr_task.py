@@ -64,7 +64,7 @@ from _common import (  # noqa: E402
 )
 from queue_io import (  # noqa: E402
     DEFAULT_QUEUE_PATH, STATUS_MERGED, STATUS_PENDING,
-    TERMINAL_STATUSES, read_queue, find_row,
+    TERMINAL_STATUSES, read_queue, find_row, write_queue, merge_scan_results,
 )
 
 
@@ -770,6 +770,29 @@ def cmd_pipeline_import(args) -> int:
         p = parse_pr_url(args.pr_url)
     except ValueError as exc:
         die(f"unrecognised PR URL: {args.pr_url} ({exc})")
+
+    # Safety: ensure the PR exists in the queue before running the stage.
+    # update_pr_entry returns False when the URL isn't found, which would cause
+    # the Import stage to silently no-op and leave subsequent stages without a
+    # queue row.
+    if find_row(queue_path, args.pr_url) is None:
+        no_auto_add = getattr(args, "no_auto_add", False)
+        if no_auto_add:
+            die(
+                f"PR not in queue. Run `adk pr-queue add {args.pr_url}` first, "
+                "or rerun without --no-auto-add to add it now."
+            )
+        # Auto-add: insert a minimal pending row so do_import can update it.
+        log.info("import: %s not in queue — auto-adding a pending row", args.pr_url)
+        existing = read_queue(queue_path) if queue_path.exists() else {"prs": []}
+        candidate = {"pr_url": args.pr_url, "status": STATUS_PENDING,
+                     "supporting_docs": [], "discovery_source": "manual"}
+        merged = merge_scan_results(existing, [candidate])
+        merged.pop("_merge_summary", None)
+        queue_path.parent.mkdir(parents=True, exist_ok=True)
+        write_queue(queue_path, merged)
+        log.info("import: auto-added %s", args.pr_url)
+
     from pr_pipeline.state import PRState  # noqa: WPS433
     td = _task_dir_for(args.pr_url)
     state = PRState(pr_url=args.pr_url, repo=p["repo"],
@@ -1046,6 +1069,13 @@ def main(argv: list[str] | None = None) -> int:
                                  "Cheap: no diff, no comments, no worktree.")
     sp_imp.add_argument("pr_url")
     sp_imp.add_argument("--queue", default=str(DEFAULT_QUEUE_PATH))
+    sp_imp.add_argument(
+        "--no-auto-add",
+        action="store_true",
+        dest="no_auto_add",
+        default=False,
+        help="fail if the PR is not already in the queue (default: auto-add a pending row)",
+    )
     sp_imp.set_defaults(func=cmd_pipeline_import)
 
     sp_sync = sub.add_parser("sync",

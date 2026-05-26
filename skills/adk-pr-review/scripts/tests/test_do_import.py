@@ -219,5 +219,32 @@ def test_do_import_fetch_failure_returns_rc1(monkeypatch, tmp_path):
     assert "error" in payload
 
 
+def test_do_import_warns_when_url_not_in_queue(monkeypatch, tmp_path):
+    """do_import on a URL absent from the queue should still return rc=0 but
+    must call log.warning so the caller knows the queue row was not updated."""
+    # Queue file exists but has NO row for _GITHUB_URL.
+    other_url = "https://github.com/acme/frontend/pull/999"
+    q = {"prs": [{"pr_url": other_url, "status": "pending"}]}
+    queue_path = tmp_path / "pr-queue.json5"
+    queue_path.write_text(json.dumps(q), encoding="utf-8")
+
+    _stub_fetch_pr(monkeypatch, _METADATA_PAYLOAD)
+    monkeypatch.setenv("ADK_DATA_HOME", str(tmp_path / "data"))
+
+    log = MagicMock()
+    rc = do_import.do_import(_GITHUB_URL, queue_path, log)
+
+    # The stage should still succeed (metadata written to disk).
+    assert rc == 0
+
+    # log.warning must have been called at least once with a message that
+    # mentions the missing queue row.
+    assert log.warning.called, "log.warning was not called"
+    warning_msgs = " ".join(str(c) for c in log.warning.call_args_list)
+    assert "not found" in warning_msgs.lower() or "queue" in warning_msgs.lower(), (
+        f"Expected warning about missing queue row; got: {warning_msgs}"
+    )
+
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-v"]))

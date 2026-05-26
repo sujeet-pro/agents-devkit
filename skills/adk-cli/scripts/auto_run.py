@@ -141,6 +141,54 @@ def _ts_for_run() -> str:
     return time.strftime("%Y%m%dT%H%M%SZ", time.gmtime())
 
 
+def _handle_dashboard_event(dashboard, append_log, ev: dict) -> None:
+    """Module-level handler for pipeline scheduler events.
+
+    Applies the event to *dashboard* and tees a one-line summary to the
+    pipeline.log via *append_log(line)*.  Extracted from the inner closure in
+    ``main()`` so tests can import and exercise it directly.
+
+    Parameters
+    ----------
+    dashboard:
+        A ``RunDashboard`` instance (or any object with ``apply`` and
+        ``print_snapshot`` methods).
+    append_log:
+        Callable ``(line: str) -> None`` that writes to pipeline.log.
+    ev:
+        A scheduler event dict with at minimum ``{"kind": ..., "pr_url": ...,
+        "stage": ...}``.
+    """
+    kind = ev.get("kind", "")
+    pr_url = ev.get("pr_url", "")
+    stage = ev.get("stage", "")
+    if kind == "stage_start":
+        dashboard.apply({"kind": "pr_active", "pr_url": pr_url,
+                         "status": "run", "stage": stage,
+                         "detail": f"{stage} stage running"})
+        dashboard.print_snapshot()
+        append_log(f"▶ {stage} {pr_url}")
+    elif kind == "stage_done":
+        elapsed = ev.get("elapsed_s")
+        if stage == "post":
+            dashboard.apply({"kind": "pr_done", "pr_url": pr_url,
+                             "status": "done", "stage": stage,
+                             "elapsed_s": elapsed})
+            dashboard.print_snapshot()
+        append_log(f"✓ {stage} {pr_url}  ({elapsed if elapsed is not None else '?'}s)")
+    elif kind == "stage_fail":
+        elapsed = ev.get("elapsed_s")
+        dashboard.apply({"kind": "pr_fail", "pr_url": pr_url,
+                         "status": "fail", "stage": stage,
+                         "reason": ev.get("reason", ""),
+                         "next_action": "open the agent log or rerun this PR",
+                         "elapsed_s": elapsed})
+        dashboard.print_snapshot()
+        append_log(f"✗ {stage} {pr_url}  reason: {ev.get('reason', '')[:120]}")
+    elif kind == "pr_done":
+        append_log(f"● pr-done {pr_url}")
+
+
 def _append_pipeline_log_rotating(
     line: str,
     *,
@@ -1114,47 +1162,19 @@ def main(argv: list[str] | None = None) -> int:
 
             _pipeline_log_path = adk_logs_home() / "pipeline.log"
 
+            def _append_log(line: str) -> None:
+                _append_pipeline_log_rotating(line, path=_pipeline_log_path)
+
             def _dashboard_event(ev: dict) -> None:
+                # Accumulate stage timings before delegating to the module-level
+                # handler (which doesn't need the mutable stage_timings dict).
                 kind = ev.get("kind", "")
-                pr_url = ev.get("pr_url", "")
                 stage = ev.get("stage", "")
-                if kind == "stage_start":
-                    dashboard.apply({"kind": "pr_active", "pr_url": pr_url,
-                                     "status": "run", "stage": stage,
-                                     "detail": f"{stage} stage running"})
-                    dashboard.print_snapshot()
-                    _append_pipeline_log_rotating(
-                        f"▶ {stage} {pr_url}", path=_pipeline_log_path)
-                elif kind == "stage_done":
+                if kind in ("stage_done", "stage_fail"):
                     elapsed = ev.get("elapsed_s")
                     if elapsed is not None:
                         stage_timings.setdefault(stage, []).append(float(elapsed))
-                    if stage == "post":
-                        dashboard.apply({"kind": "pr_done", "pr_url": pr_url,
-                                         "status": "done", "stage": stage,
-                                         "elapsed_s": elapsed})
-                        dashboard.print_snapshot()
-                    _append_pipeline_log_rotating(
-                        f"✓ {stage} {pr_url}  ({elapsed if elapsed is not None else '?'}s)",
-                        path=_pipeline_log_path,
-                    )
-                elif kind == "stage_fail":
-                    elapsed = ev.get("elapsed_s")
-                    if elapsed is not None:
-                        stage_timings.setdefault(stage, []).append(float(elapsed))
-                    dashboard.apply({"kind": "pr_fail", "pr_url": pr_url,
-                                     "status": "fail", "stage": stage,
-                                     "reason": ev.get("reason", ""),
-                                     "next_action": "open the agent log or rerun this PR",
-                                     "elapsed_s": elapsed})
-                    dashboard.print_snapshot()
-                    _append_pipeline_log_rotating(
-                        f"✗ {stage} {pr_url}  reason: {ev.get('reason', '')[:120]}",
-                        path=_pipeline_log_path,
-                    )
-                elif kind == "pr_done":
-                    _append_pipeline_log_rotating(
-                        f"● pr-done {pr_url}", path=_pipeline_log_path)
+                _handle_dashboard_event(dashboard, _append_log, ev)
 
             queue_path_obj = Path(args.queue).expanduser()
             runner_cfg = {

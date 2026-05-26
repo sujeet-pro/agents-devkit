@@ -163,12 +163,31 @@ def do_import(state: PRState, *, queue_path: Path, log) -> StageResult:
     queue_updates.update(artifacts)
     if artifacts.get("head_sha"):
         queue_updates["last_imported_head_sha"] = artifacts["head_sha"]
-    _update_queue(queue_path, state.pr_url, queue_updates)
+
+    # Belt-and-suspenders: warn when the row is missing so the caller knows
+    # subsequent stages will fail to find it. The primary defence is the
+    # auto-add check in cmd_pipeline_import; this warning surfaces any caller
+    # that bypasses that check.
+    matched = False
+    try:
+        from queue_io import update_pr_entry as _upr  # noqa: WPS433
+        matched = _upr(queue_path, state.pr_url, queue_updates)
+    except Exception:
+        pass
+
+    warn_reason = ""
+    if not matched:
+        warn_reason = (
+            f"queue row not found for {state.pr_url}; "
+            "metadata written to task dir but queue was not updated"
+        )
+        log.warning("do_import: %s", warn_reason)
 
     return StageResult(
         stage="import", status="ok",
         elapsed_s=elapsed,
         artifacts=artifacts,
+        reason=warn_reason,
     )
 
 
