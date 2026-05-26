@@ -27,7 +27,7 @@ import time
 from pathlib import Path
 
 _LIB_DIR = Path(__file__).resolve().parent.parent
-_REPO_ROOT = _LIB_DIR.parent
+_REPO_ROOT = _LIB_DIR.parent.parent  # scripts/lib/pr_pipeline → scripts/lib → scripts → repo root
 _ADK_PR_REVIEW_SCRIPTS = _REPO_ROOT / "skills" / "adk-pr-review" / "scripts"
 _ADK_CLI_SCRIPTS = _REPO_ROOT / "skills" / "adk-cli" / "scripts"
 
@@ -36,6 +36,23 @@ for _p in [str(_LIB_DIR), str(_ADK_PR_REVIEW_SCRIPTS), str(_ADK_CLI_SCRIPTS)]:
         sys.path.insert(0, _p)
 
 from pr_pipeline.state import PRState, StageResult  # noqa: E402
+from pr_pipeline.approach import pick_approach  # noqa: E402
+
+
+def _log_fork(*, fork_id: str, options: list[str], recommended: str,
+              state: PRState) -> None:
+    """Record one per-stage approach fork to decisions.jsonl. Fail-open."""
+    try:
+        pick_approach(
+            fork_id=fork_id,
+            options=options,
+            recommended=recommended,
+            interactive=False,
+            repo=state.repo,
+            task_slug=f"{state.repo}_pr-{state.pr_number}",
+        )
+    except Exception:
+        pass
 
 PY = sys.executable
 _PREPARE_TASK = _ADK_PR_REVIEW_SCRIPTS / "prepare_task.py"
@@ -83,6 +100,12 @@ def do_import(state: PRState, *, queue_path: Path, log) -> StageResult:
     without pulling the full diff or comments. Cheap enough to run at queue-add
     time so the TUI shows titles immediately.
     """
+    _log_fork(
+        fork_id="import-source",
+        options=["origin-api", "local-only"],
+        recommended="origin-api",
+        state=state,
+    )
     t0 = time.time()
     # Parse the PR URL to extract host/owner/repo/pr_number.
     try:
@@ -156,6 +179,12 @@ def do_sync(state: PRState, *, queue_path: Path, log, **kw) -> StageResult:
       Phase 0 (prereq) + Phase 2a (fetch PR) + Phase 1a/1b (worktree) +
       Phase 2b (supporting docs) + Phase 4a (precis). NO index.
     """
+    _log_fork(
+        fork_id="sync-scope",
+        options=["full", "metadata-only", "docs-only", "code-only"],
+        recommended="full",
+        state=state,
+    )
     t0 = time.time()
     cmd = [
         PY, str(_PREPARE_TASK),
@@ -192,6 +221,12 @@ def do_index(state: PRState, *, queue_path: Path, log,
     Calls prepare_task.py --prepare-only --phases index which runs Phase 3
     ONLY (assumes worktree exists from Sync stage).
     """
+    _log_fork(
+        fork_id="index-mode",
+        options=["incremental", "rebuild", "skip", "seed-and-overlay"],
+        recommended="rebuild" if rebuild else "seed-and-overlay",
+        state=state,
+    )
     t0 = time.time()
     cmd = [
         PY, str(_PREPARE_TASK),
@@ -232,6 +267,12 @@ def do_review(state: PRState, *, queue_path: Path, log,
     This is the extracted logic from auto_run._spawn_review, called through
     the pipeline so the scheduler can semaphore-gate it.
     """
+    _log_fork(
+        fork_id="review-depth",
+        options=["default", "detailed", "deep", "no-rerank"],
+        recommended="deep" if deep else ("detailed" if detailed else "default"),
+        state=state,
+    )
     t0 = time.time()
 
     # Resolve the log path for the agent subprocess.
@@ -405,6 +446,12 @@ def do_review(state: PRState, *, queue_path: Path, log,
 
 def do_validate(state: PRState, *, queue_path: Path, log, **kw) -> StageResult:
     """Validate stage: anchor + suggestion check on findings.json."""
+    _log_fork(
+        fork_id="validate-strict",
+        options=["anchor+fix", "anchor-only"],
+        recommended="anchor+fix",
+        state=state,
+    )
     t0 = time.time()
     cmd = [
         PY, str(_VALIDATE_FINDINGS),
@@ -430,6 +477,12 @@ def do_post(state: PRState, *, queue_path: Path, log,
             no_approve: bool = False, plan_only: bool = False,
             **kw) -> StageResult:
     """Post stage: post inline comments + Slack reply + queue row update."""
+    _log_fork(
+        fork_id="post-policy",
+        options=["auto", "interactive", "rehearsal"],
+        recommended="rehearsal" if plan_only else "auto",
+        state=state,
+    )
     t0 = time.time()
     cmd = [
         PY, str(_POST_COMMENTS),

@@ -1053,6 +1053,19 @@ def main(argv: list[str] | None = None) -> int:
                 post=int(_cfg("post_parallel", 2)),
             )
 
+            _pipeline_log_path = adk_logs_home() / "pipeline.log"
+            _pipeline_log_path.parent.mkdir(parents=True, exist_ok=True)
+
+            def _append_pipeline_log(line: str) -> None:
+                # Tee a one-line summary to $ADK_DATA_HOME/logs/pipeline.log so
+                # the TUI's GlobalActivityStrip (in another terminal) can tail
+                # this scheduler run. Fail-open: never block the pipeline.
+                try:
+                    with _pipeline_log_path.open("a", encoding="utf-8") as fh:
+                        fh.write(f"{_now_iso()} {line}\n")
+                except Exception:
+                    pass
+
             def _dashboard_event(ev: dict) -> None:
                 kind = ev.get("kind", "")
                 pr_url = ev.get("pr_url", "")
@@ -1062,12 +1075,16 @@ def main(argv: list[str] | None = None) -> int:
                                      "status": "run", "stage": stage,
                                      "detail": f"{stage} stage running"})
                     dashboard.print_snapshot()
+                    _append_pipeline_log(f"▶ {stage} {pr_url}")
                 elif kind == "stage_done":
                     if stage == "post":
                         dashboard.apply({"kind": "pr_done", "pr_url": pr_url,
                                          "status": "done", "stage": stage,
                                          "elapsed_s": ev.get("elapsed_s")})
                         dashboard.print_snapshot()
+                    _append_pipeline_log(
+                        f"✓ {stage} {pr_url}  ({ev.get('elapsed_s', '?')}s)"
+                    )
                 elif kind == "stage_fail":
                     dashboard.apply({"kind": "pr_fail", "pr_url": pr_url,
                                      "status": "fail", "stage": stage,
@@ -1075,6 +1092,11 @@ def main(argv: list[str] | None = None) -> int:
                                      "next_action": "open the agent log or rerun this PR",
                                      "elapsed_s": ev.get("elapsed_s")})
                     dashboard.print_snapshot()
+                    _append_pipeline_log(
+                        f"✗ {stage} {pr_url}  reason: {ev.get('reason', '')[:120]}"
+                    )
+                elif kind == "pr_done":
+                    _append_pipeline_log(f"● pr-done {pr_url}")
 
             queue_path_obj = Path(args.queue).expanduser()
             runner_cfg = {
