@@ -1105,18 +1105,18 @@ class TabbedDetailPane(Widget):
 
     def compose(self) -> ComposeResult:
         with TabbedContent(id="detail-tabs"):
-            with TabPane("Overview", id="tab-overview"):
+            with TabPane("Overview (1)", id="tab-overview"):
                 with VerticalScroll(id="overview-scroll"):
                     yield DetailPane()
-            with TabPane("Review", id="tab-review"):
+            with TabPane("Review (2)", id="tab-review"):
                 with VerticalScroll(id="review-scroll"):
                     yield Markdown(_REVIEW_PLACEHOLDER_MD, id="detail-review")
-            with CommentsTabPane("Comments", id="tab-comments"):
+            with CommentsTabPane("Comments (3)", id="tab-comments"):
                 with VerticalScroll(id="comments-scroll"):
                     yield Markdown(_COMMENTS_PLACEHOLDER_MD, id="detail-comments")
-            with TabPane("Diff", id="tab-diff"):
+            with TabPane("Diff (4)", id="tab-diff"):
                 yield DiffPane(id="diff-pane")
-            with TabPane("Activity", id="tab-activity"):
+            with TabPane("Activity (5)", id="tab-activity"):
                 yield ActivityPane()
 
     def on_mount(self) -> None:

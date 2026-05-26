@@ -65,7 +65,7 @@ def test_sync_review_all_runs_sequentially(
     async def _run() -> None:
         async with app.run_test() as pilot:
             await pilot.pause()
-            await pilot.press("A")
+            await pilot.press("R")
             ok = await _poll_until(
                 lambda: "pr-sync exited rc=0" in _log_text(app),
                 pilot=pilot,
@@ -120,7 +120,7 @@ def test_sync_review_all_blocked_while_sync_all_running(
         async with app.run_test() as pilot:
             await pilot.pause()
             app._sync_proc = _AliveProcMock()
-            await pilot.press("A")
+            await pilot.press("R")
             ok = await _poll_until(
                 lambda: "can't start Sync + Review all — sync all already running"
                 in _log_text(app),

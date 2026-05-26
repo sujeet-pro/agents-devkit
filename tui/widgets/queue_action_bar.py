@@ -10,7 +10,7 @@ class QueueActionBar(Static):
     """
 
     def __init__(self) -> None:
-        super().__init__("", markup=False)
+        super().__init__("", markup=True)
         self._filter_mode: str = "all"
         self._sort_mode: str = "queue"
         self._sync_running: bool = False
@@ -34,19 +34,23 @@ class QueueActionBar(Static):
         self._refresh_text()
 
     def _refresh_text(self) -> None:
-        sync_label = "[s]Sync all (running…)" if self._sync_running else "[s]Sync all"
-        work_label = "[A]Sync+Rev all (running…)" if self._work_running else "[A]Sync+Rev all"
+        sync_label = (
+            "[u]S[/u]ync all (running…)" if self._sync_running else "[u]S[/u]ync all"
+        )
+        work_label = (
+            "[u]R[/u]eview all (running…)" if self._work_running else "[u]R[/u]eview all"
+        )
         parts = [
             sync_label,
             work_label,
-            "[+]Add PR",
-            "[b]Repos",
+            "[+] Add PR",
+            "[u]b[/u]rowse repos",
             "·",
-            f"[f]filter:{self._filter_mode}",
-            f"[K]sort:{self._sort_mode}",
-            "[j/k]nav",
-            "[tab]pane",
+            f"[u]f[/u]ilter:{self._filter_mode}",
+            f"[K] sort:{self._sort_mode}",
+            "[j/k] nav",
+            "[tab] pane",
         ]
         if self._runner:
-            parts.extend(["·", f"[r]runner:{self._runner}"])
+            parts.extend(["·", f"[u]t[/u] runner:{self._runner}"])
         self.update("  ".join(parts))

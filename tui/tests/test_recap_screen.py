@@ -186,7 +186,7 @@ def test_sync_review_all_pushes_recap_screen(
     async def _run() -> None:
         async with app.run_test() as pilot:
             await pilot.pause()
-            await pilot.press("A")
+            await pilot.press("R")
             ok = await _poll_until(
                 lambda: isinstance(app.screen, RecapScreen),
                 pilot=pilot, timeout_s=30.0,

@@ -47,7 +47,7 @@ def _recording_adk(tmp_path: Path, log_path: Path) -> Path:
     return p
 
 
-def test_sync_pr_key_S_updates_and_prepares(
+def test_sync_pr_key_s_updates_and_prepares(
     eligible_queue_path: Path,
     fake_plan_path: Path,
     tmp_path: Path,
@@ -64,7 +64,7 @@ def test_sync_pr_key_S_updates_and_prepares(
     async def _run() -> None:
         async with app.run_test() as pilot:
             await pilot.pause()
-            await pilot.press("S")
+            await pilot.press("s")
             ok = await _poll_until(
                 lambda: "prepare index exited rc=0" in _log_text(app),
                 pilot=pilot,
@@ -79,7 +79,7 @@ def test_sync_pr_key_S_updates_and_prepares(
     assert "pr-task prepare" in calls
 
 
-def test_A_runs_sync_then_sequential_reviews(
+def test_R_runs_sync_then_sequential_reviews(
     eligible_queue_path: Path,
     fake_plan_path: Path,
     tmp_path: Path,
@@ -102,7 +102,7 @@ def test_A_runs_sync_then_sequential_reviews(
     async def _run() -> None:
         async with app.run_test() as pilot:
             await pilot.pause()
-            await pilot.press("A")
+            await pilot.press("R")
             ok = await _poll_until(
                 lambda: "Sync + Review all done" in _log_text(app),
                 pilot=pilot,

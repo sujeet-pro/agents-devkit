@@ -6,28 +6,62 @@ from textual.containers import Container
 from textual.screen import ModalScreen
 from textual.widgets import Static
 
-_HELP_TEXT = """adk TUI · keys
+_HELP_TEXT = """\
+adk PR-review TUI · keyboard reference
+───────────────────────────────────────────────────────────────
 
-  q              quit
-  ?              this help
-  f              cycle filter
-  S              cycle sort
-  1              Sync PR — update + prepare/index selected PR
-  2              Sync + Review — sync selected PR, then review it
-  s              Sync all — discover/sync sources + prepare all PRs
-  A              Sync + Review all — sync all, then review eligible PRs sequentially
-  a              pick runner (claude / codex / cursor / headless ...)
-  +              add PR (modal — URL, owner/repo#N, or number)
-  b              switch to repos screen (manage repos + branches)
-  t              cycle theme (dark / light / nord / gruvbox / dracula)
-  j / down       move cursor down
-  k / up         move cursor up
-  g / home       jump to first row
-  G / end        jump to last row
-  enter          secondary actions for highlighted PR (open, logs, merge, …)
-  click PR #     open that PR in browser
-  l / L          show selected PR logs / latest run logs
-  escape         close this help
+Selected-PR actions  (act on the highlighted PR)
+  s     Sync this PR (refresh meta + comments)
+  r     Review this PR
+  a     Approve this PR
+  m     Mergeable check for this PR
+  M     Merge this PR
+  u     Update / refresh cascade  (sync → re-index → re-review)
+  x     Remove this PR from the queue  (does not close on host)
+  o     Open this PR in the browser
+  l     Show logs for this PR
+
+All-PRs actions  (batch)
+  S     Sync all PRs in the queue
+  R     Review all queued PRs
+  L     Show all run logs
+
+Add / browse / runner
+  +     Add a PR by URL
+  b     Browse / manage configured repos
+  t     Pick the agent / runner
+
+Filter / sort / navigation
+  f     Cycle filter  (which PRs are visible)
+  K     Cycle sort
+  j / k           Move row selection down / up
+  arrows          Scroll or cycle  (queue rows / tab strip / handle)
+  tab             Cycle focus between queue table and detail pane
+
+Detail tabs
+  1     Overview
+  2     Review
+  3     Comments
+  4     Diff
+  5     Activity
+  , / . Cycle stage tab prev / next
+
+Layout
+  [ / ] Shrink / grow the queue half
+  =     Reset split to 50/50
+  (Drag the ··· drag ··· handle with the mouse to resize)
+
+Comments tab  (only active when Comments is focused)
+  o     Toggle Open / All filter
+  n / N Jump to next / previous comment divider
+  y     Accept the focused unposted draft
+  d     Discard the focused unposted draft
+
+Global
+  enter Open the PR action menu  (less-common actions)
+  ?     This help
+  q     Quit
+  esc   Close this help
 """
 
 
@@ -37,7 +71,7 @@ class HelpScreen(ModalScreen[None]):
         align: center middle;
     }
     HelpScreen > Container {
-        width: 60;
+        width: 72;
         height: auto;
         padding: 1 2;
         border: round $accent;

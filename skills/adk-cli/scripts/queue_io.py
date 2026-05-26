@@ -486,6 +486,20 @@ def find_row(path: Path, pr_url: str) -> dict | None:
     return None
 
 
+def delete_pr_entry(path: Path, pr_url: str) -> bool:
+    """Remove the row with the given pr_url from the queue. Returns True if matched."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with file_lock(_lock_path(path), timeout_s=60.0):
+        queue = read_queue(path)
+        prs = queue.get("prs", []) or []
+        new_prs = [e for e in prs if e.get("pr_url") != pr_url]
+        if len(new_prs) == len(prs):
+            return False
+        queue["prs"] = new_prs
+        path.write_text(_dump_json5(queue), encoding="utf-8")
+        return True
+
+
 # ----- queue-row claim/release (for /adk-pr-review no-arg mode) -------------
 
 def _is_locked(entry: dict, now: datetime) -> bool:

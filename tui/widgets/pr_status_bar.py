@@ -32,4 +32,15 @@ class PRStatusBar(Static):
         from tui.model.pr_status import derive_task_status
         status = derive_task_status(row, None)
 
-        self.update(f"{label} · {head_part} · {status}")
+        def _g(ts: "str | None") -> str:
+            return "✓" if ts else "·"
+
+        stages = (
+            f"S={_g(row.last_synced_at)}"
+            f" I={_g(row.last_indexed_at)}"
+            f" R={_g(row.last_reviewed_at)}"
+            f" V={_g(row.last_validated_at)}"
+            f" P={_g(row.last_posted_at)}"
+        )
+
+        self.update(f"{label} · {head_part} · {status}   |  {stages}")

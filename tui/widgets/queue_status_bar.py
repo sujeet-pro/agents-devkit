@@ -62,6 +62,7 @@ class QueueStatusBar(Static):
                 f" Resolve:{sc.get('resolve', 0)}"
                 f" Ready:{sc.get('ready', 0)}"
                 f" Done:{sc.get('done', 0)}"
+                "   [,/.] cycle stages"
             )
         else:
             stage_part = ""

@@ -131,7 +131,7 @@ def _make_app_with_tabbed_pane(fake_queue_path: Path):
 
 
 def test_tabbed_detail_pane_has_four_tabs(fake_queue_path: Path) -> None:
-    """TabbedDetailPane must compose four TabPane widgets."""
+    """TabbedDetailPane must compose five TabPane widgets with key-suffixed titles."""
     from textual.widgets import TabPane
     app = _make_app_with_tabbed_pane(fake_queue_path)
 
@@ -143,8 +143,16 @@ def test_tabbed_detail_pane_has_four_tabs(fake_queue_path: Path) -> None:
             assert "tab-overview" in tab_ids, f"tab-overview missing; found: {tab_ids}"
             assert "tab-comments" in tab_ids, f"tab-comments missing; found: {tab_ids}"
             assert "tab-review" in tab_ids, f"tab-review missing; found: {tab_ids}"
+            assert "tab-diff" in tab_ids, f"tab-diff missing; found: {tab_ids}"
             assert "tab-activity" in tab_ids, f"tab-activity missing; found: {tab_ids}"
             assert "tab-log" not in tab_ids, f"tab-log must not exist; found: {tab_ids}"
+            # Verify key-suffix titles.
+            tab_labels = {str(tp.id): str(tp._title) for tp in tab_panes}
+            assert tab_labels.get("tab-overview") == "Overview (1)", tab_labels
+            assert tab_labels.get("tab-review") == "Review (2)", tab_labels
+            assert tab_labels.get("tab-comments") == "Comments (3)", tab_labels
+            assert tab_labels.get("tab-diff") == "Diff (4)", tab_labels
+            assert tab_labels.get("tab-activity") == "Activity (5)", tab_labels
 
     asyncio.run(_run())
 

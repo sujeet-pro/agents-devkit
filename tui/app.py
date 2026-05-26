@@ -176,22 +176,22 @@ class AdkApp(App):
         Binding("J", "scroll_tab_line_down", show=False),
         Binding("n", "next_comment", show=False),
         Binding("N", "prev_comment", show=False),
-        Binding("S", "sync_pr", "Sync PR"),
-        Binding("R", "sync_review_pr", "Sync+Review"),
-        Binding("s", "sync_all", "Sync all"),
-        Binding("A", "sync_review_all", "Sync+Review all"),
+        Binding("s", "sync_pr", "sync"),
+        Binding("S", "sync_all", "Sync all"),
+        Binding("r", "rereview", "review"),
+        Binding("R", "sync_review_all", "Review all"),
         Binding("l", "show_logs", "logs"),
         Binding("L", "show_run_logs", "run-logs"),
         Binding("enter", "pr_actions", "actions"),
         Binding("a", "approve_pr", "approve"),
-        Binding("v", "rereview", "re-review"),
-        Binding("x", "refresh_cascade", "refresh"),
+        Binding("u", "refresh_cascade", "update"),
+        Binding("x", "remove_pr", "remove"),
+        Binding("o", "open_links", "open"),
         Binding("m", "merge_status", "mergeable?"),
         Binding("M", "merge_pr", "merge"),
-        Binding("r", "pick_agent", "runner"),
+        Binding("t", "pick_agent", "runner"),
         Binding("plus", "add_pr", "add-pr"),
         Binding("b", "repos", "repos"),
-        Binding("t", "cycle_theme", "theme"),
         Binding("tab", "focus_next_pane", "pane"),
         Binding("left_square_bracket", "shrink_queue", show=False),
         Binding("right_square_bracket", "grow_queue", show=False),
@@ -202,10 +202,8 @@ class AdkApp(App):
         Binding("G", "cursor_end", show=False),
         Binding("escape", "escape", show=False),
         # Secondary/hidden — accessible but not shown in primary footer.
-        Binding("u", "update_pr", show=False),
         Binding("X", "refresh_context", show=False),
         Binding("I", "update_index", show=False),
-        Binding("o", "open_links", show=False),
         Binding("O", "open_slack", show=False),
         Binding("period", "cycle_stage_tab_next", show=False),
         Binding("comma", "cycle_stage_tab_prev", show=False),
@@ -1169,6 +1167,37 @@ class AdkApp(App):
         finally:
             self._work_queue.set_global_mode(None)
             self._update_footer()
+            self._reload(force=True)
+
+    @work
+    async def action_remove_pr(self) -> None:
+        pr_url = self._selected_pr_url()
+        if not pr_url:
+            self._log("(no row selected)")
+            return
+        row = self._rows_by_url.get(pr_url)
+        label = f"{row.repo}#{row.number} · {row.title}" if row is not None else pr_url
+        from tui.screens.remove_pr_screen import RemovePrConfirmScreen
+        ok = await self.push_screen_wait(RemovePrConfirmScreen(pr_url=pr_url, label=label))
+        if not ok:
+            return
+        self._do_remove_pr(pr_url)
+
+    def _do_remove_pr(self, pr_url: str) -> None:
+        if self._queue_path is None:
+            self._log("(no queue path configured)")
+            return
+        import sys as _sys
+        _scripts = Path(__file__).resolve().parents[1] / "skills" / "adk-cli" / "scripts"
+        if str(_scripts) not in _sys.path:
+            _sys.path.insert(0, str(_scripts))
+        import queue_io as _queue_io
+        removed = _queue_io.delete_pr_entry(self._queue_path, pr_url)
+        if removed:
+            self._log(f"removed {pr_url}")
+        else:
+            self._log(f"(not found in queue: {pr_url})")
+        if self._model is not None:
             self._reload(force=True)
 
     @work

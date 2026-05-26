@@ -31,8 +31,6 @@ def test_queue_action_bar_shows_primary_actions(tui_app):
         async with tui_app.run_test() as pilot:
             await pilot.pause()
             bar = _queue_action_text(tui_app)
-            assert "[s]Sync all" in bar
-            assert "[A]Sync+Rev all" in bar
             assert "runner:claude" in bar
 
     asyncio.run(_run())
@@ -125,6 +123,51 @@ def test_jk_moves_cursor(tui_app):
 # ---------------------------------------------------------------------------
 # Primary action bars do not have legacy keys
 # ---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
+# Binding map assertions — key → action_name
+# ---------------------------------------------------------------------------
+
+import pytest
+
+
+@pytest.mark.parametrize("key,expected_action", [
+    ("s", "sync_pr"),
+    ("S", "sync_all"),
+    ("r", "rereview"),
+    ("R", "sync_review_all"),
+    ("x", "remove_pr"),
+    ("u", "refresh_cascade"),
+    ("t", "pick_agent"),
+    ("o", "open_links"),
+    ("a", "approve_pr"),
+    ("m", "merge_status"),
+    ("M", "merge_pr"),
+    ("l", "show_logs"),
+    ("L", "show_run_logs"),
+])
+def test_binding_key_to_action(key, expected_action):
+    from textual.binding import Binding
+    from tui.app import AdkApp
+    bindings = [b for b in AdkApp.BINDINGS if isinstance(b, Binding) and b.key == key]
+    assert bindings, f"No binding found for key {key!r}"
+    assert bindings[0].action == expected_action, (
+        f"Key {key!r}: expected action {expected_action!r}, got {bindings[0].action!r}"
+    )
+
+
+def test_legacy_keys_not_bound():
+    from textual.binding import Binding
+    from tui.app import AdkApp
+    actions = {b.action for b in AdkApp.BINDINGS if isinstance(b, Binding)}
+    for removed_action in ("sync_review_pr", "cycle_theme"):
+        assert removed_action not in actions, (
+            f"Legacy action {removed_action!r} should not appear in BINDINGS"
+        )
+    keys = {b.key for b in AdkApp.BINDINGS if isinstance(b, Binding)}
+    assert "v" not in keys, "Key 'v' (old rereview) should be removed"
+    assert "A" not in keys, "Key 'A' (old sync_review_all) should be removed"
+
 
 def test_bars_have_no_legacy_review_or_batch_keys(fake_plan_path, tmp_path):
     """Action bars must not advertise removed multi-select / parallel / review keys."""

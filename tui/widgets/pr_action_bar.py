@@ -16,26 +16,27 @@ class PRActionBar(Static):
     """
 
     def __init__(self) -> None:
-        super().__init__("(select a PR for actions)", markup=False)
+        super().__init__("(select a PR for actions)", markup=True)
 
     def update_pr(self, row: "QueueRow | None") -> None:
         if row is None:
             self.update("(select a PR for actions)")
             return
         parts = [
-            "[S]Sync PR",
-            "[R]Sync+Rev",
-            "[enter]act",
+            "[u]s[/u]ync",
+            "[u]r[/u]eview",
+            "[u]a[/u]pprove",
+            "[u]m[/u]ergeable?",
+            "[u]M[/u]erge",
+            "[u]u[/u]pdate",
+            "[u]x[/u] remove",
+            "[u]o[/u]pen",
+            "[u]l[/u]ogs",
+            "[enter] more",
             "·",
-            "[a]pprove",
-            "[v]re-review",
-            "[x]refresh",
-            "·",
-            "[m]ergeable?",
-            "[M]Merge",
-            "·",
-            "[1-5]tab",
-            "[?]help",
-            "[q]quit",
+            "[u]f[/u]ilter",
+            "[K] sort",
+            "[?] help",
+            "[q] quit",
         ]
         self.update("  ".join(parts))

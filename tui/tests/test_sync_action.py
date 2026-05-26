@@ -52,7 +52,7 @@ def test_sync_streams_subprocess_output_into_log(
     async def _run() -> None:
         async with app.run_test() as pilot:
             await pilot.pause()
-            await pilot.press("s")
+            await pilot.press("S")
             # Give the subprocess time to launch + emit + exit; the readline
             # loop and on_exit announce-write are async.
             ok = await _poll_until(
@@ -99,7 +99,7 @@ def test_sync_footer_shows_running_label_mid_run(
     async def _run() -> None:
         async with app.run_test() as pilot:
             await pilot.pause()
-            await pilot.press("s")
+            await pilot.press("S")
             # Wait until at least the `$ ...` announce has reached the log so
             # we know the subprocess has been spawned and the footer is set.
             ok = await _poll_until(
@@ -111,7 +111,7 @@ def test_sync_footer_shows_running_label_mid_run(
             # While the subprocess is still alive (sleeping), the QueueActionBar
             # must show the (running…) label.
             bar = _queue_action_text(app)
-            assert "[s]Sync all (running…)" in bar, (
+            assert "Sync all (running…)" in bar, (
                 f"expected running label in queue_action_bar, got: {bar!r}"
             )
             # Wait for clean exit so the test doesn't leave a child hanging.
@@ -154,15 +154,15 @@ def test_sync_idempotent_when_already_running(
     async def _run() -> None:
         async with app.run_test() as pilot:
             await pilot.pause()
-            await pilot.press("s")
+            await pilot.press("S")
             ok = await _poll_until(
                 lambda: "starting" in _log_text(app),
                 pilot=pilot,
                 timeout_s=4.0,
             )
             assert ok
-            # Press `s` again while still running.
-            await pilot.press("s")
+            # Press `S` again while still running.
+            await pilot.press("S")
             ok2 = await _poll_until(
                 lambda: "Sync all already running" in _log_text(app),
                 pilot=pilot,

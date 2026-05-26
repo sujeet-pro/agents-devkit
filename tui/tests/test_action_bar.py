@@ -46,25 +46,27 @@ async def _poll_until(predicate, *, pilot, timeout_s: float = 5.0,
 # Primary action labels
 # ---------------------------------------------------------------------------
 
-def test_pr_action_bar_has_sync_pr_action(tui_app) -> None:
+def test_pr_action_bar_has_sync_action(tui_app) -> None:
     async def _run() -> None:
         async with tui_app.run_test() as pilot:
             await pilot.pause()
             # Select the first row so PRActionBar shows actions.
             await pilot.press("j")
             await pilot.pause()
-            assert "[S]Sync PR" in _pr_action_text(tui_app)
+            text = _pr_action_text(tui_app)
+            assert "sync" in text.lower()
 
     asyncio.run(_run())
 
 
-def test_pr_action_bar_has_sync_review_action(tui_app) -> None:
+def test_pr_action_bar_has_remove_chip(tui_app) -> None:
     async def _run() -> None:
         async with tui_app.run_test() as pilot:
             await pilot.pause()
             await pilot.press("j")
             await pilot.pause()
-            assert "[R]Sync+Rev" in _pr_action_text(tui_app)
+            text = _pr_action_text(tui_app)
+            assert "remove" in text.lower()
 
     asyncio.run(_run())
 
@@ -73,16 +75,18 @@ def test_queue_action_bar_has_sync_all_action(tui_app) -> None:
     async def _run() -> None:
         async with tui_app.run_test() as pilot:
             await pilot.pause()
-            assert "[s]Sync all" in _queue_action_text(tui_app)
+            text = _queue_action_text(tui_app)
+            assert "Sync all" in text
 
     asyncio.run(_run())
 
 
-def test_queue_action_bar_has_sync_review_all_action(tui_app) -> None:
+def test_queue_action_bar_has_review_all_action(tui_app) -> None:
     async def _run() -> None:
         async with tui_app.run_test() as pilot:
             await pilot.pause()
-            assert "[A]Sync+Rev all" in _queue_action_text(tui_app)
+            text = _queue_action_text(tui_app)
+            assert "Review all" in text
 
     asyncio.run(_run())
 
@@ -137,7 +141,7 @@ def test_no_sel_count_in_action_bars(tui_app) -> None:
 # ---------------------------------------------------------------------------
 
 def test_sync_pr_blocked_while_work_running(eligible_queue_path: Path) -> None:
-    """Pressing S (Sync PR) while a work task is already running must be refused."""
+    """Pressing s (sync PR) while a work task is already running must be refused."""
     app = AdkApp(queue_path=eligible_queue_path, poll_interval=0.05)
 
     class _FakeTask:
@@ -148,7 +152,7 @@ def test_sync_pr_blocked_while_work_running(eligible_queue_path: Path) -> None:
         async with app.run_test() as pilot:
             await pilot.pause()
             app._work_task = _FakeTask()  # type: ignore[assignment]
-            await pilot.press("S")
+            await pilot.press("s")
             ok = await _poll_until(
                 lambda: "can't start Sync PR" in _log_text(app),
                 pilot=pilot,
@@ -181,7 +185,7 @@ def test_sync_all_queue_action_shows_running_when_proc_alive(
     async def _run() -> None:
         async with app.run_test() as pilot:
             await pilot.pause()
-            await pilot.press("s")
+            await pilot.press("S")
             ok = await _poll_until(
                 lambda: "starting" in _log_text(app),
                 pilot=pilot,
@@ -189,7 +193,7 @@ def test_sync_all_queue_action_shows_running_when_proc_alive(
             )
             assert ok, "sync never started"
             bar = _queue_action_text(app)
-            assert "[s]Sync all (running…)" in bar, (
+            assert "Sync all (running…)" in bar, (
                 f"expected running label; queue_action_bar={bar!r}"
             )
             await _poll_until(

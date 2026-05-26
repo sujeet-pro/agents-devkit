@@ -32,7 +32,7 @@ async def _poll_until(predicate, *, pilot, timeout_s: float = 5.0,
     return False
 
 
-def test_sync_review_with_no_row_selected_logs_no_row(
+def test_sync_review_all_with_empty_queue_logs_no_eligible(
     missing_queue_path: Path,
     fake_claude_script: Path,
     fake_adk_script: Path,
@@ -52,16 +52,16 @@ def test_sync_review_with_no_row_selected_logs_no_row(
             await pilot.pause()
             await pilot.press("R")
             ok = await _poll_until(
-                lambda: "(no row selected)" in _log_text(app),
+                lambda: "no eligible rows after sync" in _log_text(app),
                 pilot=pilot,
-                timeout_s=2.0,
+                timeout_s=8.0,
             )
-            assert ok, f"expected '(no row selected)' in log; got:\n{_log_text(app)}"
+            assert ok, f"expected 'no eligible rows' in log; got:\n{_log_text(app)}"
 
     asyncio.run(_run())
 
 
-def test_sync_review_on_not_ready_row_marks_skipped(
+def test_sync_review_all_on_not_ready_queue_eventually_done(
     fake_queue_path: Path,
     fake_claude_script: Path,
     fake_adk_script: Path,
@@ -79,31 +79,14 @@ def test_sync_review_on_not_ready_row_marks_skipped(
     async def _run() -> None:
         async with app.run_test() as pilot:
             await pilot.pause()
-            from tui.widgets.queue_table import QueueTable
-            table = app.query_one(QueueTable)
-            found = False
-            for _ in range(table.row_count + 1):
-                url = table.selected_pr_url()
-                if url is not None:
-                    row = app._rows_by_url.get(url)
-                    if row is not None and not row.ready_for_review:
-                        found = True
-                        break
-                await pilot.press("j")
-                await pilot.pause()
-            assert found, "no not-ready row found in sample_queue fixture"
-
             await pilot.press("R")
             ok = await _poll_until(
-                lambda: "skipping review — row not ready" in _log_text(app)
-                or any(
-                    s.status == "skipped"
-                    for s in app._work_queue.all_states().values()
-                ),
+                lambda: "Sync + Review all done" in _log_text(app)
+                or "no eligible rows after sync" in _log_text(app),
                 pilot=pilot,
-                timeout_s=15.0,
+                timeout_s=25.0,
             )
-            assert ok, f"expected skipped review; log:\n{_log_text(app)}"
+            assert ok, f"expected sync+review-all to finish; log:\n{_log_text(app)}"
 
     asyncio.run(_run())
 
@@ -173,9 +156,9 @@ def test_sync_all_while_sync_review_blocked(
                 pilot=pilot,
                 timeout_s=12.0,
             )
-            assert ok, f"sync+review never started; log:\n{_log_text(app)}"
+            assert ok, f"sync+review-all never started; log:\n{_log_text(app)}"
 
-            await pilot.press("s")
+            await pilot.press("S")
             ok2 = await _poll_until(
                 lambda: "(can't start Sync all — work queue already running)"
                 in _log_text(app),
@@ -222,17 +205,17 @@ def test_sync_review_while_sync_all_blocked(
     async def _run() -> None:
         async with app.run_test() as pilot:
             await pilot.pause()
-            await pilot.press("s")
+            await pilot.press("S")
             ok = await _poll_until(
                 lambda: "pr-sync: starting" in _log_text(app),
                 pilot=pilot,
                 timeout_s=8.0,
             )
-            assert ok, f"sync never started; log:\n{_log_text(app)}"
+            assert ok, f"sync all never started; log:\n{_log_text(app)}"
 
             await pilot.press("R")
             ok2 = await _poll_until(
-                lambda: "(can't start Sync + Review — sync all already running)"
+                lambda: "(can't start Sync + Review all — sync all already running)"
                 in _log_text(app),
                 pilot=pilot,
                 timeout_s=2.0,

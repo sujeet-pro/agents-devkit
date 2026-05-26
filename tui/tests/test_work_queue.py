@@ -50,10 +50,10 @@ def test_action_bars_show_primary_actions(tui_app) -> None:
             await pilot.pause()
             q_bar = _queue_action_text(tui_app)
             pr_bar = _pr_action_text(tui_app)
-            assert "[s]Sync all" in q_bar
-            assert "[A]Sync+Rev all" in q_bar
-            assert "[S]Sync PR" in pr_bar
-            assert "[R]Sync+Rev" in pr_bar
+            assert "Sync all" in q_bar
+            assert "Review all" in q_bar
+            assert "sync" in pr_bar.lower()
+            assert "review" in pr_bar.lower()
             assert "run-sel" not in q_bar
             assert "[space]" not in q_bar
             assert "par:" not in q_bar
@@ -104,7 +104,9 @@ def test_sync_pr_shows_running_state_in_table(
     async def _run() -> None:
         async with app.run_test() as pilot:
             await pilot.pause()
-            await pilot.press("S")
+            await pilot.press("j")
+            await pilot.pause()
+            await pilot.press("s")
             ok = await _poll_until(
                 lambda: any("running (sync)" in cell for cell in _current_cells(app)),
                 pilot=pilot,
