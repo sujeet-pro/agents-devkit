@@ -81,13 +81,23 @@ See `references/stages.md` for per-stage approach forks and re-run semantics.
 
 ## Pipelined execution
 
-Multiple PRs can be at different stages concurrently. Each stage has its own semaphore so the index bottleneck (one slot) does not block Sync or Post. Default parallelism config in `adk-cli.json5`:
+Multiple PRs can be at different stages concurrently. Each stage has its own semaphore so the index bottleneck (one slot) does not block Sync or Post. Default parallelism config lives under `pr_review_all` in `$ADK_CONFIG_HOME/adk-cli.json5`:
 
-```
-pr_pipeline = { import_parallel: 4, sync_parallel: 2, index_parallel: 1, review_parallel: <--parallel>, validate_parallel: 4, post_parallel: 2 }
+```json5
+{
+  pr_review_all: {
+    pr_pipeline_enabled: true,    // set false to revert to legacy ThreadPoolExecutor
+    import_parallel:    4,
+    sync_parallel:      2,
+    index_parallel:     1,        // the bottleneck; one slot by design
+    // review_parallel inherits from --parallel / pr_review_all.parallel
+    validate_parallel:  4,
+    post_parallel:      2,
+  },
+}
 ```
 
-Disabling: set `pr_pipeline.enabled = false` in `adk-cli.json5` to revert to the legacy single-executor path.
+`review_parallel` is not a separate key — it follows the existing `--parallel` flag (and its `pr_review_all.parallel` default). Disabling the pipeline: `pr_review_all.pr_pipeline_enabled = false`.
 
 ## Posting policy (constitution §I.4 names PR reviewing as a task-required action — auto-post is the default)
 

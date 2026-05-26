@@ -36,13 +36,14 @@ sys.path.insert(0, str(ADK_PR_REVIEW_SCRIPTS))
 
 import pr_task  # noqa: E402
 import queue_io  # noqa: E402
+import _common as adk_pr_common  # noqa: E402  # skills/adk-pr-review/scripts/_common.py
 
 # ---------------------------------------------------------------------------
 # Marker: tests that require Slice A/B production code
 # ---------------------------------------------------------------------------
 
 needs_slice_ab = pytest.mark.skipif(
-    not hasattr(pr_task, "cmd_import"),
+    not hasattr(pr_task, "cmd_pipeline_import"),
     reason="Slice A/B not yet landed — new subcommands absent from pr_task.py",
 )
 
@@ -75,12 +76,20 @@ def cli_env(monkeypatch, tmp_path):
         encoding="utf-8",
     )
 
-    # Point pr_task at the isolated queue.
+    # Point pr_task at the isolated queue. We have to patch BOTH bindings:
+    # `queue_io.DEFAULT_QUEUE_PATH` (read by any fresh `queue_io` consumer)
+    # AND `pr_task.DEFAULT_QUEUE_PATH` (a `from queue_io import …` snapshot
+    # taken at import time and reused by every subparser's --queue default).
     monkeypatch.setattr(queue_io, "DEFAULT_QUEUE_PATH", queue_path)
-    # Also reset PR_REVIEW_ROOT inside pr_task.
+    monkeypatch.setattr(pr_task, "DEFAULT_QUEUE_PATH", queue_path)
+    # Reset PR_REVIEW_ROOT on BOTH modules. pr_task carries its own copy and
+    # adk_pr_common is what skills/adk-pr-review/scripts/_common.py:task_dir_for
+    # actually resolves against — patching one alone leaks real $ADK_DATA_HOME
+    # through `_task_dir_for(...)` → `task_dir_for(...)`.
     pr_review_root = data / "skill-pr-review"
     pr_review_root.mkdir(parents=True)
     monkeypatch.setattr(pr_task, "PR_REVIEW_ROOT", pr_review_root)
+    monkeypatch.setattr(adk_pr_common, "PR_REVIEW_ROOT", pr_review_root)
 
     return SimpleNamespace(
         data=data,
@@ -118,7 +127,36 @@ def mock_subprocess(monkeypatch):
         calls.append(list(cmd))
         return _FakeCP()
 
+    # stages.do_review uses subprocess.Popen to spawn the agent (so it can
+    # stream output). Capture that path too — otherwise the test launches a
+    # real `claude -p /adk-pr-review …` against the user's account.
+    class _FakePopen:
+        def __init__(self, cmd, *_a, **_kw):
+            calls.append(list(cmd))
+            self.returncode = 0
+            # stdout=None lets the production loop's `if proc.stdout is not None`
+            # branch skip selector.register; `for line in (proc.stdout or [])`
+            # then iterates over [], so no fake file-object plumbing is needed.
+            self.stdout = None
+            self.pid = -1
+
+        def poll(self):
+            return 0
+
+        def wait(self, *_a, **_kw):
+            return 0
+
+        def communicate(self, *_a, **_kw):
+            return ("", "")
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_a):
+            return False
+
     monkeypatch.setattr(subprocess, "run", _fake_run)
+    monkeypatch.setattr(subprocess, "Popen", _FakePopen)
     return calls
 
 

@@ -34,6 +34,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -849,9 +850,6 @@ def cmd_pipeline_review(args) -> int:
     state = PRState(pr_url=args.pr_url, repo=p["repo"],
                     pr_number=p["pr_number"], task_dir=td)
 
-    # Review stage.
-    from pr_pipeline.scheduler import Semaphores, run as pipeline_run  # noqa: WPS433
-    # Couple Review + Validate + Post for the first-pass experience.
     runner_cfg = {
         "runner": getattr(args, "runner", "claude"),
         "agent": getattr(args, "agent", None),
@@ -859,21 +857,48 @@ def cmd_pipeline_review(args) -> int:
         "detailed": getattr(args, "detailed", False),
         "deep": getattr(args, "deep", False),
     }
-    sems = Semaphores(import_=1, sync=1, index=1, review=1, validate=1, post=1)
 
-    # Advance state past import/sync/index so the scheduler starts at review.
+    # Interactive mode: review → validate → triage --init. SKIP auto-post; the
+    # user walks each finding accept/reject/edit (via the TUI FindingsWalk
+    # screen or the CLI triage.py walk) and triggers post separately when ready.
+    interactive = (os.environ.get("ADK_PR_REVIEW_INTERACTIVE") == "1") or \
+        bool(getattr(args, "interactive", False))
+
     from pr_pipeline.state import StageResult  # noqa: WPS433
     for skip_stage in ("import", "sync", "index"):
         state.advance(StageResult(stage=skip_stage, status="skipped"))  # type: ignore[arg-type]
 
-    final = pipeline_run(
-        [state],
-        sems=sems,
-        queue_path=queue_path,
-        runner_cfg=runner_cfg,
-    )
-    s = final[0]
-    last = s.last_result()
+    if interactive:
+        rv = stages.do_review(state, queue_path=queue_path, log=log,
+                              runner_cfg=runner_cfg)
+        state.advance(rv)
+        if not state.failed():
+            vr = stages.do_validate(state, queue_path=queue_path, log=log)
+            state.advance(vr)
+            if not state.failed():
+                # Triage --init seeds the per-finding pending state so the user
+                # (TUI or CLI) can walk accept/reject/edit. No post call here.
+                triage_py = (Path(__file__).resolve().parent.parent.parent /
+                             "adk-pr-review" / "scripts" / "triage.py")
+                triage_cmd = [sys.executable, str(triage_py),
+                              "--task-dir", str(state.task_dir),
+                              "--init", "--default-state", "pending"]
+                log.info("triage init: $ %s", " ".join(triage_cmd))
+                subprocess.run(triage_cmd, check=False)
+        s = state
+        last = s.last_result()
+    else:
+        # Non-interactive: couple Review + Validate + Post for the first-pass UX.
+        from pr_pipeline.scheduler import Semaphores, run as pipeline_run  # noqa: WPS433
+        sems = Semaphores(import_=1, sync=1, index=1, review=1, validate=1, post=1)
+        final = pipeline_run(
+            [state],
+            sems=sems,
+            queue_path=queue_path,
+            runner_cfg=runner_cfg,
+        )
+        s = final[0]
+        last = s.last_result()
     print(json.dumps({
         "pr_url": s.pr_url,
         "status": "ok" if not s.failed() else "failed",
