@@ -29,7 +29,7 @@ Flow:
   5. Merge non-merged candidates into the queue (additive; dedupe by host/repo/pr#).
 
 Args:
-  --slack-config <path>   default: $ADK_CONFIG_HOME/connectors/slack.md
+  --slack-config <path>   deprecated; reads from connectors/slack.json5 via bundle
   --queue <path>          default: $ADK_CONFIG_HOME/pr-queue.json5
   --since-hours <h>       override scan window in hours (else: slack config
                           `scan_days_default` × 24)
@@ -61,7 +61,12 @@ sys.path.insert(0, str(ADK_PR_REVIEW_SCRIPTS))
 _LIB_DIR = THIS_DIR.parent.parent.parent / "scripts" / "lib"
 if str(_LIB_DIR) not in sys.path:
     sys.path.insert(0, str(_LIB_DIR))
-from adk_home import adk_config_home, adk_logs_home  # noqa: E402
+from adk_home import adk_logs_home  # noqa: E402
+
+_ADK_REPO_LIB = Path(__file__).resolve().parents[3] / "scripts" / "lib"
+if str(_ADK_REPO_LIB) not in sys.path:
+    sys.path.insert(0, str(_ADK_REPO_LIB))
+from config import get_bundle, adk_config_home  # noqa: E402
 
 from _common import (  # noqa: E402
     RunEvent,
@@ -85,8 +90,8 @@ from slack_helpers import (  # noqa: E402
     days_ago_ts, hours_ago_ts,
 )
 from repo import is_configured_repo  # noqa: E402
-
-DEFAULT_SLACK_CONFIG = adk_config_home() / "connectors" / "slack.md"
+from thread_marks import recent_thread_marks, record_thread_mark  # noqa: E402
+from slack_post_validator import validate_slack_post  # noqa: E402
 
 
 # ----- PR meta (cheap, no clone) -------------------------------------------
@@ -423,9 +428,17 @@ def scan(slack_cfg: dict, oldest_ts: str, log) -> tuple[list[dict], dict]:
 
 
 def post_process(candidates: list[dict], slack_cfg: dict, dry_run: bool, log) -> tuple[list[dict], dict]:
-    """For each candidate: cheap meta. Drop merged PRs. Return (non_merged, stats)."""
-    stats = {"merged_reacted": 0, "merged_skipped": 0,
+    """For each candidate: cheap meta. Drop terminal PRs (merged or closed).
+    Return (non_terminal, stats).
+
+    Closed-but-not-merged means DECLINED / SUPERSEDED / CLOSED. Before, only
+    merged PRs were dropped — declined ones survived and fed stale rows into
+    `maybe_emit_gentle_reminders`, producing heads-up posts weeks after the
+    thread was done.
+    """
+    stats = {"merged_reacted": 0, "merged_skipped": 0, "closed_skipped": 0,
              "merged_skipped_multi_pr": 0, "merged_skipped_multi_pr_examples": [],
+             "closed_skipped_multi_pr": 0, "closed_skipped_multi_pr_examples": [],
              "errors": 0, "kept": 0}
     kept: list[dict] = []
 
@@ -435,19 +448,27 @@ def post_process(candidates: list[dict], slack_cfg: dict, dry_run: bool, log) ->
             stats["errors"] += 1
             log.warning("meta-fetch %s → %s", c["pr_url"], meta["error"])
             continue
-        if meta.get("merged_at"):
-            stats["merged_skipped"] += 1
+        state = classify_pr_state(meta)
+        if state in ("merged", "closed"):
             slack = c.get("slack") or {}
             thread_pr_count = slack.get("thread_pr_count", 1)
+            if state == "merged":
+                stats["merged_skipped"] += 1
+                multi_key = "merged_skipped_multi_pr"
+                examples_key = "merged_skipped_multi_pr_examples"
+            else:
+                stats["closed_skipped"] += 1
+                multi_key = "closed_skipped_multi_pr"
+                examples_key = "closed_skipped_multi_pr_examples"
             if thread_pr_count > 1:
-                stats["merged_skipped_multi_pr"] += 1
-                examples = stats.setdefault("merged_skipped_multi_pr_examples", [])
+                stats[multi_key] += 1
+                examples = stats.setdefault(examples_key, [])
                 ref = format_pr_ref(c["pr_url"])
                 if ref not in examples and len(examples) < 5:
                     examples.append(ref)
                 if not is_orchestrated():
-                    log.info("merged PR in multi-PR thread (count=%d): %s",
-                             thread_pr_count, c["pr_url"])
+                    log.info("%s PR in multi-PR thread (count=%d): %s",
+                             state, thread_pr_count, c["pr_url"])
             continue
         c["_meta"] = meta
         kept.append(c)
@@ -542,7 +563,7 @@ def scan_user_mentions(slack_client: "SlackClient", user_id: str,
 def scan_direct_review_requests(log) -> list[dict]:
     """Return candidates from PRs where the user is a requested reviewer.
 
-    For each configured repo in repos.md:
+    For each configured repo in repos.json5:
       - GitHub: calls `gh api search/issues` with `review-requested:@me`.
       - Bitbucket: logs a one-line warning and skips (REST helper not implemented).
 
@@ -551,25 +572,21 @@ def scan_direct_review_requests(log) -> list[dict]:
     dedupe path in merge_scan_results / atomic_scan_merge.
     """
     try:
-        # config_io is in scripts/ which repo.py added to sys.path at import.
-        from config_io import load_repos  # type: ignore  # noqa: WPS433
-        fm, _ = load_repos()
+        b = get_bundle()
+        repo_entries = b.repos.all()
     except Exception as exc:
-        log.warning("direct-scan: could not load repos.md (%s) — skipping", exc)
+        log.warning("direct-scan: could not load repos config (%s) — skipping", exc)
         return []
 
-    repo_entries = (fm.get("repos") if isinstance(fm, dict) else None) or []
     if not repo_entries:
-        log.info("direct-scan: no repos configured in repos.md — skipping")
+        log.info("direct-scan: no repos configured — skipping")
         return []
 
     candidates: list[dict] = []
-    for entry in repo_entries:
-        if not isinstance(entry, dict):
-            continue
-        host = (entry.get("host") or "github").lower()
-        owner = entry.get("workspace") or entry.get("owner") or ""
-        repo_name = entry.get("name") or ""
+    for r in repo_entries:
+        host = (r.host or "github").lower()
+        owner = r.org or ""
+        repo_name = r.name or ""
         if not owner or not repo_name:
             continue
 
@@ -622,7 +639,10 @@ def _similar(a: str | None, b: str | None) -> float:
 
 
 def _looks_related(rows: list[dict]) -> bool:
-    metas = [r.get("_meta") or {} for r in rows]
+    # `_meta` is the live cache from post_process. `_related_hint` is the
+    # surviving snapshot main() leaves behind after popping `_meta` so the
+    # reminder gate still has something to compare against.
+    metas = [r.get("_meta") or r.get("_related_hint") or {} for r in rows]
     for i, left in enumerate(metas):
         for right in metas[i + 1:]:
             if left.get("repo") != right.get("repo"):
@@ -642,39 +662,100 @@ def maybe_emit_gentle_reminders(candidates: list[dict], existing_queue: dict,
     Duplicate guard: if any existing queue row for the thread already has
     `slack.gentle_reminder_at`, the thread is skipped.
     """
-    stats = {"posted": 0, "skipped_existing": 0, "skipped_related": 0, "dry_run": 0}
+    stats = {"posted": 0, "skipped_existing": 0, "skipped_related": 0,
+             "skipped_single_unique": 0, "dry_run": 0}
     if slack_cfg.get("gentle_reminder_enabled", True) is False:
         return stats
 
+    # Dedupe sources, in priority order:
+    #   1. persistent sidecar marks ($ADK_CONFIG_HOME/pr-thread-marks.json) —
+    #      survives even when every queue row for the thread is GC'd after merge.
+    #   2. queue-row gentle_reminder_at — backward-compat with the old behaviour;
+    #      still useful when the row is alive.
     existing_threads: set[tuple[str, str]] = set()
+    try:
+        existing_threads |= recent_thread_marks(within_hours=24.0)
+    except Exception as e:
+        log.warning("thread-marks read failed (continuing without sidecar): %s", e)
     for row in existing_queue.get("prs", []) or []:
         slack = row.get("slack") or {}
         if slack.get("gentle_reminder_at"):
             existing_threads.add((slack.get("channel_id"), slack.get("thread_ts")))
 
-    groups: dict[tuple[str, str], list[dict]] = {}
+    # A thread can produce multiple candidate rows per unique PR (one per
+    # PR-URL occurrence across main + every reply). Keep two views per thread:
+    # `all_rows` for marking gentle_reminder_at (so whichever row wins the
+    # queue-merge dedup carries the mark); `unique_rows` for the count + the
+    # relatedness comparison, keyed by (host, owner, repo, pr#).
+    #
+    # Note: we DON'T gate on per-row `thread_pr_count` here. That count is
+    # set at scan time and can become stale by the time post_process drops
+    # merged/declined siblings — leading to "I see 1 PRs" texts where the
+    # group has only one surviving row. The gate below uses `len(unique_rows)`
+    # built from the actual surviving candidates instead.
+    groups: dict[tuple[str, str], dict] = {}
     for row in candidates:
         slack = row.get("slack") or {}
         key = (slack.get("channel_id"), slack.get("thread_ts"))
         if not key[0] or not key[1]:
             continue
-        if int(slack.get("thread_pr_count") or 1) <= 1:
+        try:
+            dk = dedupe_key(row.get("pr_url") or "")
+        except ValueError:
             continue
-        groups.setdefault(key, []).append(row)
+        g = groups.setdefault(key, {"all_rows": [], "by_pr": {}})
+        g["all_rows"].append(row)
+        # First occurrence wins — usually the main-message row, which carries
+        # the most useful _meta / _related_hint.
+        g["by_pr"].setdefault(dk, row)
 
     client: SlackClient | None = None
     now = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
-    for (channel_id, thread_ts), rows in groups.items():
+    use_validator = bool(slack_cfg.get("ai_validator_enabled", True))
+    stats.setdefault("validator_rejected", 0)
+    stats.setdefault("validator_personalized", 0)
+    for (channel_id, thread_ts), g in groups.items():
+        unique_rows = list(g["by_pr"].values())
+        all_rows = g["all_rows"]
+        # Existing-mark check fires first — "already handled in the last 24h"
+        # outranks "nothing-to-handle" semantically, and the cheaper check is
+        # the same precedence the legacy code used.
         if (channel_id, thread_ts) in existing_threads:
             stats["skipped_existing"] += 1
             continue
-        if _looks_related(rows):
+        if len(unique_rows) <= 1:
+            stats["skipped_single_unique"] += 1
+            continue
+        if _looks_related(unique_rows):
             stats["skipped_related"] += 1
             continue
         text = (
-            f"Heads-up: I see {len(rows)} PRs in this message — they don't look related. "
+            f"Heads-up: I see {len(unique_rows)} PRs in this thread — they don't look related. "
             "Posting each PR in its own message keeps review threading cleaner."
         )
+        # AI pre-flight gate. Fail-closed: if the validator can't reach the
+        # runner, we skip the post — silence beats a noisy 4-post regression.
+        if use_validator and not dry_run:
+            try:
+                payload = _build_validator_payload(
+                    kind="heads_up",
+                    channel_id=channel_id, thread_ts=thread_ts,
+                    unique_rows=unique_rows, proposed_text=text,
+                    slack_client_getter=lambda: client or SlackClient(),
+                )
+                verdict = validate_slack_post(payload, fail_open=False, log=log)
+            except Exception as e:
+                log.warning("validator: payload build crashed (%s) — skipping post", e)
+                verdict = {"should_post": False, "reason": f"validator setup: {e!r}",
+                           "improved_text": None, "confidence": 0.0}
+            if not verdict.get("should_post"):
+                stats["validator_rejected"] += 1
+                log.info("validator skipped heads-up for thread (%s, %s): %s",
+                         channel_id, thread_ts, verdict.get("reason"))
+                continue
+            if verdict.get("improved_text"):
+                text = verdict["improved_text"]
+                stats["validator_personalized"] += 1
         if dry_run:
             stats["dry_run"] += 1
         else:
@@ -682,15 +763,72 @@ def maybe_emit_gentle_reminders(candidates: list[dict], existing_queue: dict,
                 client = SlackClient()
             client.post_thread_reply(channel_id, thread_ts, text)
             stats["posted"] += 1
-        for row in rows:
+            try:
+                record_thread_mark(channel_id, thread_ts, at_iso=now)
+            except Exception as e:
+                log.warning("thread-marks write failed (mark not persisted): %s", e)
+        for row in all_rows:
             row.setdefault("slack", {})["gentle_reminder_at"] = now
     return stats
 
 
-def _filter_by_configured_repos(candidates: list[dict], log) -> tuple[list[dict], int]:
-    """Drop candidates whose repo is not in repos.md. Returns (kept, dropped_count).
+def _build_validator_payload(*, kind: str, channel_id: str, thread_ts: str,
+                             unique_rows: list[dict], proposed_text: str,
+                             slack_client_getter) -> dict:
+    """Build the dict passed to `validate_slack_post`. Best-effort:
+    fields the validator can use, but no field is mandatory.
+    """
+    parent_text = ""
+    parent_author = ""
+    recent: list[dict] = []
+    try:
+        client = slack_client_getter()
+        # First reply is the parent in conversations.replies output.
+        replies = list(client.iter_thread_replies(channel_id, thread_ts))
+        if replies:
+            parent = replies[0]
+            parent_text = (parent.get("text") or "")[:500]
+            parent_author = parent.get("user") or ""
+            recent = [
+                {"ts": m.get("ts"), "user": m.get("user") or m.get("bot_id"),
+                 "text": (m.get("text") or "")[:200]}
+                for m in replies[-5:]
+            ]
+    except Exception:
+        # Validator can run without thread context; the proposed_text alone
+        # is enough for a basic decision.
+        pass
+    prs = []
+    for r in unique_rows:
+        meta = r.get("_meta") or r.get("_related_hint") or {}
+        try:
+            parts = parse_pr_url(r.get("pr_url") or "")
+        except Exception:
+            parts = {}
+        prs.append({
+            "url": r.get("pr_url"),
+            "owner": parts.get("owner"),
+            "repo": meta.get("repo") or parts.get("repo"),
+            "number": parts.get("pr_number"),
+            "state": meta.get("state") or "open",
+            "author": (r.get("author") or {}).get("display_name"),
+            "title": meta.get("title"),
+            "jira": meta.get("jira") if isinstance(meta.get("jira"), str) else None,
+        })
+    return {
+        "kind": kind,
+        "channel": {"id": channel_id},
+        "thread": {"parent_ts": thread_ts, "parent_author": parent_author,
+                   "parent_text": parent_text, "recent_messages": recent},
+        "prs": prs,
+        "proposed_text": proposed_text,
+    }
 
-    When repos.md is absent or has no entries, all candidates pass through
+
+def _filter_by_configured_repos(candidates: list[dict], log) -> tuple[list[dict], int]:
+    """Drop candidates whose repo is not in repos.json5. Returns (kept, dropped_count).
+
+    When repos.json5 is absent or has no entries, all candidates pass through
     (backward compat).
     """
     kept: list[dict] = []
@@ -785,7 +923,8 @@ def _resolve_oldest_ts(args, slack_cfg: dict) -> tuple[str, str]:
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="adk pr-scan",
                                  description="Scan Slack channels for PR links → upsert into pr-queue.json5")
-    ap.add_argument("--slack-config", default=str(DEFAULT_SLACK_CONFIG))
+    ap.add_argument("--slack-config", default=None,
+                    help="deprecated; value is ignored. Config is read from the bundle.")
     ap.add_argument("--queue", default=str(DEFAULT_QUEUE_PATH))
     ap.add_argument("--since", default="",
                     help="scan window: Nh / Nhr (hours), Nd (days), Nw (weeks), Nm (months). "
@@ -813,15 +952,17 @@ def main(argv: list[str] | None = None) -> int:
 
     quiet = bool(args.quiet or is_orchestrated())
     log = get_logger("pr-scan")
-    slack_cfg_path = Path(args.slack_config).expanduser()
+    if args.slack_config is not None:
+        log.warning("--slack-config is deprecated and ignored; config is read from the bundle")
+    slack_cfg_path = adk_config_home() / "connectors" / "slack.json5"
     queue_path = Path(args.queue).expanduser()
 
     try:
-        slack_cfg = load_slack_config(slack_cfg_path)
-    except FileNotFoundError as e:
+        slack_cfg = load_slack_config()
+    except Exception as e:
         die(
             f"{e}\n\nAdd a `pr_reviews:` section to "
-            f"$ADK_CONFIG_HOME/connectors/slack.md frontmatter with at least "
+            f"$ADK_CONFIG_HOME/connectors/slack.json5 with at least "
             "channels, url_patterns, status_emoji, and (optionally) filter_mentioned_users."
         )
 
@@ -890,7 +1031,7 @@ def main(argv: list[str] | None = None) -> int:
                 candidates.append(dc)
                 existing_urls.add(dc["pr_url"])
 
-    # Configured-repo filter — drop candidates not in repos.md (unless bypassed).
+    # Configured-repo filter — drop candidates not in repos.json5 (unless bypassed).
     if not getattr(args, "include_unmapped_repos", False):
         candidates, dropped_ch = _filter_by_configured_repos(candidates, log)
         mention_candidates, dropped_mn = _filter_by_configured_repos(mention_candidates, log)
@@ -907,6 +1048,10 @@ def main(argv: list[str] | None = None) -> int:
         log.info("post_process: %s", post_stats)
 
     # N4 — populate author on each kept candidate from its _meta (set by post_process).
+    # Also snapshot the fields _looks_related needs (repo / title / source_branch)
+    # into _related_hint, since downstream consumers expect _meta to be gone
+    # before they write rows to the queue, but maybe_emit_gentle_reminders
+    # still needs to compare PRs for relatedness.
     for c in kept + mention_kept:
         meta = c.pop("_meta", None) or {}
         author_str = meta.get("author")
@@ -926,6 +1071,11 @@ def main(argv: list[str] | None = None) -> int:
                     "host_user_id": meta.get("author_uuid") or author_str,
                     "email": None,
                 }
+        c["_related_hint"] = {
+            "repo": meta.get("repo"),
+            "title": meta.get("title"),
+            "source_branch": meta.get("source_branch"),
+        }
 
     all_kept = kept + [m for m in mention_kept
                        if not any(m.get("pr_url") == k.get("pr_url") for k in kept)]

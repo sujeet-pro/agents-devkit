@@ -33,6 +33,7 @@ from queue_io import (  # noqa: E402
     read_queue, update_pr_entry, _parse_iso, _now_iso, load_slack_config,
     slack_threads_for,
 )
+from slack_post_validator import validate_slack_post  # noqa: E402
 
 
 DEFAULT_THRESHOLD_HOURS = 24.0
@@ -123,12 +124,8 @@ def send_reminders(queue_path: Path, *, threshold_hours: float | None = None,
     # Lazy: only construct the Slack client if we have something to send.
     try:
         from slack_helpers import SlackClient  # type: ignore[import-not-found]
-        load_slack_config()  # raises FileNotFoundError when config is missing
+        load_slack_config()  # verify config is loadable
         client = SlackClient()
-    except FileNotFoundError as e:
-        return {"sent": [], "skipped": 0,
-                "failed": [{"error": f"slack config missing: {e}"}],
-                "count": len(qualifying)}
     except Exception as e:
         return {"sent": [], "skipped": 0,
                 "failed": [{"error": f"slack client init failed: {e}"}],
@@ -136,6 +133,17 @@ def send_reminders(queue_path: Path, *, threshold_hours: float | None = None,
 
     sent: list[dict] = []
     failed: list[dict] = []
+    validator_rejected = 0
+    validator_personalized = 0
+    # AI validator: same fail-closed pre-flight as the heads-up path. Disabled
+    # only when slack.md sets `ai_validator_enabled: false`. The reminder path
+    # benefits less from the validator (rows here are gated by 24h staleness
+    # already), but the personalization gain is real.
+    try:
+        slack_cfg = load_slack_config()
+        use_validator = bool(slack_cfg.get("ai_validator_enabled", True))
+    except Exception:
+        use_validator = True
     for entry in qualifying:
         pr_url = entry.get("pr_url")
         threads = slack_threads_for(entry)
@@ -150,8 +158,38 @@ def send_reminders(queue_path: Path, *, threshold_hours: float | None = None,
             thread_ts = slack.get("thread_ts") or slack.get("message_ts")
             if not channel_id or not thread_ts:
                 continue
+            # Pre-flight validate. Same contract as the heads-up path; on
+            # rejection we skip this thread (mark stays not-stamped so the
+            # next pass can try again with fresh state).
+            post_text = text
+            if use_validator:
+                try:
+                    payload = {
+                        "kind": "stalled_reminder",
+                        "channel": {"id": channel_id},
+                        "thread": {"parent_ts": thread_ts,
+                                   "parent_author": "",
+                                   "parent_text": "",
+                                   "recent_messages": []},
+                        "prs": [{"url": pr_url, "state": "open"}],
+                        "proposed_text": text,
+                    }
+                    verdict = validate_slack_post(payload, fail_open=False, log=log)
+                except Exception as e:
+                    log.warning("validator setup crashed (%s) — skipping reminder", e)
+                    verdict = {"should_post": False, "reason": "validator setup",
+                               "improved_text": None, "confidence": 0.0}
+                if not verdict.get("should_post"):
+                    validator_rejected += 1
+                    log.info("validator skipped reminder for %s: %s",
+                             pr_url, verdict.get("reason"))
+                    thread_failed = True
+                    continue
+                if verdict.get("improved_text"):
+                    post_text = verdict["improved_text"]
+                    validator_personalized += 1
             try:
-                reply_ts = client.post_thread_reply(channel_id, thread_ts, text)
+                reply_ts = client.post_thread_reply(channel_id, thread_ts, post_text)
             except Exception as e:
                 failed.append({"pr_url": pr_url, "channel_id": channel_id,
                                "thread_ts": thread_ts, "error": str(e)})
@@ -174,7 +212,9 @@ def send_reminders(queue_path: Path, *, threshold_hours: float | None = None,
                      "reply_ts": thread_replies[0]["reply_ts"] if thread_replies else None,
                      "replies": thread_replies})
 
-    return {"sent": sent, "failed": failed, "count": len(qualifying)}
+    return {"sent": sent, "failed": failed, "count": len(qualifying),
+            "validator_rejected": validator_rejected,
+            "validator_personalized": validator_personalized}
 
 
 def main(argv: list[str] | None = None) -> int:

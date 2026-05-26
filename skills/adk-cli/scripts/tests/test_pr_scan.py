@@ -194,6 +194,93 @@ def test_gentle_reminder_posts_once_for_unrelated_multi_pr_thread(monkeypatch):
     assert rows[1]["slack"]["gentle_reminder_at"]
 
 
+def test_gentle_reminder_count_matches_unique_prs_not_occurrences(monkeypatch):
+    """Regression for the bug Sujeet hit on 2026-05-26:
+
+    A thread had 2 unique PRs mentioned across main + 2 replies (6 total
+    occurrences). The Heads-up text said "I see 6 PRs in this message" when it
+    should have said "2" — the count of unique PRs in the THREAD.
+
+    Each candidate row already carries the correct unique count in
+    `slack.thread_pr_count` (fix fc10d03). The reminder text just needs to read
+    it instead of `len(rows)`.
+    """
+    fake = FakeSlackClient({"C1": ([], {})})
+    monkeypatch.setattr(pr_scan, "SlackClient", lambda: fake)
+    # 6 candidate rows for 2 unique PRs in the same thread.
+    # Titles + branches must be clearly UNRELATED so `_looks_related` doesn't
+    # short-circuit the reminder — that path has its own test below.
+    per_pr = {
+        1: {"title": "FAQ widget rollout", "source_branch": "faq-widget"},
+        2: {"title": "Best-sellers homepage carousel",
+            "source_branch": "homepage-carousel"},
+    }
+    rows = []
+    for occurrence_ts, pr_n in [
+        ("100.000", 1), ("100.000", 2),  # main message mentions both
+        ("100.001", 1), ("100.001", 2),  # reply 1 re-links both
+        ("100.002", 1), ("100.002", 2),  # reply 2 re-links both
+    ]:
+        rows.append({
+            "pr_url": f"https://github.com/acme/foo/pull/{pr_n}",
+            "slack": {
+                "channel_id": "C1", "thread_ts": "100.000",
+                "thread_pr_count": 2,
+            },
+            "_meta": {"repo": "foo", **per_pr[pr_n]},
+        })
+
+    stats = pr_scan.maybe_emit_gentle_reminders(
+        rows, {"prs": []}, {"gentle_reminder_enabled": True}, False,
+        logging.getLogger("test"),
+    )
+
+    assert stats["posted"] == 1
+    assert len(fake.thread_replies) == 1
+    _, _, text = fake.thread_replies[0]
+    assert "I see 2 PRs" in text, (
+        f"Heads-up text must use the unique PR count (2), "
+        f"not the raw occurrence count (6). Got: {text!r}"
+    )
+    assert "6 PRs" not in text
+
+
+def test_gentle_reminder_skips_when_meta_marks_prs_related_after_pop(monkeypatch):
+    """Regression: main() pops `_meta` from every kept candidate BEFORE
+    maybe_emit_gentle_reminders runs. That made _looks_related see all-empty
+    metas and never short-circuit. After the fix, related-PR detection must
+    survive the pop — either by running before the pop, or by the reminder
+    re-reading meta-equivalents off the row.
+
+    Two PRs that share a branch (split PR) should not trigger a reminder.
+    """
+    fake = FakeSlackClient({"C1": ([], {})})
+    monkeypatch.setattr(pr_scan, "SlackClient", lambda: fake)
+    rows = [
+        {
+            "pr_url": "https://github.com/acme/foo/pull/1",
+            "slack": {"channel_id": "C1", "thread_ts": "100.000", "thread_pr_count": 2},
+            # _meta has been popped by main(); _related_hint carries the
+            # surviving fields the reminder needs to gauge relatedness.
+            "_related_hint": {"repo": "foo", "title": "Add FAQ widget — backend",
+                              "source_branch": "faq-widget"},
+        },
+        {
+            "pr_url": "https://github.com/acme/foo/pull/2",
+            "slack": {"channel_id": "C1", "thread_ts": "100.000", "thread_pr_count": 2},
+            "_related_hint": {"repo": "foo", "title": "Add FAQ widget — frontend",
+                              "source_branch": "faq-widget"},
+        },
+    ]
+
+    stats = pr_scan.maybe_emit_gentle_reminders(
+        rows, {"prs": []}, {"gentle_reminder_enabled": True}, False,
+        logging.getLogger("test"),
+    )
+    assert stats["posted"] == 0
+    assert stats["skipped_related"] == 1
+
+
 def test_gentle_reminder_does_not_repost_when_queue_marked(monkeypatch):
     fake = FakeSlackClient({"C1": ([], {})})
     monkeypatch.setattr(pr_scan, "SlackClient", lambda: fake)
@@ -585,7 +672,7 @@ def test_parse_since_seconds_invalid_raises():
 # ----- configured-repo filter (_filter_by_configured_repos) ------------------
 
 def test_filter_drops_unknown_repo_when_registry_configured(monkeypatch):
-    """Candidates for repos not in repos.md are dropped when the registry exists."""
+    """Candidates for repos not in repos.json5 are dropped when the registry exists."""
     monkeypatch.setattr(pr_scan, "is_configured_repo",
                         lambda host, owner, repo: (host == "github" and repo == "allowed"))
 
@@ -618,12 +705,10 @@ def test_filter_passes_all_when_registry_empty(monkeypatch):
 
 # ----- scan_direct_review_requests -------------------------------------------
 
-def test_scan_direct_gh_pr_shows_up_with_direct_link_origin(monkeypatch):
+def test_scan_direct_gh_pr_shows_up_with_direct_link_origin(tmp_path, monkeypatch):
     """When GH returns a PR for a configured repo, scan_direct_review_requests
     returns a candidate with link_origin='direct' and discovery_source='direct'.
     """
-    import sys, types
-
     gh_response = json.dumps({
         "items": [
             {
@@ -642,12 +727,36 @@ def test_scan_direct_gh_pr_shows_up_with_direct_link_origin(monkeypatch):
 
     monkeypatch.setattr(pr_scan.subprocess, "run", fake_run)
 
-    def fake_load_repos():
-        return ({"repos": [{"host": "github", "workspace": "acme", "name": "foo"}]}, "")
+    # Write a minimal v5 config bundle with the acme/foo github repo.
+    cfg_dir = tmp_path / "config"
+    cfg_dir.mkdir(parents=True, exist_ok=True)
+    (cfg_dir / "core.json5").write_text(json.dumps({
+        "schema_version": 5,
+        "user": {"email": "t@e.com", "first_name": "T"},
+        "org": {"name": "acme", "primary_workspace": "w"},
+        "bot": {"icon_emoji": ":robot:"},
+        "defaults": {},
+    }), encoding="utf-8")
+    (cfg_dir / "workspaces.json5").write_text(json.dumps({
+        "workspaces": [{
+            "id": "workspace:w", "name": "W", "role": "work",
+            "github_org": "acme", "workspace_root": "/tmp",
+        }],
+    }), encoding="utf-8")
+    (cfg_dir / "teams.json5").write_text(json.dumps({
+        "teams": [{"id": "team:t", "name": "T"}],
+    }), encoding="utf-8")
+    (cfg_dir / "repos.json5").write_text(json.dumps({
+        "repos": [{
+            "id": "repo:foo", "host": "github", "org": "acme", "name": "foo",
+            "workspace": "workspace:w", "team": "team:t", "path": "/tmp/foo",
+            "primary_language": "ts", "base_branch": "main",
+        }],
+    }), encoding="utf-8")
 
-    sys.modules.setdefault("config_io", types.SimpleNamespace(load_repos=fake_load_repos))
-    monkeypatch.setitem(sys.modules, "config_io",
-                        types.SimpleNamespace(load_repos=fake_load_repos))
+    monkeypatch.setenv("ADK_CONFIG_HOME", str(cfg_dir))
+    from config import reset_bundle
+    reset_bundle()
 
     log = logging.getLogger("test")
     candidates = pr_scan.scan_direct_review_requests(log)
@@ -659,19 +768,175 @@ def test_scan_direct_gh_pr_shows_up_with_direct_link_origin(monkeypatch):
     assert c["discovery_source"] == "direct"
 
 
-def test_scan_direct_skips_bitbucket_with_warning(monkeypatch):
+def test_scan_direct_skips_bitbucket_with_warning(tmp_path, monkeypatch):
     """Bitbucket repos log a warning and produce no candidates."""
-    import sys, types
+    import json as _json
 
-    def fake_load_repos():
-        return ({"repos": [{"host": "bitbucket", "workspace": "myws", "name": "myrepo"}]}, "")
-
-    monkeypatch.setitem(sys.modules, "config_io",
-                        types.SimpleNamespace(load_repos=fake_load_repos))
+    # Write a minimal v5 bundle with a single Bitbucket repo.
+    cfg = tmp_path / "config"
+    cfg.mkdir(parents=True)
+    (cfg / "core.json5").write_text(_json.dumps({
+        "schema_version": 5,
+        "user": {"email": "t@e.com", "first_name": "T"},
+        "org": {"name": "acme", "primary_workspace": "w"},
+        "bot": {"icon_emoji": ":r:"},
+        "defaults": {},
+    }))
+    (cfg / "workspaces.json5").write_text(_json.dumps({
+        "workspaces": [{
+            "id": "workspace:w", "name": "W", "role": "work",
+            "bitbucket_workspace": "myws", "workspace_root": "/tmp",
+        }],
+    }))
+    (cfg / "teams.json5").write_text(_json.dumps({
+        "teams": [{"id": "team:t", "name": "T"}],
+    }))
+    (cfg / "repos.json5").write_text(_json.dumps({
+        "repos": [{
+            "id": "repo:myrepo", "host": "bitbucket", "org": "myws", "name": "myrepo",
+            "workspace": "workspace:w", "team": "team:t", "path": "/tmp/myrepo",
+            "primary_language": "ts", "base_branch": "main",
+        }],
+    }))
+    monkeypatch.setenv("ADK_CONFIG_HOME", str(cfg))
+    from config import reset_bundle  # type: ignore
+    reset_bundle()
 
     log = logging.getLogger("test")
     candidates = pr_scan.scan_direct_review_requests(log)
     assert candidates == []
+
+
+# ----- Bug 1: terminal-PR filter (post_process) ------------------------------
+
+def test_post_process_drops_declined_pr_not_just_merged(monkeypatch):
+    """DECLINED bitbucket PRs (and CLOSED/SUPERSEDED) must be filtered out of
+    candidates exactly like MERGED PRs. Before, only merged_at was checked,
+    leaving declined PRs in the candidate set — and feeding stale rows into
+    `maybe_emit_gentle_reminders` weeks after the thread was done.
+    """
+    def fake_meta(url, log):
+        # DECLINED: state set, no merged_at. Real Bitbucket case (PR #5310).
+        return {"host": "bitbucket", "owner": "acme", "repo": "foo",
+                "pr_number": int(url.rsplit("/", 1)[1]), "head_sha": "deadbeef",
+                "merged_at": None, "state": "DECLINED"}
+    monkeypatch.setattr(pr_scan, "cheap_pr_meta", fake_meta)
+
+    candidates = [{
+        "pr_url": "https://bitbucket.org/acme/foo/pull-requests/5310",
+        "slack": {"channel_id": "C1", "message_ts": "100.000",
+                  "thread_pr_count": 2, "n_pr_links_in_message": 1},
+    }]
+    log = logging.getLogger("test")
+    kept, stats = pr_scan.post_process(candidates, {}, dry_run=False, log=log)
+    assert kept == []
+    assert stats["closed_skipped"] == 1
+    assert stats["closed_skipped_multi_pr"] == 1
+    assert stats["merged_skipped"] == 0  # merged counter untouched
+    assert stats["closed_skipped_multi_pr_examples"] == ["bb:foo#5310"]
+
+
+# ----- Bug 2/3: count drift after filter (gate on len(unique_rows)) ----------
+
+def test_gentle_reminder_skips_when_only_one_unique_pr_after_filter(monkeypatch):
+    """Stale `thread_pr_count` is no longer a gate. When only one unique PR
+    survives the merged/declined filter, the heads-up post is suppressed —
+    not silently posted with "I see 1 PRs" (the 2026-05-22 production bug).
+    """
+    fake = FakeSlackClient({"C1": ([], {})})
+    monkeypatch.setattr(pr_scan, "SlackClient", lambda: fake)
+    # Single surviving row, but the stale per-row thread_pr_count says 4 (the
+    # pre-filter thread had 4 PRs; 3 merged/declined and only this one is left).
+    rows = [{
+        "pr_url": "https://github.com/acme/foo/pull/1",
+        "slack": {"channel_id": "C1", "thread_ts": "100.000",
+                  "thread_pr_count": 4},
+        "_meta": {"repo": "foo", "title": "FAQ", "source_branch": "faq"},
+    }]
+    stats = pr_scan.maybe_emit_gentle_reminders(
+        rows, {"prs": []}, {"gentle_reminder_enabled": True}, False,
+        logging.getLogger("test"),
+    )
+    assert stats["posted"] == 0
+    assert stats["skipped_single_unique"] == 1
+    assert fake.thread_replies == []
+
+
+# ----- Bug 4: persistent thread-mark sidecar ---------------------------------
+
+def test_gentle_reminder_dedupes_via_thread_marks_sidecar(monkeypatch, tmp_path):
+    """When the queue has no row for a thread (e.g. every PR merged → GC'd),
+    the per-thread mark in `pr-thread-marks.json` must still prevent reposting
+    within the retention window.
+    """
+    fake = FakeSlackClient({"C1": ([], {})})
+    monkeypatch.setattr(pr_scan, "SlackClient", lambda: fake)
+    # Force the sidecar to a tmp path.
+    import thread_marks as tm_mod
+    sidecar = tmp_path / "pr-thread-marks.json"
+    monkeypatch.setattr(pr_scan, "recent_thread_marks",
+                        lambda within_hours=24.0: tm_mod.recent_thread_marks(
+                            path=sidecar, within_hours=within_hours))
+    monkeypatch.setattr(pr_scan, "record_thread_mark",
+                        lambda channel_id, thread_ts, at_iso=None:
+                        tm_mod.record_thread_mark(channel_id, thread_ts,
+                                                  path=sidecar, at_iso=at_iso))
+
+    # Pre-seed the sidecar with a recent mark for this thread.
+    from datetime import datetime, timezone
+    recent_iso = datetime.now(tz=timezone.utc).isoformat().replace("+00:00", "Z")
+    tm_mod.record_thread_mark("C1", "100.000", path=sidecar, at_iso=recent_iso)
+
+    rows = [
+        {"pr_url": "https://github.com/acme/foo/pull/1",
+         "slack": {"channel_id": "C1", "thread_ts": "100.000", "thread_pr_count": 2},
+         "_meta": {"repo": "foo", "title": "FAQ", "source_branch": "faq"}},
+        {"pr_url": "https://github.com/acme/foo/pull/2",
+         "slack": {"channel_id": "C1", "thread_ts": "100.000", "thread_pr_count": 2},
+         "_meta": {"repo": "foo", "title": "Best", "source_branch": "best"}},
+    ]
+    # Empty queue — no row-level mark anywhere — yet we must still dedupe.
+    stats = pr_scan.maybe_emit_gentle_reminders(
+        rows, {"prs": []}, {"gentle_reminder_enabled": True}, False,
+        logging.getLogger("test"),
+    )
+    assert stats["posted"] == 0
+    assert stats["skipped_existing"] == 1
+    assert fake.thread_replies == []
+
+
+def test_gentle_reminder_records_mark_in_sidecar_on_post(monkeypatch, tmp_path):
+    """A successful heads-up post must write a mark to the sidecar so future
+    scans can dedupe even after the queue row is GC'd.
+    """
+    fake = FakeSlackClient({"C1": ([], {})})
+    monkeypatch.setattr(pr_scan, "SlackClient", lambda: fake)
+    import thread_marks as tm_mod
+    sidecar = tmp_path / "pr-thread-marks.json"
+    monkeypatch.setattr(pr_scan, "recent_thread_marks",
+                        lambda within_hours=24.0: tm_mod.recent_thread_marks(
+                            path=sidecar, within_hours=within_hours))
+    monkeypatch.setattr(pr_scan, "record_thread_mark",
+                        lambda channel_id, thread_ts, at_iso=None:
+                        tm_mod.record_thread_mark(channel_id, thread_ts,
+                                                  path=sidecar, at_iso=at_iso))
+
+    rows = [
+        {"pr_url": "https://github.com/acme/foo/pull/1",
+         "slack": {"channel_id": "C1", "thread_ts": "100.000", "thread_pr_count": 2},
+         "_meta": {"repo": "foo", "title": "FAQ widget", "source_branch": "faq"}},
+        {"pr_url": "https://github.com/acme/foo/pull/2",
+         "slack": {"channel_id": "C1", "thread_ts": "100.000", "thread_pr_count": 2},
+         "_meta": {"repo": "foo", "title": "Best sellers", "source_branch": "best"}},
+    ]
+    stats = pr_scan.maybe_emit_gentle_reminders(
+        rows, {"prs": []}, {"gentle_reminder_enabled": True}, False,
+        logging.getLogger("test"),
+    )
+    assert stats["posted"] == 1
+    # Sidecar now contains the mark.
+    marks = tm_mod.recent_thread_marks(path=sidecar, within_hours=24.0)
+    assert ("C1", "100.000") in marks
 
 
 if __name__ == "__main__":
