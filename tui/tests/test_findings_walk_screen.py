@@ -118,15 +118,17 @@ def test_run_triage_captures_args(tmp_path: Path) -> None:
         return fake_result
 
     with patch("tui.screens.findings_walk_screen.subprocess.run", _fake_run):
-        rc, out = _run_triage(tmp_path, "--mark", "accept", "--id", "f-001")
+        rc, out = _run_triage(tmp_path, "--mark", "f-001", "--state", "accept")
 
     assert rc == 0
     assert len(calls) == 1
     assert "--task-dir" in calls[0]
     assert "--mark" in calls[0]
-    assert "accept" in calls[0]
-    assert "--id" in calls[0]
     assert "f-001" in calls[0]
+    assert "--state" in calls[0]
+    assert "accept" in calls[0]
+    # The old broken form must not appear.
+    assert "--id" not in calls[0]
 
 
 # ---------------------------------------------------------------------------
@@ -136,10 +138,11 @@ def test_run_triage_captures_args(tmp_path: Path) -> None:
 class _WalkHarness(App):
     """Harness that pushes FindingsWalkScreen on mount."""
 
-    def __init__(self, findings_path: Path, task_dir: Path) -> None:
+    def __init__(self, findings_path: Path, task_dir: Path, pr_url: str | None = None) -> None:
         super().__init__()
         self._findings_path = findings_path
         self._task_dir = task_dir
+        self._pr_url = pr_url
         self.triage_calls: list[list[str]] = []
 
     def compose(self) -> ComposeResult:
@@ -147,7 +150,11 @@ class _WalkHarness(App):
 
     def on_mount(self) -> None:
         self.push_screen(
-            FindingsWalkScreen(findings_path=self._findings_path, task_dir=self._task_dir)
+            FindingsWalkScreen(
+                findings_path=self._findings_path,
+                task_dir=self._task_dir,
+                pr_url=self._pr_url,
+            )
         )
 
 
@@ -193,10 +200,12 @@ def test_findings_walk_accept_calls_triage(findings_json: Path, task_dir: Path) 
 
     asyncio.run(_run())
 
-    # Should have called triage.py --mark accept --id f-001
-    accept_calls = [c for c in calls if "--mark" in c and "accept" in c]
+    # Should call triage.py --mark <fid> --state accept (correct CLI form).
+    accept_calls = [c for c in calls if "--mark" in c and "--state" in c and "accept" in c]
     assert len(accept_calls) >= 1
-    assert "f-001" in accept_calls[0]
+    idx = accept_calls[0].index("--mark")
+    assert accept_calls[0][idx + 1] == "f-001", "finding id must be the --mark value"
+    assert "--id" not in accept_calls[0], "--id flag must not appear (it does not exist in triage.py)"
 
 
 def test_findings_walk_skip_advances_index(findings_json: Path, task_dir: Path) -> None:
@@ -239,7 +248,7 @@ def test_findings_walk_save_quit_calls_finalize(findings_json: Path, task_dir: P
 
 
 def test_findings_walk_reject_calls_triage_reject(findings_json: Path, task_dir: Path) -> None:
-    """Reject via 'r' key: should call --mark reject after the reason prompt."""
+    """Reject via 'r' key: should call --mark <fid> --state reject."""
     calls: list[list[str]] = []
     app = _WalkHarness(findings_path=findings_json, task_dir=task_dir)
 
@@ -263,9 +272,132 @@ def test_findings_walk_reject_calls_triage_reject(findings_json: Path, task_dir:
 
     asyncio.run(_run())
 
-    reject_calls = [c for c in calls if "--mark" in c and "reject" in c]
+    reject_calls = [c for c in calls if "--mark" in c and "--state" in c and "reject" in c]
     assert len(reject_calls) >= 1
-    assert "f-001" in reject_calls[0]
+    idx = reject_calls[0].index("--mark")
+    assert reject_calls[0][idx + 1] == "f-001", "finding id must be the --mark value"
+    assert "--id" not in reject_calls[0], "--id flag must not appear"
+
+
+def test_findings_walk_auto_post_spawned_on_quit_with_accepted(
+    findings_json: Path, task_dir: Path
+) -> None:
+    """Closing the modal after accepting ≥1 finding spawns `adk pr-task post <url>`."""
+    run_calls: list[list[str]] = []
+    popen_calls: list[list[str]] = []
+    pr_url = "https://github.com/acme/repo/pull/42"
+
+    app = _WalkHarness(findings_path=findings_json, task_dir=task_dir, pr_url=pr_url)
+
+    async def _run() -> None:
+        fake_result = MagicMock(returncode=0, stdout="ok\n", stderr="")
+
+        def _fake_run(cmd, **kwargs):
+            run_calls.append(list(cmd))
+            return fake_result
+
+        fake_popen = MagicMock()
+
+        def _fake_popen(cmd, **kwargs):
+            popen_calls.append(list(cmd))
+            return fake_popen
+
+        with patch("tui.screens.findings_walk_screen.subprocess.run", _fake_run):
+            with patch("tui.screens.findings_walk_screen.subprocess.Popen", _fake_popen):
+                async with app.run_test() as pilot:
+                    await pilot.pause()
+                    # Accept finding f-001.
+                    await pilot.press("a")
+                    await pilot.pause()
+                    # Quit — triggers finalize then auto-post.
+                    await pilot.press("q")
+                    await pilot.pause()
+
+    asyncio.run(_run())
+
+    # At least one Popen call containing pr-task post and the pr_url.
+    assert len(popen_calls) >= 1, "expected subprocess.Popen to be called for auto-post"
+    post_call = popen_calls[0]
+    assert "pr-task" in post_call
+    assert "post" in post_call
+    assert pr_url in post_call
+
+
+def test_findings_walk_no_auto_post_when_none_accepted(
+    findings_json: Path, task_dir: Path
+) -> None:
+    """No post subprocess is spawned when zero findings were accepted."""
+    popen_calls: list[list[str]] = []
+    pr_url = "https://github.com/acme/repo/pull/42"
+
+    app = _WalkHarness(findings_path=findings_json, task_dir=task_dir, pr_url=pr_url)
+
+    async def _run() -> None:
+        fake_result = MagicMock(returncode=0, stdout="ok\n", stderr="")
+
+        def _fake_run(cmd, **kwargs):
+            return fake_result
+
+        fake_popen = MagicMock()
+
+        def _fake_popen(cmd, **kwargs):
+            popen_calls.append(list(cmd))
+            return fake_popen
+
+        with patch("tui.screens.findings_walk_screen.subprocess.run", _fake_run):
+            with patch("tui.screens.findings_walk_screen.subprocess.Popen", _fake_popen):
+                async with app.run_test() as pilot:
+                    await pilot.pause()
+                    # Skip without accepting anything.
+                    await pilot.press("right")
+                    await pilot.pause()
+                    # Quit.
+                    await pilot.press("q")
+                    await pilot.pause()
+
+    asyncio.run(_run())
+
+    assert len(popen_calls) == 0, "no Popen should be spawned when no findings accepted"
+
+
+def test_findings_walk_toggle_auto_post_suppresses_spawn(
+    findings_json: Path, task_dir: Path
+) -> None:
+    """Pressing P disables auto-post; quitting after accept must not spawn Popen."""
+    popen_calls: list[list[str]] = []
+    pr_url = "https://github.com/acme/repo/pull/42"
+
+    app = _WalkHarness(findings_path=findings_json, task_dir=task_dir, pr_url=pr_url)
+
+    async def _run() -> None:
+        fake_result = MagicMock(returncode=0, stdout="ok\n", stderr="")
+
+        def _fake_run(cmd, **kwargs):
+            return fake_result
+
+        fake_popen = MagicMock()
+
+        def _fake_popen(cmd, **kwargs):
+            popen_calls.append(list(cmd))
+            return fake_popen
+
+        with patch("tui.screens.findings_walk_screen.subprocess.run", _fake_run):
+            with patch("tui.screens.findings_walk_screen.subprocess.Popen", _fake_popen):
+                async with app.run_test() as pilot:
+                    await pilot.pause()
+                    # Disable auto-post with P.
+                    await pilot.press("p")
+                    await pilot.pause()
+                    # Accept f-001.
+                    await pilot.press("a")
+                    await pilot.pause()
+                    # Quit — auto-post is off, so no Popen.
+                    await pilot.press("q")
+                    await pilot.pause()
+
+    asyncio.run(_run())
+
+    assert len(popen_calls) == 0, "Popen must not be called when auto-post is toggled off"
 
 
 # ---------------------------------------------------------------------------

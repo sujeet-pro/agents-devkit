@@ -19,6 +19,14 @@ _TRIAGE_SCRIPT = (
 )
 
 
+def _resolve_adk_bin() -> Path:
+    repo_root = Path(__file__).resolve().parents[2]
+    candidate = repo_root / "bin" / "adk"
+    if candidate.exists():
+        return candidate
+    return Path("adk")  # last-resort PATH lookup
+
+
 def _run_triage(task_dir: Path, *args: str) -> tuple[int, str]:
     """Run triage.py synchronously. Returns (returncode, combined output)."""
     cmd = [sys.executable, str(_TRIAGE_SCRIPT), "--task-dir", str(task_dir), *args]
@@ -84,7 +92,8 @@ class FindingsWalkScreen(ModalScreen[None]):
       R — reject (prompts for reason via PromptScreen)
       E — edit (opens FindingsEditScreen, then rewrites via triage.py)
       right_arrow — skip to next
-      Q / Escape — finalize and close
+      P — toggle auto-post on quit (default: on)
+      Q / Escape — finalize and close (auto-posts if any accepted and P is on)
     """
 
     BINDINGS = [
@@ -92,6 +101,7 @@ class FindingsWalkScreen(ModalScreen[None]):
         Binding("r", "reject", "Reject"),
         Binding("e", "edit", "Edit"),
         Binding("right", "skip", "Skip"),
+        Binding("p", "toggle_auto_post", "Auto-post"),
         Binding("q", "save_quit", "Save+quit"),
         Binding("escape", "save_quit", show=False),
     ]
@@ -129,12 +139,21 @@ class FindingsWalkScreen(ModalScreen[None]):
     }
     """
 
-    def __init__(self, *, findings_path: Path, task_dir: Path) -> None:
+    def __init__(
+        self,
+        *,
+        findings_path: Path,
+        task_dir: Path,
+        pr_url: str | None = None,
+    ) -> None:
         super().__init__()
         self._findings_path = findings_path
         self._task_dir = task_dir
+        self._pr_url = pr_url
         self._findings: list[dict[str, Any]] = _load_findings(findings_path)
         self._index: int = 0
+        self._accepted_count: int = 0
+        self._auto_post: bool = True
 
     def compose(self) -> ComposeResult:
         with Container():
@@ -143,10 +162,17 @@ class FindingsWalkScreen(ModalScreen[None]):
                 yield LoadingIndicator(id="fw-spinner")
             yield Static("", id="fw-status", markup=False)
             yield Static(
-                "[A]ccept  [R]eject  [E]dit  [->]skip  [Q]save+quit",
+                self._footer_text(),
                 id="fw-footer",
                 markup=False,
             )
+
+    def _footer_text(self) -> str:
+        post_label = "[P]auto-post:ON" if self._auto_post else "[P]auto-post:OFF"
+        return f"[A]ccept  [R]eject  [E]dit  [->]skip  {post_label}  [Q]save+quit"
+
+    def _refresh_footer(self) -> None:
+        self.query_one("#fw-footer", Static).update(self._footer_text())
 
     def on_mount(self) -> None:
         self._render_current()
@@ -179,8 +205,12 @@ class FindingsWalkScreen(ModalScreen[None]):
         fid = self._current_finding_id()
         if fid is None:
             return
-        rc, out = _run_triage(self._task_dir, "--mark", "accept", "--id", fid)
-        status = f"accepted {fid}" if rc == 0 else f"accept failed (rc={rc}): {out}"
+        rc, out = _run_triage(self._task_dir, "--mark", fid, "--state", "accept")
+        if rc == 0:
+            self._accepted_count += 1
+            status = f"accepted {fid}"
+        else:
+            status = f"accept failed (rc={rc}): {out}"
         self.query_one("#fw-status", Static).update(status)
         self._advance()
 
@@ -195,10 +225,7 @@ class FindingsWalkScreen(ModalScreen[None]):
         )
         if reason is None:
             return  # cancelled
-        args = ["--mark", "reject", "--id", fid]
-        if reason.strip():
-            args += ["--reason", reason.strip()]
-        rc, out = _run_triage(self._task_dir, *args)
+        rc, out = _run_triage(self._task_dir, "--mark", fid, "--state", "reject")
         status = f"rejected {fid}" if rc == 0 else f"reject failed (rc={rc}): {out}"
         self.query_one("#fw-status", Static).update(status)
         self._advance()
@@ -246,6 +273,17 @@ class FindingsWalkScreen(ModalScreen[None]):
     def action_skip(self) -> None:
         self._advance()
 
+    def action_toggle_auto_post(self) -> None:
+        self._auto_post = not self._auto_post
+        self._refresh_footer()
+
     def action_save_quit(self) -> None:
-        _run_triage(self._task_dir, "--finalize")
+        rc, _out = _run_triage(self._task_dir, "--finalize")
+        if rc == 0 and self._auto_post and self._accepted_count > 0 and self._pr_url:
+            adk = _resolve_adk_bin()
+            subprocess.Popen(
+                [str(adk), "pr-task", "post", self._pr_url],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
         self.dismiss(None)

@@ -1314,7 +1314,7 @@ class AdkApp(App):
         if any(isinstance(s, FindingsWalkScreen) for s in self.screen_stack):
             return
 
-        await self.push_screen_wait(FindingsWalkScreen(findings_path=findings_path, task_dir=task_dir))
+        await self.push_screen_wait(FindingsWalkScreen(findings_path=findings_path, task_dir=task_dir, pr_url=pr_url))
 
     async def _perform_pr_action(self, action: str, pr_url: str) -> None:
         if action == "open-pr":
