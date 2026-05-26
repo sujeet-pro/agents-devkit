@@ -76,7 +76,7 @@ Usage:
   adk pr-queue list [--status <s>] [--urls-only]   list queue entries
   adk pr-queue show <pr-url>                  show one entry as JSON
   adk pr-queue add <slack-url|pr-url|number>  single-shot upsert (slack permalink, PR URL, or
-                                              bare PR number using core.yaml defaults.repo)
+                                              bare PR number using core.json5 defaults.repo)
   adk pr-queue update <pr-url>                refresh row metadata (head_sha + merged/closed state)
   adk pr-queue update --all                   refresh every non-terminal row (metadata only)
   adk pr-queue clean [--all] [-y]             drop merged + closed rows (or everything with --all -y)
@@ -103,8 +103,18 @@ Usage:
   adk pr-task report <pr-url> [--merge-if-approved]
                                               Phase 6: render findings.md + report.md + clickable links
   adk pr-task resolve-comments <pr-url>       walk prior PR comments → resolve/reopen/leave
+  adk pr-task import <pr-url>                 pipeline Import stage: enrich queue row with PR
+                                              title/author/head_sha. Cheap (<2s); idempotent.
+  adk pr-task sync <pr-url>                   pipeline Sync stage: pull full PR data + worktree
+                                              + supporting docs. Does NOT index.
+  adk pr-task index <pr-url> [--rebuild]      pipeline Index stage: chunk + embed + SCIP.
+                                              Assumes worktree exists from a prior Sync.
+  adk pr-task review <pr-url> [--detailed] [--deep]
+                                              pipeline Review stage: spawn the agent + validate +
+                                              post (coupled). With ADK_PR_REVIEW_INTERACTIVE=1
+                                              stops after Validate so user can walk findings.
   adk pr-task info <pr-url>                   task-folder state as JSON
-  adk pr-task list [--names-only|--paths]     every task folder under ~/.agents-devkit/skill-pr-review/
+  adk pr-task list [--names-only|--paths]     every task folder under $ADK_DATA_HOME/skill-pr-review/
   adk pr-task clean-orphans [--dry-run] [-y]  drop on-disk folders with no queue row
   adk repo add <git-url|https-url> [--name <n>] [-y]
                                               clone + index a repo's default branch. Accepts ssh
@@ -117,7 +127,7 @@ Usage:
   adk repo branch remove <name> --branch X    drop the index for a branch
   adk repo branch list <name>                 show tracked branches + SHA + ts
   adk repo rebuild-index <name> [--branch X]  rebuild a branch's index from scratch (when its dir was deleted by hand)
-  adk repo list [--names-only]                list repos under ~/.agents-devkit/repos/
+  adk repo list [--names-only]                list repos under $ADK_DATA_HOME/repos/
   adk skill-run [--runner claude|cursor|codex|custom] [--agent X]
            [--agent-model M] [--detailed] [--deep] [--planning] <skill> [-- <args...>]
                                               run any /adk-* skill in a selected agent harness.
@@ -146,7 +156,7 @@ Usage:
                                               (--completion checks shell wiring only)
   adk completion bash|zsh|fish                emit a shell-completion script
 
-Defaults: queue at ~/.agents-devkit/config/pr-queue.json5.
+Defaults: queue at $ADK_CONFIG_HOME/pr-queue.json5.
 Global flag: -y / --yes — non-interactive (no prompts; smart defaults). Pass to any subcommand.
 """
 

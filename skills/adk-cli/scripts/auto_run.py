@@ -34,6 +34,7 @@ import os
 import re
 import selectors
 import shlex
+import statistics
 import subprocess
 import sys
 import threading
@@ -138,6 +139,41 @@ def _now_iso() -> str:
 
 def _ts_for_run() -> str:
     return time.strftime("%Y%m%dT%H%M%SZ", time.gmtime())
+
+
+def _append_pipeline_log_rotating(
+    line: str,
+    *,
+    path: Path,
+    max_bytes: int = 5 * 1024 * 1024,
+) -> None:
+    """Append *line* to *path*, rotating the file when it reaches *max_bytes*.
+
+    Rotation renames the existing file to ``path.with_suffix(".log." + ts)``
+    and then keeps only the 5 most-recent archives in the same directory,
+    deleting older ones.  Fail-open: exceptions are swallowed so callers are
+    never blocked.
+    """
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        if path.exists() and path.stat().st_size >= max_bytes:
+            ts = _now_iso().replace(":", "-")
+            archive = path.parent / f"pipeline.log.{ts}"
+            path.rename(archive)
+            # Keep only the 5 most-recent archives.
+            archives = sorted(
+                path.parent.glob("pipeline.log.*"),
+                key=lambda p: p.stat().st_mtime,
+            )
+            for old in archives[:-5]:
+                try:
+                    old.unlink()
+                except Exception:
+                    pass
+        with path.open("a", encoding="utf-8") as fh:
+            fh.write(f"{_now_iso()} {line}\n")
+    except Exception:
+        pass
 
 
 def _eligible_rows(queue_path: Path, *, exclude: set[str]) -> list[dict]:
@@ -646,7 +682,8 @@ def _run_pr_sync(*, queue: str, run_dir: Path, dashboard: RunDashboard,
 
 
 def _write_report(run_dir: Path, results: list[dict], started: str, ended: str,
-                  ran_sync: bool, dry_run: bool) -> Path:
+                  ran_sync: bool, dry_run: bool,
+                  stage_timings: dict[str, list[float]] | None = None) -> Path:
     n_ok = sum(1 for r in results if r.get("status") == "ok")
     n_fail = sum(1 for r in results if r.get("status") == "failed")
     md = run_dir / "report.md"
@@ -659,6 +696,27 @@ def _write_report(run_dir: Path, results: list[dict], started: str, ended: str,
         f"- Sync ran: {ran_sync}",
         f"- Dry run: {dry_run}",
         "",
+    ]
+    if stage_timings:
+        populated = {s: t for s, t in stage_timings.items() if t}
+        if populated:
+            lines += [
+                "## Per-stage timing",
+                "",
+                "| Stage | n | avg(s) | p50(s) | p95(s) | max(s) |",
+                "|---|---|---|---|---|---|",
+            ]
+            for stage, times in populated.items():
+                n = len(times)
+                avg = round(statistics.mean(times), 1)
+                p50 = round(statistics.median(times), 1)
+                p95 = round(
+                    statistics.quantiles(times, n=20)[18] if n >= 2 else times[0], 1
+                )
+                mx = round(max(times), 1)
+                lines.append(f"| {stage} | {n} | {avg} | {p50} | {p95} | {mx} |")
+            lines.append("")
+    lines += [
         "## Per-PR results",
         "",
     ]
@@ -1013,6 +1071,7 @@ def main(argv: list[str] | None = None) -> int:
 
     # Step 3: spawn agents — pipelined path (default) or legacy fallback.
     results: list[dict] = []
+    stage_timings: dict[str, list[float]] = {}
     _pipeline_enabled = _cfg_bool("pr_pipeline_enabled", True)
 
     if _pipeline_enabled:
@@ -1054,17 +1113,6 @@ def main(argv: list[str] | None = None) -> int:
             )
 
             _pipeline_log_path = adk_logs_home() / "pipeline.log"
-            _pipeline_log_path.parent.mkdir(parents=True, exist_ok=True)
-
-            def _append_pipeline_log(line: str) -> None:
-                # Tee a one-line summary to $ADK_DATA_HOME/logs/pipeline.log so
-                # the TUI's GlobalActivityStrip (in another terminal) can tail
-                # this scheduler run. Fail-open: never block the pipeline.
-                try:
-                    with _pipeline_log_path.open("a", encoding="utf-8") as fh:
-                        fh.write(f"{_now_iso()} {line}\n")
-                except Exception:
-                    pass
 
             def _dashboard_event(ev: dict) -> None:
                 kind = ev.get("kind", "")
@@ -1075,28 +1123,38 @@ def main(argv: list[str] | None = None) -> int:
                                      "status": "run", "stage": stage,
                                      "detail": f"{stage} stage running"})
                     dashboard.print_snapshot()
-                    _append_pipeline_log(f"▶ {stage} {pr_url}")
+                    _append_pipeline_log_rotating(
+                        f"▶ {stage} {pr_url}", path=_pipeline_log_path)
                 elif kind == "stage_done":
+                    elapsed = ev.get("elapsed_s")
+                    if elapsed is not None:
+                        stage_timings.setdefault(stage, []).append(float(elapsed))
                     if stage == "post":
                         dashboard.apply({"kind": "pr_done", "pr_url": pr_url,
                                          "status": "done", "stage": stage,
-                                         "elapsed_s": ev.get("elapsed_s")})
+                                         "elapsed_s": elapsed})
                         dashboard.print_snapshot()
-                    _append_pipeline_log(
-                        f"✓ {stage} {pr_url}  ({ev.get('elapsed_s', '?')}s)"
+                    _append_pipeline_log_rotating(
+                        f"✓ {stage} {pr_url}  ({elapsed if elapsed is not None else '?'}s)",
+                        path=_pipeline_log_path,
                     )
                 elif kind == "stage_fail":
+                    elapsed = ev.get("elapsed_s")
+                    if elapsed is not None:
+                        stage_timings.setdefault(stage, []).append(float(elapsed))
                     dashboard.apply({"kind": "pr_fail", "pr_url": pr_url,
                                      "status": "fail", "stage": stage,
                                      "reason": ev.get("reason", ""),
                                      "next_action": "open the agent log or rerun this PR",
-                                     "elapsed_s": ev.get("elapsed_s")})
+                                     "elapsed_s": elapsed})
                     dashboard.print_snapshot()
-                    _append_pipeline_log(
-                        f"✗ {stage} {pr_url}  reason: {ev.get('reason', '')[:120]}"
+                    _append_pipeline_log_rotating(
+                        f"✗ {stage} {pr_url}  reason: {ev.get('reason', '')[:120]}",
+                        path=_pipeline_log_path,
                     )
                 elif kind == "pr_done":
-                    _append_pipeline_log(f"● pr-done {pr_url}")
+                    _append_pipeline_log_rotating(
+                        f"● pr-done {pr_url}", path=_pipeline_log_path)
 
             queue_path_obj = Path(args.queue).expanduser()
             runner_cfg = {
@@ -1219,7 +1277,8 @@ def main(argv: list[str] | None = None) -> int:
     # Step 4: aggregate report.
     ended_ts = _now_iso()
     report_path = _write_report(run_dir, results, started_ts, ended_ts,
-                                ran_sync, dry_run=False)
+                                ran_sync, dry_run=False,
+                                stage_timings=stage_timings)
     n_fail = sum(1 for r in results if r.get("status") == "failed")
     update_run(state_run_id, {
         "status": "failed" if n_fail else "ok",

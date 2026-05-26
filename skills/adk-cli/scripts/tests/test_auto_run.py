@@ -156,12 +156,12 @@ def test_cfg_reads_pr_review_all_from_adk_cli_json5(tmp_path, monkeypatch):
         encoding="utf-8",
     )
     monkeypatch.setenv("ADK_CONFIG_HOME", str(cfg_dir))
-    sys.modules.pop("config_io", None)
-
+    from config import reset_bundle  # type: ignore
+    reset_bundle()
     try:
         assert auto_run._cfg("runner", "claude") == "cursor"
     finally:
-        sys.modules.pop("config_io", None)
+        reset_bundle()
 
 
 def test_missing_agent_binary_records_failure(tmp_path, monkeypatch):
@@ -309,3 +309,82 @@ def test_review_result_prints_failure_reason(capsys):
     out = capsys.readouterr().out
     assert "gh:foo#42" in out
     assert "RuntimeError: missing model" in out
+
+
+def test_write_report_includes_stage_timing_table(tmp_path):
+    """Per-stage timing table is rendered when stage_timings is non-empty."""
+    results = [
+        {"pr_url": "u1", "status": "ok", "exit_code": 0, "elapsed_s": 10.0},
+    ]
+    stage_timings = {
+        "import": [0.4, 0.5, 0.6],
+        "sync": [3.0, 2.8, 5.2],
+    }
+    md = auto_run._write_report(
+        tmp_path, results,
+        started="2026-05-26T00:00:00Z",
+        ended="2026-05-26T00:10:00Z",
+        ran_sync=True, dry_run=False,
+        stage_timings=stage_timings,
+    )
+    body = md.read_text()
+    assert "## Per-stage timing" in body
+    assert "import" in body
+    assert "sync" in body
+    # Each row contains numeric columns
+    assert "|" in body
+
+
+def test_write_report_omits_timing_table_when_empty(tmp_path):
+    """No timing table when stage_timings is empty or None."""
+    results = [{"pr_url": "u1", "status": "ok", "exit_code": 0}]
+    for st in (None, {}):
+        md = auto_run._write_report(
+            tmp_path, results,
+            started="2026-05-26T00:00:00Z",
+            ended="2026-05-26T00:10:00Z",
+            ran_sync=False, dry_run=False,
+            stage_timings=st,
+        )
+        body = md.read_text()
+        assert "Per-stage timing" not in body
+
+
+def test_append_pipeline_log_rotating_rotates_at_max_bytes(tmp_path):
+    """Log file is renamed when it hits max_bytes; old archives are pruned."""
+    log_path = tmp_path / "pipeline.log"
+    # Write a file that is already at the size limit.
+    log_path.write_bytes(b"x" * 10)
+
+    auto_run._append_pipeline_log_rotating(
+        "new line", path=log_path, max_bytes=10
+    )
+
+    # Original file is now the fresh log with the new line.
+    assert "new line" in log_path.read_text()
+    # An archive was created.
+    archives = list(tmp_path.glob("pipeline.log.*"))
+    assert len(archives) == 1
+
+
+def test_append_pipeline_log_rotating_keeps_only_five_archives(tmp_path):
+    """When there are already 5+ archives, older ones are deleted."""
+    log_path = tmp_path / "pipeline.log"
+
+    # Create 6 existing archives with distinct mtimes.
+    import time as _time
+    for i in range(6):
+        arch = tmp_path / f"pipeline.log.2026-05-{i + 1:02d}T000000Z"
+        arch.write_bytes(b"old")
+        # Space out mtimes so sorting is deterministic.
+        os.utime(arch, (i * 10, i * 10))
+
+    log_path.write_bytes(b"x" * 20)
+    auto_run._append_pipeline_log_rotating(
+        "trigger", path=log_path, max_bytes=10
+    )
+
+    # After rotation we should have at most 5 archives (the 6 old + 1 new = 7,
+    # trimmed to 5).
+    archives = list(tmp_path.glob("pipeline.log.*"))
+    assert len(archives) <= 5
