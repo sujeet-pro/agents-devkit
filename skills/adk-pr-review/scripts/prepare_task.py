@@ -435,262 +435,23 @@ def main() -> int:
                 pass
 
 
-def _run_phase3_only(args, parsed, task_dir, log, *, head_sha: str,
-                     prior_index_head: str | None) -> int:
-    """Run Phase 3 (index) only. Assumes worktree at task_dir/code already exists.
+def _run_phase3(args, parsed, task_dir, log, *, head_sha: str,
+                prior_index_head: str | None, target_branch: str) -> None:
+    """Phase 3 core: chunk + embed + SCIP with seed-and-overlay when available.
 
-    Called when --phases index is passed together with --prepare-only.  This
-    lets the pipeline's Index stage reuse prepare_task.py's full index logic
-    (incremental, seed-and-overlay, full rebuild) without repeating Phase 0,
-    1a/1b, 2a, or 2b.
+    Handles all four decision branches:
+      - prior index, head unchanged  → skip
+      - prior index, head changed    → incremental re-index
+      - no prior index, base seed    → seed-copy then overlay diff
+      - no prior index, no seed      → full index
+
+    Callers must emit narrate_start("3", …) before calling this function.
+    This function emits narrate_done("3", …), the queue stamp, and the
+    health check.  It does NOT emit narrate_summary or _print_prepare_summary
+    — those remain the caller's responsibility because their wording differs
+    between the inline-prepare and index-only paths.
     """
     host, owner, repo, n = parsed["host"], parsed["owner"], parsed["repo"], parsed["pr_number"]
-    log.info("--- Phase 3 only: index (chunk + embed + SCIP) ---")
-    narrate_start(task_dir, "3", "index (chunk + embed + SCIP)")
-
-    code_index_dir = task_dir / "code-index"
-    chunks_path = code_index_dir / "chunks.jsonl"
-    has_prior_index = (code_index_dir / "meta.json").exists() and prior_index_head is not None
-    changed_files: list[str] = []
-    seed_info: dict | None = None
-    if has_prior_index and prior_index_head != head_sha:
-        repo_clone = repo_clone_for(repo)
-        changed_files = diff_changed_files(repo_clone, prior_index_head, head_sha, log)
-        log.info("incremental re-index: %d files changed", len(changed_files))
-
-    # Delegate to the shared Phase 3 logic that lives in _main_inner by running
-    # the chunker/embedder/scip inline (same commands as _main_inner Phase 3).
-    pr_json_path = pr_review_file(task_dir, "pr.json")
-    pr = read_json(pr_json_path)
-    target_branch = (pr.get("baseRefName") or "").strip()
-
-    if not has_prior_index:
-        log.info("Phase 3 (index-only): FULL index")
-        code_index_dir.mkdir(parents=True, exist_ok=True)
-        step([PY, str(CODE_INDEX_LIB / "chunker.py"),
-              "--worktree", str(task_dir / "code"),
-              "--out", str(chunks_path)], log)
-        step([PY, str(CODE_INDEX_LIB / "embedder.py"),
-              "--task-dir", str(task_dir),
-              "--chunks", str(chunks_path),
-              "--model", args.embed_model,
-              "--mode", "replace", "--json"], log)
-        step([PY, str(CODE_INDEX_LIB / "scip_runner.py"),
-              "--task-dir", str(task_dir),
-              "--worktree", str(task_dir / "code"), "--json"], log)
-        mark_phase(task_dir, "3_index", "done",
-                   head_sha_at_index=head_sha, incremental=False, seeded_from_base=False)
-    elif prior_index_head == head_sha:
-        log.info("Phase 3 (index-only): head_sha unchanged; skipping reindex")
-        mark_phase(task_dir, "3_index", "done",
-                   head_sha_at_index=head_sha, incremental=False, skipped=True)
-    elif changed_files:
-        log.info("Phase 3 (index-only): INCREMENTAL re-index (%d files)", len(changed_files))
-        files_list = code_index_dir / "changed-files.txt"
-        files_list.write_text("\n".join(changed_files), encoding="utf-8")
-        delta_chunks = code_index_dir / "chunks-delta.jsonl"
-        step([PY, str(CODE_INDEX_LIB / "chunker.py"),
-              "--worktree", str(task_dir / "code"),
-              "--files-list", str(files_list),
-              "--out", str(delta_chunks)], log)
-        step([PY, str(CODE_INDEX_LIB / "embedder.py"),
-              "--task-dir", str(task_dir),
-              "--chunks", str(delta_chunks),
-              "--model", args.embed_model,
-              "--mode", "incremental",
-              "--replaced-files", str(files_list),
-              "--json"], log)
-        langs = _languages_for(changed_files)
-        if langs:
-            step([PY, str(CODE_INDEX_LIB / "scip_runner.py"),
-                  "--task-dir", str(task_dir),
-                  "--worktree", str(task_dir / "code"),
-                  "--langs", ",".join(sorted(langs)), "--json"], log)
-        mark_phase(task_dir, "3_index", "done",
-                   head_sha_at_index=head_sha, incremental=True,
-                   files_changed=len(changed_files), seeded_from_base=False)
-    else:
-        log.info("Phase 3 (index-only): full re-index (no resolvable delta)")
-        chunks_path.parent.mkdir(parents=True, exist_ok=True)
-        step([PY, str(CODE_INDEX_LIB / "chunker.py"),
-              "--worktree", str(task_dir / "code"),
-              "--out", str(chunks_path)], log)
-        step([PY, str(CODE_INDEX_LIB / "embedder.py"),
-              "--task-dir", str(task_dir),
-              "--chunks", str(chunks_path),
-              "--model", args.embed_model,
-              "--mode", "replace", "--json"], log)
-        step([PY, str(CODE_INDEX_LIB / "scip_runner.py"),
-              "--task-dir", str(task_dir),
-              "--worktree", str(task_dir / "code"), "--json"], log)
-        mark_phase(task_dir, "3_index", "done",
-                   head_sha_at_index=head_sha, incremental=False,
-                   seeded_from_base=False, reason="no resolvable delta")
-
-    _idx_phase = (read_state(task_dir).get("phases") or {}).get("3_index") or {}
-    if not _idx_phase.get("skipped"):
-        _queue_path = Path(args.queue).expanduser()
-        update_pr_entry(_queue_path, args.url, {
-            "last_indexed_at": _queue_now_iso(),
-            "last_indexed_head_sha": head_sha,
-        })
-
-    step([PY, str(CODE_INDEX_LIB / "query_index.py"),
-          "--task-dir", str(task_dir), "--health", "--json"], log)
-
-    if _idx_phase.get("skipped"):
-        _idx_note = "skipped — head unchanged"
-    elif _idx_phase.get("incremental"):
-        _idx_note = f"incremental ({_idx_phase.get('files_changed', 0)} files)"
-    else:
-        _idx_note = "full rebuild"
-    narrate_done(task_dir, "3", note=_idx_note)
-
-    log.info("--phases index: Phase 3 complete")
-    narrate_summary(task_dir, status="indexed (phase 3 only)",
-                    head_sha=head_sha[:12],
-                    incremental=bool(_idx_phase.get("incremental")))
-    _print_prepare_summary(
-        pr_url=args.url,
-        task_dir=task_dir,
-        head_sha=head_sha,
-        worktree=task_dir / "code",
-        precis=pr_review_file(task_dir, "precis.md"),
-        status="Indexed",
-    )
-    return 0
-
-
-def _main_inner(args, parsed, task_dir, log) -> int:
-    host, owner, repo, n = parsed["host"], parsed["owner"], parsed["repo"], parsed["pr_number"]
-    state = read_state(task_dir)
-    # P1.2 self-heal: if state.json carries a stale task_dir (e.g. from a v3/v4 run),
-    # overwrite it with
-    # the current runtime path so downstream readers don't fail on the old literal path.
-    if state.get("task_dir") and state["task_dir"] != str(task_dir):
-        log.info("state.json: healing stale task_dir %r → %s", state["task_dir"], task_dir)
-        state["task_dir"] = str(task_dir)
-        write_state(task_dir, state)
-    # Same for code-index/meta.json table_path if present.
-    meta_path = task_dir / "code-index" / "meta.json"
-    if meta_path.exists():
-        try:
-            meta = json.loads(meta_path.read_text(encoding="utf-8"))
-            tp = meta.get("table_path") or ""
-            if tp and not tp.startswith(str(task_dir)):
-                new_tp = str(task_dir / "code-index" / Path(tp).name)
-                log.info("code-index/meta.json: healing stale table_path %r → %s", tp, new_tp)
-                meta["table_path"] = new_tp
-                meta_path.write_text(json.dumps(meta, indent=2), encoding="utf-8")
-        except Exception as e:
-            log.warning("code-index/meta.json: could not self-heal (%s)", e)
-    prior_index_head = state.get("phases", {}).get("3_index", {}).get("head_sha_at_index")
-    if args.rebuild:
-        log.info("--rebuild: prior index will be discarded")
-        prior_index_head = None
-
-    # --phases index: run ONLY Phase 3 (assumes worktree exists from a prior sync
-    # run). Skip Phase 0, 2a, 1a/1b, 2b, 4a.  Requires --prepare-only.
-    _phases = getattr(args, "phases", "all") or "all"
-    if _phases == "index" and args.prepare_only:
-        log.info("--phases index: running Phase 3 only")
-        # Read head_sha from existing pr.json (written by a prior sync).
-        pr_json_path = pr_review_file(task_dir, "pr.json")
-        if not pr_json_path.exists():
-            die("--phases index requires an existing pr.json (run --phases sync first)")
-        pr = read_json(pr_json_path)
-        head_sha = pr.get("head_sha")
-        if not head_sha:
-            die("pr.json has no head_sha — run --phases sync first")
-        return _run_phase3_only(args, parsed, task_dir, log,
-                                head_sha=head_sha,
-                                prior_index_head=prior_index_head)
-
-    # ---------- Phase 0: prereqs ----------
-    log.info("--- Phase 0: prereq ---")
-    narrate_start(task_dir, "0", "prereq (ollama + gh)")
-    cp = run([PY, str(CODE_INDEX_LIB / "ensure_ollama.py"), "--model", args.embed_model, "--json"], check=False)
-    if cp.returncode != 0:
-        sys.stderr.write(cp.stdout + cp.stderr)
-        narrate_done(task_dir, "0", status="failed", note="ollama not ready")
-        die("ollama not ready — see hint above")
-    if host == "github" and not which("gh"):
-        narrate_done(task_dir, "0", status="failed", note="gh CLI missing")
-        die("gh CLI required for GitHub PRs. brew install gh.")
-    mark_phase(task_dir, "0_prereq", "done",
-               url=args.url, host=host, owner=owner, repo=repo, pr_number=n,
-               embed_model=args.embed_model)
-    narrate_done(task_dir, "0", note=f"embed={args.embed_model}")
-    append_decision(
-        skill="adk-pr-review", fork_id="embed_model", fork_type="inferred",
-        default_offered=args.embed_model,
-        evidence="--detailed=%s, --embed-model=%s" % (args.detailed, args.embed_model),
-        repo=repo, task_slug=f"{repo}_pr-{n}",
-    )
-
-    # ---------- Phase 2a: fetch PR (always — gets fresh head_sha) ----------
-    log.info("--- Phase 2a: fetch PR (always; gets fresh head_sha) ---")
-    narrate_start(task_dir, "2a", "fetch PR (meta + diff + comments)")
-    step([PY, str(THIS_DIR / "fetch_pr.py"),
-          "--host", host, "--owner", owner, "--repo", repo,
-          "--pr-number", str(n), "--task-dir", str(task_dir), "--json"], log)
-    pr = read_json(pr_review_file(task_dir, "pr.json"))
-    head_sha = pr.get("head_sha")
-    if not head_sha:
-        narrate_done(task_dir, "2a", status="failed", note="no head_sha")
-        die("fetch_pr.py did not populate head_sha")
-    log.info("PR head_sha: %s (prior indexed: %s)", head_sha[:12], (prior_index_head or "<none>")[:12])
-    narrate_done(task_dir, "2a", note=f"head {head_sha[:12]}")
-
-    # ---------- Phase 1: clone + worktree (ALWAYS — pulls latest) ----------
-    log.info("--- Phase 1a: ensure repo clone (always fetch --all --prune) ---")
-    narrate_start(task_dir, "1a", "ensure repo clone (git fetch --all --prune)")
-    step([PY, str(THIS_DIR / "ensure_repo_clone.py"),
-          "--host", host, "--owner", owner, "--repo", repo, "--json"], log)
-    narrate_done(task_dir, "1a")
-    log.info("--- Phase 1b: create/update worktree at %s (serialized) ---", head_sha[:12])
-    narrate_start(task_dir, "1b", f"worktree at {head_sha[:12]}")
-    step([PY, str(THIS_DIR / "create_worktree.py"),
-          "--repo", repo, "--pr-number", str(n), "--head-sha", head_sha,
-          "--host", host,
-          "--json"] + (["--rebuild"] if args.rebuild else []), log)
-    narrate_done(task_dir, "1b")
-    mark_phase(task_dir, "1_worktree", "done",
-               worktree_path=str(task_dir / "code"), head_sha=head_sha)
-
-    # ---------- Phase 2b: supporting docs scan (always) ----------
-    log.info("--- Phase 2b: scan supporting docs ---")
-    narrate_start(task_dir, "2b", "scan linked Confluence / Jira / GDoc URLs")
-    step([PY, str(THIS_DIR / "fetch_supporting_docs.py"),
-          "--task-dir", str(task_dir), "--json"], log)
-    mark_phase(task_dir, "2_fetch", "done", head_sha=head_sha)
-    narrate_done(task_dir, "2b")
-
-    # ---------- Phase 3: index (full or incremental) ----------
-    # When --phases sync is requested, skip Phase 3 entirely so the caller
-    # (the pipeline Sync stage) can then hand off to a separate Index stage.
-    if _phases == "sync" and args.prepare_only:
-        log.info("--phases sync: skipping Phase 3 (index)")
-        narrate_done(task_dir, "3", note="skipped (--phases sync)")
-        # Still build precis so the task folder is usable for review context.
-        log.info("--- Phase 4a: build precis.md ---")
-        narrate_start(task_dir, "4a", "build precis.md")
-        precis = build_precis(task_dir, args.top_k_context, args.scope)
-        (pr_review_file(task_dir, "precis.md")).write_text(precis, encoding="utf-8")
-        narrate_done(task_dir, "4a")
-        log.info("--phases sync: phases 0+2a+1a+1b+2b+4a complete")
-        narrate_summary(task_dir, status="synced (phases 0+2a+1a+1b+2b+4a)",
-                        head_sha=head_sha[:12], incremental=False)
-        _print_prepare_summary(
-            pr_url=args.url,
-            task_dir=task_dir,
-            head_sha=head_sha,
-            worktree=task_dir / "code",
-            precis=pr_review_file(task_dir, "precis.md"),
-            status="Synced inputs (no index)",
-        )
-        return 0
-    narrate_start(task_dir, "3", "index (chunk + embed + SCIP)")
     code_index_dir = task_dir / "code-index"
     chunks_path = code_index_dir / "chunks.jsonl"
     has_prior_index = (code_index_dir / "meta.json").exists() and prior_index_head is not None
@@ -702,7 +463,7 @@ def _main_inner(args, parsed, task_dir, log) -> int:
         log.info("incremental re-index: %d files changed between %s..%s",
                  len(changed_files), prior_index_head[:12], head_sha[:12])
 
-    # NEW: when there's no prior PR-task-local index, consider seeding from a
+    # When there's no prior PR-task-local index, consider seeding from a
     # repo-level base index (built by `adk repo add|update`). This converts
     # the cold 9-minute full reindex into a warm overlay: copy the base table
     # dir, then run the embedder in incremental mode for the files that
@@ -713,7 +474,6 @@ def _main_inner(args, parsed, task_dir, log) -> int:
     # overlay is just (develop_indexed_sha → pr_head). When the target branch
     # isn't indexed we fall back to the repo's default branch; that still
     # beats a cold reindex but the overlay is larger.
-    target_branch = (pr.get("baseRefName") or "").strip()
     if not has_prior_index and not args.rebuild and not args.no_base_seed and _BASE_INDEX_AVAILABLE:
         base = pick_base_index(repo, target_branch=target_branch or None)
         if base is None:
@@ -895,6 +655,181 @@ def _main_inner(args, parsed, task_dir, log) -> int:
     # actually landed on disk.
     step([PY, str(CODE_INDEX_LIB / "query_index.py"),
           "--task-dir", str(task_dir), "--health", "--json"], log)
+
+
+def _run_phase3_only(args, parsed, task_dir, log, *, head_sha: str,
+                     prior_index_head: str | None) -> int:
+    """Run Phase 3 (index) only. Assumes worktree at task_dir/code already exists.
+
+    Called when --phases index is passed together with --prepare-only.  This
+    lets the pipeline's Index stage reuse prepare_task.py's full index logic
+    (incremental, seed-and-overlay, full rebuild) without repeating Phase 0,
+    1a/1b, 2a, or 2b.
+    """
+    log.info("--- Phase 3 only: index (chunk + embed + SCIP) ---")
+    narrate_start(task_dir, "3", "index (chunk + embed + SCIP)")
+
+    pr_json_path = pr_review_file(task_dir, "pr.json")
+    pr = read_json(pr_json_path)
+    target_branch = (pr.get("baseRefName") or "").strip()
+
+    _run_phase3(args, parsed, task_dir, log,
+                head_sha=head_sha,
+                prior_index_head=prior_index_head,
+                target_branch=target_branch)
+
+    _idx_phase = (read_state(task_dir).get("phases") or {}).get("3_index") or {}
+    log.info("--phases index: Phase 3 complete")
+    narrate_summary(task_dir, status="indexed (phase 3 only)",
+                    head_sha=head_sha[:12],
+                    incremental=bool(_idx_phase.get("incremental")))
+    _print_prepare_summary(
+        pr_url=args.url,
+        task_dir=task_dir,
+        head_sha=head_sha,
+        worktree=task_dir / "code",
+        precis=pr_review_file(task_dir, "precis.md"),
+        status="Indexed",
+    )
+    return 0
+
+
+def _main_inner(args, parsed, task_dir, log) -> int:
+    host, owner, repo, n = parsed["host"], parsed["owner"], parsed["repo"], parsed["pr_number"]
+    state = read_state(task_dir)
+    # P1.2 self-heal: if state.json carries a stale task_dir (e.g. from a v3/v4 run),
+    # overwrite it with
+    # the current runtime path so downstream readers don't fail on the old literal path.
+    if state.get("task_dir") and state["task_dir"] != str(task_dir):
+        log.info("state.json: healing stale task_dir %r → %s", state["task_dir"], task_dir)
+        state["task_dir"] = str(task_dir)
+        write_state(task_dir, state)
+    # Same for code-index/meta.json table_path if present.
+    meta_path = task_dir / "code-index" / "meta.json"
+    if meta_path.exists():
+        try:
+            meta = json.loads(meta_path.read_text(encoding="utf-8"))
+            tp = meta.get("table_path") or ""
+            if tp and not tp.startswith(str(task_dir)):
+                new_tp = str(task_dir / "code-index" / Path(tp).name)
+                log.info("code-index/meta.json: healing stale table_path %r → %s", tp, new_tp)
+                meta["table_path"] = new_tp
+                meta_path.write_text(json.dumps(meta, indent=2), encoding="utf-8")
+        except Exception as e:
+            log.warning("code-index/meta.json: could not self-heal (%s)", e)
+    prior_index_head = state.get("phases", {}).get("3_index", {}).get("head_sha_at_index")
+    if args.rebuild:
+        log.info("--rebuild: prior index will be discarded")
+        prior_index_head = None
+
+    # --phases index: run ONLY Phase 3 (assumes worktree exists from a prior sync
+    # run). Skip Phase 0, 2a, 1a/1b, 2b, 4a.  Requires --prepare-only.
+    _phases = getattr(args, "phases", "all") or "all"
+    if _phases == "index" and args.prepare_only:
+        log.info("--phases index: running Phase 3 only")
+        # Read head_sha from existing pr.json (written by a prior sync).
+        pr_json_path = pr_review_file(task_dir, "pr.json")
+        if not pr_json_path.exists():
+            die("--phases index requires an existing pr.json (run --phases sync first)")
+        pr = read_json(pr_json_path)
+        head_sha = pr.get("head_sha")
+        if not head_sha:
+            die("pr.json has no head_sha — run --phases sync first")
+        return _run_phase3_only(args, parsed, task_dir, log,
+                                head_sha=head_sha,
+                                prior_index_head=prior_index_head)
+
+    # ---------- Phase 0: prereqs ----------
+    log.info("--- Phase 0: prereq ---")
+    narrate_start(task_dir, "0", "prereq (ollama + gh)")
+    cp = run([PY, str(CODE_INDEX_LIB / "ensure_ollama.py"), "--model", args.embed_model, "--json"], check=False)
+    if cp.returncode != 0:
+        sys.stderr.write(cp.stdout + cp.stderr)
+        narrate_done(task_dir, "0", status="failed", note="ollama not ready")
+        die("ollama not ready — see hint above")
+    if host == "github" and not which("gh"):
+        narrate_done(task_dir, "0", status="failed", note="gh CLI missing")
+        die("gh CLI required for GitHub PRs. brew install gh.")
+    mark_phase(task_dir, "0_prereq", "done",
+               url=args.url, host=host, owner=owner, repo=repo, pr_number=n,
+               embed_model=args.embed_model)
+    narrate_done(task_dir, "0", note=f"embed={args.embed_model}")
+    append_decision(
+        skill="adk-pr-review", fork_id="embed_model", fork_type="inferred",
+        default_offered=args.embed_model,
+        evidence="--detailed=%s, --embed-model=%s" % (args.detailed, args.embed_model),
+        repo=repo, task_slug=f"{repo}_pr-{n}",
+    )
+
+    # ---------- Phase 2a: fetch PR (always — gets fresh head_sha) ----------
+    log.info("--- Phase 2a: fetch PR (always; gets fresh head_sha) ---")
+    narrate_start(task_dir, "2a", "fetch PR (meta + diff + comments)")
+    step([PY, str(THIS_DIR / "fetch_pr.py"),
+          "--host", host, "--owner", owner, "--repo", repo,
+          "--pr-number", str(n), "--task-dir", str(task_dir), "--json"], log)
+    pr = read_json(pr_review_file(task_dir, "pr.json"))
+    head_sha = pr.get("head_sha")
+    if not head_sha:
+        narrate_done(task_dir, "2a", status="failed", note="no head_sha")
+        die("fetch_pr.py did not populate head_sha")
+    log.info("PR head_sha: %s (prior indexed: %s)", head_sha[:12], (prior_index_head or "<none>")[:12])
+    narrate_done(task_dir, "2a", note=f"head {head_sha[:12]}")
+
+    # ---------- Phase 1: clone + worktree (ALWAYS — pulls latest) ----------
+    log.info("--- Phase 1a: ensure repo clone (always fetch --all --prune) ---")
+    narrate_start(task_dir, "1a", "ensure repo clone (git fetch --all --prune)")
+    step([PY, str(THIS_DIR / "ensure_repo_clone.py"),
+          "--host", host, "--owner", owner, "--repo", repo, "--json"], log)
+    narrate_done(task_dir, "1a")
+    log.info("--- Phase 1b: create/update worktree at %s (serialized) ---", head_sha[:12])
+    narrate_start(task_dir, "1b", f"worktree at {head_sha[:12]}")
+    step([PY, str(THIS_DIR / "create_worktree.py"),
+          "--repo", repo, "--pr-number", str(n), "--head-sha", head_sha,
+          "--host", host,
+          "--json"] + (["--rebuild"] if args.rebuild else []), log)
+    narrate_done(task_dir, "1b")
+    mark_phase(task_dir, "1_worktree", "done",
+               worktree_path=str(task_dir / "code"), head_sha=head_sha)
+
+    # ---------- Phase 2b: supporting docs scan (always) ----------
+    log.info("--- Phase 2b: scan supporting docs ---")
+    narrate_start(task_dir, "2b", "scan linked Confluence / Jira / GDoc URLs")
+    step([PY, str(THIS_DIR / "fetch_supporting_docs.py"),
+          "--task-dir", str(task_dir), "--json"], log)
+    mark_phase(task_dir, "2_fetch", "done", head_sha=head_sha)
+    narrate_done(task_dir, "2b")
+
+    # ---------- Phase 3: index (full or incremental) ----------
+    # When --phases sync is requested, skip Phase 3 entirely so the caller
+    # (the pipeline Sync stage) can then hand off to a separate Index stage.
+    if _phases == "sync" and args.prepare_only:
+        log.info("--phases sync: skipping Phase 3 (index)")
+        narrate_done(task_dir, "3", note="skipped (--phases sync)")
+        # Still build precis so the task folder is usable for review context.
+        log.info("--- Phase 4a: build precis.md ---")
+        narrate_start(task_dir, "4a", "build precis.md")
+        precis = build_precis(task_dir, args.top_k_context, args.scope)
+        (pr_review_file(task_dir, "precis.md")).write_text(precis, encoding="utf-8")
+        narrate_done(task_dir, "4a")
+        log.info("--phases sync: phases 0+2a+1a+1b+2b+4a complete")
+        narrate_summary(task_dir, status="synced (phases 0+2a+1a+1b+2b+4a)",
+                        head_sha=head_sha[:12], incremental=False)
+        _print_prepare_summary(
+            pr_url=args.url,
+            task_dir=task_dir,
+            head_sha=head_sha,
+            worktree=task_dir / "code",
+            precis=pr_review_file(task_dir, "precis.md"),
+            status="Synced inputs (no index)",
+        )
+        return 0
+    target_branch = (pr.get("baseRefName") or "").strip()
+    narrate_start(task_dir, "3", "index (chunk + embed + SCIP)")
+    _run_phase3(args, parsed, task_dir, log,
+                head_sha=head_sha,
+                prior_index_head=prior_index_head,
+                target_branch=target_branch)
+    _idx_phase = (read_state(task_dir).get("phases") or {}).get("3_index") or {}
 
     # ---------- Phase 4a: precis ----------
     log.info("--- Phase 4a: build precis.md ---")
