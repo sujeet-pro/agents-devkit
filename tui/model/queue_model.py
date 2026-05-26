@@ -12,10 +12,10 @@ _CLI_SCRIPTS = Path(__file__).resolve().parent.parent.parent / "skills" / "adk-c
 if str(_CLI_SCRIPTS) not in sys.path:
     sys.path.insert(0, str(_CLI_SCRIPTS))
 
-_LIB_DIR = Path(__file__).resolve().parents[2] / "scripts" / "lib"
-if str(_LIB_DIR) not in sys.path:
-    sys.path.insert(0, str(_LIB_DIR))
-from adk_home import adk_data_home  # noqa: E402
+_ADK_REPO_LIB = Path(__file__).resolve().parents[2] / "scripts" / "lib"
+if str(_ADK_REPO_LIB) not in sys.path:
+    sys.path.insert(0, str(_ADK_REPO_LIB))
+from config import adk_data_home  # noqa: E402
 
 import queue_io  # noqa: E402
 
@@ -123,11 +123,14 @@ def _row_from_entry(entry: dict, now: datetime, *, queue_index: int) -> QueueRow
 
 
 def _title_from_task_dir(repo: str, number: int) -> str | None:
-    """Best-effort title fallback for older queue rows without `title`.
+    """Back-compat fallback: read title from the task-dir pr.json when the
+    queue row has no `title` field.
 
-    Existing prepared PR folders usually have `pr.json` even when the queue row
-    predates title capture. Reading one small JSON file keeps the TUI useful
-    without forcing a full queue refresh.
+    Since the Import stage (do_import.py) now populates row.title eagerly the
+    moment a PR enters the queue, this function is only reached for rows that
+    were added before the Import stage was introduced. It is intentionally
+    kept so the TUI remains useful for pre-existing queues without forcing a
+    full queue refresh.
     """
     task_dir = _PR_REVIEW_ROOT / f"{repo}_pr-{number}"
     for rel in ("pr.json", "pr-review/pr.json"):

@@ -35,6 +35,13 @@ GH_FIELDS = (
     "author,reviewDecision,labels,additions,deletions,changedFiles,url,statusCheckRollup"
 )
 
+# Fields fetched in --metadata-only mode. No body, no comments, no diff.
+# Designed to complete in <2 s per PR; populates the queue row eagerly.
+GH_METADATA_FIELDS = (
+    "number,title,author,headRefName,baseRefName,state,isDraft,mergeable,"
+    "additions,deletions,changedFiles,headRefOid,url"
+)
+
 
 def _normalize_check_rollup(items: list[dict]) -> dict:
     failing_states = {"FAILURE", "FAILED", "ERROR", "CANCELLED", "TIMED_OUT", "ACTION_REQUIRED"}
@@ -53,6 +60,47 @@ def _normalize_check_rollup(items: list[dict]) -> dict:
             passed += 1
     overall = "failing" if failing else ("pending" if pending else ("passed" if passed else "unknown"))
     return {"state": overall, "failing": failing, "pending": pending, "passed": passed}
+
+
+def fetch_github_metadata(owner: str, repo: str, n: int, task_dir: Path, log) -> dict:
+    """Fetch only lightweight PR metadata — no diff, no comments, no body.
+
+    Writes a minimal pr.json containing only the small payload so the queue
+    row can be enriched with title/author/etc. immediately. A subsequent full
+    fetch (fetch_github) will overwrite pr.json with the complete payload.
+    """
+    if not which("gh"):
+        die("gh CLI not on PATH. brew install gh.")
+    log.info("gh pr view --json [metadata-only] (%s/%s#%d)", owner, repo, n)
+    cp = run(["gh", "pr", "view", str(n), "--repo", f"{owner}/{repo}",
+              "--json", GH_METADATA_FIELDS])
+    raw = json.loads(cp.stdout)
+    pr: dict = {
+        "host": "github",
+        "owner": owner,
+        "repo": repo,
+        "pr_number": n,
+        "number": raw.get("number"),
+        "title": raw.get("title"),
+        "author": raw.get("author"),
+        "state": raw.get("state"),
+        "is_draft": raw.get("isDraft"),
+        "isDraft": raw.get("isDraft"),
+        "mergeable": raw.get("mergeable"),
+        "headRefName": raw.get("headRefName"),
+        "baseRefName": raw.get("baseRefName"),
+        "head_sha": raw.get("headRefOid"),
+        "headRefOid": raw.get("headRefOid"),
+        "additions": raw.get("additions"),
+        "deletions": raw.get("deletions"),
+        "changed_files": raw.get("changedFiles"),
+        "changedFiles": raw.get("changedFiles"),
+        "url": raw.get("url"),
+        "target_branch": raw.get("baseRefName"),
+        "metadata_only": True,
+    }
+    write_json(pr_review_file(task_dir, "pr.json"), pr)
+    return pr
 
 
 def fetch_github(owner: str, repo: str, n: int, task_dir: Path, log) -> dict:
@@ -193,6 +241,51 @@ def _fetch_bb_checks(s: requests.Session, workspace: str, repo: str,
     return {"state": overall, "failing": failing, "pending": pending, "passed": passed}
 
 
+def fetch_bitbucket_metadata(workspace: str, repo: str, n: int, task_dir: Path, log) -> dict:
+    """Fetch only the PR-detail endpoint — no diff, no comments.
+
+    Writes a minimal pr.json so the queue row can be enriched with
+    title/author/etc. immediately. A subsequent full fetch (fetch_bitbucket)
+    will overwrite pr.json with the complete payload.
+    """
+    s = _bb_session()
+    log.info("bb GET /pullrequests/%d [metadata-only]", n)
+    r = s.get(f"{BB_BASE}/repositories/{workspace}/{repo}/pullrequests/{n}", timeout=30)
+    r.raise_for_status()
+    pr_raw = r.json()
+
+    head_short = pr_raw.get("source", {}).get("commit", {}).get("hash")
+    head = _bb_resolve_full_sha(s, workspace, repo, head_short, log)
+
+    author_obj = pr_raw.get("author")
+    source_branch = pr_raw.get("source", {}).get("branch", {}).get("name")
+    dest_branch = pr_raw.get("destination", {}).get("branch", {}).get("name")
+    pr: dict = {
+        "host": "bitbucket",
+        "owner": workspace,
+        "repo": repo,
+        "pr_number": n,
+        "title": pr_raw.get("title"),
+        "author": author_obj,
+        "state": pr_raw.get("state"),
+        "is_draft": False,  # Bitbucket Cloud does not have draft PRs
+        "isDraft": False,
+        "mergeable": pr_raw.get("mergeable"),
+        "headRefName": source_branch,
+        "baseRefName": dest_branch,
+        "head_sha": head,
+        "headRefOid": head,
+        "additions": None,   # not available in the detail endpoint without diff
+        "deletions": None,
+        "changed_files": None,
+        "url": pr_raw.get("links", {}).get("html", {}).get("href"),
+        "target_branch": dest_branch,
+        "metadata_only": True,
+    }
+    write_json(pr_review_file(task_dir, "pr.json"), pr)
+    return pr
+
+
 def fetch_bitbucket(workspace: str, repo: str, n: int, task_dir: Path, log) -> dict:
     s = _bb_session()
     log.info("bb GET /pullrequests/%d", n)
@@ -247,18 +340,54 @@ def fetch_bitbucket(workspace: str, repo: str, n: int, task_dir: Path, log) -> d
 # ----- entrypoint ----------------------------------------------------------
 
 def main() -> int:
-    ap = argparse.ArgumentParser()
+    ap = argparse.ArgumentParser(
+        description="Fetch PR metadata, comments, and diff from GitHub or Bitbucket.",
+    )
     ap.add_argument("--host", required=True, choices=("github", "bitbucket"))
     ap.add_argument("--owner", required=True)
     ap.add_argument("--repo", required=True)
     ap.add_argument("--pr-number", required=True, type=int)
     ap.add_argument("--task-dir", required=True)
     ap.add_argument("--json", action="store_true")
+    ap.add_argument(
+        "--metadata-only",
+        action="store_true",
+        help=(
+            "Fetch only lightweight PR metadata (title, author, head_sha, "
+            "target_branch, is_draft, additions, deletions, changed_files). "
+            "No diff, no comments, no body. Designed to run in <2 s per PR "
+            "so the queue row can be enriched eagerly at Import stage."
+        ),
+    )
     args = ap.parse_args()
 
     task_dir = Path(args.task_dir)
     task_dir.mkdir(parents=True, exist_ok=True)
     log = get_logger("fetch_pr", task_dir)
+
+    if args.metadata_only:
+        if args.host == "github":
+            pr = fetch_github_metadata(args.owner, args.repo, args.pr_number, task_dir, log)
+        else:
+            pr = fetch_bitbucket_metadata(args.owner, args.repo, args.pr_number, task_dir, log)
+        result = {
+            "task_dir": str(task_dir),
+            "pr_json": str(pr_review_file(task_dir, "pr.json")),
+            "metadata_only": True,
+            "head_sha": pr.get("head_sha"),
+            "title": pr.get("title"),
+            "author": pr.get("author"),
+            "target_branch": pr.get("target_branch"),
+            "is_draft": pr.get("is_draft"),
+            "additions": pr.get("additions"),
+            "deletions": pr.get("deletions"),
+            "changed_files": pr.get("changed_files"),
+            "url": pr.get("url"),
+        }
+        if args.json:
+            return emit_json(result)
+        print(result, file=sys.stderr)
+        return 0
 
     if args.host == "github":
         pr = fetch_github(args.owner, args.repo, args.pr_number, task_dir, log)
