@@ -12,7 +12,7 @@
       "command": "sh",
       "args": [
         "-c",
-        "site=\"${ATLASSIAN_SITE}\"; site=\"${site#https://}\"; site=\"${site#http://}\"; site=\"${site%%/*}\"; export CONFLUENCE_URL=\"https://${site}/wiki\"; export CONFLUENCE_USERNAME=\"${ATLASSIAN_USERNAME}\"; export CONFLUENCE_API_TOKEN=\"${ATLASSIAN_API_TOKEN}\"; export JIRA_URL=\"https://${site}\"; export JIRA_USERNAME=\"${ATLASSIAN_USERNAME}\"; export JIRA_API_TOKEN=\"${ATLASSIAN_API_TOKEN}\"; exec uvx mcp-atlassian@latest"
+        "site=$(printf '%s' \"${ATLASSIAN_SITE}\" | sed -E 's#^https?://##; s#/.*$##'); export CONFLUENCE_URL=\"https://$site/wiki\"; export CONFLUENCE_USERNAME=\"${ATLASSIAN_USERNAME}\"; export CONFLUENCE_API_TOKEN=\"${ATLASSIAN_API_TOKEN}\"; export JIRA_URL=\"https://$site\"; export JIRA_USERNAME=\"${ATLASSIAN_USERNAME}\"; export JIRA_API_TOKEN=\"${ATLASSIAN_API_TOKEN}\"; exec uvx mcp-atlassian@latest"
       ]
     },
     "adk-slack": {
