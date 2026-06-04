@@ -1,13 +1,3 @@
-# adk v3 — repo-level ignores
-
-# Task-scoped working dirs (per-skill intermediates, gitignored everywhere)
-.temp/
-**/.temp/
-
-# Repo-level overrides — gitignored at the root of THIS repo (the devkit itself).
-# Downstream repos may track their own .adk/; that's their call.
-/.adk/
-
 # Editor / OS noise
 .DS_Store
 .idea/
@@ -15,28 +5,16 @@
 *.swp
 *.swo
 
-# Build / dependency artifacts (defensive; v3 has no build but legacy/ contained some)
-node_modules/
-dist/
-build/
-coverage/
-.cache/
-.pagesmith/
-gh-pages/
+# Logs / scratch
 *.log
+.cache/
 
 # Env files
 .env
 .env.*
 !.env.example
 
-# Python tooling
+# Python tooling (if any local tooling is added)
 __pycache__/
 *.pyc
 .venv/
-.mypy_cache/
-.ruff_cache/
-
-# Install scratch
-/install-scratch/
-.claude/worktrees/

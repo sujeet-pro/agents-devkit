@@ -1,6 +1,0 @@
-{
-  "name": "adk-mcp-mixpanel",
-  "type": "http",
-  "url": "https://mcp.mixpanel.com/mcp",
-  "description": "Mixpanel hosted MCP. OAuth on first connect (browser pop, cached) — no env vars required. Covers events, funnels, cohorts, dashboards, experiments, feature flags. Project resolved from the authenticated identity; pin the canonical project_id in $ADK_CONFIG_HOME/mixpanel.json5 :: projects[*].project_id so skills don't ask. See SETUP.md."
-}

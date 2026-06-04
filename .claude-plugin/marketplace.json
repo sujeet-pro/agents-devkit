@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-marketplace.json",
+  "name": "agents-devkit",
+  "owner": {
+    "name": "Sujeet Jaiswal",
+    "url": "https://github.com/sujeet-pro"
+  },
+  "description": "A focused, Claude-optimized engineering toolkit: one plugin with self-contained skills for implementing, reviewing, deep PR review, investigating, and documenting — each with a phased workflow and tailored persona.",
+  "metadata": {
+    "pluginRoot": "./plugins"
+  },
+  "plugins": [
+    {
+      "name": "adk",
+      "source": "./plugins/adk",
+      "description": "Agents Dev Kit — implement, review, pr-review, investigate, document. Self-contained skills, custom agents, env-gated MCP servers. GitHub via gh CLI, git via git, SSH-only clones.",
+      "category": "productivity",
+      "keywords": ["code-review", "pr-review", "implement", "investigate", "documentation", "workflow"],
+      "license": "MIT"
+    }
+  ]
+}

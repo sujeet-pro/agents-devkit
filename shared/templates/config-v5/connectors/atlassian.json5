@@ -1,7 +1,0 @@
-{
-  auth: {
-    site_env: "ATLASSIAN_SITE",
-    username_env: "ATLASSIAN_USERNAME",
-    api_token_env: "ATLASSIAN_API_TOKEN_CRED",
-  },
-}

@@ -1,5 +1,0 @@
-slack_sdk>=3.27
-json5>=0.9
-PyYAML>=6.0
-requests>=2.31
-textual>=0.86

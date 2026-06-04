@@ -1,6 +1,0 @@
-{
-  // Datadog application configuration
-  // site: "datadoghq.com",  // or datadoghq.eu, us3.datadoghq.com, etc.
-  // default_env: "production",
-  // apm_services: [],
-}

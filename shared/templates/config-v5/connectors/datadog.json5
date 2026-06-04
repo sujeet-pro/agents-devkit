@@ -1,7 +1,0 @@
-{
-  auth: {
-    api_key_env: "DATADOG_API_KEY_CRED",
-    app_key_env: "DATADOG_APP_KEY_CRED",
-  },
-  site: "datadoghq.com",  // override with DD_SITE if different
-}

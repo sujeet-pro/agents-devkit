@@ -1,6 +1,0 @@
-# adk-pr-review — Python deps.
-#
-# All indexer deps live in the shared lib; this file just references that
-# requirements set so `pip install -r` against this skill still installs
-# everything needed.
--r ../../../scripts/lib/code_index/requirements.txt

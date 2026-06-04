@@ -1,9 +1,0 @@
-{
-  "name": "adk-mcp-github",
-  "type": "http",
-  "url": "https://api.githubcopilot.com/mcp/",
-  "headers": {
-    "Authorization": "Bearer ${GITHUB_TOKEN_CRED}"
-  },
-  "description": "GitHub hosted MCP. Acts on behalf of the authenticated identity (token scopes = MCP capability). Auth: PAT (fine-grained preferred) in $GITHUB_TOKEN_CRED. To switch to OAuth: remove the `headers` block; agent will run OAuth on first connect. Skills fall back through MCP → `gh` CLI → direct REST (last resort). See SETUP.md."
-}

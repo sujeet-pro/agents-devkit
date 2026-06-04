@@ -1,6 +1,0 @@
-{
-  auth: {
-    api_key_env: "STATSIG_CONSOLE_API_KEY_CRED",
-  },
-  // project: "your-statsig-project",
-}

@@ -1,7 +1,0 @@
-{
-  // Snowflake configuration
-  // account: "your-account.snowflakecomputing.com",
-  // default_warehouse: "COMPUTE_WH",
-  // default_role: "ANALYST",
-  // default_database: "ANALYTICS",
-}

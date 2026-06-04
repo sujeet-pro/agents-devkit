@@ -1,4 +1,0 @@
-{
-  // Mixpanel uses OAuth — no static API key. First tool use opens browser.
-  // project_id: "your-project-id",
-}

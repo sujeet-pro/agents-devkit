@@ -1,7 +1,0 @@
-{
-  auth: {
-    token_env: "BITBUCKET_TOKEN_CRED",
-    username_env: "BITBUCKET_USERNAME",
-  },
-  // workspace: "your-bitbucket-workspace",
-}
