@@ -36,7 +36,7 @@ A thread with an *acceptable reply* is left alone regardless of its current stat
 
 ### 1. Offline-alignment
 
-The discussion moved off-platform: "agreed offline", "discussed in standup", "we'll handle this in a follow-up PR", "out of scope per <person>", "talked about this and decided X". See patterns below.
+The discussion moved off-platform, or the work was explicitly deferred to a different changeset: "agreed offline", "discussed in standup", "we'll handle this in a follow-up PR", "it will be done in the next PR", "to be addressed in a separate patch", "out of scope per <person>", "talked about this and decided X". See patterns below.
 
 ### 2. Jira (or similar) ticket reference
 
@@ -44,9 +44,11 @@ The concern was tracked in another ticket: "tracked in PROJ-1234", "moved to INF
 
 When this matches, the thread is left in whatever state it's in, and the Jira key is recorded in `comment-actions.json[].valid_reply.detail` so the report shows the tracking handoff.
 
-### 3. "Synced with @person"
+### 3. "Synced with @person" / "discussed with <Name>"
 
-The reviewer / author named a human they aligned with: "synced with @alice", "spoke to @bob", "per chat with @carol", "as per @dave". Same effect — leave alone, record the handle.
+The reviewer / author named a human they aligned with — either an @-handle or a capitalised proper name: "synced with @alice", "spoke to @bob", "per chat with @carol", "as discussed with Sujeet". Same effect — leave alone, record the person.
+
+A bare lowercase word after "with"/"to" is **not** accepted ("discussed with the team", "discussed with care") — the disposition needs a specific accountable human, so the name must be @-mentioned or capitalised.
 
 In all three cases the verifier sets `valid_reply: {kind, detail}` on the action; the report renders this so a human can trace why a thread was left alone.
 
@@ -58,6 +60,7 @@ Match the last non-author reply (or any reply) against these patterns (case-inse
 - /\b(agreed|aligned|sync'd|synced|discussed)\s+(offline|in (the )?meeting|in (the )?call|on slack|on discord)\b/
 - /\b(offline|out of band)\s+(agreement|alignment|conversation)\b/
 - /\b(we'?ll|will)\s+(handle|address|fix)\s+(this|it)\s+(in|via|with)\s+(a\s+)?(follow-up|follow up|separate)\s+PR\b/
+- /\b(in|via|with|to)\s+(a |an |the )?(follow-?up|follow up|separate|next|later|subsequent|future|another)\s+(prs?|mrs?|patch(es)?|change(set)?s?|diffs?)\b/  — deferred to a different changeset (verb-agnostic; excludes "this PR" and "commit")
 - /\bout of scope\b/
 - /\bskip(ping)?\s+for now\b/
 - /\bdeferred\b/

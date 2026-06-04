@@ -41,6 +41,12 @@ OFFLINE_PATTERNS = [
     re.compile(r"\b(agreed|aligned|sync'?d|synced|discussed)\s+(offline|in\s+(the\s+)?meeting|in\s+(the\s+)?call|on\s+slack|on\s+discord)\b", re.I),
     re.compile(r"\b(offline|out\s+of\s+band)\s+(agreement|alignment|conversation)\b", re.I),
     re.compile(r"\b(we'?ll|will)\s+(handle|address|fix)\s+(this|it)\s+(in|via|with)\s+(a\s+)?(follow-?up|follow\s+up|separate)\s+pr\b", re.I),
+    # Deferral to a DIFFERENT changeset — verb-agnostic. "done in next PR",
+    # "in a follow-up PR", "to a separate patch", "via a later diff". Note the
+    # adjective list deliberately omits "this" (staying in this PR, not
+    # deferring) and the noun list omits "commit" (a "next commit" usually
+    # means a fix is incoming to THIS PR, so the thread should stay open).
+    re.compile(r"\b(?:in|via|with|to)\s+(?:a\s+|an\s+|the\s+)?(?:follow-?up|follow\s+up|separate|next|later|subsequent|future|another)\s+(?:prs?|mrs?|patch(?:es)?|change(?:set)?s?|diffs?)\b", re.I),
     re.compile(r"\bout\s+of\s+scope\b", re.I),
     re.compile(r"\bskip(ping)?\s+for\s+now\b", re.I),
     re.compile(r"\bdeferred\b", re.I),
@@ -61,13 +67,24 @@ JIRA_REPLY_PATTERNS = [
     re.compile(r"\bfollow[- ]?up\b[^.\n]{0,20}\b([A-Z][A-Z0-9]{1,9}-\d+)\b", re.I),
 ]
 
-# "Synced with @person" / "spoke to @person" — explicit human alignment.
-# @ is required: "synced with the team" is too generic; we want a specific
-# accountable handle so the report can name who took the decision.
+# "Synced with @person" / "spoke to @person" / "as discussed with Sujeet" —
+# explicit human alignment. We accept an @-handle OR a capitalised proper name
+# (see extract_synced_with). A bare lowercase word ("with the team", "with
+# care") is rejected: we want a specific accountable human so the report can
+# name who took the decision.
 SYNCED_WITH_PATTERNS = [
-    re.compile(r"\b(?:synced|sync'?d|spoke|spoken|talked|aligned|discussed)\s+(?:with|to)\s+@([A-Za-z][\w.-]{1,40})\b", re.I),
-    re.compile(r"\b(?:per|as\s+per|per\s+chat\s+with)\s+@([A-Za-z][\w.-]{1,40})\b", re.I),
+    re.compile(r"\b(?:synced|sync'?d|spoke|spoken|talked|aligned|discussed)\s+(?:with|to)\s+(@?[A-Za-z][\w.'-]{1,40})\b", re.I),
+    re.compile(r"\b(?:per|as\s+per|per\s+chat\s+with)\s+(@?[A-Za-z][\w.'-]{1,40})\b", re.I),
 ]
+
+# Generic group words that are NOT specific accountable people. Even when
+# capitalised ("the Team"), these don't name an individual, so a "discussed
+# with <these>" reply is not a "synced" disposition.
+_SYNC_STOPWORDS = {
+    "team", "teams", "everyone", "everybody", "group", "folks", "all",
+    "you", "him", "her", "them", "us", "someone", "people", "others",
+    "ourselves", "myself", "yourself", "the", "a", "an",
+}
 
 NEGATIVE_PATTERNS = [
     re.compile(r"\b(but|however|except|unless)\b", re.I),
@@ -103,14 +120,26 @@ def extract_jira_reply_ref(body: str) -> str | None:
 
 
 def extract_synced_with(body: str) -> str | None:
-    """Return the @person handle if the reply names a sync partner."""
+    """Return the person (handle or name) if the reply names a sync partner.
+
+    Accepts either an @-handle ("synced with @alice") or a capitalised proper
+    name ("as discussed with Sujeet"). A bare lowercase word after "with"/"to"
+    is rejected — "discussed with care" / "talked with the team" must not count
+    — because we need a specific accountable human for the report to name.
+    """
     body = body or ""
     if not _passes_negatives(body):
         return None
     for p in SYNCED_WITH_PATTERNS:
         m = p.search(body)
-        if m:
-            return m.group(1)
+        if not m:
+            continue
+        raw = m.group(1)
+        if raw.startswith("@"):
+            return raw.lstrip("@") or None
+        # No @ — require a capitalised proper name, and reject generic groups.
+        if raw[:1].isupper() and raw.lower() not in _SYNC_STOPWORDS:
+            return raw
     return None
 
 
