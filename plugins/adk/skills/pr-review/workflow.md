@@ -22,14 +22,14 @@ All GitHub data via the `gh` CLI:
 - Metadata: `gh pr view <url> --json title,body,author,baseRefName,headRefName,headRefOid,additions,deletions,files,labels`.
 - Diff: `gh pr diff <url>` (or `git -C <scratch>/repo diff <base>...<head>` once fetched).
 - Existing review threads + reviews: `gh api graphql` for review threads (id, isResolved, path, line, comments), or `gh pr view <url> --json comments,reviews` for a simpler view.
-- Linked supporting docs: scan the PR body + comments for Jira/Confluence URLs (one hop) and fetch via the `adk-atlassian` MCP. Read them — the diff must satisfy what they specify; flag drift as a `docs` finding.
+- Linked supporting docs: scan the PR body + comments for Jira/Confluence URLs (one hop) and fetch via the `atlassian` MCP. Read them — the diff must satisfy what they specify; flag drift as a `docs` finding.
 
 ## Phase 3 — review (the Workflow)
 
 Drive a **Workflow** over the diff + worktree:
 
 1. **Fan out one agent per applicable dimension** (`dimensions.md`): `code-reviewer` for correctness/performance/api/concurrency/readability/consistency; `security-auditor` for security; `test-engineer` (consulted) for tests; a feature-flow pass when a flag/experiment is in the diff. Each agent gets the diff, the worktree path for cross-file context (Read/Grep/Glob), and its single dimension. The minimum bar for any code-touching PR: correctness, security, tests.
-2. **Feature-flow tracing**: for any new path behind a flag/experiment/config, resolve current state via the `adk-statsig` MCP + a repo-config grep, and check kill-switch / fallback / metric-to-watch (`dimensions.md`).
+2. **Feature-flow tracing**: for any new path behind a flag/experiment/config, resolve current state via the `statsig` MCP + a repo-config grep, and check kill-switch / fallback / metric-to-watch (`dimensions.md`).
 3. **Adversarially verify** every surfaced finding: an independent skeptic tries to refute it (is the quote real? is the trigger plausible? is it already handled elsewhere in the diff?). Survives only if not refuted.
 4. **Dedup + synthesize** into one severity-ordered set. Cite every finding by `file:line`. `--scope` narrows the dimension family.
 

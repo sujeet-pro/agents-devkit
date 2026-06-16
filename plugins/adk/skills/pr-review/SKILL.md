@@ -5,8 +5,8 @@ description: >-
   worktree at the PR head (SSH clone only), and reviews the diff with full cross-file context via
   Read/Grep/Glob. Fans out one agent per dimension (correctness, security, tests, performance, api,
   docs, observability, concurrency, feature-flow) through the Workflow tool, then adversarially
-  verifies every finding before it survives. Traces feature flags / experiments via the adk-statsig
-  MCP and pulls linked Jira/Confluence via the adk-atlassian MCP. Posts inline review comments,
+  verifies every finding before it survives. Traces feature flags / experiments via the statsig
+  MCP and pulls linked Jira/Confluence via the atlassian MCP. Posts inline review comments,
   a review summary, and appreciations through the gh CLI after confirmation. NEVER merges, never
   force-pushes, never edits the PR's code. For a quick read-only pass with no worktree, use /adk:review.
 allowed-tools: Read, Grep, Glob, Bash, WebFetch, Agent, Workflow
@@ -33,8 +33,8 @@ The full operating contract lives in this skill folder — read these as you nee
 
 1. **Phase 0 — parse + auth.** Parse the URL → `(owner, repo, number)`. Verify `gh auth status`. (`workflow.md` Phase 0.)
 2. **Phase 1 — checkout.** Ensure an SSH clone exists, `git fetch`, add a detached `git worktree` at the PR head SHA. The worktree is **read-only** — you never edit the PR's code.
-3. **Phase 2 — gather.** PR metadata + diff + existing review threads via `gh pr view --json` / `gh pr diff` / `gh api`; linked Jira/Confluence via the adk-atlassian MCP.
-4. **Phase 3 — the Workflow.** Fan out one agent per dimension over diff + worktree, trace feature flags via the adk-statsig MCP, then adversarially verify and synthesize. (`dimensions.md`, `workflow.md` Phase 3.)
+3. **Phase 2 — gather.** PR metadata + diff + existing review threads via `gh pr view --json` / `gh pr diff` / `gh api`; linked Jira/Confluence via the atlassian MCP.
+4. **Phase 3 — the Workflow.** Fan out one agent per dimension over diff + worktree, trace feature flags via the statsig MCP, then adversarially verify and synthesize. (`dimensions.md`, `workflow.md` Phase 3.)
 5. **Phase 4 — threads.** Classify each existing review thread resolve / reopen / leave-as-is by re-checking the worktree at its anchor (`comment-resolution.md`).
 6. **Phase 5–6 — triage + post.** Triage findings, then render inline comments + a summary + appreciations via the `gh` CLI. Confirm before transmitting.
 

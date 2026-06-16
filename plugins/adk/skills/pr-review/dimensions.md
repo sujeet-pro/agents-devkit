@@ -23,7 +23,7 @@ Each dimension is a separate pass (a separate agent in the Workflow). A finding 
 When the diff adds a path behind a feature flag, experiment, or dynamic config:
 
 1. **Find the reference** in the diff (the flag/experiment/config key).
-2. **Resolve current state** via the `adk-statsig` MCP (gate/experiment status, rollout %) plus a grep of the repo's config files for the same key.
+2. **Resolve current state** via the `statsig` MCP (gate/experiment status, rollout %) plus a grep of the repo's config files for the same key.
 3. **Check the rollout story**: is there a kill-switch path? a fallback behavior when the flag is off? a metric to watch? is the off-path tested?
 4. **Flag any missing** of: no kill switch, no fallback, no metric, untested off-path. Cite the `file:line` of the flag check.
 

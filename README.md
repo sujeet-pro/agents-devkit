@@ -52,14 +52,14 @@ The plugin ships `.mcp.json` with these servers. Each is **opt-in via environmen
 
 | MCP server | Used by | Environment variables |
 |---|---|---|
-| `adk-datadog` | investigate | `DATADOG_API_KEY`, `DATADOG_APP_KEY` |
-| `adk-atlassian` | implement, document, investigate, pr-review | `ATLASSIAN_SITE`, `ATLASSIAN_USERNAME`, `ATLASSIAN_API_TOKEN` (needs `uvx`) |
-| `adk-slack` | investigate, implement | `SLACK_BOT_TOKEN`, `SLACK_USER_TOKEN` (needs `npx`) |
-| `adk-statsig` | pr-review, investigate | `STATSIG_CONSOLE_API_KEY` |
-| `adk-mixpanel` | investigate | OAuth on first use — no env vars |
-| `adk-snowflake` | investigate | `SNOWFLAKE_CONNECTION_NAME`, `SNOWFLAKE_ACCESS_TOKEN`, `SNOWFLAKE_SERVICE_CONFIG_FILE`, `SNOWFLAKE_HOME` (needs `uvx`) |
-| `adk-looker` | investigate | `LOOKER_BASE_URL`, `LOOKER_CLIENT_ID`, `LOOKER_CLIENT_SECRET` (needs `uvx`) |
-| `adk-google` | document, investigate | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `USER_GOOGLE_EMAIL`, `GOOGLE_WORKSPACE_MCP_CREDENTIALS_DIR` (needs `uvx`) |
+| `datadog` | investigate | `DATADOG_API_KEY`, `DATADOG_APP_KEY` |
+| `atlassian` | implement, document, investigate, pr-review | `ATLASSIAN_SITE`, `ATLASSIAN_USERNAME`, `ATLASSIAN_API_TOKEN` (needs `uvx`) |
+| `slack` | investigate, implement | `SLACK_BOT_TOKEN`, `SLACK_USER_TOKEN` (needs `npx`) |
+| `statsig` | pr-review, investigate | `STATSIG_CONSOLE_API_KEY` |
+| `mixpanel` | investigate | OAuth on first use — no env vars |
+| `snowflake` | investigate | `SNOWFLAKE_CONNECTION_NAME`, `SNOWFLAKE_ACCESS_TOKEN`, `SNOWFLAKE_SERVICE_CONFIG_FILE`, `SNOWFLAKE_HOME` (needs `uvx`) |
+| `looker` | investigate | `LOOKER_BASE_URL`, `LOOKER_CLIENT_ID`, `LOOKER_CLIENT_SECRET` (needs `uvx`) |
+| `google` | document, investigate | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `USER_GOOGLE_EMAIL`, `GOOGLE_WORKSPACE_MCP_CREDENTIALS_DIR` (needs `uvx`) |
 
 Set these in your shell environment before launching Claude Code; `.mcp.json` expands `${VAR}` at connection time. A server whose env vars are unset simply won't connect, and the skills degrade honestly (they mark the source as skipped).
 

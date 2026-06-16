@@ -15,13 +15,13 @@ Route by input shape → sub-flow → data sources. Every route still pins a win
 
 | Source | MCP server | Use for |
 |---|---|---|
-| Datadog | `adk-datadog` | logs, metrics, traces, monitors, error-tracking, APM, security signals |
-| Slack | `adk-slack` | incident chatter, prior occurrences, oncall threads |
-| Statsig | `adk-statsig` | gate/experiment audit log + results (read-only) |
-| Mixpanel | `adk-mixpanel` | event funnels, user-impact, experiment exposure |
-| Snowflake | `adk-snowflake` | warehouse queries (read-only SELECT) |
-| Looker | `adk-looker` | dashboards, looks, explores (read-only) |
-| Atlassian | `adk-atlassian` | linked Jira incident tickets / Confluence runbooks |
+| Datadog | `datadog` | logs, metrics, traces, monitors, error-tracking, APM, security signals |
+| Slack | `slack` | incident chatter, prior occurrences, oncall threads |
+| Statsig | `statsig` | gate/experiment audit log + results (read-only) |
+| Mixpanel | `mixpanel` | event funnels, user-impact, experiment exposure |
+| Snowflake | `snowflake` | warehouse queries (read-only SELECT) |
+| Looker | `looker` | dashboards, looks, explores (read-only) |
+| Atlassian | `atlassian` | linked Jira incident tickets / Confluence runbooks |
 | GitHub / git | `gh` CLI + `git` | recent merged PRs, deploy commits, `git blame` on suspect lines |
 
 ## Honest degradation

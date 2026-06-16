@@ -18,10 +18,10 @@ Five phases, read-only throughout. The phased process is the contract; the **Wor
 
 Drive a **Workflow** that fans out one agent **per data source**, each blind to the others — this is what stops you anchoring on the first plausible cause:
 
-- **Datadog** (`adk-datadog` MCP) — logs, metrics, traces, monitors, error-tracking in the pinned window.
+- **Datadog** (`datadog` MCP) — logs, metrics, traces, monitors, error-tracking in the pinned window.
 - **Recent deploys** — `gh` (`gh api`, `gh pr list --state merged`, `git log`) to find what shipped near `T`.
-- **Slack** (`adk-slack` MCP) — chatter / prior incidents around the window.
-- **Statsig** (`adk-statsig` MCP) — audit log of gate/experiment changes near `T` (±2h for RCA).
+- **Slack** (`slack` MCP) — chatter / prior incidents around the window.
+- **Statsig** (`statsig` MCP) — audit log of gate/experiment changes near `T` (±2h for RCA).
 - **Mixpanel / Snowflake / Looker** (their MCPs) — user-impact / analytics, when in scope. Read-only queries only.
 
 Each agent returns its findings with a ≤15-word quote + timestamp. Honest degradation: if an MCP is unreachable, mark `[<source>: skipped]` and lower the confidence of any conclusion that would have leaned on it.
