@@ -14,6 +14,9 @@
 .env.*
 !.env.example
 
+# Live, rendered credential configs (populated from scripts/creds/templates)
+.creds/
+
 # Python tooling (if any local tooling is added)
 __pycache__/
 *.pyc

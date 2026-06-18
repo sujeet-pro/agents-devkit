@@ -9,11 +9,16 @@
       }
     },
     "atlassian": {
-      "command": "sh",
-      "args": [
-        "-c",
-        "site=$(printf '%s' \"${ATLASSIAN_SITE}\" | sed -E 's#^https?://##; s#/.*$##'); export CONFLUENCE_URL=\"https://$site/wiki\"; export CONFLUENCE_USERNAME=\"${ATLASSIAN_USERNAME}\"; export CONFLUENCE_API_TOKEN=\"${ATLASSIAN_API_TOKEN}\"; export JIRA_URL=\"https://$site\"; export JIRA_USERNAME=\"${ATLASSIAN_USERNAME}\"; export JIRA_API_TOKEN=\"${ATLASSIAN_API_TOKEN}\"; exec uvx mcp-atlassian@latest"
-      ]
+      "command": "uvx",
+      "args": ["mcp-atlassian@latest"],
+      "env": {
+        "CONFLUENCE_URL": "${CONFLUENCE_URL}",
+        "CONFLUENCE_USERNAME": "${ATLASSIAN_USERNAME}",
+        "CONFLUENCE_API_TOKEN": "${ATLASSIAN_API_TOKEN}",
+        "JIRA_URL": "${JIRA_URL}",
+        "JIRA_USERNAME": "${ATLASSIAN_USERNAME}",
+        "JIRA_API_TOKEN": "${ATLASSIAN_API_TOKEN}"
+      }
     },
     "slack": {
       "command": "npx",
@@ -28,7 +33,7 @@
       "type": "http",
       "url": "https://api.statsig.com/v1/mcp",
       "headers": {
-        "statsig-api-key": "${STATSIG_CONSOLE_API_KEY}"
+        "statsig-api-key": "${STATSIG_CONSOLE_API_KEY_RO}"
       }
     },
     "mixpanel": {
@@ -39,9 +44,12 @@
       "command": "uvx",
       "args": [
         "snowflake-labs-mcp@latest",
-        "--connection-name", "${SNOWFLAKE_CONNECTION_NAME}",
-        "--password", "${SNOWFLAKE_ACCESS_TOKEN}",
-        "--service-config-file", "${SNOWFLAKE_SERVICE_CONFIG_FILE}"
+        "--connection-name",
+        "${SNOWFLAKE_CONNECTION_NAME}",
+        "--password",
+        "${SNOWFLAKE_ACCESS_TOKEN}",
+        "--service-config-file",
+        "${SNOWFLAKE_SERVICE_CONFIG_FILE}"
       ],
       "env": {
         "SNOWFLAKE_HOME": "${SNOWFLAKE_HOME}"
@@ -49,7 +57,11 @@
     },
     "looker": {
       "command": "uvx",
-      "args": ["looker-mcp-server@latest", "--groups", "explore,query,schema,content"],
+      "args": [
+        "looker-mcp-server@latest",
+        "--groups",
+        "explore,query,schema,content"
+      ],
       "env": {
         "LOOKER_BASE_URL": "${LOOKER_BASE_URL}",
         "LOOKER_CLIENT_ID": "${LOOKER_CLIENT_ID}",
