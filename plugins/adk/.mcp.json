@@ -29,6 +29,15 @@
         "SLACK_MCP_ADD_MESSAGE_TOOL": "true"
       }
     },
+    "slack-bot": {
+      "command": "npx",
+      "args": ["-y", "slack-mcp-server@latest"],
+      "env": {
+        "SLACK_MCP_XOXB_TOKEN": "${SLACK_BOT_TOKEN}",
+        "SLACK_MCP_ADD_MESSAGE_TOOL": "true",
+        "SLACK_MCP_ENABLED_TOOLS": "conversations_add_message"
+      }
+    },
     "statsig": {
       "type": "http",
       "url": "https://api.statsig.com/v1/mcp",

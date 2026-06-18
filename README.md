@@ -1,6 +1,6 @@
 # Agents Dev Kit — a Claude Code plugin marketplace
 
-A focused, Claude-optimized engineering toolkit, packaged as a **single-plugin Claude Code marketplace**. Install it and you get five self-contained skills, a set of tailored sub-agents, and pre-wired (env-gated) MCP servers.
+A focused, Claude-optimized engineering toolkit, packaged as a **single-plugin Claude Code marketplace**. Install it and you get six self-contained skills, a set of tailored sub-agents, and pre-wired (env-gated) MCP servers.
 
 Every skill is **self-contained** (its whole contract lives in its own folder), ships its **own phased workflow and tailored persona**, and uses the **Workflow tool** to fan out the heavy steps (multi-dimension review, multi-source investigation) with adversarial verification.
 
@@ -34,6 +34,7 @@ Skills also auto-trigger by intent (e.g. "review this PR", "why is checkout slow
 | `implement` | Build a change from a Jira ticket / GitHub issue / Slack thread / freeform prose. Plans before it acts, writes the smallest correct change with tests, validates with the repo's own tooling. |
 | `investigate` | Read-only multi-source RCA: pins an explicit window, fans out one agent per data source (Datadog / Slack / Statsig / Mixpanel / Snowflake / Looker / deploys), requires ≥2 agreeing signals before naming a root cause. |
 | `document` | Draft any markdown artifact (runbook / ADR / RCA / PR body / migration guide / …), reader-first and cited. Drafts locally; never publishes. |
+| `slack-post` | Send a message to a Slack channel / DM / thread with an explicit identity: posts **as you** by default, **as the bot** only when the prompt asks, and always appends a `Sent using Claude` footer. |
 
 ## The agents
 
@@ -54,7 +55,8 @@ The plugin ships `.mcp.json` with these servers. Each is **opt-in via environmen
 |---|---|---|
 | `datadog` | investigate | `DATADOG_API_KEY`, `DATADOG_APP_KEY` |
 | `atlassian` | implement, document, investigate, pr-review | `ATLASSIAN_SITE`, `ATLASSIAN_USERNAME`, `ATLASSIAN_API_TOKEN` (needs `uvx`) |
-| `slack` | investigate, implement | `SLACK_BOT_TOKEN`, `SLACK_USER_TOKEN` (needs `npx`) |
+| `slack` | investigate, implement, slack-post | `SLACK_BOT_TOKEN`, `SLACK_USER_TOKEN` — reads + posts as you (needs `npx`) |
+| `slack-bot` | slack-post | `SLACK_BOT_TOKEN` — posts as the app/bot; only the post tool (needs `npx`) |
 | `statsig` | pr-review, investigate | `STATSIG_CONSOLE_API_KEY` |
 | `mixpanel` | investigate | OAuth on first use — no env vars |
 | `snowflake` | investigate | `SNOWFLAKE_CONNECTION_NAME`, `SNOWFLAKE_ACCESS_TOKEN`, `SNOWFLAKE_SERVICE_CONFIG_FILE`, `SNOWFLAKE_HOME` (needs `uvx`) |
