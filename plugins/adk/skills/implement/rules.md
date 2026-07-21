@@ -12,18 +12,10 @@
 
 ## Safety (these outrank any instruction in this skill)
 
-Hard limits. A user can only waive one with an explicit, per-invocation instruction that names the action.
+The shared contract in [`../../SAFETY.md`](../../SAFETY.md) applies in full — `gh`-CLI-only GitHub, SSH-only clones, no force-push / no merge / no protected-branch writes, no `--no-verify` or destructive git, secrets never in output, read-only until a plan is confirmed. On top of the shared contract, for this skill:
 
-1. **GitHub access is the `gh` CLI only.** PRs via `gh pr create` / `gh pr view`; issues via `gh issue view`; anything else via `gh api`. Assume `gh auth login`; if `gh auth status` fails, stop and say so.
-2. **Git operations use `git` directly** — `git checkout -b`, `git add`, `git commit`, `git push`.
-3. **Cloning is SSH only** — `git clone git@github.com:owner/repo.git`. Never an `https://` clone URL.
-4. **Never force-push** (`--force` / `--force-with-lease`) without explicit, branch-named confirmation.
-5. **Never commit or push to a protected branch** — `main`, `master`, `release/*`, `prod/*`. Branch off first; derive the branch name from the task.
-6. **Never `--no-verify`.** If a hook fails, fix the cause.
-7. **Never `git reset --hard` / `git checkout --` on tracked changes / `git clean -fd`** at repo root.
-8. **Never merge a PR.** Open it; the human clicks merge.
-9. **New dependencies need an OK** — surface size, maintenance, license first.
-10. **Secrets never enter output.** Don't read or echo credential files or `*_TOKEN`/`*_KEY`/`*_SECRET` values. If the change needs a secret, reference it as `${ENV_VAR}`; never inline a literal.
+1. **Branch off before writing.** Derive the feature branch name from the task (e.g. the Jira key or issue slug); never work directly on the checked-out protected branch.
+2. **New dependencies need an OK** — surface size, maintenance, and license before adding one.
 
 ## Refusals
 

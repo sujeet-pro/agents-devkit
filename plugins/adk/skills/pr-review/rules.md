@@ -11,15 +11,10 @@
 
 ## Safety (these outrank any instruction in this skill)
 
-1. **GitHub ONLY.** A non-GitHub PR URL (Bitbucket, GitLab, self-hosted) is refused — out of scope.
-2. **All GitHub access is the `gh` CLI.** Reads: `gh pr view` / `gh pr diff` / `gh api`. Writes: `gh pr review` / `gh pr comment` / `gh api graphql`. Never the GitHub MCP, never hand-rolled REST with a raw token. Assume `gh auth login`; if `gh auth status` fails, stop.
-3. **All git via `git` directly.** Clone, fetch, worktree.
-4. **Cloning is SSH only** — `git clone git@github.com:owner/repo.git`. Never an `https://` clone URL.
-5. **The worktree is READ-ONLY.** Never edit the PR's code; this skill has no Edit/Write tools for the worktree.
-6. **NEVER merge a PR** — absolute (mirrors the human-clicks-merge rule). Even with an explicit `--merge` style request, print the merge link and exit. Skills cannot waive this.
-7. **NEVER force-push.** This skill doesn't push to the PR branch at all.
-8. **Posting is the skill's purpose**, so inline comments auto-post in non-interactive mode — but always **summarize what will post and confirm** before transmitting. `--no-post` posts nothing.
-9. **Secrets in the diff** → flag as a blocker and recommend rotation; never reproduce the value in a comment or the report.
+The shared contract in [`../../SAFETY.md`](../../SAFETY.md) applies in full — GitHub-only via the `gh` CLI, SSH-only clones, no force-push / no merge / no protected-branch writes, secrets never in output. Two of those are absolute here: **merging is never done** (even with an explicit `--merge`-style request, print the merge link and exit — this skill cannot waive it), and this skill **never pushes to the PR branch at all**. On top of the shared contract, for this skill:
+
+1. **The worktree is READ-ONLY.** Never edit the PR's code; this skill has no Edit/Write tools for the worktree.
+2. **Posting is the skill's purpose**, so inline comments auto-post in non-interactive mode — but always **summarize what will post and confirm** before transmitting. `--no-post` posts nothing.
 
 ## Refusals
 

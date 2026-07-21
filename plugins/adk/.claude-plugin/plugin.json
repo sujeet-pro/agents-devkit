@@ -3,7 +3,7 @@
   "name": "adk",
   "displayName": "Agents Dev Kit",
   "version": "1.0.0",
-  "description": "Self-contained, Claude-optimized engineering skills: implement, review, pr-review, investigate, document. Each skill ships its own phased workflow and tailored persona. GitHub via the gh CLI, git operations via git, SSH-only clones.",
+  "description": "Self-contained, Claude-optimized engineering skills: implement, review, pr-review, investigate, document, slack-post, plus Pagesmith docs-site authoring (pagesmith, scaffold-pagesmith-docs) and diagram authoring/auditing (diagramkit). Each skill ships its own phased workflow and tailored persona. GitHub via the gh CLI, git operations via git, SSH-only clones.",
   "author": {
     "name": "Sujeet Jaiswal",
     "url": "https://github.com/sujeet-pro"
@@ -11,5 +11,5 @@
   "homepage": "https://github.com/sujeet-pro/agents-devkit",
   "repository": "https://github.com/sujeet-pro/agents-devkit",
   "license": "MIT",
-  "keywords": ["code-review", "pr-review", "implement", "investigate", "documentation", "workflow", "engineering"]
+  "keywords": ["code-review", "pr-review", "implement", "investigate", "documentation", "workflow", "engineering", "pagesmith", "diagramkit", "scaffold", "docs", "diagrams"]
 }
