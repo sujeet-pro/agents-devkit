@@ -5,7 +5,7 @@
 1. **Never author from memory.** Engine choice, palettes, readability budgets, config schema, and embed markup come from `node_modules/diagramkit/skills/*` — read and follow the relevant skill. The installed copy tracks the installed version; anything you'd restate here would drift.
 2. **Verify the toolchain first.** `npx diagramkit doctor` must pass (diagramkit installed, Chromium warm) before any render. A failing doctor stops the work.
 3. **Anchor on the local install.** Always `npx diagramkit …` for this repo; never a global diagramkit and never a different version.
-4. **Render + validate every diagram.** A diagram ships only after `diagramkit render` produced its light/dark output and `diagramkit validate` passed (structure, embed-safety, WCAG contrast). A failing gate stops the phase — fix the cause, never suppress the check.
+4. **Render + validate every diagram.** A diagram ships only after `diagramkit render` produced its light/dark output and `diagramkit validate` passed (structure, embed-safety, WCAG contrast, light/dark readability). A failing gate stops the phase — fix the cause, never suppress the check.
 5. **Sources are the source of truth.** Edit the source, then re-render. Never hand-edit a generated `.svg`.
 6. **Validate before you embed.** Only embed a diagram that passed validation, and only via the `<picture>` light/dark pattern the installed skill documents.
 

@@ -12,7 +12,7 @@ Each dimension is a separate pass (a separate agent in the Workflow). A finding 
 - **concurrency** — transactional boundaries, idempotency where needed, lock ordering.
 - **feature-flow** — see below. Fires only when a flag/experiment/dynamic-config is in scope.
 - **style / consistency** — only flag a deviation from a *confirmed* local pattern (Grep the worktree to prove the pattern exists).
-- **pre-merge-sanity** — lint/typecheck clean, tests-added vs LOC, secrets, license headers on new files, accessibility on UI diffs, bundle size, doc-updated-for-behavior-change.
+- **pre-merge-sanity** — lint/typecheck clean, tests-added vs LOC, secrets, license headers on new files, accessibility on UI diffs, bundle size, doc-updated-for-behavior-change, embedded diagrams touched by the diff render readably in light and dark (labels, boxes, lines, arrows visible).
 
 ## Severity rubric (mirrors `persona.md`)
 

@@ -7,7 +7,7 @@ Route by the shape of the target → sub-flow → how the diff (or content) is r
 | GitHub PR URL | pr (most common) | `gh pr view <url> --json title,body,author,baseRefName,headRefName,headRefOid,additions,deletions,files` for metadata + `gh pr diff <url>` for the diff. Read existing threads with `gh pr view <url> --json comments,reviews` so you don't re-raise resolved feedback. |
 | `.` or a local directory path | working-tree | `git diff $(git merge-base HEAD origin/<default>)...HEAD` for the branch's change; `git diff` (or `git diff --staged`) for uncommitted work. State which you diffed. |
 | a single tracked file path | file | Read the file; if it's dirty, `git diff -- <path>`. Review only what changed unless the whole file is the ask. |
-| a markdown / doc file | doc | Read the doc and review prose — structure, unsupported claims, dead links, stale citations — not the code dimensions. |
+| a markdown / doc file | doc | Read the doc and review prose — structure, unsupported claims, dead links, stale citations — not the code dimensions. When the doc/article embeds diagrams, also confirm the embedded diagram SVGs render readably in light and dark (route diagram fixes to `/adk:diagramkit`). |
 | a comment-thread URL (PR review thread / issue) | thread | Fetch the thread — `gh api` for a GitHub thread, `WebFetch` for a plain web URL — then assess the exchange (is the concern resolved? still open?). |
 
 Routing is by data, not vibes. If several inputs match, the strongest discriminator wins: **GitHub PR URL > comment-thread URL > local path > single file > doc file.**

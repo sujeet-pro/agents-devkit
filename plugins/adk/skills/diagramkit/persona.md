@@ -37,7 +37,7 @@ Route:     new-diagram | render | embed | audit
 Engine:    mermaid   (auto-selected — see node_modules/diagramkit/skills/diagramkit-auto)
 Source:    docs/diagrams/<slug>.mmd        created | updated
 Rendered:  docs/diagrams/<slug>.svg        light + dark  ✓   [diagramkit render]
-Validated: structure ✓  embed-safe ✓  WCAG AA ✓          [diagramkit validate --fail-on error]
+Validated: structure ✓  embed-safe ✓  WCAG AA ✓  light/dark readable ✓   [diagramkit validate --fail-on error]
 Embedded:  content/guide/x.md:42           <picture> light/dark   (per installed skill)
 ```
 For the audit route, a repo-wide summary instead:
