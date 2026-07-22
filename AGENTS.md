@@ -77,6 +77,14 @@ node scripts/validate-plugin.mjs --json     # machine-readable report
 
 It asserts, for every `plugins/*/skills/*/`: SKILL.md has valid YAML frontmatter with a non-empty `name` (equal to the folder) and `description`; every repo-local relative path referenced (backtick or markdown link) from any `*.md` in the folder exists on disk — this is what catches a dangling `dispatch.md`-style reference; and any `plugin.json` that enumerates `skills` lists only real folders. It exits `0` when clean, `1` on any error, and never modifies a file. Run it before committing a skill change.
 
+## Repo-local skills
+
+Maintainer-facing **contributor** skills — distinct from the `adk` plugin's consumer skills under `plugins/adk/skills/` — live at [`.agents/skills/<name>/SKILL.md`](.agents/skills/) as the **canonical** body, with thin frontmatter-only mirrors under `.claude/skills/<name>/` and `.cursor/skills/<name>/` that just point back at the canonical file. Edit the canonical only; keep each mirror's `name` / `description` in lockstep with it. All carry a `prj-` prefix so they never clash with the plugin's skills, and they sit outside `plugins/`, so `validate-plugin.mjs` does not scan them.
+
+| Skill | Use when |
+|---|---|
+| [`prj-add-adk-skill`](.agents/skills/prj-add-adk-skill/SKILL.md) | Add a new `/adk:<name>` skill to the plugin, or modify an existing skill's workflow / rules. |
+
 ## Credentials toolkit (`scripts/creds/`)
 
 A standalone, stdlib-only Python toolkit that **validates and rotates the credentials the MCP servers consume** — it is not part of the plugin payload. The source of truth for secrets is `~/.zshenv`; `.env.example` is committed documentation only; rendered secrets under `.creds/` are gitignored and must never be read, echoed, or quoted (per `SAFETY.md`). See `scripts/creds/README.md` for the per-service check table and the "adding a service" guide.
