@@ -16,6 +16,7 @@ from types import ModuleType
 NAMES: list[str] = [
     "datadog",
     "atlassian",
+    "bitbucket",
     "slack",
     "statsig",
     "mixpanel",
@@ -29,6 +30,7 @@ _ALIASES = {
     "jira": "atlassian",
     "confluence": "atlassian",
     "atl": "atlassian",
+    "bb": "bitbucket",
     "sk": "slack",
     "sf": "snowflake",
     "snow": "snowflake",

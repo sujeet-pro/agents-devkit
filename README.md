@@ -1,6 +1,6 @@
 # Agents Dev Kit — a Claude Code plugin marketplace
 
-A focused, Claude-optimized engineering toolkit, packaged as a **single-plugin Claude Code marketplace**. Install it and you get six self-contained skills, a set of tailored sub-agents, and pre-wired (env-gated) MCP servers.
+A focused, Claude-optimized engineering toolkit, packaged as a **single-plugin Claude Code marketplace**. Install it and you get nine self-contained skills, a set of tailored sub-agents, and pre-wired (env-gated) MCP servers.
 
 Every skill is **self-contained** (its whole contract lives in its own folder), ships its **own phased workflow and tailored persona**, and uses the **Workflow tool** to fan out the heavy steps (multi-dimension review, multi-source investigation) with adversarial verification.
 
@@ -35,6 +35,9 @@ Skills also auto-trigger by intent (e.g. "review this PR", "why is checkout slow
 | `investigate` | Read-only multi-source RCA: pins an explicit window, fans out one agent per data source (Datadog / Slack / Statsig / Mixpanel / Snowflake / Looker / deploys), requires ≥2 agreeing signals before naming a root cause. |
 | `document` | Draft any markdown artifact (runbook / ADR / RCA / PR body / migration guide / …), reader-first and cited. Drafts locally; never publishes. |
 | `slack-post` | Send a message to a Slack channel / DM / thread with an explicit identity: posts **as you** by default, **as the bot** only when the prompt asks, and always appends a `Sent using Claude` footer. |
+| `pagesmith` | Build / extend / maintain an **existing** Pagesmith site (or a `@pagesmith/*` package): author pages, configure nav / theme / search, validate, deploy. Detects the site flavor and delegates deep authoring to the version-matched package skills under `node_modules` — never restates schemas from memory. Deploy is gated. |
+| `diagramkit` | Create, render, embed, and audit diagrams in any repo using `diagramkit`. Delegates engine choice / palette / readability budget to the installed `node_modules/diagramkit/skills/*`; writes local sources + light/dark SVGs and runs the local CLI. Never commits or publishes. |
+| `scaffold-pagesmith-docs` | Stand up a **brand-new** Pagesmith docs site from nothing — `@pagesmith/docs` wired to `diagramkit`, sample content, package skills installed, ending on a running preview. Greenfield counterpart to `pagesmith`; configures a deploy target but never pushes. |
 
 ## The agents
 
@@ -55,6 +58,7 @@ The plugin ships `.mcp.json` with these servers. Each is **opt-in via environmen
 |---|---|---|
 | `datadog` | investigate | `DATADOG_API_KEY`, `DATADOG_APP_KEY` |
 | `atlassian` | implement, document, investigate, pr-review | `ATLASSIAN_SITE`, `ATLASSIAN_USERNAME`, `ATLASSIAN_API_TOKEN` (needs `uvx`) |
+| `bitbucket` | ad-hoc data source (not wired into the GitHub-only code skills) | `ATLASSIAN_USERNAME` (email), `BITBUCKET_API_TOKEN`, `BITBUCKET_DEFAULT_WORKSPACE` — Bitbucket **Cloud only** (needs `npx`) |
 | `slack` | investigate, implement, slack-post | `SLACK_BOT_TOKEN`, `SLACK_USER_TOKEN` — reads + posts as you (needs `npx`) |
 | `slack-bot` | slack-post | `SLACK_BOT_TOKEN` — posts as the app/bot; only the post tool (needs `npx`) |
 | `statsig` | pr-review, investigate | `STATSIG_CONSOLE_API_KEY` |
@@ -79,14 +83,17 @@ Set these in your shell environment before launching Claude Code; `.mcp.json` ex
 plugins/adk/
 ├── .claude-plugin/plugin.json      # plugin manifest
 ├── .mcp.json                       # env-gated MCP servers
+├── SAFETY.md                       # shared safety contract (each skill's rules.md points here)
 ├── agents/                         # tailored sub-agents
 └── skills/<skill>/                 # one self-contained folder per skill
     ├── SKILL.md                    # entry point + frontmatter
     ├── persona.md                  # the skill's tailored voice
     ├── workflow.md                 # phased process + Workflow orchestration
-    ├── rules.md                    # hard rules, refusals, safety
+    ├── rules.md                    # hard rules + refusals + a pointer to ../../SAFETY.md
     └── …                           # dispatch / dimensions / types as needed
 ```
+
+> The multi-file split above is the convention for a full workflow skill. A narrow, single-tool-call skill may ship `SKILL.md` alone — `slack-post` does — a deliberate two-tier convention (full skills for real workflows, single-file for thin utilities).
 
 > The previous Textual TUI and `adk` CLI (queue, embeddings/SCIP pipeline, multi-host installers) live on the [`adk-cli`](https://github.com/sujeet-pro/agents-devkit/tree/adk-cli) branch. `main` is the marketplace.
 

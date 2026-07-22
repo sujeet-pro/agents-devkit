@@ -20,6 +20,15 @@
         "JIRA_API_TOKEN": "${ATLASSIAN_API_TOKEN}"
       }
     },
+    "bitbucket": {
+      "command": "npx",
+      "args": ["-y", "@aashari/mcp-server-atlassian-bitbucket@latest"],
+      "env": {
+        "ATLASSIAN_USER_EMAIL": "${ATLASSIAN_USERNAME}",
+        "ATLASSIAN_API_TOKEN": "${BITBUCKET_API_TOKEN}",
+        "BITBUCKET_DEFAULT_WORKSPACE": "${BITBUCKET_DEFAULT_WORKSPACE}"
+      }
+    },
     "slack": {
       "command": "npx",
       "args": ["-y", "slack-mcp-server@latest"],
